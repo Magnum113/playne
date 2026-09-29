@@ -55,6 +55,7 @@ jobs:
           set -Eeuo pipefail
           test -f dist/index.html
           test -f dist/naglaz/index.html
+          test -f dist/circle/index.html
           test -f dist/art/playne-logo.png
           test -f dist/favicon.svg
           test -f dist/favicon.ico
@@ -65,12 +66,12 @@ jobs:
               printf 'Symbolic link in output: %s\n' "$relative" >&2
               exit 1
             elif [[ -d "$entry" ]]; then
-              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' ]] || {
+              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' || "$relative" = 'circle' ]] || {
                 printf 'Unexpected output directory: %s\n' "$relative" >&2
                 exit 1
               }
             elif [[ -f "$entry" ]]; then
-              [[ "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
+              [[ "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'circle/index.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
                 "$relative" =~ ^assets/[A-Za-z0-9._-]+\.(js|css)$ ||
                 "$relative" =~ ^art/[A-Za-z0-9._-]+\.png$ ]] || {
                 printf 'Unexpected output file: %s\n' "$relative" >&2
@@ -102,7 +103,8 @@ jobs:
           grep -Fq 'https://mc.yandex.ru/metrika/tag.js?id=' "dist/assets/$javascript_file"
           grep -Fq '112711950' "dist/assets/$javascript_file"
           grep -Fq 'naglaz_game_complete' "dist/assets/$javascript_file"
-          ! grep -Eq '(src|href)="/naglaz/' dist/index.html
+          grep -Fq 'Круг — нарисуй идеальный круг | Playne' dist/circle/index.html
+          if grep -Eq '(src|href)="/naglaz/(assets|art)/' dist/index.html; then exit 1; fi
 
           printf 'javascript_file=%s\n' "$javascript_file" >> "$GITHUB_OUTPUT"
           printf 'stylesheet_file=%s\n' "$stylesheet_file" >> "$GITHUB_OUTPUT"
@@ -252,6 +254,14 @@ jobs:
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
             https://playne.ru/naglaz)"
           test "$game_redirect" = '308|https://playne.ru/naglaz/'
+
+          curl --fail --silent --show-error --max-time 20 \
+            https://playne.ru/circle/ --output "$RUNNER_TEMP/playne-circle.html"
+          cmp dist/circle/index.html "$RUNNER_TEMP/playne-circle.html"
+          circle_redirect="$(curl --silent --show-error --max-time 20 \
+            --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
+            https://playne.ru/circle)"
+          test "$circle_redirect" = '308|https://playne.ru/circle/'
 
           root_result="$(curl --silent --show-error --max-time 20 \
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \

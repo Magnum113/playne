@@ -2,6 +2,7 @@ import { DestroyWebsiteLink, PlayneBrand, ThemeToggle } from "./SiteHeader";
 import Silhouette from "./Silhouette";
 import { objects } from "./data";
 import { readBest } from "./game";
+import { circlePercent, readCircleBest } from "./circle";
 
 function Arrow() {
   return (
@@ -66,87 +67,36 @@ function SizePreview() {
   );
 }
 
-function MemoryPreview() {
+function CirclePreview() {
   return (
-    <svg viewBox="0 0 260 150" className="coming-preview" aria-hidden="true">
-      <g transform="rotate(-12 93 81)">
-        <rect
-          x="60"
-          y="28"
-          width="68"
-          height="98"
-          rx="13"
-          fill="var(--mint-tint)"
-          stroke="var(--mint)"
-          strokeWidth="1.5"
-        />
-        <path
-          d="m94 52 9 18 20 3-14 14 3 20-18-9-18 9 3-20-14-14 20-3Z"
-          fill="var(--mint)"
-        />
-      </g>
-      <g transform="rotate(12 165 78)">
-        <rect
-          x="131"
-          y="25"
-          width="68"
-          height="98"
-          rx="13"
-          fill="var(--purple-tint)"
-          stroke="var(--purple)"
-          strokeWidth="1.5"
-        />
-        <path
-          d="m165 49 9 18 20 3-14 14 3 20-18-9-18 9 3-20-14-14 20-3Z"
-          fill="var(--purple)"
-        />
-      </g>
-    </svg>
-  );
-}
-
-function GeographyPreview() {
-  return (
-    <svg
-      viewBox="0 0 260 150"
-      className="coming-preview"
-      fill="none"
-      aria-hidden="true"
-    >
+    <svg className="size-preview" viewBox="0 0 420 190" aria-hidden="true">
       <circle
-        cx="126"
-        cy="78"
-        r="46"
-        fill="var(--orange-tint)"
-        stroke="var(--orange)"
+        cx="210"
+        cy="94"
+        r="66"
+        fill="none"
+        stroke="var(--purple)"
         strokeWidth="1.5"
-      />
-      <ellipse
-        cx="126"
-        cy="78"
-        rx="21"
-        ry="46"
-        stroke="var(--orange)"
-        strokeWidth="1.2"
+        strokeDasharray="4 6"
+        opacity=".4"
       />
       <path
-        d="M82 65h88M82 91h88M126 32v92"
-        stroke="var(--orange)"
-        strokeWidth="1.2"
+        d="M275 94C280 128 250 163 213 164C174 165 143 136 142 97C139 63 164 26 205 25C243 24 276 51 276 91"
+        fill="none"
+        stroke="var(--mint)"
+        strokeWidth="3"
+        strokeLinecap="round"
       />
-      <path
-        d="M173 23a19 19 0 0 1 19 19c0 14-19 32-19 32s-19-18-19-32a19 19 0 0 1 19-19Z"
-        fill="var(--panel)"
-        stroke="var(--orange)"
-        strokeWidth="2"
-      />
-      <circle cx="173" cy="42" r="6" fill="var(--orange)" />
+      <circle cx="210" cy="94" r="12" fill="var(--purple-tint)" />
+      <circle cx="210" cy="94" r="4" fill="var(--purple)" />
+      <circle cx="276" cy="91" r="5" fill="var(--mint)" />
     </svg>
   );
 }
 
 export default function Hub() {
   const best = readBest();
+  const circleBest = readCircleBest();
   return (
     <div className="hub app">
       <a className="skip-link" href="#main-content">
@@ -172,7 +122,7 @@ export default function Hub() {
               <h1 id="games-title">Во что сыграем?</h1>
             </div>
             <p>
-              Проверь глазомер, память и интуицию.
+              Проверь глазомер и точность.
               <br /> Без скачивания и регистрации.
             </p>
           </div>
@@ -209,46 +159,38 @@ export default function Hub() {
                 </span>
               </div>
             </a>
-            <article className="game-card coming-card">
+            <a
+              className="game-card game-card-live"
+              href="/circle/"
+              aria-label="Играть в Круг"
+            >
               <div className="card-topline">
-                <span className="card-category">ПАМЯТЬ</span>
-                <span className="card-badge">Скоро</span>
+                <span className="card-category">ТОЧНОСТЬ</span>
+                <span className="card-badge available">
+                  <i /> Можно играть
+                </span>
               </div>
-              <MemoryPreview />
+              <CirclePreview />
               <div className="card-copy">
-                <h2>Пары</h2>
+                <h2>
+                  Круг<span className="brand-dot">.</span>
+                </h2>
                 <p>
-                  Открывай карточки.
-                  <br /> Запоминай. Находи совпадения.
+                  Нарисуй идеальный круг одним движением.
+                  <br /> Кажется, что это просто?
                 </p>
               </div>
               <div className="card-bottom">
-                <span>Готовим новую игру</span>
-                <span className="coming-arrow" aria-hidden="true">
-                  ↗
+                <span>
+                  {circleBest > 0
+                    ? `Твой рекорд: ${circlePercent(circleBest)}`
+                    : "Одна линия · 100% точности"}
+                </span>
+                <span className="card-play">
+                  Играть <Arrow />
                 </span>
               </div>
-            </article>
-            <article className="game-card coming-card">
-              <div className="card-topline">
-                <span className="card-category">ГЕОГРАФИЯ</span>
-                <span className="card-badge">Скоро</span>
-              </div>
-              <GeographyPreview />
-              <div className="card-copy">
-                <h2>Ближе</h2>
-                <p>
-                  Два города на карте.
-                  <br /> Какой из них ближе к тебе?
-                </p>
-              </div>
-              <div className="card-bottom">
-                <span>Готовим новую игру</span>
-                <span className="coming-arrow" aria-hidden="true">
-                  ↗
-                </span>
-              </div>
-            </article>
+            </a>
           </div>
         </section>
         <section className="hub-about" id="about" aria-labelledby="about-title">
@@ -256,7 +198,7 @@ export default function Hub() {
             <p className="eyebrow">О PLAYNE</p>
             <h2 id="about-title">Есть пара минут?</h2>
             <p>
-              Здесь будут разные простые игры.
+              Простые игры, к которым хочется вернуться.
               <br /> Выбирай любую и играй прямо в браузере.
             </p>
           </div>
@@ -291,7 +233,7 @@ export default function Hub() {
               <summary>
                 Все игры бесплатные?<span aria-hidden="true">+</span>
               </summary>
-              <p>Да. «На глаз» уже доступна бесплатно, без регистрации.</p>
+              <p>Да. «На глаз» и «Круг» доступны бесплатно, без регистрации.</p>
             </details>
             <details>
               <summary>
@@ -304,11 +246,11 @@ export default function Hub() {
             </details>
             <details>
               <summary>
-                Когда появятся новые игры?<span aria-hidden="true">+</span>
+                Можно играть с телефона?<span aria-hidden="true">+</span>
               </summary>
               <p>
-                Добавим их сюда, когда они будут готовы. Пока можно проверить
-                свой глазомер в «На глаз».
+                Да. В «На глаз» меняй размер пальцем, а в «Круге» рисуй прямо на
+                экране.
               </p>
             </details>
           </div>

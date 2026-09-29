@@ -295,7 +295,7 @@ with tarfile.open(archive, mode="r:") as bundle:
             raise SystemExit("archive contains platform metadata")
         if member.isdir() and member.type != tarfile.DIRTYPE:
             raise SystemExit("archive contains a non-standard directory")
-        if member.isdir() and normalized not in {"naglaz", "naglaz/assets", "naglaz/art", "naglaz/naglaz"}:
+        if member.isdir() and normalized not in {"naglaz", "naglaz/assets", "naglaz/art", "naglaz/naglaz", "naglaz/circle"}:
             raise SystemExit("archive contains an unexpected directory")
         if member.isfile() and member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}:
             raise SystemExit("archive contains a sparse or non-standard regular file")
@@ -325,7 +325,8 @@ with tarfile.open(archive, mode="r:") as bundle:
         raise SystemExit("archive must contain exactly one JavaScript and one CSS bundle")
     if len(artwork) > 64:
         raise SystemExit("archive contains too many artwork files")
-    allowed_files = required | set(javascript) | set(stylesheets) | set(artwork)
+    optional_pages = {"naglaz/circle/index.html"} & set(regular_files)
+    allowed_files = required | optional_pages | set(javascript) | set(stylesheets) | set(artwork)
     if set(regular_files) != allowed_files:
         raise SystemExit("archive contains an unexpected public file")
     for asset in javascript + stylesheets + artwork:
@@ -475,6 +476,11 @@ health_check() {
   if [[ -f "$release_dir/naglaz/naglaz/index.html" ]]; then
     curl "${curl_options[@]}" --fail https://playne.ru/naglaz/ --output "$index_file" || return 1
     cmp --silent "$release_dir/naglaz/naglaz/index.html" "$index_file" || return 1
+  fi
+
+  if [[ -f "$release_dir/naglaz/circle/index.html" ]]; then
+    curl "${curl_options[@]}" --fail https://playne.ru/circle/ --output "$index_file" || return 1
+    cmp --silent "$release_dir/naglaz/circle/index.html" "$index_file" || return 1
   fi
 
   root_result="$(curl "${curl_options[@]}" --output /dev/null \

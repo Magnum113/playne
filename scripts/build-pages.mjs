@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { createServer } from "vite";
 
-// Two real static pages share the app bundle. Unknown URLs remain 404s.
+// Separate real static pages share the app bundle. Unknown URLs remain 404s.
 const home = await readFile(
   new URL("../dist/index.html", import.meta.url),
   "utf8",
@@ -14,7 +14,7 @@ const game = home
     "На глаз — игра в размеры | Playne",
   )
   .replace(
-    "Игры на глазомер, память и интуицию. Бесплатно, без скачивания и регистрации.",
+    "Игры на глазомер и точность. Бесплатно, без скачивания и регистрации.",
     "Подбери размер предмета рядом с другим. Пять раундов, 22 сравнения и твой глазомер.",
   )
   .replace('href="https://playne.ru/"', 'href="https://playne.ru/naglaz/"');
@@ -34,10 +34,26 @@ try {
   }
   await writeFile(
     new URL("../dist/index.html", import.meta.url),
-    home.replace('<div id="root"></div>', () => `<div id="root">${markup}</div>`),
+    home.replace(
+      '<div id="root"></div>',
+      () => `<div id="root">${markup}</div>`,
+    ),
   );
 } finally {
   await server.close();
 }
 await mkdir(new URL("../dist/naglaz/", import.meta.url), { recursive: true });
 await writeFile(new URL("../dist/naglaz/index.html", import.meta.url), game);
+
+const circle = home
+  .replace(
+    "Playne — небольшие игры в браузере",
+    "Круг — нарисуй идеальный круг | Playne",
+  )
+  .replace(
+    "Игры на глазомер и точность. Бесплатно, без скачивания и регистрации.",
+    "Нарисуй круг одним движением и узнай свою точность. Бесплатная игра без регистрации на Playne.",
+  )
+  .replace('href="https://playne.ru/"', 'href="https://playne.ru/circle/"');
+await mkdir(new URL("../dist/circle/", import.meta.url), { recursive: true });
+await writeFile(new URL("../dist/circle/index.html", import.meta.url), circle);
