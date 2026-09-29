@@ -1,4 +1,4 @@
-import { PlayneBrand, ThemeToggle } from "./SiteHeader";
+import { DestroyWebsiteLink, PlayneBrand, ThemeToggle } from "./SiteHeader";
 import Silhouette from "./Silhouette";
 import { objects } from "./data";
 import { readBest } from "./game";
@@ -160,6 +160,7 @@ export default function Hub() {
         <nav aria-label="Навигация">
           <a href="#games">Игры</a>
           <a href="#about">О Playne</a>
+          <DestroyWebsiteLink />
           <ThemeToggle />
         </nav>
       </header>
@@ -316,6 +317,7 @@ export default function Hub() {
       <footer className="hub-footer">
         <PlayneBrand />
         <span>Небольшие игры для любопытных.</span>
+        <DestroyWebsiteLink badge />
         <a href="#games">Выбрать игру ↑</a>
       </footer>
     </div>

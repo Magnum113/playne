@@ -1,5 +1,32 @@
 import { useTheme } from "./theme";
 
+export function DestroyWebsiteLink({ badge = false }: { badge?: boolean }) {
+  return (
+    <a
+      className={badge ? "destroy-badge" : "destroy-link"}
+      href="https://destroy.spritefusion.com/?from=badge"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Разрушить сайт — Sprite Fusion, откроется в новой вкладке"
+    >
+      {badge ? (
+        <img
+          src="https://destroy.spritefusion.com/badge.svg"
+          alt="Destroy this website"
+          width="180"
+          height="40"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <>
+          Разрушить сайт <span aria-hidden="true">↗</span>
+        </>
+      )}
+    </a>
+  );
+}
+
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   return (
