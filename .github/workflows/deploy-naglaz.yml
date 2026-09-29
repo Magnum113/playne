@@ -257,13 +257,3 @@ jobs:
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
             https://www.playne.ru/)"
           test "$root_result" = '308|https://playne.ru/'
-
-          canonical_result="$(curl --silent --show-error --max-time 20 \
-            --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
-            https://kadimag.ru/naglaz/)"
-          test "$canonical_result" = '308|https://playne.ru/naglaz/'
-
-          boundary_status="$(curl --silent --show-error --max-time 20 \
-            --output /dev/null --write-out '%{http_code}' \
-            https://kadimag.ru/naglaz-private-probe)"
-          test "$boundary_status" = 307

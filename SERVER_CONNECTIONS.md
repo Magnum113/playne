@@ -1,31 +1,13 @@
-# Playne и Kadimag: проверка сервера
+# Разделение Playne и Kadimag
 
-Проверено 29 сентября 2026 года по активной конфигурации Nginx, скриптам деплоя, путям файлов, настройкам сервиса и HTTPS-ответам на сервере `89.111.152.112`.
+Проверено 29 сентября 2026 года на сервере `89.111.152.112` после удаления старых маршрутов игры.
 
-## Что отделено
+- Playne публикуется из репозитория `Magnum113/playne` в `/srv/playne/releases`; активный релиз выбирает `/srv/playne/current`. Код игры и хаба раздаётся только на `playne.ru` и `www.playne.ru` конфигурацией `/etc/nginx/sites-available/playne-domain`.
+- У Playne свой сертификат `/etc/letsencrypt/live/playne.ru`, отдельный пользователь деплоя `naglaz-deploy`, команды деплоя и каталог `/srv/playne`. Игра не обращается к приложению, API или файлам Kadimag.
+- В конфигурации `kadimag.ru` удалён include `playne-canonical.conf`; старый сайт `/etc/nginx/sites-available/playne`, обслуживавший `www.kadimag.ru`, выведен из Nginx. Обычное перенаправление `www.kadimag.ru` на `kadimag.ru` сохранено в отдельном сайте `/etc/nginx/sites-available/kadimag-www`, без маршрутов Playne.
+- Snippet-файлы `playne-canonical.conf` и `playne-public.conf` убраны из активной конфигурации Nginx. Старые адреса `/naglaz/`, `/naglaz/assets/` и `/naglaz/art/` на домене Kadimag больше не перенаправляют посетителей и не раздают файлы Playne.
+- Деплой Playne проверяет только `playne.ru` и `www.playne.ru`. Из серверного скрипта и GitHub Actions удалены запросы к Kadimag. В счётчике Метрики `112711950` дополнительный адрес Kadimag удалён; приём данных ограничен `playne.ru`.
 
-- Файлы Playne находятся в `/srv/playne/releases`, текущая версия выбирается ссылкой `/srv/playne/current`. Ссылок из этой папки в `/srv/kadimag` нет.
-- `playne.ru` обслуживает собственный конфиг `/etc/nginx/sites-available/playne-domain`. Он раздаёт статические файлы из `/srv/playne/current/naglaz` и не обращается к процессу или API Kadimag.
-- HTTPS использует отдельный сертификат `/etc/letsencrypt/live/playne.ru`. Сертификат Kadimag находится в другом каталоге.
-- Деплой использует отдельного пользователя `naglaz-deploy`, каталог `/var/lib/naglaz-deploy` и команды, работающие с `/srv/playne`.
-- Сервис Kadimag работает из `/srv/kadimag/app/current`; в `/srv/kadimag` на проверенной глубине до шести уровней папок с именем `naglaz` не найдено.
+Перед изменениями файлы Nginx и скрипт деплоя сохранены в `/srv/playne/backups/decouple-kadimag-20260929T165524Z`. Проверка `nginx -t` прошла, Nginx перезагружен; контрольные суммы конфигураций Komui и GetoMerch не изменились. После изменения `playne.ru/` и `playne.ru/naglaz/` отвечали HTTP 200, `www.playne.ru/` перенаправлял на `playne.ru`, а Kadimag `/api/health` отвечал HTTP 200.
 
-## Какие связи остались
-
-| Связь | Где находится | Для чего нужна |
-| --- | --- | --- |
-| Старый адрес `kadimag.ru/naglaz/` | `/etc/nginx/sites-available/kadimag.ru` включает `/etc/nginx/snippets/playne-canonical.conf` | Перенаправляет старые ссылки на `https://playne.ru/naglaz/` |
-| Старый адрес `www.kadimag.ru/naglaz/` | `/etc/nginx/sites-available/playne` и `/etc/nginx/snippets/playne-public.conf` | Перенаправляет старые ссылки на новый домен |
-| Старые адреса файлов `/naglaz/assets/` и `/naglaz/art/` на Kadimag | Оба указанных выше snippet-файла | Раздают файлы из `/srv/playne/current` и предыдущего релиза для старых открытых вкладок |
-| Сертификат Kadimag у старого www-адреса | `/etc/nginx/sites-available/playne` | Нужен только для HTTPS старого домена; новый `playne.ru` использует собственный сертификат |
-| Проверки Kadimag при деплое Playne | `/usr/local/sbin/naglaz-deploy` и `.github/workflows/deploy-naglaz.yml` | Проверяют редирект старого адреса и статус 307 защищённого пути `kadimag.ru/naglaz-private-probe` |
-| Общий VPS и Nginx | Сервер `89.111.152.112` | Общая инфраструктура хостинга |
-
-Последняя проверка в деплое — реальная зависимость публикации: если Kadimag перестанет возвращать ожидаемый ответ для защищённого пути, активация новой версии Playne откатится либо проверка GitHub Actions завершится ошибкой. Текущие статические страницы Playne не используют приложение Kadimag.
-
-## Проверенные ответы
-
-- `kadimag.ru/naglaz/` → HTTP 308, `https://playne.ru/naglaz/`.
-- `www.kadimag.ru/naglaz/` → HTTP 308, `https://playne.ru/naglaz/`.
-
-Проверка связей ничего не удаляла и не меняла в Kadimag. В этой задаче изменены только файлы favicon и разрешённый состав пакета Playne.
+Оба проекта пока используют **один VPS, IP-адрес и процесс Nginx**. Это общая инфраструктура, а не связь приложения или деплоя. Для физического разделения понадобится отдельный сервер и перенос DNS Playne.

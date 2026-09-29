@@ -439,8 +439,6 @@ health_check() {
   local javascript_file
   local stylesheet_file
   local root_result
-  local canonical_result
-  local boundary_status
   local -a curl_options
 
   index_file="$(mktemp /run/naglaz-health.XXXXXXXX)"
@@ -455,8 +453,6 @@ health_check() {
     --max-time 10
     --resolve 'playne.ru:443:127.0.0.1'
     --resolve 'www.playne.ru:443:127.0.0.1'
-    --resolve 'www.kadimag.ru:443:127.0.0.1'
-    --resolve 'kadimag.ru:443:127.0.0.1'
   )
 
   for attempt in {1..15}; do
@@ -484,12 +480,6 @@ health_check() {
   root_result="$(curl "${curl_options[@]}" --output /dev/null \
     --write-out '%{http_code}|%{redirect_url}' https://www.playne.ru/)" || return 1
   [[ "$root_result" = '308|https://playne.ru/' ]] || return 1
-  canonical_result="$(curl "${curl_options[@]}" --output /dev/null \
-    --write-out '%{http_code}|%{redirect_url}' https://kadimag.ru/naglaz/)" || return 1
-  [[ "$canonical_result" = '308|https://playne.ru/naglaz/' ]] || return 1
-  boundary_status="$(curl "${curl_options[@]}" --output /dev/null \
-    --write-out '%{http_code}' https://kadimag.ru/naglaz-private-probe)" || return 1
-  [[ "$boundary_status" = 307 ]] || return 1
 
   rm -f -- "$index_file"
   trap - RETURN
