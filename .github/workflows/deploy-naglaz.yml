@@ -1,4 +1,4 @@
-name: Deploy Na Glaz to production
+name: Deploy Playne to production
 
 on:
   push:
@@ -49,7 +49,7 @@ jobs:
       - name: Build production assets
         run: npm run build
 
-      - name: Validate the subpath build
+      - name: Validate the domain-root build
         id: assets
         run: |
           set -Eeuo pipefail
@@ -88,14 +88,14 @@ jobs:
 
           javascript_file="${javascript_files[0]}"
           stylesheet_file="${stylesheet_files[0]}"
-          grep -Fq "/naglaz/assets/$javascript_file" dist/index.html
-          grep -Fq "/naglaz/assets/$stylesheet_file" dist/index.html
-          grep -Fq '/naglaz/favicon.svg' dist/index.html
+          grep -Fq "/assets/$javascript_file" dist/index.html
+          grep -Fq "/assets/$stylesheet_file" dist/index.html
+          grep -Fq '/favicon.svg' dist/index.html
           grep -Fq 'https://mc.yandex.ru/watch/112711950' dist/index.html
           grep -Fq 'https://mc.yandex.ru/metrika/tag.js?id=' "dist/assets/$javascript_file"
           grep -Fq '112711950' "dist/assets/$javascript_file"
           grep -Fq 'naglaz_game_complete' "dist/assets/$javascript_file"
-          ! grep -Eq '(src|href)="/(assets/|favicon\.svg)' dist/index.html
+          ! grep -Eq '(src|href)="/naglaz/' dist/index.html
 
           printf 'javascript_file=%s\n' "$javascript_file" >> "$GITHUB_OUTPUT"
           printf 'stylesheet_file=%s\n' "$stylesheet_file" >> "$GITHUB_OUTPUT"
@@ -199,23 +199,23 @@ jobs:
 
           curl --fail --silent --show-error --max-time 20 \
             --dump-header "$index_headers" \
-            https://www.kadimag.ru/naglaz/ --output "$index_file"
+            https://playne.ru/ --output "$index_file"
           test "$(sha256sum "$index_file" | awk '{print $1}')" = "$INDEX_DIGEST"
           tr -d '\r' < "$index_headers" | \
             grep -Eiq "^content-security-policy:.*script-src.*mc\.yandex\.ru.*connect-src.*mc\.yandex\.ru"
           ! tr -d '\r' < "$index_headers" | grep -Eiq '^content-security-policy:.*sandbox'
 
           curl --fail --silent --show-error --max-time 20 \
-            https://www.kadimag.ru/naglaz/favicon.svg --output "$favicon_file"
+            https://playne.ru/favicon.svg --output "$favicon_file"
           test "$(sha256sum "$favicon_file" | awk '{print $1}')" = "$FAVICON_DIGEST"
 
           curl --fail --silent --show-error --max-time 20 \
-            "https://www.kadimag.ru/naglaz/assets/$JAVASCRIPT_FILE" \
+            "https://playne.ru/assets/$JAVASCRIPT_FILE" \
             --output "$javascript_file"
           test "$(sha256sum "$javascript_file" | awk '{print $1}')" = "$JAVASCRIPT_DIGEST"
 
           curl --fail --silent --show-error --max-time 20 \
-            "https://www.kadimag.ru/naglaz/assets/$STYLESHEET_FILE" \
+            "https://playne.ru/assets/$STYLESHEET_FILE" \
             --output "$stylesheet_file"
           test "$(sha256sum "$stylesheet_file" | awk '{print $1}')" = "$STYLESHEET_DIGEST"
 
@@ -225,7 +225,7 @@ jobs:
             artwork_headers="$RUNNER_TEMP/naglaz-artwork.headers"
             curl --fail --silent --show-error --max-time 20 \
               --header 'Origin: null' --dump-header "$artwork_headers" \
-              "https://www.kadimag.ru/naglaz/art/$(basename "$artwork")" \
+              "https://playne.ru/art/$(basename "$artwork")" \
               --output "$artwork_file"
             cmp "$artwork" "$artwork_file"
             tr -d '\r' < "$artwork_headers" | grep -Eiq '^content-type: image/png'
@@ -235,13 +235,13 @@ jobs:
 
           root_result="$(curl --silent --show-error --max-time 20 \
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
-            https://www.kadimag.ru/naglaz)"
-          test "$root_result" = '308|https://www.kadimag.ru/naglaz/'
+            https://www.playne.ru/)"
+          test "$root_result" = '308|https://playne.ru/'
 
           canonical_result="$(curl --silent --show-error --max-time 20 \
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
             https://kadimag.ru/naglaz/)"
-          test "$canonical_result" = '308|https://www.kadimag.ru/naglaz/'
+          test "$canonical_result" = '308|https://playne.ru/'
 
           boundary_status="$(curl --silent --show-error --max-time 20 \
             --output /dev/null --write-out '%{http_code}' \

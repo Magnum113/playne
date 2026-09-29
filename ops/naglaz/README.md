@@ -19,26 +19,43 @@ in `Magnum113/playne`:
 - `NAGLAZ_VPS_SSH_KEY_B64`
 - `NAGLAZ_VPS_KNOWN_HOSTS_B64`
 
-The active Nginx configuration serves the game at
-`https://www.kadimag.ru/naglaz/` from `/srv/playne/current`. The public
-`https://kadimag.ru/naglaz/` address redirects there. The `www` origin is
-deliberately separate from the private Kadimag app, so the game can use
-`localStorage` for the record without seeing the private app's browser storage.
+## Domain and HTTPS
 
-The dedicated Nginx site is `/etc/nginx/sites-available/playne`, enabled by
-`/etc/nginx/sites-enabled/playne`. Install `playne-site.nginx.conf` there and
-`www-origin.nginx.conf` as `/etc/nginx/snippets/playne-public.conf`.
-Install `canonical-origin.nginx.conf` as
-`/etc/nginx/snippets/playne-canonical.conf`; the `kadimag.ru` HTTPS server includes
-that snippet only to support the existing `/naglaz` URLs. The `www.kadimag.ru`
-server blocks belong entirely to Playne. Access and error logs are
-`/var/log/nginx/playne.access.log` and `/var/log/nginx/playne.error.log`.
+The canonical game address is `https://playne.ru/`. REG.RU DNS records are:
 
-SVG images request PNG artwork with `crossOrigin="anonymous"`, so the public
-art directory sends CORS/CORP headers. Keep these headers scoped to
-`/naglaz/art/`. The game uses a restrictive CSP without the `sandbox` directive;
-origin isolation comes from `www`, while browser storage remains available.
-The deployment workflow verifies the content and headers of every artwork file.
+- `A @ → 89.111.152.112`
+- `A www → 89.111.152.112`
+- Name servers remain `ns1.reg.ru` and `ns2.reg.ru`.
+
+`www.playne.ru` redirects to the apex domain. The dedicated site is
+`/etc/nginx/sites-available/playne-domain`, enabled by the matching symlink in
+`sites-enabled`. Install `playne-domain.nginx.conf` there and
+`playne-domain-public.nginx.conf` as
+`/etc/nginx/snippets/playne-domain-public.conf`.
+It serves `/srv/playne/current/naglaz` at the domain root. The `naglaz` folder
+inside each release is the deployment archive format, not a public URL prefix.
+
+The separate Let's Encrypt certificate covers `playne.ru` and `www.playne.ru`;
+it is stored under `/etc/letsencrypt/live/playne.ru` and uses the existing
+Certbot renewal timer. HTTP-01 verification uses `/var/www/letsencrypt`.
+A post-renewal deploy hook reloads Nginx so the renewed certificate is served.
+
+The old `kadimag.ru/naglaz/` and `www.kadimag.ru/naglaz/` addresses redirect to
+`https://playne.ru/`. The legacy www site remains in
+`/etc/nginx/sites-available/playne`, using `playne-site.nginx.conf` and the
+`playne-public.conf` snippet (`www-origin.nginx.conf` in this repository).
+The private `kadimag.ru` site includes `playne-canonical.conf`
+(`canonical-origin.nginx.conf` in this repository) for legacy game paths only.
+Asset routes under `/naglaz/assets/` and `/naglaz/art/` remain available for
+older open tabs. Both public HTML and artwork use the current release;
+hashed bundles can fall back to the previous release.
+
+Access and error logs are `/var/log/nginx/playne.access.log` and
+`/var/log/nginx/playne.error.log`. PNG artwork uses CORS/CORP headers, and the
+HTML CSP allows the configured Yandex Metrika domains without a sandbox.
+The Metrika counter `112711950` accepts `playne.ru` as its primary site and
+`kadimag.ru/naglaz/` as an additional legacy site; all six existing goal IDs
+are preserved.
 
 ## Server project boundaries
 
@@ -47,7 +64,7 @@ The deployment workflow verifies the content and headers of every artwork file.
 - `naglaz-deploy` is the existing dedicated locked SSH account. Its home and upload lock are in `/var/lib/naglaz-deploy`.
 - `/usr/local/libexec/naglaz-ci-ssh` and `/usr/local/sbin/naglaz-deploy` operate only on `/srv/playne`.
 - The game is static: it needs no application process, database, or files from `/srv/kadimag`, `/opt/komui`, or `/opt/getomerch`.
-- Nginx and the TLS certificate for the existing domain are host infrastructure shared with other sites.
+- Nginx is shared host infrastructure; Playne has its own domain, site configuration and TLS certificate.
 
 `isolate-playne.sh` performs the one-time migration from `/srv/naglaz`:
 copies and compares all releases, backs up the original Nginx/deployment files,

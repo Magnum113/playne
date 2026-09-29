@@ -387,9 +387,9 @@ check_release_directory() {
   stylesheet_file="$(find "$release_dir/naglaz/assets" -maxdepth 1 -type f -name '*.css' -printf '%f\n')"
   [[ "$javascript_file" =~ ^[A-Za-z0-9._-]+\.js$ ]] || return 1
   [[ "$stylesheet_file" =~ ^[A-Za-z0-9._-]+\.css$ ]] || return 1
-  grep -Fq "/naglaz/assets/$javascript_file" "$release_dir/naglaz/index.html" || return 1
-  grep -Fq "/naglaz/assets/$stylesheet_file" "$release_dir/naglaz/index.html" || return 1
-  grep -Fq '/naglaz/favicon.svg' "$release_dir/naglaz/index.html" || return 1
+  grep -Fq "/assets/$javascript_file" "$release_dir/naglaz/index.html" || return 1
+  grep -Fq "/assets/$stylesheet_file" "$release_dir/naglaz/index.html" || return 1
+  grep -Fq '/favicon.svg' "$release_dir/naglaz/index.html" || return 1
   grep -Fq 'https://mc.yandex.ru/watch/112711950' "$release_dir/naglaz/index.html" || return 1
   grep -Fq 'https://mc.yandex.ru/metrika/tag.js?id=' \
     "$release_dir/naglaz/assets/$javascript_file" || return 1
@@ -451,12 +451,14 @@ health_check() {
     --show-error
     --connect-timeout 3
     --max-time 10
+    --resolve 'playne.ru:443:127.0.0.1'
+    --resolve 'www.playne.ru:443:127.0.0.1'
     --resolve 'www.kadimag.ru:443:127.0.0.1'
     --resolve 'kadimag.ru:443:127.0.0.1'
   )
 
   for attempt in {1..15}; do
-    if curl "${curl_options[@]}" --fail https://www.kadimag.ru/naglaz/ --output "$index_file" &&
+    if curl "${curl_options[@]}" --fail https://playne.ru/ --output "$index_file" &&
       cmp --silent "$release_dir/naglaz/index.html" "$index_file"; then
       healthy=1
       break
@@ -466,18 +468,18 @@ health_check() {
   (( healthy == 1 )) || return 1
 
   curl "${curl_options[@]}" --fail \
-    "https://www.kadimag.ru/naglaz/assets/$javascript_file" --output "$index_file" || return 1
+    "https://playne.ru/assets/$javascript_file" --output "$index_file" || return 1
   cmp --silent "$release_dir/naglaz/assets/$javascript_file" "$index_file" || return 1
   curl "${curl_options[@]}" --fail \
-    "https://www.kadimag.ru/naglaz/assets/$stylesheet_file" --output "$index_file" || return 1
+    "https://playne.ru/assets/$stylesheet_file" --output "$index_file" || return 1
   cmp --silent "$release_dir/naglaz/assets/$stylesheet_file" "$index_file" || return 1
 
   root_result="$(curl "${curl_options[@]}" --output /dev/null \
-    --write-out '%{http_code}|%{redirect_url}' https://www.kadimag.ru/naglaz)" || return 1
-  [[ "$root_result" = '308|https://www.kadimag.ru/naglaz/' ]] || return 1
+    --write-out '%{http_code}|%{redirect_url}' https://www.playne.ru/)" || return 1
+  [[ "$root_result" = '308|https://playne.ru/' ]] || return 1
   canonical_result="$(curl "${curl_options[@]}" --output /dev/null \
     --write-out '%{http_code}|%{redirect_url}' https://kadimag.ru/naglaz/)" || return 1
-  [[ "$canonical_result" = '308|https://www.kadimag.ru/naglaz/' ]] || return 1
+  [[ "$canonical_result" = '308|https://playne.ru/' ]] || return 1
   boundary_status="$(curl "${curl_options[@]}" --output /dev/null \
     --write-out '%{http_code}' https://kadimag.ru/naglaz-private-probe)" || return 1
   [[ "$boundary_status" = 307 ]] || return 1
