@@ -1110,6 +1110,7 @@ dialog .primary {
   gap: 16px;
 }
 .back-to-hub {
+  white-space: nowrap;
   color: var(--muted);
   font-size: 13px;
   text-decoration: none;
@@ -1142,12 +1143,6 @@ footer .playne-brand img {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-}
-.brand-tagline {
-  margin: 10px 0 0 92px;
-  font-size: 13px;
-  color: var(--muted);
-  letter-spacing: 0.1px;
 }
 .hub-header nav {
   display: flex;
@@ -1513,39 +1508,39 @@ footer .playne-brand img {
   }
 }
 @media (max-width: 700px) {
+  .header,
   .hub-header {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    padding: 28px 0 14px;
-    gap: 15px;
-  }
-  .playne-brand-large {
-    font-size: 46px;
+    height: 64px;
     gap: 10px;
-    letter-spacing: -2.5px;
   }
-  .playne-brand-large img {
-    width: 54px;
-    height: 54px;
+  .hub-header {
+    display: flex;
+    padding: 10px 0;
   }
-  .brand-tagline {
-    margin-left: 65px;
-    font-size: 11px;
+  .header .playne-brand,
+  .hub-header .playne-brand {
+    font-size: 24px;
+    gap: 6px;
+    letter-spacing: -1.1px;
+    min-height: 44px;
+    flex-shrink: 0;
+  }
+  .header .playne-brand img,
+  .hub-header .playne-brand img {
+    width: 32px;
+    height: 32px;
   }
   .hub-header nav {
-    display: contents;
+    display: flex;
+    gap: 8px;
   }
-  .hub-header nav a {
+  .hub-header nav > a:not(.destroy-link) {
     display: none;
   }
   .hub-header nav .destroy-link {
-    grid-column: 1 / -1;
-    justify-self: start;
-  }
-  .hub-header nav .theme-toggle {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: start;
+    padding: 10px;
+    font-size: 12px;
+    gap: 6px;
   }
   .hub-intro {
     display: block;
@@ -1630,14 +1625,48 @@ footer .playne-brand img {
     gap: 8px;
   }
   .game-header-actions .theme-toggle {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
+  }
+  .header .help-button {
+    min-height: 44px;
+  }
+  .header .brand {
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .back-to-hub {
     font-size: 11px;
   }
 }
 @media (max-width: 360px) {
+  .header,
+  .hub-header,
+  .hub-header nav {
+    gap: 6px;
+  }
+  .header .playne-brand,
+  .hub-header .playne-brand {
+    font-size: 20px;
+    gap: 5px;
+  }
+  .header .playne-brand img,
+  .hub-header .playne-brand img {
+    width: 26px;
+    height: 26px;
+  }
+  .hub-header nav .destroy-link {
+    font-size: 11px;
+    padding-inline: 8px;
+    gap: 5px;
+  }
+  .header .help-button {
+    gap: 5px;
+    padding-left: 5px;
+  }
+  .header .help-button .question {
+    display: none;
+  }
   .game-cards {
     grid-template-columns: 1fr;
   }

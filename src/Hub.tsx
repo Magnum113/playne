@@ -103,10 +103,7 @@ export default function Hub() {
         Перейти к играм
       </a>
       <header className="hub-header">
-        <div>
-          <PlayneBrand large />
-          <p className="brand-tagline">Место для небольших игр</p>
-        </div>
+        <PlayneBrand large />
         <nav aria-label="Навигация">
           <a href="#games">Игры</a>
           <a href="#about">О Playne</a>
