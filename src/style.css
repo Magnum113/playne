@@ -1219,7 +1219,7 @@ footer .playne-brand img {
 }
 .game-cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 .game-card {
@@ -1473,7 +1473,7 @@ footer .playne-brand img {
     display: none;
   }
   .game-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
   }
   .game-card {

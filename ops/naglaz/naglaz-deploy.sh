@@ -295,7 +295,7 @@ with tarfile.open(archive, mode="r:") as bundle:
             raise SystemExit("archive contains platform metadata")
         if member.isdir() and member.type != tarfile.DIRTYPE:
             raise SystemExit("archive contains a non-standard directory")
-        if member.isdir() and normalized not in {"naglaz", "naglaz/assets", "naglaz/art", "naglaz/naglaz", "naglaz/circle"}:
+        if member.isdir() and normalized not in {"naglaz", "naglaz/assets", "naglaz/art", "naglaz/naglaz", "naglaz/circle", "naglaz/colorfle"}:
             raise SystemExit("archive contains an unexpected directory")
         if member.isfile() and member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}:
             raise SystemExit("archive contains a sparse or non-standard regular file")
@@ -325,7 +325,7 @@ with tarfile.open(archive, mode="r:") as bundle:
         raise SystemExit("archive must contain exactly one JavaScript and one CSS bundle")
     if len(artwork) > 64:
         raise SystemExit("archive contains too many artwork files")
-    optional_pages = {"naglaz/circle/index.html"} & set(regular_files)
+    optional_pages = {"naglaz/circle/index.html", "naglaz/colorfle/index.html"} & set(regular_files)
     allowed_files = required | optional_pages | set(javascript) | set(stylesheets) | set(artwork)
     if set(regular_files) != allowed_files:
         raise SystemExit("archive contains an unexpected public file")
@@ -481,6 +481,11 @@ health_check() {
   if [[ -f "$release_dir/naglaz/circle/index.html" ]]; then
     curl "${curl_options[@]}" --fail https://playne.ru/circle/ --output "$index_file" || return 1
     cmp --silent "$release_dir/naglaz/circle/index.html" "$index_file" || return 1
+  fi
+
+  if [[ -f "$release_dir/naglaz/colorfle/index.html" ]]; then
+    curl "${curl_options[@]}" --fail https://playne.ru/colorfle/ --output "$index_file" || return 1
+    cmp --silent "$release_dir/naglaz/colorfle/index.html" "$index_file" || return 1
   fi
 
   root_result="$(curl "${curl_options[@]}" --output /dev/null \

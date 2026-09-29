@@ -3,6 +3,7 @@ import Silhouette from "./Silhouette";
 import { objects } from "./data";
 import { readBest } from "./game";
 import { circlePercent, readCircleBest } from "./circle";
+import { PALETTE, mixture } from "./colorfle";
 
 function Arrow() {
   return (
@@ -90,6 +91,41 @@ function CirclePreview() {
       <circle cx="210" cy="94" r="12" fill="var(--purple-tint)" />
       <circle cx="210" cy="94" r="4" fill="var(--purple)" />
       <circle cx="276" cy="91" r="5" fill="var(--mint)" />
+    </svg>
+  );
+}
+
+function ColorPreview() {
+  return (
+    <svg className="size-preview" viewBox="0 0 420 190" aria-hidden="true">
+      <circle cx="107" cy="76" r="28" fill={PALETTE[4].hex} />
+      <circle cx="174" cy="76" r="23" fill={PALETTE[6].hex} />
+      <circle
+        cx="230"
+        cy="76"
+        r="18"
+        fill={PALETTE[7].hex}
+        stroke="var(--line)"
+      />
+      <path
+        d="M107 116v18h169m-7-7 7 7-7 7"
+        fill="none"
+        stroke="var(--muted)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="314" cy="95" r="43" fill={mixture([4, 6, 7])} />
+      <text
+        x="314"
+        y="107"
+        textAnchor="middle"
+        fill="#252a2d"
+        fontSize="34"
+        fontWeight="500"
+      >
+        ?
+      </text>
     </svg>
   );
 }
@@ -188,6 +224,34 @@ export default function Hub() {
                 </span>
               </div>
             </a>
+            <a
+              className="game-card game-card-live"
+              href="/colorfle/"
+              aria-label="Играть в Оттенок"
+            >
+              <div className="card-topline">
+                <span className="card-category">ЧУВСТВО ЦВЕТА</span>
+                <span className="card-badge available">
+                  <i /> Можно играть
+                </span>
+              </div>
+              <ColorPreview />
+              <div className="card-copy">
+                <h2>
+                  Оттенок<span className="brand-dot">.</span>
+                </h2>
+                <p>
+                  Какие три цвета скрыты в этой смеси?
+                  <br /> Подбери состав по подсказкам.
+                </p>
+              </div>
+              <div className="card-bottom">
+                <span>3 цвета · 6 попыток</span>
+                <span className="card-play">
+                  Играть <Arrow />
+                </span>
+              </div>
+            </a>
           </div>
         </section>
         <section className="hub-about" id="about" aria-labelledby="about-title">
@@ -230,7 +294,7 @@ export default function Hub() {
               <summary>
                 Все игры бесплатные?<span aria-hidden="true">+</span>
               </summary>
-              <p>Да. «На глаз» и «Круг» доступны бесплатно, без регистрации.</p>
+              <p>Да. Все игры на Playne доступны бесплатно, без регистрации.</p>
             </details>
             <details>
               <summary>

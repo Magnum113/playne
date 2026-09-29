@@ -57,3 +57,19 @@ const circle = home
   .replace('href="https://playne.ru/"', 'href="https://playne.ru/circle/"');
 await mkdir(new URL("../dist/circle/", import.meta.url), { recursive: true });
 await writeFile(new URL("../dist/circle/index.html", import.meta.url), circle);
+
+const colorfle = home
+  .replace(
+    "Playne — небольшие игры в браузере",
+    "Оттенок — угадай смесь цветов | Playne",
+  )
+  .replace(
+    "Игры на глазомер и точность. Бесплатно, без скачивания и регистрации.",
+    "Найди три цвета в смеси за шесть попыток. Игра по мотивам Colorfle: подсказки, история смесей и новые оттенки без ограничений.",
+  )
+  .replace('href="https://playne.ru/"', 'href="https://playne.ru/colorfle/"');
+await mkdir(new URL("../dist/colorfle/", import.meta.url), { recursive: true });
+await writeFile(
+  new URL("../dist/colorfle/index.html", import.meta.url),
+  colorfle,
+);
