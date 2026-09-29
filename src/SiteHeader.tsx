@@ -46,7 +46,7 @@ export function PlayneBrand({ large = false }: { large?: boolean }) {
       className={`playne-brand${large ? " playne-brand-large" : ""}`}
       aria-label="Playne — главная"
     >
-      <img src="/art/playne-logo.png" width="64" height="64" alt="" />
+      <img src="/art/playne-logo.png?v=2" width="64" height="64" alt="" />
       <span>
         playne<span className="brand-dot">.</span>
       </span>
