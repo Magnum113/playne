@@ -1,4 +1,6 @@
 import FooterLinks from "./FooterLinks";
+import { CIRCLE_GOALS, reachGoal } from "./analytics";
+import { createCircleTracker } from "./gameAnalytics";
 import { useRef, useState, type PointerEvent } from "react";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import {
@@ -21,15 +23,21 @@ export default function CircleGame() {
   const [record, setRecord] = useState(false);
   const stroke = useRef<Stroke | null>(null);
   const board = useRef<SVGSVGElement>(null);
+  const [analytics] = useState(createCircleTracker);
 
   function clear() {
+    analytics.finish({ valid: false, message: "" }, 0, "reset");
     stroke.current = null;
     setPath("");
     setDrawing(false);
     setResult(null);
     setRecord(false);
   }
-  function cancel(message = "Линия прервалась. Попробуй ещё раз.") {
+  function cancel(
+    message = "Линия прервалась. Попробуй ещё раз.",
+    reason = "interrupted",
+  ) {
+    analytics.finish({ valid: false, message }, 0, reason);
     stroke.current = null;
     setDrawing(false);
     setResult({ valid: false, message });
@@ -47,7 +55,9 @@ export default function CircleGame() {
     if (!event.isPrimary || event.button !== 0 || stroke.current) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const start = point(event, rect);
+    analytics.start(event.pointerType || "unknown");
     if (Math.hypot(start.x - 300, start.y - 300) < 40) {
+      analytics.finish({ valid: false, message: "" }, 0, "start_near_center");
       clear();
       setResult({
         valid: false,
@@ -79,7 +89,7 @@ export default function CircleGame() {
     for (const item of batch) {
       const next = point(item, rect);
       if (next.x < 2 || next.x > 598 || next.y < 2 || next.y > 598) {
-        cancel("Круг вышел за поле. Попробуй чуть меньше.");
+        cancel("Круг вышел за поле. Попробуй чуть меньше.", "outside_board");
         return;
       }
       const last = current.points[current.points.length - 1];
@@ -88,7 +98,7 @@ export default function CircleGame() {
       fragment += ` L${next.x.toFixed(2)},${next.y.toFixed(2)}`;
       // Bound memory for an indefinitely held pointer.
       if (current.points.length > 12000) {
-        cancel("Слишком длинная линия. Начни заново.");
+        cancel("Слишком длинная линия. Начни заново.", "too_long");
         return;
       }
     }
@@ -103,8 +113,9 @@ export default function CircleGame() {
     setDrawing(false);
     const next = evaluateCircle(current.points);
     setResult(next);
+    const previous = Math.max(best, readCircleBest());
+    analytics.finish(next, previous);
     if (next.valid) {
-      const previous = Math.max(best, readCircleBest());
       setRecord(next.score > previous);
       setBest(Math.max(previous, saveCircleBest(next.score)));
     }
@@ -280,7 +291,12 @@ export default function CircleGame() {
             )}
           </div>
         </section>
-        <details className="circle-rules">
+        <details
+          className="circle-rules"
+          onToggle={(event) => {
+            if (event.currentTarget.open) reachGoal(CIRCLE_GOALS.rulesOpen);
+          }}
+        >
           <summary>Как считается точность?</summary>
           <p>
             Чем ровнее расстояние от линии до точки, тем выше результат. Круг

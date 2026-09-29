@@ -9,7 +9,29 @@ export const METRIKA_GOALS = {
   gameRestart: "naglaz_game_restart",
 } as const;
 
-export type MetrikaGoal = (typeof METRIKA_GOALS)[keyof typeof METRIKA_GOALS];
+export const CIRCLE_GOALS = {
+  rulesOpen: "circle_rules_open",
+  attemptStart: "circle_attempt_start",
+  attemptComplete: "circle_attempt_complete",
+  newRecord: "circle_new_record",
+  retry: "circle_retry",
+} as const;
+
+export const COLORFLE_GOALS = {
+  rulesOpen: "colorfle_rules_open",
+  gameStart: "colorfle_game_start",
+  attemptComplete: "colorfle_attempt_complete",
+  gameComplete: "colorfle_game_complete",
+  gameWin: "colorfle_game_win",
+  gameRestart: "colorfle_game_restart",
+  resultCopy: "colorfle_result_copy",
+} as const;
+
+type Values<T> = T[keyof T];
+export type MetrikaGoal =
+  | Values<typeof METRIKA_GOALS>
+  | Values<typeof CIRCLE_GOALS>
+  | Values<typeof COLORFLE_GOALS>;
 export type MetrikaParams = Record<string, string | number | boolean>;
 
 type MetrikaFunction = {
@@ -57,5 +79,10 @@ export function initMetrika() {
 }
 
 export function reachGoal(goal: MetrikaGoal, params?: MetrikaParams) {
-  window.ym?.(METRIKA_COUNTER_ID, "reachGoal", goal, params);
+  if (typeof window === "undefined") return;
+  try {
+    window.ym?.(METRIKA_COUNTER_ID, "reachGoal", goal, params);
+  } catch {
+    // Analytics must never interrupt a player's action.
+  }
 }

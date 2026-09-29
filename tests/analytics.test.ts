@@ -25,4 +25,14 @@ describe("Yandex Metrika goals", () => {
     vi.stubGlobal("window", {});
     expect(() => reachGoal(METRIKA_GOALS.gameStart)).not.toThrow();
   });
+
+  it("is safe during server rendering and when an external tag throws", () => {
+    expect(() => reachGoal(METRIKA_GOALS.gameStart)).not.toThrow();
+    vi.stubGlobal("window", {
+      ym: () => {
+        throw new Error("blocked tag");
+      },
+    });
+    expect(() => reachGoal(METRIKA_GOALS.gameStart)).not.toThrow();
+  });
 });

@@ -1,4 +1,6 @@
 import FooterLinks from "./FooterLinks";
+import { COLORFLE_GOALS, reachGoal } from "./analytics";
+import { colorTransitionGoals } from "./gameAnalytics";
 import {
   useEffect,
   useReducer,
@@ -24,6 +26,7 @@ import {
   saveColorSession,
   validRecipe,
   type ColorHint,
+  type ColorAction,
   type Recipe,
 } from "./colorfle";
 import "./colorfle.css";
@@ -126,11 +129,21 @@ function Rules() {
 }
 
 export default function ColorfleGame() {
-  const [state, dispatch] = useReducer(
+  const [state, updateState] = useReducer(
     colorReducer,
     undefined,
     loadColorSession,
   );
+  const currentState = useRef(state);
+  function dispatch(action: ColorAction) {
+    const before = currentState.current;
+    const after = colorReducer(before, action);
+    if (before === after) return;
+    currentState.current = after;
+    updateState(action);
+    for (const { goal, params } of colorTransitionGoals(before, after, action))
+      reachGoal(goal, params);
+  }
   const [notice, setNotice] = useState("");
   const [comparison, setComparison] = useState<number | null>(null);
   const [shareFallback, setShareFallback] = useState(false);
@@ -226,6 +239,11 @@ export default function ColorfleGame() {
   async function share() {
     try {
       await navigator.clipboard.writeText(colorShareText(state));
+      reachGoal(COLORFLE_GOALS.resultCopy, {
+        outcome,
+        attempts: state.guesses.length,
+        method: "clipboard",
+      });
       setNotice("Результат скопирован.");
       setShareFallback(false);
     } catch {
@@ -265,7 +283,10 @@ export default function ColorfleGame() {
           </div>
           <button
             className="help-button color-help"
-            onClick={() => rules.current?.showModal()}
+            onClick={() => {
+              rules.current?.showModal();
+              reachGoal(COLORFLE_GOALS.rulesOpen);
+            }}
           >
             Как играть{" "}
             <span className="question" aria-hidden="true">
@@ -549,6 +570,13 @@ export default function ColorfleGame() {
                         readOnly
                         value={colorShareText(state)}
                         onFocus={(event) => event.currentTarget.select()}
+                        onCopy={() =>
+                          reachGoal(COLORFLE_GOALS.resultCopy, {
+                            outcome,
+                            attempts: state.guesses.length,
+                            method: "manual",
+                          })
+                        }
                       />
                     )}
                   </div>
