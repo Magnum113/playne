@@ -13,7 +13,7 @@ sudo ./install-foundation.sh /path/to/naglaz-github-actions.pub
 ```
 
 Configure the `naglaz-production` GitHub environment and these Actions secrets
-in `Magnum113/sizeIT`:
+in `Magnum113/playne`:
 
 - `NAGLAZ_VPS_HOST`
 - `NAGLAZ_VPS_SSH_KEY_B64`
