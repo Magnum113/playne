@@ -22,6 +22,7 @@ export function initTheme() {
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() =>
+    typeof document !== "undefined" &&
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
   );
   function toggleTheme() {
