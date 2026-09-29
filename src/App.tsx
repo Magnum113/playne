@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Board from "./Board";
 import Silhouette from "./Silhouette";
+import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import { METRIKA_GOALS, reachGoal } from "./analytics";
 import { objects, chooseRounds } from "./data";
 import type { Pair } from "./data";
@@ -58,14 +59,14 @@ function Hero() {
             <path
               d="M30 0H0V30"
               fill="none"
-              stroke="#2b3136"
+              stroke="var(--grid)"
               strokeWidth=".65"
             />
           </pattern>
         </defs>
         <rect width="540" height="290" fill="url(#hero-grid)" />
-        <path d="M30 254H510" stroke="#49535a" />
-        <g color="#61d7c1">
+        <path d="M30 254H510" stroke="var(--line)" />
+        <g color="var(--mint)">
           <Silhouette
             object={objects.eiffel}
             x={125}
@@ -73,12 +74,12 @@ function Hero() {
             scale={224 / 330}
           />
         </g>
-        <g color="#bea5f7">
+        <g color="var(--purple)">
           <Silhouette object={objects.rocket} x={357} y={114} scale={2} />
         </g>
         <path
           d="M341 103h44v158h-44Z"
-          stroke="#bea5f7"
+          stroke="var(--purple)"
           strokeOpacity=".35"
           fill="none"
           strokeDasharray="4 5"
@@ -94,7 +95,7 @@ function Hero() {
           x="169"
           y="279"
           textAnchor="middle"
-          fill="#61d7c1"
+          fill="var(--mint)"
           fontSize="10"
           letterSpacing="2"
         >
@@ -104,7 +105,7 @@ function Hero() {
           x="366"
           y="279"
           textAnchor="middle"
-          fill="#bea5f7"
+          fill="var(--purple)"
           fontSize="10"
           letterSpacing="2"
         >
@@ -224,6 +225,9 @@ export default function App() {
   const last = results[index];
   return (
     <div className="app">
+      <a className="skip-link" href="#main-content">
+        Перейти к игре
+      </a>
       <header className="header">
         <div className="brand">
           <Mark />
@@ -231,11 +235,17 @@ export default function App() {
             На глаз<span className="brand-dot">.</span>
           </span>
         </div>
-        <button className="help-button" onClick={openHelp}>
-          <span className="question">?</span> Правила
-        </button>
+        <div className="game-header-actions">
+          <a href="/" className="back-to-hub">
+            Все игры
+          </a>
+          <ThemeToggle />
+          <button className="help-button" onClick={openHelp}>
+            <span className="question">?</span> Правила
+          </button>
+        </div>
       </header>
-      <main>
+      <main id="main-content">
         {screen === "start" && (
           <section className="start-screen">
             <div className="intro">
@@ -479,13 +489,13 @@ export default function App() {
                 window.scrollTo({ top: 0 });
               }}
             >
-              На главную
+              К правилам игры
             </button>
           </section>
         )}
       </main>
       <footer>
-        <span>На глаз</span>
+        <PlayneBrand />
         <span>Разные предметы. Один глазомер.</span>
         <span className="footer-detail">Размеры — из открытых источников</span>
       </footer>

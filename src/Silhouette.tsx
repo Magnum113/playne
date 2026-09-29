@@ -1,6 +1,6 @@
 import type { GameObject, ObjectId } from "./data";
 import RasterSilhouette from "./RasterSilhouette";
-const ink = "#1d2125";
+const ink = "var(--illustration-cutout, #1d2125)";
 
 // Native coordinates match each object's width/height in data.ts.
 // Keep one unit on X equal to one unit on Y, including all circular details.

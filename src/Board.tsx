@@ -144,7 +144,11 @@ export default function Board({
   const handleX = px + target.width * s,
     handleY = py;
   const correctSilhouette = revealed && (
-    <g className="correct-silhouette" color="#c4d0dc" opacity={progress * 0.85}>
+    <g
+      className="correct-silhouette"
+      color="var(--actual)"
+      opacity={progress * 0.85}
+    >
       <Silhouette
         object={target}
         scale={correct}
@@ -174,7 +178,7 @@ export default function Board({
             <path
               d="M35 0H0V35"
               fill="none"
-              stroke="#2b3136"
+              stroke="var(--grid)"
               strokeWidth=".65"
             />
           </pattern>
@@ -187,11 +191,11 @@ export default function Board({
         )}
         <path
           d={`M20 ${baseY}H${W - 20}`}
-          stroke="#65717a"
+          stroke="var(--line-strong)"
           strokeWidth="1"
           opacity=".5"
         />
-        <g color="#61d7c1">
+        <g color="var(--mint)">
           <Silhouette
             object={reference}
             scale={k}
@@ -201,7 +205,7 @@ export default function Board({
         </g>
         {actual >= ratio && correctSilhouette}
         <g
-          color="#bea5f7"
+          color="var(--purple)"
           className={revealed ? "" : "movable"}
           onPointerDown={(e) => start(e, "move")}
           onLostPointerCapture={end}
@@ -214,7 +218,7 @@ export default function Board({
               width={target.width * s + 16}
               height={target.height * s + 16}
               fill="transparent"
-              stroke="#bea5f7"
+              stroke="var(--purple)"
               strokeOpacity=".3"
               strokeDasharray="3 5"
             />
@@ -240,7 +244,7 @@ export default function Board({
               width="20"
               height="20"
               rx="5"
-              fill="#bea5f7"
+              fill="var(--purple)"
             />
             <path
               d={`m${handleX - 4} ${handleY + 4} 8-8m-6 0h6v6`}
@@ -253,7 +257,7 @@ export default function Board({
         <path
           className="reference-guide"
           d={`M${referenceX + reference.width * k + 12} ${baseY - (horizontal ? reference.height : reference.size) * k}V${baseY}`}
-          stroke="#61d7c1"
+          stroke="var(--mint)"
           strokeOpacity=".45"
           strokeDasharray="3 5"
           fill="none"
@@ -263,7 +267,7 @@ export default function Board({
           y={baseY + 24}
           textAnchor="middle"
           className="object-name"
-          fill="#61d7c1"
+          fill="var(--mint)"
         >
           {labelLines(reference.name).map((line, i) => (
             <tspan key={i} x={referenceCenter} dy={i ? 16 : 0}>
@@ -286,7 +290,7 @@ export default function Board({
                   : `M${placedX(correct) - 6} ${baseY - target.size * correct}h-6V${baseY}h6`
               }
               fill="none"
-              stroke="#c4d0dc"
+              stroke="var(--actual)"
               strokeWidth="1.5"
               strokeDasharray="3 3"
             />
@@ -298,14 +302,14 @@ export default function Board({
                   : `M${Math.max(px + s * target.width, placedX(correct) + correct * target.width) + 6} ${py + (target.height - target.size) * s}h6V${py + target.height * s}h-6`
               }
               fill="none"
-              stroke="#bea5f7"
+              stroke="var(--purple)"
               strokeWidth="1.5"
             />
             <text
               x={result.targetX}
               y={baseY + 24}
               className="comparison-label"
-              fill="#bea5f7"
+              fill="var(--purple)"
             >
               Твой размер · {meters(guess)}
             </text>
@@ -313,7 +317,7 @@ export default function Board({
               x={result.targetX}
               y={baseY + 46}
               className="comparison-label"
-              fill="#c4d0dc"
+              fill="var(--actual)"
             >
               Правильный · {meters(target.size)}
             </text>
@@ -324,7 +328,7 @@ export default function Board({
             y={py + target.height * s + 24}
             textAnchor="middle"
             className="object-name"
-            fill="#bea5f7"
+            fill="var(--purple)"
           >
             {labelLines(target.name).map((line, i) => (
               <tspan key={i} x={px + (target.width * s) / 2} dy={i ? 16 : 0}>
@@ -346,36 +350,36 @@ export default function Board({
               width={narrow ? 216 : 238}
               height="139"
               rx="12"
-              fill="#1d2125"
+              fill="var(--panel)"
               fillOpacity=".94"
             />
             <text
               x="29"
               y="69"
-              fill="#bea5f7"
+              fill="var(--purple)"
               fontSize="54"
               fontWeight="600"
               letterSpacing="-2"
             >
               {Math.round(points * progress)}
-              <tspan fontSize="18" fill="#d7dee4" letterSpacing="0">
+              <tspan fontSize="18" fill="var(--text)" letterSpacing="0">
                 {" "}
                 / 100
               </tspan>
             </text>
-            <text x="29" y="95" className="result-measure" fill="#c2cbd2">
+            <text x="29" y="95" className="result-measure" fill="var(--muted)">
               Твой размер:{" "}
-              <tspan fill="#f2f3ef" fontWeight="600">
+              <tspan fill="var(--text)" fontWeight="600">
                 {meters(guess)}
               </tspan>
             </text>
-            <text x="29" y="117" className="result-measure" fill="#c2cbd2">
+            <text x="29" y="117" className="result-measure" fill="var(--muted)">
               Правильный:{" "}
-              <tspan fill="#f2f3ef" fontWeight="600">
+              <tspan fill="var(--text)" fontWeight="600">
                 {meters(target.size)}
               </tspan>
             </text>
-            <text x="29" y="139" className="result-error" fill="#adb7bd">
+            <text x="29" y="139" className="result-error" fill="var(--muted)">
               {errorLabel(guess, target.size)}
             </text>
           </g>

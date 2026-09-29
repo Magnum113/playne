@@ -54,6 +54,8 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -f dist/index.html
+          test -f dist/naglaz/index.html
+          test -f dist/art/playne-logo.png
           test -f dist/favicon.svg
 
           while IFS= read -r -d '' entry; do
@@ -62,12 +64,12 @@ jobs:
               printf 'Symbolic link in output: %s\n' "$relative" >&2
               exit 1
             elif [[ -d "$entry" ]]; then
-              [[ "$relative" = 'assets' || "$relative" = 'art' ]] || {
+              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' ]] || {
                 printf 'Unexpected output directory: %s\n' "$relative" >&2
                 exit 1
               }
             elif [[ -f "$entry" ]]; then
-              [[ "$relative" = 'index.html' || "$relative" = 'favicon.svg' ||
+              [[ "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'favicon.svg' ||
                 "$relative" =~ ^assets/[A-Za-z0-9._-]+\.(js|css)$ ||
                 "$relative" =~ ^art/[A-Za-z0-9._-]+\.png$ ]] || {
                 printf 'Unexpected output file: %s\n' "$relative" >&2
@@ -90,7 +92,9 @@ jobs:
           stylesheet_file="${stylesheet_files[0]}"
           grep -Fq "/assets/$javascript_file" dist/index.html
           grep -Fq "/assets/$stylesheet_file" dist/index.html
-          grep -Fq '/favicon.svg' dist/index.html
+          grep -Fq '/art/playne-logo.png' dist/index.html
+          grep -Fq 'Playne — небольшие игры' dist/index.html
+          grep -Fq 'На глаз — игра в размеры | Playne' dist/naglaz/index.html
           grep -Fq 'https://mc.yandex.ru/watch/112711950' dist/index.html
           grep -Fq 'https://mc.yandex.ru/metrika/tag.js?id=' "dist/assets/$javascript_file"
           grep -Fq '112711950' "dist/assets/$javascript_file"
@@ -233,6 +237,15 @@ jobs:
             tr -d '\r' < "$artwork_headers" | grep -Eiq '^cross-origin-resource-policy: cross-origin$'
           done
 
+          game_file="$RUNNER_TEMP/playne-naglaz.html"
+          curl --fail --silent --show-error --max-time 20 \
+            https://playne.ru/naglaz/ --output "$game_file"
+          cmp dist/naglaz/index.html "$game_file"
+          game_redirect="$(curl --silent --show-error --max-time 20 \
+            --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
+            https://playne.ru/naglaz)"
+          test "$game_redirect" = '308|https://playne.ru/naglaz/'
+
           root_result="$(curl --silent --show-error --max-time 20 \
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
             https://www.playne.ru/)"
@@ -241,7 +254,7 @@ jobs:
           canonical_result="$(curl --silent --show-error --max-time 20 \
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
             https://kadimag.ru/naglaz/)"
-          test "$canonical_result" = '308|https://playne.ru/'
+          test "$canonical_result" = '308|https://playne.ru/naglaz/'
 
           boundary_status="$(curl --silent --show-error --max-time 20 \
             --output /dev/null --write-out '%{http_code}' \
