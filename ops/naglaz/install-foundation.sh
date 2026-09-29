@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly DEPLOY_USER=naglaz-deploy
-readonly BASE_ROOT=/srv/naglaz
+readonly BASE_ROOT=/srv/playne
 readonly ACCOUNT_HOME=/var/lib/naglaz-deploy
 
 fail() {

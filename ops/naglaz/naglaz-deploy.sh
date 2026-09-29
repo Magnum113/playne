@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-readonly APP_ROOT=/srv/naglaz
+readonly APP_ROOT=/srv/playne
 readonly INCOMING_DIR="$APP_ROOT/incoming"
 readonly SEALED_DIR="$APP_ROOT/.sealed"
 readonly RELEASES_DIR="$APP_ROOT/releases"

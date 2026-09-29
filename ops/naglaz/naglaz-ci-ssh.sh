@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-readonly INCOMING_DIR=/srv/naglaz/incoming
+readonly INCOMING_DIR=/srv/playne/incoming
 readonly MAX_ARCHIVE_BYTES=$((32 * 1024 * 1024))
 readonly MIN_FREE_BYTES=$((512 * 1024 * 1024))
 readonly DEPLOY_PROGRAM=/usr/local/sbin/naglaz-deploy
-readonly RELEASES_DIR=/srv/naglaz/releases
-readonly CURRENT_LINK=/srv/naglaz/current
+readonly RELEASES_DIR=/srv/playne/releases
+readonly CURRENT_LINK=/srv/playne/current
 readonly UPLOAD_LOCK=/var/lib/naglaz-deploy/upload.lock
 
 PATH=/usr/bin:/bin
