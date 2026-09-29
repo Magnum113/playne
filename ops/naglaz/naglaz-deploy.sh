@@ -309,7 +309,7 @@ with tarfile.open(archive, mode="r:") as bundle:
                 raise SystemExit("archive expands beyond the configured limit")
             regular_files[normalized] = member
 
-    required = {"REVISION", "naglaz/index.html", "naglaz/naglaz/index.html", "naglaz/favicon.svg"}
+    required = {"REVISION", "naglaz/index.html", "naglaz/naglaz/index.html", "naglaz/favicon.svg", "naglaz/favicon.ico"}
     if not required.issubset(regular_files):
         raise SystemExit("archive is missing required release files")
     if any(name.endswith("/.naglaz-artifact-sha256") for name in regular_files):
@@ -389,7 +389,8 @@ check_release_directory() {
   [[ "$stylesheet_file" =~ ^[A-Za-z0-9._-]+\.css$ ]] || return 1
   grep -Fq "/assets/$javascript_file" "$release_dir/naglaz/index.html" || return 1
   grep -Fq "/assets/$stylesheet_file" "$release_dir/naglaz/index.html" || return 1
-  { grep -Fq '/art/playne-logo.png' "$release_dir/naglaz/index.html" ||
+  { grep -Fq '/art/playne-favicon-32.png' "$release_dir/naglaz/index.html" ||
+    grep -Fq '/art/playne-logo.png' "$release_dir/naglaz/index.html" ||
     grep -Fq '/favicon.svg' "$release_dir/naglaz/index.html"; } || return 1
   grep -Fq 'https://mc.yandex.ru/watch/112711950' "$release_dir/naglaz/index.html" || return 1
   grep -Fq 'https://mc.yandex.ru/metrika/tag.js?id=' \

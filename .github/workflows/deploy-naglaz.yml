@@ -57,6 +57,7 @@ jobs:
           test -f dist/naglaz/index.html
           test -f dist/art/playne-logo.png
           test -f dist/favicon.svg
+          test -f dist/favicon.ico
 
           while IFS= read -r -d '' entry; do
             relative="${entry#dist/}"
@@ -69,7 +70,7 @@ jobs:
                 exit 1
               }
             elif [[ -f "$entry" ]]; then
-              [[ "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'favicon.svg' ||
+              [[ "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
                 "$relative" =~ ^assets/[A-Za-z0-9._-]+\.(js|css)$ ||
                 "$relative" =~ ^art/[A-Za-z0-9._-]+\.png$ ]] || {
                 printf 'Unexpected output file: %s\n' "$relative" >&2
@@ -92,7 +93,9 @@ jobs:
           stylesheet_file="${stylesheet_files[0]}"
           grep -Fq "/assets/$javascript_file" dist/index.html
           grep -Fq "/assets/$stylesheet_file" dist/index.html
-          grep -Fq '/art/playne-logo.png' dist/index.html
+          grep -Fq '/art/playne-favicon-32.png' dist/index.html
+          grep -Fq '/favicon.ico' dist/index.html
+          grep -Fq '/art/playne-favicon-32.png' dist/naglaz/index.html
           grep -Fq 'Playne — небольшие игры' dist/index.html
           grep -Fq 'На глаз — игра в размеры | Playne' dist/naglaz/index.html
           grep -Fq 'https://mc.yandex.ru/watch/112711950' dist/index.html
@@ -236,6 +239,10 @@ jobs:
             tr -d '\r' < "$artwork_headers" | grep -Eiq '^access-control-allow-origin: \*$'
             tr -d '\r' < "$artwork_headers" | grep -Eiq '^cross-origin-resource-policy: cross-origin$'
           done
+
+          curl --fail --silent --show-error --max-time 20 \
+            https://playne.ru/favicon.ico --output "$RUNNER_TEMP/playne-favicon.ico"
+          cmp dist/favicon.ico "$RUNNER_TEMP/playne-favicon.ico"
 
           game_file="$RUNNER_TEMP/playne-naglaz.html"
           curl --fail --silent --show-error --max-time 20 \
