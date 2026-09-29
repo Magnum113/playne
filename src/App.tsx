@@ -1,3 +1,4 @@
+import FooterLinks from "./FooterLinks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Board from "./Board";
 import Silhouette from "./Silhouette";
@@ -498,6 +499,7 @@ export default function App() {
         <PlayneBrand />
         <span>Разные предметы. Один глазомер.</span>
         <span className="footer-detail">Размеры — из открытых источников</span>
+        <FooterLinks />
       </footer>
       <dialog
         ref={dialog}

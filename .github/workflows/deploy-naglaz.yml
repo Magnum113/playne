@@ -67,12 +67,12 @@ jobs:
               printf 'Symbolic link in output: %s\n' "$relative" >&2
               exit 1
             elif [[ -d "$entry" ]]; then
-              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' || "$relative" = 'circle' || "$relative" = 'colorfle' ]] || {
+              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' || "$relative" = 'circle' || "$relative" = 'colorfle' || "$relative" = 'guides' || "$relative" = 'guides/naglaz' || "$relative" = 'guides/perfect-circle' || "$relative" = 'guides/colorfle' ]] || {
                 printf 'Unexpected output directory: %s\n' "$relative" >&2
                 exit 1
               }
             elif [[ -f "$entry" ]]; then
-              [[ "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'circle/index.html' || "$relative" = 'colorfle/index.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
+              [[ "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'circle/index.html' || "$relative" = 'colorfle/index.html' || "$relative" = 'guides/index.html' || "$relative" = 'guides/naglaz/index.html' || "$relative" = 'guides/perfect-circle/index.html' || "$relative" = 'guides/colorfle/index.html' || "$relative" = 'robots.txt' || "$relative" = 'sitemap.xml' || "$relative" = '404.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
                 "$relative" =~ ^assets/[A-Za-z0-9._-]+\.(js|css)$ ||
                 "$relative" =~ ^art/[A-Za-z0-9._-]+\.png$ ]] || {
                 printf 'Unexpected output file: %s\n' "$relative" >&2
@@ -277,3 +277,18 @@ jobs:
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
             https://www.playne.ru/)"
           test "$root_result" = '308|https://playne.ru/'
+
+          for public_path in robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html; do
+            request_path="${public_path%index.html}"
+            curl --fail --silent --show-error --max-time 20 "https://playne.ru/$request_path" --output "$RUNNER_TEMP/seo-response"
+            cmp "dist/$public_path" "$RUNNER_TEMP/seo-response"
+          done
+          for route in guides guides/naglaz guides/perfect-circle guides/colorfle; do
+            redirect="$(curl --silent --show-error --max-time 20 --output /dev/null --write-out '%{http_code}|%{redirect_url}' "https://playne.ru/$route")"
+            test "$redirect" = "308|https://playne.ru/$route/"
+          done
+          index_redirect="$(curl --silent --show-error --max-time 20 --output /dev/null --write-out '%{http_code}|%{redirect_url}' https://playne.ru/guides/index.html)"
+          test "$index_redirect" = '308|https://playne.ru/guides/'
+          missing_status="$(curl --silent --show-error --max-time 20 --output "$RUNNER_TEMP/playne-missing.html" --write-out '%{http_code}' https://playne.ru/seo-missing-page-check/)"
+          test "$missing_status" = '404'
+          cmp dist/404.html "$RUNNER_TEMP/playne-missing.html"

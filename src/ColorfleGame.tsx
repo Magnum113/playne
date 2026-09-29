@@ -1,3 +1,4 @@
+import FooterLinks from "./FooterLinks";
 import {
   useEffect,
   useReducer,
@@ -674,6 +675,7 @@ export default function ColorfleGame() {
       <footer className="color-footer">
         <span>Проверь своё чувство цвета.</span>
         <a href="/">Все игры Playne ↗</a>
+        <FooterLinks />
       </footer>
       <dialog
         className="color-rules-dialog"

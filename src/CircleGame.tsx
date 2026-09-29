@@ -1,3 +1,4 @@
+import FooterLinks from "./FooterLinks";
 import { useRef, useState, type PointerEvent } from "react";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import {
@@ -295,6 +296,7 @@ export default function CircleGame() {
       <footer className="circle-footer">
         <span>Одна попытка — несколько секунд.</span>
         <a href="/naglaz/">Попробовать «На глаз» ↗</a>
+        <FooterLinks />
       </footer>
     </div>
   );

@@ -3,73 +3,88 @@ import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { createServer } from "vite";
 
-// Separate real static pages share the app bundle. Unknown URLs remain 404s.
-const home = await readFile(
-  new URL("../dist/index.html", import.meta.url),
-  "utf8",
-);
-const game = home
-  .replace(
-    "Playne — небольшие игры в браузере",
-    "На глаз — игра в размеры | Playne",
-  )
-  .replace(
-    "Игры на глазомер и точность. Бесплатно, без скачивания и регистрации.",
-    "Подбери размер предмета рядом с другим. Пять раундов, 22 сравнения и твой глазомер.",
-  )
-  .replace('href="https://playne.ru/"', 'href="https://playne.ru/naglaz/"');
-
-// Publish actual homepage content for readers that cannot run the app (including
-// Sprite Fusion's static fallback). Render the same component, without a second
-// copy of its markup. The client replaces it and restores browser preferences.
+const dist = new URL("../dist/", import.meta.url);
+const template = await readFile(new URL("index.html", dist), "utf8");
+const escape = (value) =>
+  value.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
 const server = await createServer({
   server: { middlewareMode: true, watch: null },
   appType: "custom",
 });
 try {
-  const { default: Hub } = await server.ssrLoadModule("/src/Hub.tsx");
-  const markup = renderToString(createElement(Hub));
-  if (!home.includes('<div id="root"></div>')) {
-    throw new Error("Homepage root placeholder was not found");
+  const { default: Site } = await server.ssrLoadModule("/src/Site.tsx");
+  const { pages, SITE_URL, structuredData } =
+    await server.ssrLoadModule("/src/seo.ts");
+  const notFound = {
+    path: "/404.html",
+    title: "Страница не найдена | Playne",
+    description: "Такой страницы нет. Выбери одну из игр Playne.",
+    name: "Страница не найдена",
+    kind: "error",
+  };
+  for (const page of [...pages, notFound]) {
+    const error = page.kind === "error";
+    const canonical = SITE_URL + page.path;
+    const image = SITE_URL + "/art/playne-logo.png?v=2";
+    const head = [
+      `<meta name="robots" content="${error ? "noindex, follow" : "index, follow, max-image-preview:large"}" />`,
+      `<meta property="og:site_name" content="Playne" />`,
+      `<meta property="og:locale" content="ru_RU" />`,
+      `<meta property="og:type" content="${page.kind === "article" ? "article" : "website"}" />`,
+      `<meta property="og:title" content="${escape(page.title)}" />`,
+      `<meta property="og:description" content="${escape(page.description)}" />`,
+      `<meta property="og:url" content="${canonical}" />`,
+      `<meta property="og:image" content="${image}" />`,
+      `<meta property="og:image:width" content="1254" />`,
+      `<meta property="og:image:height" content="1254" />`,
+      `<meta property="og:image:alt" content="Логотип Playne" />`,
+      `<meta name="twitter:card" content="summary" />`,
+      `<meta name="twitter:title" content="${escape(page.title)}" />`,
+      `<meta name="twitter:description" content="${escape(page.description)}" />`,
+      `<meta name="twitter:image" content="${image}" />`,
+      ...(!error
+        ? [
+            `<script type="application/ld+json">${JSON.stringify(structuredData(page)).replace(/</g, "\\u003c")}</script>`,
+          ]
+        : []),
+    ].join("\n    ");
+    const markup = renderToString(createElement(Site, { path: page.path }));
+    if (!template.includes('<div id="root"></div>'))
+      throw new Error("Missing root placeholder");
+    const html = template
+      .replace(
+        /<title>.*?<\/title>/s,
+        () => `<title>${escape(page.title)}</title>`,
+      )
+      .replace(
+        /<meta\s+name="description"\s+content="[^"]*"\s*\/>/s,
+        () =>
+          `<meta name="description" content="${escape(page.description)}" />`,
+      )
+      .replace(/<link rel="canonical" href="[^"]*"\s*\/>/, () =>
+        error ? "" : `<link rel="canonical" href="${canonical}" />`,
+      )
+      .replace("</head>", () => `${head}\n  </head>`)
+      .replace('<div id="root"></div>', () => `<div id="root">${markup}</div>`);
+    const filename = error ? "404.html" : `${page.path.slice(1)}index.html`;
+    await mkdir(new URL(".", new URL(filename, dist)), { recursive: true });
+    await writeFile(new URL(filename, dist), html);
   }
+  // No fabricated lastmod: optional dates should reflect actual content changes.
   await writeFile(
-    new URL("../dist/index.html", import.meta.url),
-    home.replace(
-      '<div id="root"></div>',
-      () => `<div id="root">${markup}</div>`,
-    ),
+    new URL("sitemap.xml", dist),
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map((p) => `  <url><loc>${SITE_URL}${p.path}</loc></url>`).join("\n")}\n</urlset>\n`,
+  );
+  await writeFile(
+    new URL("robots.txt", dist),
+    `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`,
   );
 } finally {
   await server.close();
 }
-await mkdir(new URL("../dist/naglaz/", import.meta.url), { recursive: true });
-await writeFile(new URL("../dist/naglaz/index.html", import.meta.url), game);
-
-const circle = home
-  .replace(
-    "Playne — небольшие игры в браузере",
-    "Круг — нарисуй идеальный круг | Playne",
-  )
-  .replace(
-    "Игры на глазомер и точность. Бесплатно, без скачивания и регистрации.",
-    "Нарисуй круг одним движением и узнай свою точность. Бесплатная игра без регистрации на Playne.",
-  )
-  .replace('href="https://playne.ru/"', 'href="https://playne.ru/circle/"');
-await mkdir(new URL("../dist/circle/", import.meta.url), { recursive: true });
-await writeFile(new URL("../dist/circle/index.html", import.meta.url), circle);
-
-const colorfle = home
-  .replace(
-    "Playne — небольшие игры в браузере",
-    "Оттенок — угадай смесь цветов | Playne",
-  )
-  .replace(
-    "Игры на глазомер и точность. Бесплатно, без скачивания и регистрации.",
-    "Найди три цвета в смеси за шесть попыток. Игра по мотивам Colorfle: подсказки, история смесей и новые оттенки без ограничений.",
-  )
-  .replace('href="https://playne.ru/"', 'href="https://playne.ru/colorfle/"');
-await mkdir(new URL("../dist/colorfle/", import.meta.url), { recursive: true });
-await writeFile(
-  new URL("../dist/colorfle/index.html", import.meta.url),
-  colorfle,
-);

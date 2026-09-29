@@ -1,3 +1,4 @@
+import FooterLinks from "./FooterLinks";
 import { DestroyWebsiteLink, PlayneBrand, ThemeToggle } from "./SiteHeader";
 import Silhouette from "./Silhouette";
 import { objects } from "./data";
@@ -322,6 +323,7 @@ export default function Hub() {
         <span>Небольшие игры для любопытных.</span>
         <DestroyWebsiteLink badge />
         <a href="#games">Выбрать игру ↑</a>
+        <FooterLinks />
       </footer>
     </div>
   );

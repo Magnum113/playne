@@ -295,7 +295,7 @@ with tarfile.open(archive, mode="r:") as bundle:
             raise SystemExit("archive contains platform metadata")
         if member.isdir() and member.type != tarfile.DIRTYPE:
             raise SystemExit("archive contains a non-standard directory")
-        if member.isdir() and normalized not in {"naglaz", "naglaz/assets", "naglaz/art", "naglaz/naglaz", "naglaz/circle", "naglaz/colorfle"}:
+        if member.isdir() and normalized not in {"naglaz", "naglaz/assets", "naglaz/art", "naglaz/naglaz", "naglaz/circle", "naglaz/colorfle", "naglaz/guides", "naglaz/guides/naglaz", "naglaz/guides/perfect-circle", "naglaz/guides/colorfle"}:
             raise SystemExit("archive contains an unexpected directory")
         if member.isfile() and member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}:
             raise SystemExit("archive contains a sparse or non-standard regular file")
@@ -325,7 +325,12 @@ with tarfile.open(archive, mode="r:") as bundle:
         raise SystemExit("archive must contain exactly one JavaScript and one CSS bundle")
     if len(artwork) > 64:
         raise SystemExit("archive contains too many artwork files")
-    optional_pages = {"naglaz/circle/index.html", "naglaz/colorfle/index.html"} & set(regular_files)
+    optional_pages = {
+        "naglaz/circle/index.html", "naglaz/colorfle/index.html",
+        "naglaz/guides/index.html", "naglaz/guides/naglaz/index.html",
+        "naglaz/guides/perfect-circle/index.html", "naglaz/guides/colorfle/index.html",
+        "naglaz/robots.txt", "naglaz/sitemap.xml", "naglaz/404.html",
+    } & set(regular_files)
     allowed_files = required | optional_pages | set(javascript) | set(stylesheets) | set(artwork)
     if set(regular_files) != allowed_files:
         raise SystemExit("archive contains an unexpected public file")
@@ -440,6 +445,7 @@ health_check() {
   local javascript_file
   local stylesheet_file
   local root_result
+  local public_path request_path
   local -a curl_options
 
   index_file="$(mktemp /run/naglaz-health.XXXXXXXX)"
@@ -487,6 +493,16 @@ health_check() {
     curl "${curl_options[@]}" --fail https://playne.ru/colorfle/ --output "$index_file" || return 1
     cmp --silent "$release_dir/naglaz/colorfle/index.html" "$index_file" || return 1
   fi
+
+  # Optional for compatibility with releases built before the SEO pages existed.
+  for public_path in robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html; do
+    if [[ -f "$release_dir/naglaz/$public_path" ]]; then
+      request_path="${public_path%index.html}"
+      curl "${curl_options[@]}" --fail "https://playne.ru/$request_path" --output "$index_file" || return 1
+      cmp --silent "$release_dir/naglaz/$public_path" "$index_file" || return 1
+    fi
+  done
+
 
   root_result="$(curl "${curl_options[@]}" --output /dev/null \
     --write-out '%{http_code}|%{redirect_url}' https://www.playne.ru/)" || return 1
