@@ -1774,3 +1774,11 @@ footer { flex-wrap: wrap; }
   .guide-copy p, .guide-copy li { line-height: 1.8; }
   .guide-bottom-cta { padding: 22px; }
 }
+
+/* Sprite Fusion needs desktop controls; hide both entry points on mobile. */
+@media (max-width: 700px), (hover: none) and (pointer: coarse) {
+  .hub-header nav .destroy-link,
+  .destroy-badge {
+    display: none;
+  }
+}
