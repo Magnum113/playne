@@ -4,7 +4,7 @@ export function DestroyWebsiteLink({ badge = false }: { badge?: boolean }) {
   return (
     <a
       className={badge ? "destroy-badge" : "destroy-link"}
-      href="https://destroy.spritefusion.com/?from=badge&url=https%3A%2F%2Fplayne.ru%2F"
+      href="https://destroy.spritefusion.com/?from=badge&url=https%3A%2F%2Fplayne.ru%2F%3Fv%3D4134b86"
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Разрушить сайт — Sprite Fusion, откроется в новой вкладке"
