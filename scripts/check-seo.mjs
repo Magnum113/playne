@@ -17,6 +17,22 @@ try {
       "utf8",
     );
     const title = html.match(/<title>(.*?)<\/title>/s)?.[1];
+    assert(
+      html.includes(`id="root" data-page-path="${page.path}"`),
+      `${page.path}: stable route for proxied documents`,
+    );
+    const inlineCss = html.match(
+      /<style data-playne-styles data-source="(\/assets\/[^"/]+\.css)">([\s\S]*?)<\/style>/,
+    );
+    assert(inlineCss, `${page.path}: self-contained styles`);
+    assert.equal(
+      inlineCss[2],
+      await readFile(new URL(inlineCss[1].slice(1), dist), "utf8"),
+    );
+    assert(
+      !/<link\b[^>]*rel="stylesheet"/.test(html),
+      `${page.path}: no external CSS dependency`,
+    );
     assert(title && !titles.has(title), `${page.path}: unique title`);
     titles.add(title);
     const description = html.match(
@@ -63,6 +79,7 @@ try {
     // A source edit must produce useful readable HTML, not just an app shell.
     const text = html
       .replace(/<script[\s\S]*?<\/script>/g, "")
+      .replace(/<style[\s\S]*?<\/style>/g, "")
       .replace(/<[^>]*>/g, " ")
       .replace(/\s+/g, " ");
     assert(

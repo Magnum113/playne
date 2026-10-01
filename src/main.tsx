@@ -7,8 +7,11 @@ import "./style.css";
 
 initMetrika();
 initTheme();
-createRoot(document.getElementById("root")!).render(
+const root = document.getElementById("root")!;
+// Preserve the prerendered route when a preview service proxies the document
+// under its own URL. Development pages still use the browser's pathname.
+createRoot(root).render(
   <React.StrictMode>
-    <Site path={window.location.pathname} />
+    <Site path={root.dataset.pagePath ?? window.location.pathname} />
   </React.StrictMode>,
 );

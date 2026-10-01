@@ -4,7 +4,20 @@ import { renderToString } from "react-dom/server";
 import { createServer } from "vite";
 
 const dist = new URL("../dist/", import.meta.url);
-const template = await readFile(new URL("index.html", dist), "utf8");
+const builtTemplate = await readFile(new URL("index.html", dist), "utf8");
+const stylesheet = builtTemplate.match(
+  /<link\b[^>]*rel="stylesheet"[^>]*href="(\/assets\/[^"/]+\.css)"[^>]*>/,
+);
+if (!stylesheet) throw new Error("Missing built stylesheet");
+const css = await readFile(new URL(stylesheet[1].slice(1), dist), "utf8");
+if (/<\/style/i.test(css)) throw new Error("Unsafe closing tag in stylesheet");
+// Page-copy services may fail to proxy external CSS. Keep the rendered document
+// self-contained; data-source identifies the original, still published asset.
+const template = builtTemplate.replace(
+  stylesheet[0],
+  () =>
+    `<style data-playne-styles data-source="${stylesheet[1]}">${css}</style>`,
+);
 const escape = (value) =>
   value.replace(
     /[&<>"']/g,
@@ -71,7 +84,11 @@ try {
         error ? "" : `<link rel="canonical" href="${canonical}" />`,
       )
       .replace("</head>", () => `${head}\n  </head>`)
-      .replace('<div id="root"></div>', () => `<div id="root">${markup}</div>`);
+      .replace(
+        '<div id="root"></div>',
+        () =>
+          `<div id="root" data-page-path="${escape(page.path)}">${markup}</div>`,
+      );
     const filename = error ? "404.html" : `${page.path.slice(1)}index.html`;
     await mkdir(new URL(".", new URL(filename, dist)), { recursive: true });
     await writeFile(new URL(filename, dist), html);

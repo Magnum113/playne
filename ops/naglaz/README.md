@@ -55,3 +55,21 @@ Yandex Metrika domains. The Metrika counter `112711950` accepts only
 - `/usr/local/libexec/naglaz-ci-ssh` and `/usr/local/sbin/naglaz-deploy` operate only on `/srv/playne`.
 - The game is static: it needs no application process or database.
 - Nginx is shared host infrastructure; Playne has its own domain, site configuration and TLS certificate.
+
+## Page-copy services (Destroy Any Website)
+
+The prerendered HTML includes the compiled CSS in a `style[data-playne-styles]`
+element. Sprite Fusion runs a copied page under `/p/https/playne.ru/`; its proxy
+can fail to load the separate stylesheet. Inlining keeps the layout available
+in both the scripted copy and the static fallback. The stylesheet is still
+published as a hashed asset for release integrity checks. This adds about 9 KB
+compressed to each HTML document instead of relying on a separate CSS request.
+
+Each root also has `data-page-path`, which the client uses for its initial route.
+Without it, the proxy's pathname is interpreted as a missing Playne page and the
+prerendered hub is replaced with the 404 screen. Local development falls back to
+`location.pathname`. Real missing production URLs still receive HTTP 404 from
+Nginx and use the prerendered error document.
+
+`scripts/check-seo.mjs` checks the original route and exact inline stylesheet
+contents on every prerendered public page. No CORS or CSP relaxation is required.
