@@ -249,12 +249,12 @@ function Drawing({ id }: { id: ObjectId }) {
     case "sequoia":
       return (
         <g transform="scale(1.3541667 1)">
-          <path d="M9.2 83.8 10.6 51h2.8l1.4 32.8Z" />
-          <path d="M12 0 10 6 9 10 8 15 6 20 7 25 4 30 5 35 2 40 4 45 0 52 3 54 0 60 6 62 9 58 10 55 14 55 15 58 18 62 24 60 21 54 24 52 20 45 22 40 19 35 20 30 17 25 18 20 16 15 15 10 14 6Z" />
-          <g fill="none" stroke={ink} strokeWidth=".45" opacity=".42">
-            <path d="M12 5v54M7 21l5 9 5-10M4 41l8 7 8-7M8 58l4 4 4-4M11 64l-1 19m3-19 1 19" />
+          <path d="M7.9 83.8 9.6 43l.7-35h3.4l.7 35 1.7 40.8Z" />
+          <path d="M12 0C8 1 7 4 8 8 5 8 4 12 6 15 3 17 1 20 4 23 0 25 0 30 4 32 1 36 2 40 6 42l3-3 1 6h4l1-6 3 3c4-2 5-6 2-10 4-2 4-7 0-9 3-3 1-6-2-8 2-3-1-7-2-7 1-4-1-7-4-8Z" />
+          <g fill="none" stroke={ink} strokeWidth=".45" opacity=".4">
+            <path d="M12 5v41M5 23l7 7 7-7M4 34l8 5 8-5M10 49 9 80m4-32 2 31m-3-23v19" />
           </g>
-          <path d="M7.5 83.1h9v.7h-9z" />
+          <path d="M7.4 83h9.2v.8H7.4z" />
         </g>
       );
     case "unity":

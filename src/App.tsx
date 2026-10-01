@@ -133,7 +133,21 @@ export default function App() {
   const heading = useRef<HTMLHeadingElement>(null);
   const locked = useRef(false);
   const previousRoundIds = useRef<string[]>([]);
+  const preloadedImages = useRef<HTMLImageElement[]>([]);
   const total = results.reduce((sum, r) => sum + r.points, 0);
+  useEffect(() => {
+    if (preloadedImages.current.length) return;
+    for (const src of new Set(
+      Object.values(objects)
+        .map((object) => object.illustration?.src)
+        .filter((value): value is string => Boolean(value)),
+    )) {
+      const image = new Image();
+      image.decoding = "async";
+      image.src = `${import.meta.env.BASE_URL}${src}`;
+      preloadedImages.current.push(image);
+    }
+  }, []);
   useEffect(() => {
     if (help) dialog.current?.showModal();
     else dialog.current?.close();
@@ -141,20 +155,6 @@ export default function App() {
   useEffect(() => {
     if (screen !== "start") heading.current?.focus();
   }, [screen, index]);
-  useEffect(() => {
-    if (screen !== "game") return;
-    const next = rounds[index + 1];
-    if (!next) return;
-    [next.reference, next.target]
-      .map((id) => objects[id].illustration?.src)
-      .filter((src): src is string => Boolean(src))
-      .map((src) => {
-        const image = new Image();
-        image.decoding = "async";
-        image.src = `${import.meta.env.BASE_URL}${src}`;
-        return image;
-      });
-  }, [screen, rounds, index]);
   function openHelp() {
     reachGoal(METRIKA_GOALS.rulesOpen, { screen });
     setHelp(true);
