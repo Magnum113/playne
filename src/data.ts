@@ -14,7 +14,11 @@ export type ObjectId =
   | "bus"
   | "giraffe"
   | "elephant"
-  | "hoop";
+  | "hoop"
+  | "sequoia"
+  | "unity"
+  | "iss"
+  | "squid";
 export type GameObject = {
   id: ObjectId;
   name: string;
@@ -187,6 +191,50 @@ export const objects: Record<ObjectId, GameObject> = {
     source:
       "https://assets.fiba.basketball/image/upload/documents-corporate-fiba-official-rules-2024-official-basketball-rules-and-basketball-equipment.pdf",
   },
+  sequoia: {
+    id: "sequoia",
+    name: "Секвойя Генерал Шерман",
+    label: "Высота живого дерева",
+    size: 83.8,
+    width: 32.5,
+    height: 83.8,
+    axis: "y",
+    note: "Высота дерева Генерал Шерман — 83,8 м. Оно выше ракеты «Фалькон-9».",
+    source: "https://www.nps.gov/seki/learn/nature/sherman.htm",
+  },
+  unity: {
+    id: "unity",
+    name: "Статуя Единства",
+    label: "Индия · высота самой статуи",
+    size: 182,
+    width: 46,
+    height: 182,
+    axis: "y",
+    note: "Статуя Сардара Пателя достигает 182 м. В игре не учитываем основание и смотровую площадку.",
+    source: "https://gujarattourism.com/central-zone/narmada/statue-of-unity.html",
+  },
+  iss: {
+    id: "iss",
+    name: "МКС",
+    label: "Размах от края до края",
+    size: 109,
+    width: 109,
+    height: 23,
+    axis: "x",
+    note: "Солнечные батареи Международной космической станции раскинулись примерно на 109 м. Здесь сравниваем размах станции, а не длину жилых модулей.",
+    source: "https://www.nasa.gov/reference/international-space-station/",
+  },
+  squid: {
+    id: "squid",
+    name: "Гигантский кальмар",
+    label: "Рекордный экземпляр · со щупальцами",
+    size: 13,
+    width: 13,
+    height: 3.1,
+    axis: "x",
+    note: "Самый длинный зарегистрированный гигантский кальмар достигал почти 13 м с вытянутыми щупальцами. Это рекорд, а не обычная длина взрослого кальмара.",
+    source: "https://ocean.si.edu/ocean-life/invertebrates/giant-squid",
+  },
 };
 export type Pair = {
   id: string;
@@ -226,12 +274,6 @@ export const pairs: Pair[] = [
     title: "Башня и ракета",
   },
   {
-    id: "london-ny",
-    reference: "clock",
-    target: "liberty",
-    title: "Лондон встречает Нью-Йорк",
-  },
-  {
     id: "london-space",
     reference: "clock",
     target: "rocket",
@@ -260,12 +302,6 @@ export const pairs: Pair[] = [
     reference: "titanic",
     target: "pitch",
     title: "Футбол на палубе",
-  },
-  {
-    id: "pitch-plane",
-    reference: "pitch",
-    target: "airbus",
-    title: "Самолёт на футбольном поле",
   },
   {
     id: "plane-whale",
@@ -304,12 +340,6 @@ export const pairs: Pair[] = [
     title: "Слон рядом с жирафом",
   },
   {
-    id: "elephant-giraffe",
-    reference: "elephant",
-    target: "giraffe",
-    title: "Кто выше в саванне?",
-  },
-  {
     id: "giraffe-hoop",
     reference: "giraffe",
     target: "hoop",
@@ -321,29 +351,45 @@ export const pairs: Pair[] = [
     target: "hoop",
     title: "Слон и баскетбольное кольцо",
   },
-  {
-    id: "hoop-elephant",
-    reference: "hoop",
-    target: "elephant",
-    title: "Слон под кольцом",
-  },
+  { id: "tree-rocket", reference: "sequoia", target: "rocket", title: "Дерево выше ракеты?" },
+  { id: "tree-clock", reference: "sequoia", target: "clock", title: "Биг-Бен рядом с секвойей" },
+  { id: "tree-liberty", reference: "sequoia", target: "liberty", title: "Статуя Свободы и живая секвойя" },
+  { id: "unity-pyramid", reference: "unity", target: "pyramid", title: "Пирамида рядом со Статуей Единства" },
+  { id: "unity-eiffel", reference: "eiffel", target: "unity", title: "Самая высокая статуя рядом с башней" },
+  { id: "unity-clock", reference: "unity", target: "clock", title: "Биг-Бен рядом с гигантом" },
+  { id: "iss-pitch", reference: "pitch", target: "iss", title: "Футбольное поле и МКС" },
+  { id: "iss-airbus", reference: "iss", target: "airbus", title: "Авиалайнер рядом с МКС" },
+  { id: "iss-titanic", reference: "titanic", target: "iss", title: "Космическая станция рядом с лайнером" },
+  { id: "squid-trex", reference: "trex", target: "squid", title: "Кальмар длиннее тираннозавра?" },
+  { id: "squid-bus", reference: "squid", target: "bus", title: "Автобус рядом с гигантским кальмаром" },
+  { id: "squid-whale", reference: "whale", target: "squid", title: "Кальмар рядом с синим китом" },
 ];
 
-export function chooseRounds(): Pair[] {
+function selectDistinct(candidates: Pair[], count: number): Pair[] | null {
+  function visit(start: number, selected: Pair[], used: Set<ObjectId>): Pair[] | null {
+    if (selected.length === count) return selected;
+    for (let i = start; i < candidates.length; i++) {
+      const pair = candidates[i];
+      if (used.has(pair.reference) || used.has(pair.target)) continue;
+      const next = visit(i + 1, [...selected, pair], new Set([...used, pair.reference, pair.target]));
+      if (next) return next;
+    }
+    return null;
+  }
+  return visit(0, [], new Set());
+}
+
+export function chooseRounds(recentPairIds: readonly string[] = []): Pair[] {
   const chosen: Pair[] = [];
   for (const [axis, count] of [
     ["y", 3],
     ["x", 2],
   ] as const) {
-    const candidates = shuffle(
-      pairs.filter((p) => objects[p.reference].axis === axis),
-    );
-    let selected = 0;
-    for (const p of candidates) {
-      if (chosen.some((c) => c.target === p.target)) continue;
-      chosen.push(p);
-      if (++selected === count) break;
-    }
+    const candidates = shuffle(pairs.filter((p) => objects[p.reference].axis === axis));
+    const fresh = candidates.filter((p) => !recentPairIds.includes(p.id));
+    const selected = selectDistinct(fresh, count) ?? selectDistinct(candidates, count);
+    if (!selected) throw new Error(`Недостаточно разных сравнений для оси ${axis}`);
+    chosen.push(...selected);
   }
   return shuffle(chosen);
 }

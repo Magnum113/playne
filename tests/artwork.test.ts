@@ -12,6 +12,7 @@ describe("generated illustrations", () => {
         new URL(`../public/${art.src}`, import.meta.url),
       );
       expect(bytes.subarray(1, 4).toString()).toBe("PNG");
+      expect(bytes.length).toBeLessThan(160_000);
       expect(bytes.readUInt32BE(16)).toBe(art.imageWidth);
       expect(bytes.readUInt32BE(20)).toBe(art.imageHeight);
       const [x, y, width, height] = art.crop;
@@ -31,7 +32,7 @@ describe("generated illustrations", () => {
     expect(hoop.height).toBeGreaterThan(hoop.size);
     const art = hoop.illustration!;
     const unit = hoop.height / art.crop[3];
-    const rimY = (367 - art.crop[1]) * unit;
+    const rimY = (183 - art.crop[1]) * unit;
     expect(hoop.height - rimY).toBeCloseTo(3.05, 6);
   });
 });

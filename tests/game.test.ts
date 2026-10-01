@@ -44,10 +44,11 @@ describe("scoring", () => {
   });
 });
 describe("catalogue", () => {
-  it("has fourteen objects and twenty-two reachable pairs", () => {
-    expect(Object.keys(objects)).toHaveLength(14);
-    expect(pairs).toHaveLength(22);
+  it("has distinct, reachable comparisons", () => {
+    expect(Object.keys(objects)).toHaveLength(18);
+    expect(pairs).toHaveLength(30);
     expect(new Set(pairs.map((p) => p.id)).size).toBe(pairs.length);
+    expect(new Set(pairs.map((p) => [p.reference, p.target].sort().join(":"))).size).toBe(pairs.length);
     for (const p of pairs) {
       const r = objects[p.reference],
         t = objects[p.target];
@@ -63,15 +64,21 @@ describe("catalogue", () => {
     expect(pairs.map((p) => p.id)).toEqual(before);
     expect(new Set(out.map((p) => p.id)).size).toBe(pairs.length);
   });
-  it("creates varied sessions without repeated targets", () => {
-    for (let i = 0; i < 100; i++) {
-      const rounds = chooseRounds();
+  it("creates varied sessions without any object appearing twice", () => {
+    const sessions = new Set<string>();
+    let previous: string[] = [];
+    for (let i = 0; i < 500; i++) {
+      const rounds = chooseRounds(previous);
       expect(rounds).toHaveLength(5);
-      expect(new Set(rounds.map((p) => p.target)).size).toBe(5);
+      expect(new Set(rounds.flatMap((p) => [p.reference, p.target])).size).toBe(10);
+      expect(rounds.every((p) => !previous.includes(p.id))).toBe(true);
+      previous = rounds.map((p) => p.id);
+      sessions.add(rounds.map((p) => p.id).join(","));
       expect(
         rounds.filter((p) => objects[p.reference].axis === "x"),
       ).toHaveLength(2);
     }
+    expect(sessions.size).toBeGreaterThan(50);
   });
   it("clamps gesture values", () => {
     expect(clamp(-1)).toBe(MIN_RATIO);

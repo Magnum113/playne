@@ -132,6 +132,7 @@ export default function App() {
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const locked = useRef(false);
+  const previousRoundIds = useRef<string[]>([]);
   const total = results.reduce((sum, r) => sum + r.points, 0);
   useEffect(() => {
     if (help) dialog.current?.showModal();
@@ -140,6 +141,20 @@ export default function App() {
   useEffect(() => {
     if (screen !== "start") heading.current?.focus();
   }, [screen, index]);
+  useEffect(() => {
+    if (screen !== "game") return;
+    const next = rounds[index + 1];
+    if (!next) return;
+    [next.reference, next.target]
+      .map((id) => objects[id].illustration?.src)
+      .filter((src): src is string => Boolean(src))
+      .map((src) => {
+        const image = new Image();
+        image.decoding = "async";
+        image.src = `${import.meta.env.BASE_URL}${src}`;
+        return image;
+      });
+  }, [screen, rounds, index]);
   function openHelp() {
     reachGoal(METRIKA_GOALS.rulesOpen, { screen });
     setHelp(true);
@@ -153,7 +168,9 @@ export default function App() {
       round_count: ROUND_COUNT,
       previous_best: best,
     });
-    setRounds(chooseRounds());
+    const nextRounds = chooseRounds(previousRoundIds.current);
+    previousRoundIds.current = nextRounds.map((round) => round.id);
+    setRounds(nextRounds);
     setIndex(0);
     setResults([]);
     setRatio(0.45 + Math.random() * 0.55);

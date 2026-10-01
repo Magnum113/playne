@@ -246,6 +246,69 @@ function Drawing({ id }: { id: ObjectId }) {
           ))}
         </>
       );
+    case "sequoia":
+      return (
+        <g transform="scale(1.3541667 1)">
+          <path d="M9.2 83.8 10.6 51h2.8l1.4 32.8Z" />
+          <path d="M12 0 10 6 9 10 8 15 6 20 7 25 4 30 5 35 2 40 4 45 0 52 3 54 0 60 6 62 9 58 10 55 14 55 15 58 18 62 24 60 21 54 24 52 20 45 22 40 19 35 20 30 17 25 18 20 16 15 15 10 14 6Z" />
+          <g fill="none" stroke={ink} strokeWidth=".45" opacity=".42">
+            <path d="M12 5v54M7 21l5 9 5-10M4 41l8 7 8-7M8 58l4 4 4-4M11 64l-1 19m3-19 1 19" />
+          </g>
+          <path d="M7.5 83.1h9v.7h-9z" />
+        </g>
+      );
+    case "unity":
+      return (
+        <>
+          {/* Statue only: the 182 m measurement excludes its separate pedestal. */}
+          <path d="M14 182 15.5 169l1.8-36-3.6-29-1.3-24-4.8 35-4.2 3.5L0 115 4 68l5-21 8-8 3-6 6-1 3 6 8 6 5 20 4 50-3.6 4.5-4-3.5-4.8-35-1.3 24-3.6 29 1.8 36L32 182h-8l-1.5-40L21 182Z" />
+          <path d="M15 12q.3-12 8-12t8 12l-2 13-4 6h-4l-4-6Z" />
+          <path d="M13 9q4-11 10-9 8 .2 10 11l-4-4-10-.7Z" />
+          <path d="M16 39q6 10 11 8l11 18-8 12 3 49-6 7-2-56-6-19-8 26-2-23Z" fill={ink} opacity=".45" />
+          <g fill="none" stroke={ink} strokeWidth=".7" opacity=".65">
+            <path d="M22 32v20m6-17-6 19 7 49m-18-55 6 34-5 39m25-62 3 48M18 135l4 42m7-43-4 43M3 111l4 3m32 0 4-3" />
+          </g>
+          <path d="M13 181h10v1H13zm11 0h10v1H24z" />
+        </>
+      );
+    case "iss":
+      return (
+        <>
+          {/* Broadside schematic: the full 109 m solar-array span is measured. */}
+          <path d="M0 10.5h109v2H0z" />
+          {[3, 17, 31, 45, 63, 77, 91].map((x) => (
+            <g key={x}>
+              <rect x={x} y="2.4" width="12" height="18.2" rx=".4" />
+              <g stroke={ink} strokeWidth=".27" opacity=".8">
+                {[x + 3, x + 6, x + 9].map((line) => (
+                  <path key={line} d={`M${line} 2.5v18`} />
+                ))}
+                <path d={`M${x} 8.3h12m-12 6.1h12`} />
+              </g>
+            </g>
+          ))}
+          <path d="M54.5 0h3v23h-3zM50 7h13v9H50zM46 9.4h21v4.2H46z" />
+          <circle cx="56" cy="11.5" r="2.5" fill={ink} />
+          <path d="M0 9h1.4v5H0zm107.6 0h1.4v5h-1.4z" />
+        </>
+      );
+    case "squid":
+      return (
+        <>
+          {/* Mantle on the left, longest recorded tentacles reach the 13 m tip. */}
+          <path d="M0 1.55 1.1.35 1.6 0 4.5.25q1.3.15 1.6 1.3-.3 1.15-1.6 1.3L1.6 3.1 1.1 2.75Z" />
+          <path d="M5.7 1.1q.8-.75 1.7.45-.9 1.2-1.7.45Z" />
+          <circle cx="5.45" cy="1.2" r=".17" fill={ink} />
+          <g fill="none" stroke="currentColor" strokeLinecap="round">
+            <path d="M7 1.25q2-.8 4-.65l2 .35" strokeWidth=".16" />
+            <path d="M7 1.45q3 .15 6-.25" strokeWidth=".14" />
+            <path d="M7 1.65q2.5 1.1 6 .55" strokeWidth=".16" />
+            <path d="M7 1.85q2 1.35 4.7 1" strokeWidth=".15" />
+            <path d="M7 2.05q1.1.8 2.5.9" strokeWidth=".14" />
+          </g>
+          <path d="M6.5 1.35h.7v.55h-.7z" />
+        </>
+      );
   }
 }
 export default function Silhouette({
