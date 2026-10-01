@@ -73,3 +73,16 @@ Nginx and use the prerendered error document.
 
 `scripts/check-seo.mjs` checks the original route and exact inline stylesheet
 contents on every prerendered public page. No CORS or CSP relaxation is required.
+
+Sprite Fusion marks the proxied document with `meta[name="daw-status"]`.
+The client preserves the prerendered markup in that read-only copy rather than
+replacing its rewritten image URLs or initializing analytics. The real Playne
+site still initializes normally.
+
+The Playne Nginx snippet explicitly enables gzip level 6 for HTML and compression
+for JavaScript, CSS and SVG, also for requests carrying a proxy Via header.
+On 2026-10-01 the service returned 502 after 20 seconds for the 17,058-byte gzip
+HTML response. After this configuration change, the same proxy URL returned 200
+in 0.74 seconds; gzip HTML was 13,633 bytes and decompressed identically to the
+release. Browser gameplay also loaded. This is an observed improvement, not a
+claim about the service's undocumented network limits or permanent availability.
