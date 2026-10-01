@@ -1,81 +1,20 @@
-import {
-  CIRCLE_GOALS,
-  COLORFLE_GOALS,
-  reachGoal,
-  type MetrikaGoal,
-  type MetrikaParams,
-} from "./analytics";
-import {
-  colorOutcome,
-  colorSimilarity,
-  MAX_COLOR_TRIES,
-  type ColorAction,
-  type ColorSession,
-} from "./colorfle";
+import { CIRCLE_GOALS, SHADE_GOALS, reachGoal, type MetrikaGoal, type MetrikaParams } from "./analytics";
+import { ROUND_COUNT, shadePhase, shadeTotal, type ShadeAction, type ShadeSession } from "./colorfle";
 import type { CircleResult } from "./circle";
 
 type GoalEvent = { goal: MetrikaGoal; params: MetrikaParams };
-
-// Pure transition description: reducers and restoration never send events.
-export function colorTransitionGoals(
-  before: ColorSession,
-  after: ColorSession,
-  action: ColorAction,
-): GoalEvent[] {
+export function shadeTransitionGoals(before: ShadeSession, after: ShadeSession, action: ShadeAction): GoalEvent[] {
   if (before === after) return [];
-  if (action.type === "start" && !before.started && after.started) {
-    return [
-      {
-        goal: COLORFLE_GOALS.gameStart,
-        params: { source: "initial", max_attempts: MAX_COLOR_TRIES },
-      },
-    ];
-  }
-  if (action.type === "new" && colorOutcome(before) !== "playing") {
-    return [
-      {
-        goal: COLORFLE_GOALS.gameRestart,
-        params: {
-          previous_outcome: colorOutcome(before),
-          previous_attempts: before.guesses.length,
-        },
-      },
-      {
-        goal: COLORFLE_GOALS.gameStart,
-        params: { source: "restart", max_attempts: MAX_COLOR_TRIES },
-      },
-    ];
-  }
-  if (
-    action.type !== "submit" ||
-    after.guesses.length !== before.guesses.length + 1
-  )
-    return [];
-  const attempt = after.guesses.length;
-  const outcome = colorOutcome(after);
-  const events: GoalEvent[] = [
-    {
-      goal: COLORFLE_GOALS.attemptComplete,
-      params: {
-        attempt_number: attempt,
-        similarity: colorSimilarity(after.guesses[attempt - 1], after.secret),
-        outcome,
-      },
-    },
+  if (action.type === "start") return [{ goal: SHADE_GOALS.gameStart, params: { source: "initial", round_count: ROUND_COUNT } }];
+  if (action.type === "new") return [
+    { goal: SHADE_GOALS.gameRestart, params: { previous_score: shadeTotal(before) } },
+    { goal: SHADE_GOALS.gameStart, params: { source: "restart", round_count: ROUND_COUNT } },
   ];
-  if (outcome !== "playing" && colorOutcome(before) === "playing") {
-    const params = {
-      outcome,
-      attempts: attempt,
-      previous_best: before.stats.best ?? 0,
-      new_record:
-        outcome === "won" &&
-        (before.stats.best === null || attempt < before.stats.best),
-    };
-    events.push({ goal: COLORFLE_GOALS.gameComplete, params });
-    if (outcome === "won")
-      events.push({ goal: COLORFLE_GOALS.gameWin, params });
-  }
+  if (action.type !== "submit" || after.answers.length !== before.answers.length + 1) return [];
+  const events: GoalEvent[] = [{ goal: SHADE_GOALS.roundComplete, params: { round_number: after.answers.length, score: after.answers.at(-1)!.score } }];
+  if (shadePhase(after) === "finished") events.push({ goal: SHADE_GOALS.gameComplete, params: {
+    score: shadeTotal(after), previous_best: before.stats.best, new_record: shadeTotal(after) > before.stats.best,
+  } });
   return events;
 }
 

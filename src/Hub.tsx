@@ -4,7 +4,6 @@ import Silhouette from "./Silhouette";
 import { objects } from "./data";
 import { readBest } from "./game";
 import { circlePercent, readCircleBest } from "./circle";
-import { PALETTE, mixture } from "./colorfle";
 
 function Arrow() {
   return (
@@ -97,38 +96,14 @@ function CirclePreview() {
 }
 
 function ColorPreview() {
-  return (
-    <svg className="size-preview" viewBox="0 0 420 190" aria-hidden="true">
-      <circle cx="107" cy="76" r="28" fill={PALETTE[4].hex} />
-      <circle cx="174" cy="76" r="23" fill={PALETTE[6].hex} />
-      <circle
-        cx="230"
-        cy="76"
-        r="18"
-        fill={PALETTE[7].hex}
-        stroke="var(--line)"
-      />
-      <path
-        d="M107 116v18h169m-7-7 7 7-7 7"
-        fill="none"
-        stroke="var(--muted)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="314" cy="95" r="43" fill={mixture([4, 6, 7])} />
-      <text
-        x="314"
-        y="107"
-        textAnchor="middle"
-        fill="#252a2d"
-        fontSize="34"
-        fontWeight="500"
-      >
-        ?
-      </text>
-    </svg>
-  );
+  return <svg className="size-preview" viewBox="0 0 420 190" aria-hidden="true">
+    <defs><linearGradient id="shade-preview" x1="0" x2="1"><stop stopColor="#fff"/><stop offset="1" stopColor="#8e6ad7"/></linearGradient><linearGradient id="shade-preview-dark" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#000" stopOpacity="0"/><stop offset="1" stopColor="#000"/></linearGradient></defs>
+    <rect x="42" y="25" width="152" height="126" rx="15" fill="#7954c5"/>
+    <rect x="225" y="25" width="152" height="126" rx="15" fill="url(#shade-preview)"/>
+    <rect x="225" y="25" width="152" height="126" rx="15" fill="url(#shade-preview-dark)"/>
+    <circle cx="331" cy="62" r="10" fill="#8058ca" stroke="white" strokeWidth="4"/>
+    <path d="M198 88h21m-8-8 8 8-8 8" fill="none" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>;
 }
 
 export default function Hub() {
@@ -242,12 +217,12 @@ export default function Hub() {
                   Оттенок<span className="brand-dot">.</span>
                 </h2>
                 <p>
-                  Какие три цвета скрыты в этой смеси?
-                  <br /> Подбери состав по подсказкам.
+                  Сможешь попасть в этот цвет?
+                  <br /> Подбери оттенок на палитре.
                 </p>
               </div>
               <div className="card-bottom">
-                <span>3 цвета · 6 попыток</span>
+                <span>5 цветов · 500 очков</span>
                 <span className="card-play">
                   Играть <Arrow />
                 </span>

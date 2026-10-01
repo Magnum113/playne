@@ -17,21 +17,20 @@ export const CIRCLE_GOALS = {
   retry: "circle_retry",
 } as const;
 
-export const COLORFLE_GOALS = {
-  rulesOpen: "colorfle_rules_open",
-  gameStart: "colorfle_game_start",
-  attemptComplete: "colorfle_attempt_complete",
-  gameComplete: "colorfle_game_complete",
-  gameWin: "colorfle_game_win",
-  gameRestart: "colorfle_game_restart",
-  resultCopy: "colorfle_result_copy",
+export const SHADE_GOALS = {
+  rulesOpen: "ottenok_rules_open",
+  gameStart: "ottenok_game_start",
+  roundComplete: "ottenok_round_complete",
+  gameComplete: "ottenok_game_complete",
+  gameRestart: "ottenok_game_restart",
+  resultCopy: "ottenok_result_copy",
 } as const;
 
 type Values<T> = T[keyof T];
 export type MetrikaGoal =
   | Values<typeof METRIKA_GOALS>
   | Values<typeof CIRCLE_GOALS>
-  | Values<typeof COLORFLE_GOALS>;
+  | Values<typeof SHADE_GOALS>;
 export type MetrikaParams = Record<string, string | number | boolean>;
 
 type MetrikaFunction = {

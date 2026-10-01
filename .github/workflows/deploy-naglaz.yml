@@ -106,7 +106,7 @@ jobs:
           grep -Fq '112711950' "dist/assets/$javascript_file"
           grep -Fq 'naglaz_game_complete' "dist/assets/$javascript_file"
           grep -Fq 'Круг — нарисуй идеальный круг | Playne' dist/circle/index.html
-          grep -Fq 'Оттенок — угадай смесь цветов | Playne' dist/colorfle/index.html
+          grep -Fq 'Оттенок — подбери цвет на палитре | Playne' dist/colorfle/index.html
           if grep -Eq '(src|href)="/naglaz/(assets|art)/' dist/index.html; then exit 1; fi
 
           printf 'javascript_file=%s\n' "$javascript_file" >> "$GITHUB_OUTPUT"

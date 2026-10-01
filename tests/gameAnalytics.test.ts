@@ -1,101 +1,26 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  createCircleTracker,
-  colorTransitionGoals,
-} from "../src/gameAnalytics";
-import {
-  colorReducer,
-  newColorSession,
-  type ColorSession,
-  type ColorAction,
-  type Recipe,
-} from "../src/colorfle";
-
-function session(): ColorSession {
-  return { ...newColorSession(), secret: [0, 4, 7] };
+import { createCircleTracker, shadeTransitionGoals } from "../src/gameAnalytics";
+import { newShadeSession, shadeReducer, type ShadeAction, type ShadeSession } from "../src/colorfle";
+function events(state: ShadeSession, action: ShadeAction) {
+  return shadeTransitionGoals(state, shadeReducer(state, action), action);
 }
-function events(state: ColorSession, action: ColorAction) {
-  return colorTransitionGoals(state, colorReducer(state, action), action);
-}
-describe("Colorfle analytics transitions", () => {
-  it("counts a real start once, not an already restored game", () => {
-    const initial = session();
-    expect(events(initial, { type: "start" }).map((e) => e.goal)).toEqual([
-      "colorfle_game_start",
-    ]);
-    expect(events({ ...initial, started: true }, { type: "start" })).toEqual(
-      [],
-    );
-  });
-  it("ignores incomplete, duplicate and non-submit actions", () => {
-    const state = { ...session(), started: true };
-    expect(events(state, { type: "submit" })).toEqual([]);
-    expect(events(state, { type: "choose", color: 1 })).toEqual([]);
-    expect(
-      events(
-        { ...state, guesses: [[1, 2, 3]], draft: [1, 2, 3] },
-        { type: "submit" },
-      ),
-    ).toEqual([]);
-  });
-  it("reports a win and record exactly once", () => {
-    const state: ColorSession = {
-      ...session(),
-      started: true,
-      draft: [0, 4, 7],
-    };
-    const action = { type: "submit" } as const;
-    const result = events(state, action);
-    expect(result.map((e) => e.goal)).toEqual([
-      "colorfle_attempt_complete",
-      "colorfle_game_complete",
-      "colorfle_game_win",
-    ]);
-    expect(result[1].params).toMatchObject({
-      outcome: "won",
-      attempts: 1,
-      new_record: true,
-    });
-    const won = colorReducer(state, action);
-    expect(events(won, action)).toEqual([]);
-    expect(events(won, { type: "start" })).toEqual([]);
-  });
-  it("reports six accepted guesses and one loss without a win", () => {
-    let state = { ...session(), started: true };
-    const all = [];
-    const guesses: Recipe[] = [
-      [1, 2, 3],
-      [1, 2, 5],
-      [1, 2, 6],
-      [1, 2, 8],
-      [1, 3, 5],
-      [1, 3, 6],
-    ];
-    for (const draft of guesses) {
-      state = { ...state, draft };
-      all.push(...events(state, { type: "submit" }));
-      state = colorReducer(state, { type: "submit" });
+describe("Оттенок analytics", () => {
+  it("emits start, each accepted round, completion, and restart once", () => {
+    let state = newShadeSession();
+    expect(events(state, { type: "start" }).map(e => e.goal)).toEqual(["ottenok_game_start"]);
+    state = shadeReducer(state, { type: "start" });
+    expect(events(state, { type: "start" })).toEqual([]);
+    for (let i = 0; i < 5; i++) {
+      expect(events(state, { type: "submit" })).toEqual([]);
+      state = shadeReducer(state, { type: "pick", color: state.targets[i] });
+      const emitted = events(state, { type: "submit" });
+      expect(emitted.map(e => e.goal)).toEqual(i === 4 ? ["ottenok_round_complete", "ottenok_game_complete"] : ["ottenok_round_complete"]);
+      state = shadeReducer(state, { type: "submit" });
+      if (i < 4) state = shadeReducer(state, { type: "next" });
     }
-    expect(
-      all.filter((e) => e.goal === "colorfle_attempt_complete"),
-    ).toHaveLength(6);
-    expect(all.filter((e) => e.goal === "colorfle_game_complete")).toEqual([
-      expect.objectContaining({
-        params: expect.objectContaining({
-          outcome: "lost",
-          attempts: 6,
-          new_record: false,
-        }),
-      }),
-    ]);
-    expect(all.some((e) => e.goal === "colorfle_game_win")).toBe(false);
     expect(events(state, { type: "submit" })).toEqual([]);
-    const action = { type: "new", session: newColorSession(state) } as const;
-    expect(events(state, action).map((e) => e.goal)).toEqual([
-      "colorfle_game_restart",
-      "colorfle_game_start",
-    ]);
-    expect(events(action.session, action)).toEqual([]);
+    const action = { type: "new", session: newShadeSession(state) } as const;
+    expect(events(state, action).map(e => e.goal)).toEqual(["ottenok_game_restart", "ottenok_game_start"]);
   });
 });
 describe("Circle analytics lifecycle", () => {

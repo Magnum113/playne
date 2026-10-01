@@ -1,304 +1,134 @@
-export const COLORFLE_KEY = "playne:colorfle:v1";
-export const COLOR_WEIGHTS = [0.5, 0.3, 0.2] as const;
-export const MAX_COLOR_TRIES = 6;
-export const PALETTE = [
-  { name: "Коралл", hex: "#e65e73", ink: "#201a20" },
-  { name: "Янтарь", hex: "#e9a844", ink: "#201a20" },
-  { name: "Лимон", hex: "#efdc66", ink: "#201a20" },
-  { name: "Зелёный", hex: "#73b67c", ink: "#201a20" },
-  { name: "Бирюза", hex: "#52bdb3", ink: "#201a20" },
-  { name: "Синий", hex: "#558ddd", ink: "#151b29" },
-  { name: "Сирень", hex: "#ac86d0", ink: "#201a20" },
-  { name: "Сливочный", hex: "#f3ebdf", ink: "#201a20" },
-  { name: "Графит", hex: "#343b50", ink: "#ffffff" },
-] as const;
-export type Recipe = [number, number, number];
-export type Draft = [number | null, number | null, number | null];
-export type ColorHint = "exact" | "present" | "absent";
-export const HINT_LABELS: Record<ColorHint, string> = {
-  exact: "На месте",
-  present: "Другая доля",
-  absent: "Нет в смеси",
-};
-export type ColorStats = { played: number; wins: number; best: number | null };
-export type ColorSession = {
-  version: 1;
-  secret: Recipe;
-  guesses: Recipe[];
-  draft: Draft;
-  active: number;
+export const SHADE_KEY = "playne:ottenok:v2";
+export const ROUND_COUNT = 5;
+export type HSV = { h: number; s: number; v: number };
+export type ShadeAnswer = { choice: HSV; score: number };
+export type ShadeStats = { played: number; best: number };
+export type ShadeSession = {
+  version: 2;
+  targets: HSV[];
+  answers: ShadeAnswer[];
+  round: number;
+  draft: HSV;
+  touched: boolean;
   started: boolean;
-  stats: ColorStats;
+  stats: ShadeStats;
 };
-export function validRecipe(value: unknown): value is Recipe {
-  return (
-    Array.isArray(value) &&
-    value.length === 3 &&
-    new Set(value).size === 3 &&
-    value.every((n) => Number.isInteger(n) && n >= 0 && n < PALETTE.length)
-  );
+const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+export function validHSV(value: unknown): value is HSV {
+  if (!value || typeof value !== "object") return false;
+  const c = value as Record<string, unknown>;
+  return typeof c.h === "number" && Number.isInteger(c.h) && c.h >= 0 && c.h <= 359 &&
+    typeof c.s === "number" && Number.isInteger(c.s) && c.s >= 0 && c.s <= 100 &&
+    typeof c.v === "number" && Number.isInteger(c.v) && c.v >= 0 && c.v <= 100;
 }
-export function mixture(recipe: Recipe): string {
-  const rgb = [0, 2, 4].map((offset) =>
-    Math.round(
-      recipe.reduce(
-        (sum, id, slot) =>
-          sum +
-          parseInt(PALETTE[id].hex.slice(1 + offset, 3 + offset), 16) *
-            COLOR_WEIGHTS[slot],
-        0,
-      ),
-    ),
-  );
-  return `#${rgb.map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+export function hsvToRgb(color: HSV): [number, number, number] {
+  const h = color.h / 60;
+  const s = color.s / 100;
+  const v = color.v / 100;
+  const chroma = v * s;
+  const second = chroma * (1 - Math.abs((h % 2) - 1));
+  const offset = v - chroma;
+  const sections: [number, number, number][] = [
+    [chroma, second, 0], [second, chroma, 0], [0, chroma, second],
+    [0, second, chroma], [second, 0, chroma], [chroma, 0, second],
+  ];
+  return sections[Math.floor(h)].map((n) => Math.round((n + offset) * 255)) as [number, number, number];
 }
-export function colorHints(guess: Recipe, secret: Recipe): ColorHint[] {
-  return guess.map((id, slot) =>
-    id === secret[slot] ? "exact" : secret.includes(id) ? "present" : "absent",
-  );
+export function hsvToHex(color: HSV): string {
+  return `#${hsvToRgb(color).map((n) => n.toString(16).padStart(2, "0")).join("")}`;
 }
-export function colorWon(guess: Recipe, secret: Recipe): boolean {
-  return guess.every((id, slot) => id === secret[slot]);
+// OKLab measures visual separation more naturally than raw RGB channels.
+function oklab(color: HSV): [number, number, number] {
+  const [r, g, b] = hsvToRgb(color).map((n) => {
+    const c = n / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ];
 }
-export function colorOutcome(state: ColorSession): "playing" | "won" | "lost" {
-  return state.guesses.some((g) => colorWon(g, state.secret))
-    ? "won"
-    : state.guesses.length >= MAX_COLOR_TRIES
-      ? "lost"
-      : "playing";
+export function shadeScore(choice: HSV, target: HSV): number {
+  const a = oklab(choice), b = oklab(target);
+  const distance = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  if (hsvToHex(choice) === hsvToHex(target)) return 100;
+  return clamp(Math.round(100 * (1 - distance / 0.6)), 0, 99);
 }
-// An explicitly game-specific RGB similarity, not a physical paint simulation.
-// A near match never rounds to 100 unless the full recipe is correct.
-export function colorSimilarity(guess: Recipe, secret: Recipe): number {
-  if (colorWon(guess, secret)) return 100;
-  const a = mixture(guess),
-    b = mixture(secret);
-  const distance = Math.sqrt(
-    [1, 3, 5].reduce(
-      (sum, offset) =>
-        sum +
-        (parseInt(a.slice(offset, offset + 2), 16) -
-          parseInt(b.slice(offset, offset + 2), 16)) **
-          2,
-      0,
-    ),
-  );
-  return Math.min(99.9, Math.round(1000 * Math.exp(-distance / 180)) / 10);
+const initialDraft = (): HSV => ({ h: 180, s: 50, v: 75 });
+export function randomTargets(random = Math.random): HSV[] {
+  return Array.from({ length: ROUND_COUNT }, () => ({
+    h: Math.floor(random() * 360) % 360,
+    s: 45 + Math.floor(random() * 51) % 51,
+    v: 45 + Math.floor(random() * 51) % 51,
+  }));
 }
-export const ALL_RECIPES: Recipe[] = [];
-for (let a = 0; a < PALETTE.length; a++)
-  for (let b = 0; b < PALETTE.length; b++)
-    for (let c = 0; c < PALETTE.length; c++) {
-      if (a !== b && a !== c && b !== c) ALL_RECIPES.push([a, b, c]);
-    }
-const counts = new Map<string, number>();
-for (const recipe of ALL_RECIPES)
-  counts.set(mixture(recipe), (counts.get(mixture(recipe)) ?? 0) + 1);
-// Never ask the player to distinguish recipes that render as the very same RGB.
-export const PLAYABLE_RECIPES = ALL_RECIPES.filter(
-  (r) => counts.get(mixture(r)) === 1,
-);
-export function newColorSession(
-  previous?: ColorSession,
-  random = Math.random,
-): ColorSession {
-  const choices = previous
-    ? PLAYABLE_RECIPES.filter((r) => !colorWon(r, previous.secret))
-    : PLAYABLE_RECIPES;
-  const sample = random();
-  const index = Math.min(
-    choices.length - 1,
-    Math.max(
-      0,
-      Math.floor((Number.isFinite(sample) ? sample : 0) * choices.length),
-    ),
-  );
-  return {
-    version: 1,
-    secret: [...choices[index]],
-    guesses: [],
-    draft: [null, null, null],
-    active: 0,
-    started: previous?.started ?? false,
-    stats: previous
-      ? { ...previous.stats }
-      : { played: 0, wins: 0, best: null },
-  };
+export function newShadeSession(previous?: ShadeSession, random = Math.random): ShadeSession {
+  const targets = randomTargets(random);
+  if (previous && hsvToHex(targets[0]) === hsvToHex(previous.targets.at(-1)!))
+    targets[0] = { ...targets[0], h: (targets[0].h + 90) % 360 };
+  return { version: 2, targets, answers: [], round: 0, draft: initialDraft(), touched: false,
+    started: previous?.started ?? false, stats: previous ? { ...previous.stats } : { played: 0, best: 0 } };
 }
-export type ColorAction =
+export const shadeTotal = (state: ShadeSession) => state.answers.reduce((sum, answer) => sum + answer.score, 0);
+export const shadePhase = (state: ShadeSession): "welcome" | "picking" | "reveal" | "finished" =>
+  !state.started ? "welcome" : state.answers.length === ROUND_COUNT ? "finished" :
+  state.answers.length > state.round ? "reveal" : "picking";
+export type ShadeAction =
   | { type: "start" }
-  | { type: "slot"; slot: number }
-  | { type: "choose"; color: number }
-  | { type: "clear" }
-  | { type: "remove" }
-  | { type: "reuse"; recipe: Recipe }
+  | { type: "pick"; color: HSV }
   | { type: "submit" }
-  | { type: "new"; session: ColorSession };
-export function colorReducer(
-  state: ColorSession,
-  action: ColorAction,
-): ColorSession {
-  if (action.type === "new")
-    return colorOutcome(state) === "playing" ? state : action.session;
-  if (action.type === "start") return { ...state, started: true };
-  if (!state.started || colorOutcome(state) !== "playing") return state;
-  if (action.type === "slot")
-    return Number.isInteger(action.slot) && action.slot >= 0 && action.slot < 3
-      ? { ...state, active: action.slot }
-      : state;
-  if (action.type === "clear")
-    return { ...state, draft: [null, null, null], active: 0 };
-  if (action.type === "remove") {
-    const draft = [...state.draft] as Draft;
-    draft[state.active] = null;
-    return { ...state, draft };
+  | { type: "next" }
+  | { type: "new"; session: ShadeSession };
+export function shadeReducer(state: ShadeSession, action: ShadeAction): ShadeSession {
+  if (action.type === "start") return state.started ? state : { ...state, started: true };
+  if (action.type === "new") return shadePhase(state) === "finished" ? action.session : state;
+  if (shadePhase(state) === "picking") {
+    if (action.type === "pick") {
+      if (!validHSV(action.color)) return state;
+      return { ...state, draft: action.color, touched: true };
+    }
+    if (action.type === "submit" && state.touched) {
+      const answer = { choice: state.draft, score: shadeScore(state.draft, state.targets[state.round]) };
+      const answers = [...state.answers, answer];
+      const total = answers.reduce((sum, item) => sum + item.score, 0);
+      return { ...state, answers, stats: answers.length === ROUND_COUNT
+        ? { played: state.stats.played + 1, best: Math.max(state.stats.best, total) }
+        : state.stats };
+    }
   }
-  if (action.type === "reuse")
-    return validRecipe(action.recipe)
-      ? { ...state, draft: [...action.recipe], active: 0 }
-      : state;
-  if (action.type === "choose") {
-    if (
-      !Number.isInteger(action.color) ||
-      action.color < 0 ||
-      action.color >= PALETTE.length
-    )
-      return state;
-    const draft = [...state.draft] as Draft;
-    const existing = draft.indexOf(action.color);
-    if (existing >= 0 && existing !== state.active)
-      draft[existing] = draft[state.active];
-    draft[state.active] = action.color;
-    const empty = [1, 2, 0]
-      .map((n) => (state.active + n) % 3)
-      .find((slot) => draft[slot] === null);
-    return { ...state, draft, active: empty ?? state.active };
-  }
-  if (action.type === "submit") {
-    if (
-      !validRecipe(state.draft) ||
-      state.guesses.some((g) => colorWon(g, state.draft as Recipe))
-    )
-      return state;
-    const guess = [...state.draft] as Recipe;
-    const guesses = [...state.guesses, guess];
-    const won = colorWon(guess, state.secret);
-    const finished = won || guesses.length === MAX_COLOR_TRIES;
-    const stats = finished
-      ? {
-          played: state.stats.played + 1,
-          wins: state.stats.wins + Number(won),
-          best: won
-            ? Math.min(state.stats.best ?? 6, guesses.length)
-            : state.stats.best,
-        }
-      : state.stats;
-    // Keep confirmed positions, so feedback immediately helps the next attempt.
-    const draft = guess.map((id, slot) =>
-      id === state.secret[slot] ? id : null,
-    ) as Draft;
-    return {
-      ...state,
-      guesses,
-      draft,
-      active: Math.max(0, draft.indexOf(null)),
-      stats,
-    };
-  }
+  if (action.type === "next" && shadePhase(state) === "reveal")
+    return { ...state, round: state.round + 1, draft: initialDraft(), touched: false };
   return state;
 }
-export function parseColorSession(raw: string | null): ColorSession | null {
+export function parseShadeSession(raw: string | null): ShadeSession | null {
   try {
     const s = JSON.parse(raw ?? "null");
-    if (
-      !s ||
-      s.version !== 1 ||
-      !validRecipe(s.secret) ||
-      !Array.isArray(s.guesses) ||
-      s.guesses.length > 6 ||
-      !s.guesses.every(validRecipe)
-    )
-      return null;
-    if (
-      new Set(s.guesses.map((g: Recipe) => g.join(","))).size !==
-        s.guesses.length ||
-      s.guesses.slice(0, -1).some((g: Recipe) => colorWon(g, s.secret))
-    )
-      return null;
-    if (
-      !Array.isArray(s.draft) ||
-      s.draft.length !== 3 ||
-      s.draft.some(
-        (n: unknown) =>
-          n !== null &&
-          (!Number.isInteger(n) ||
-            Number(n) < 0 ||
-            Number(n) >= PALETTE.length),
-      )
-    )
-      return null;
-    const filled = s.draft.filter((n: unknown) => n !== null);
-    if (
-      new Set(filled).size !== filled.length ||
-      !Number.isInteger(s.active) ||
-      s.active < 0 ||
-      s.active > 2 ||
-      typeof s.started !== "boolean" ||
-      (!s.started && s.guesses.length)
-    )
-      return null;
-    if (
-      !s.stats ||
-      !Number.isSafeInteger(s.stats.played) ||
-      s.stats.played < 0 ||
-      !Number.isSafeInteger(s.stats.wins) ||
-      s.stats.wins < 0 ||
-      s.stats.wins > s.stats.played
-    )
-      return null;
-    if (
-      s.stats.best !== null &&
-      (!Number.isInteger(s.stats.best) || s.stats.best < 1 || s.stats.best > 6)
-    )
-      return null;
-    if ((s.stats.wins === 0) !== (s.stats.best === null)) return null;
-    return {
-      version: 1,
-      secret: [...s.secret] as Recipe,
-      guesses: s.guesses.map((g: Recipe) => [...g]),
-      draft: [...s.draft] as Draft,
-      active: s.active,
-      started: s.started,
-      stats: { played: s.stats.played, wins: s.stats.wins, best: s.stats.best },
-    };
-  } catch {
-    return null;
-  }
+    if (!s || s.version !== 2 || !Array.isArray(s.targets) || s.targets.length !== ROUND_COUNT ||
+      !s.targets.every(validHSV) || !Array.isArray(s.answers) || s.answers.length > ROUND_COUNT ||
+      !s.answers.every((answer: ShadeAnswer, i: number) => validHSV(answer?.choice) &&
+        Number.isInteger(answer.score) && answer.score === shadeScore(answer.choice, s.targets[i])) ||
+      !Number.isInteger(s.round) || s.round < 0 || s.round >= ROUND_COUNT ||
+      (s.answers.length !== s.round && s.answers.length !== s.round + 1 && s.answers.length !== ROUND_COUNT) ||
+      (s.answers.length === ROUND_COUNT && s.round !== ROUND_COUNT - 1) ||
+      !validHSV(s.draft) || typeof s.touched !== "boolean" || typeof s.started !== "boolean" ||
+      (!s.started && (s.answers.length > 0 || s.round > 0)) ||
+      !s.stats || !Number.isSafeInteger(s.stats.played) || s.stats.played < 0 ||
+      !Number.isInteger(s.stats.best) || s.stats.best < 0 || s.stats.best > ROUND_COUNT * 100 ||
+      (s.answers.length === ROUND_COUNT && s.stats.played < 1)) return null;
+    return s as ShadeSession;
+  } catch { return null; }
 }
-export function loadColorSession(): ColorSession {
-  try {
-    return (
-      parseColorSession(localStorage.getItem(COLORFLE_KEY)) ?? newColorSession()
-    );
-  } catch {
-    return newColorSession();
-  }
+export function loadShadeSession(): ShadeSession {
+  try { return parseShadeSession(localStorage.getItem(SHADE_KEY)) ?? newShadeSession(); }
+  catch { return newShadeSession(); }
 }
-export function saveColorSession(state: ColorSession): void {
-  try {
-    localStorage.setItem(COLORFLE_KEY, JSON.stringify(state));
-  } catch {
-    /* The session continues in memory. */
-  }
+export function saveShadeSession(state: ShadeSession): void {
+  try { localStorage.setItem(SHADE_KEY, JSON.stringify(state)); } catch { /* Play continues in memory. */ }
 }
-export function colorShareText(state: ColorSession): string {
-  const outcome = colorOutcome(state);
-  const marks = { exact: "🟩", present: "🟨", absent: "⬜" };
-  return `Оттенок · Playne\n${outcome === "won" ? `Собрал за ${state.guesses.length} из 6` : "6 попыток — цвет оказался хитрее"}\n\n${state.guesses
-    .map((g) =>
-      colorHints(g, state.secret)
-        .map((h) => marks[h])
-        .join(""),
-    )
-    .join("\n")}\n\nhttps://playne.ru/colorfle/`;
+export function shadeShareText(state: ShadeSession): string {
+  return `Оттенок · Playne\n${shadeTotal(state)} из ${ROUND_COUNT * 100} очков\n${state.answers.map(a => a.score).join(" · ")}\n\nhttps://playne.ru/colorfle/`;
 }

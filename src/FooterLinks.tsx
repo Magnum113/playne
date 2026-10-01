@@ -13,7 +13,7 @@ export default function FooterLinks() {
         </a>
         <a href="/guides/naglaz/">Как сравнивать размеры</a>
         <a href="/guides/perfect-circle/">Как нарисовать круг</a>
-        <a href="/guides/colorfle/">Как угадывать цвета</a>
+        <a href="/guides/colorfle/">Как подобрать оттенок</a>
       </div>
     </nav>
   );
