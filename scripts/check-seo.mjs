@@ -52,6 +52,11 @@ try {
     );
     assert(html.includes('lang="ru"') && !html.includes('content="noindex'));
     assert(html.includes("og:image") && html.includes("twitter:card"));
+    assert(html.includes('data-playne-mark="vector"'));
+    assert(
+      !/<img\b[^>]*src="\/art\/playne-logo\.png/i.test(html),
+      `${page.path}: the large social image must not be used in page chrome`,
+    );
     assert(
       html.includes('class="footer-links"'),
       `${page.path}: footer links rendered without JS`,

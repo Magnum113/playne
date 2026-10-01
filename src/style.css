@@ -1076,7 +1076,7 @@ dialog .primary {
   text-decoration: none;
   line-height: 1;
 }
-.playne-brand img {
+.playne-brand svg[data-playne-mark] {
   width: 36px;
   height: 36px;
   object-fit: contain;
@@ -1086,7 +1086,7 @@ dialog .primary {
   letter-spacing: -3.4px;
   gap: 17px;
 }
-.playne-brand-large img {
+.playne-brand-large svg[data-playne-mark] {
   width: 74px;
   height: 74px;
 }
@@ -1128,7 +1128,7 @@ dialog .primary {
 footer .playne-brand {
   font-size: 19px;
 }
-footer .playne-brand img {
+footer .playne-brand svg[data-playne-mark] {
   width: 25px;
   height: 25px;
 }
@@ -1525,8 +1525,8 @@ footer .playne-brand img {
     min-height: 44px;
     flex-shrink: 0;
   }
-  .header .playne-brand img,
-  .hub-header .playne-brand img {
+  .header .playne-brand svg[data-playne-mark],
+  .hub-header .playne-brand svg[data-playne-mark] {
     width: 32px;
     height: 32px;
   }
@@ -1650,8 +1650,8 @@ footer .playne-brand img {
     font-size: 20px;
     gap: 5px;
   }
-  .header .playne-brand img,
-  .hub-header .playne-brand img {
+  .header .playne-brand svg[data-playne-mark],
+  .hub-header .playne-brand svg[data-playne-mark] {
     width: 26px;
     height: 26px;
   }
