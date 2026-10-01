@@ -86,3 +86,11 @@ HTML response. After this configuration change, the same proxy URL returned 200
 in 0.74 seconds; gzip HTML was 13,633 bytes and decompressed identically to the
 release. Browser gameplay also loaded. This is an observed improvement, not a
 claim about the service's undocumented network limits or permanent availability.
+
+A later uncached check showed that the service's static `/api/page` fallback
+still returned a 502 timeout after about 16 seconds for the main page. The
+"Разрушить сайт" link now targets `/destroy.html`, a self-contained snapshot
+of the hub with the same three game cards. It is less than 16 KB uncompressed,
+uses inline CSS/SVG, has no JavaScript, external assets or analytics, and is
+`noindex`. This avoids extra proxy requests and keeps the actual games and
+indexed home page unchanged. CI and server health checks verify the file.

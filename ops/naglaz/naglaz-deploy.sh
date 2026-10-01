@@ -330,6 +330,7 @@ with tarfile.open(archive, mode="r:") as bundle:
         "naglaz/guides/index.html", "naglaz/guides/naglaz/index.html",
         "naglaz/guides/perfect-circle/index.html", "naglaz/guides/colorfle/index.html",
         "naglaz/robots.txt", "naglaz/sitemap.xml", "naglaz/404.html",
+        "naglaz/destroy.html",
     } & set(regular_files)
     allowed_files = required | optional_pages | set(javascript) | set(stylesheets) | set(artwork)
     if set(regular_files) != allowed_files:
@@ -492,6 +493,11 @@ health_check() {
   if [[ -f "$release_dir/naglaz/colorfle/index.html" ]]; then
     curl "${curl_options[@]}" --fail https://playne.ru/colorfle/ --output "$index_file" || return 1
     cmp --silent "$release_dir/naglaz/colorfle/index.html" "$index_file" || return 1
+  fi
+
+  if [[ -f "$release_dir/naglaz/destroy.html" ]]; then
+    curl "${curl_options[@]}" --fail https://playne.ru/destroy.html --output "$index_file" || return 1
+    cmp --silent "$release_dir/naglaz/destroy.html" "$index_file" || return 1
   fi
 
   # Optional for compatibility with releases built before the SEO pages existed.

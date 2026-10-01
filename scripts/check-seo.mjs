@@ -98,6 +98,19 @@ try {
     missing.includes('content="noindex, follow"') &&
       !missing.includes('rel="canonical"'),
   );
+  const destroy = await readFile(new URL("destroy.html", dist), "utf8");
+  assert(Buffer.byteLength(destroy) < 16_000, "Destroy page should stay small");
+  assert(destroy.includes('name="robots" content="noindex, nofollow"'));
+  assert(destroy.includes("<style>") && !destroy.includes("<script"));
+  assert(!/<(?:img|link|iframe)\b/i.test(destroy));
+  assert(!/@import\b|url\s*\(/i.test(destroy));
+  for (const game of ["На глаз", "Круг", "Оттенок"])
+    assert(destroy.includes(game), `Destroy page is missing ${game}`);
+  const home = await readFile(new URL("index.html", dist), "utf8");
+  assert(
+    home.includes("https%3A%2F%2Fplayne.ru%2Fdestroy.html%3Fv%3D1"),
+    "Destroy link must use the self-contained page",
+  );
   console.log(
     `SEO checks passed: ${pages.length} prerendered routes, internal links, metadata, JSON-LD, sitemap, robots and 404.`,
   );
