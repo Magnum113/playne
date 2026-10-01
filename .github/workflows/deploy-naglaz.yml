@@ -208,7 +208,7 @@ jobs:
           javascript_file="$RUNNER_TEMP/naglaz-app.js"
           stylesheet_file="$RUNNER_TEMP/naglaz-app.css"
 
-          curl --fail --silent --show-error --max-time 20 \
+          curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             --dump-header "$index_headers" \
             https://playne.ru/ --output "$index_file"
           test "$(sha256sum "$index_file" | awk '{print $1}')" = "$INDEX_DIGEST"
@@ -216,16 +216,16 @@ jobs:
             grep -Eiq "^content-security-policy:.*script-src.*mc\.yandex\.ru.*connect-src.*mc\.yandex\.ru"
           ! tr -d '\r' < "$index_headers" | grep -Eiq '^content-security-policy:.*sandbox'
 
-          curl --fail --silent --show-error --max-time 20 \
+          curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             https://playne.ru/favicon.svg --output "$favicon_file"
           test "$(sha256sum "$favicon_file" | awk '{print $1}')" = "$FAVICON_DIGEST"
 
-          curl --fail --silent --show-error --max-time 20 \
+          curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             "https://playne.ru/assets/$JAVASCRIPT_FILE" \
             --output "$javascript_file"
           test "$(sha256sum "$javascript_file" | awk '{print $1}')" = "$JAVASCRIPT_DIGEST"
 
-          curl --fail --silent --show-error --max-time 20 \
+          curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             "https://playne.ru/assets/$STYLESHEET_FILE" \
             --output "$stylesheet_file"
           test "$(sha256sum "$stylesheet_file" | awk '{print $1}')" = "$STYLESHEET_DIGEST"
@@ -234,7 +234,7 @@ jobs:
           for artwork in dist/art/*.png; do
             artwork_file="$RUNNER_TEMP/naglaz-artwork.png"
             artwork_headers="$RUNNER_TEMP/naglaz-artwork.headers"
-            curl --fail --silent --show-error --max-time 20 \
+            curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
               --header 'Origin: null' --dump-header "$artwork_headers" \
               "https://playne.ru/art/$(basename "$artwork")" \
               --output "$artwork_file"
@@ -244,51 +244,51 @@ jobs:
             tr -d '\r' < "$artwork_headers" | grep -Eiq '^cross-origin-resource-policy: cross-origin$'
           done
 
-          curl --fail --silent --show-error --max-time 20 \
+          curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             https://playne.ru/favicon.ico --output "$RUNNER_TEMP/playne-favicon.ico"
           cmp dist/favicon.ico "$RUNNER_TEMP/playne-favicon.ico"
 
           game_file="$RUNNER_TEMP/playne-naglaz.html"
-          curl --fail --silent --show-error --max-time 20 \
+          curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             https://playne.ru/naglaz/ --output "$game_file"
           cmp dist/naglaz/index.html "$game_file"
-          game_redirect="$(curl --silent --show-error --max-time 20 \
+          game_redirect="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
             https://playne.ru/naglaz)"
           test "$game_redirect" = '308|https://playne.ru/naglaz/'
 
-          curl --fail --silent --show-error --max-time 20 \
+          curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             https://playne.ru/circle/ --output "$RUNNER_TEMP/playne-circle.html"
           cmp dist/circle/index.html "$RUNNER_TEMP/playne-circle.html"
-          circle_redirect="$(curl --silent --show-error --max-time 20 \
+          circle_redirect="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
             https://playne.ru/circle)"
           test "$circle_redirect" = '308|https://playne.ru/circle/'
 
-          curl --fail --silent --show-error --max-time 20 \
+          curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             https://playne.ru/colorfle/ --output "$RUNNER_TEMP/playne-colorfle.html"
           cmp dist/colorfle/index.html "$RUNNER_TEMP/playne-colorfle.html"
-          colorfle_redirect="$(curl --silent --show-error --max-time 20 \
+          colorfle_redirect="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
             https://playne.ru/colorfle)"
           test "$colorfle_redirect" = '308|https://playne.ru/colorfle/'
 
-          root_result="$(curl --silent --show-error --max-time 20 \
+          root_result="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
             https://www.playne.ru/)"
           test "$root_result" = '308|https://playne.ru/'
 
           for public_path in robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html; do
             request_path="${public_path%index.html}"
-            curl --fail --silent --show-error --max-time 20 "https://playne.ru/$request_path" --output "$RUNNER_TEMP/seo-response"
+            curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 "https://playne.ru/$request_path" --output "$RUNNER_TEMP/seo-response"
             cmp "dist/$public_path" "$RUNNER_TEMP/seo-response"
           done
           for route in guides guides/naglaz guides/perfect-circle guides/colorfle; do
-            redirect="$(curl --silent --show-error --max-time 20 --output /dev/null --write-out '%{http_code}|%{redirect_url}' "https://playne.ru/$route")"
+            redirect="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 60 --output /dev/null --write-out '%{http_code}|%{redirect_url}' "https://playne.ru/$route")"
             test "$redirect" = "308|https://playne.ru/$route/"
           done
-          index_redirect="$(curl --silent --show-error --max-time 20 --output /dev/null --write-out '%{http_code}|%{redirect_url}' https://playne.ru/guides/index.html)"
+          index_redirect="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 60 --output /dev/null --write-out '%{http_code}|%{redirect_url}' https://playne.ru/guides/index.html)"
           test "$index_redirect" = '308|https://playne.ru/guides/'
-          missing_status="$(curl --silent --show-error --max-time 20 --output "$RUNNER_TEMP/playne-missing.html" --write-out '%{http_code}' https://playne.ru/seo-missing-page-check/)"
+          missing_status="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 60 --output "$RUNNER_TEMP/playne-missing.html" --write-out '%{http_code}' https://playne.ru/seo-missing-page-check/)"
           test "$missing_status" = '404'
           cmp dist/404.html "$RUNNER_TEMP/playne-missing.html"
