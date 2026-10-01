@@ -129,6 +129,3 @@ export function loadShadeSession(): ShadeSession {
 export function saveShadeSession(state: ShadeSession): void {
   try { localStorage.setItem(SHADE_KEY, JSON.stringify(state)); } catch { /* Play continues in memory. */ }
 }
-export function shadeShareText(state: ShadeSession): string {
-  return `Оттенок · Playne\n${shadeTotal(state)} из ${ROUND_COUNT * 100} очков\n${state.answers.map(a => a.score).join(" · ")}\n\nhttps://playne.ru/colorfle/`;
-}

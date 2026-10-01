@@ -1,9 +1,9 @@
-import { useEffect, useReducer, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useReducer, useRef, type KeyboardEvent, type PointerEvent } from "react";
 import FooterLinks from "./FooterLinks";
 import { SHADE_GOALS, reachGoal } from "./analytics";
 import { shadeTransitionGoals } from "./gameAnalytics";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
-import { hsvToHex, loadShadeSession, newShadeSession, ROUND_COUNT, saveShadeSession, shadePhase, shadeReducer, shadeShareText, shadeTotal, type HSV, type ShadeAction } from "./colorfle";
+import { hsvToHex, loadShadeSession, newShadeSession, ROUND_COUNT, saveShadeSession, shadePhase, shadeReducer, shadeTotal, type HSV, type ShadeAction } from "./colorfle";
 import "./colorfle.css";
 
 const colorText = (color: HSV) => hsvToHex(color).toUpperCase();
@@ -45,8 +45,6 @@ function Rules() { return <div className="shade-rules-copy"><p>На экране
 export default function ColorfleGame() {
   const [state, update] = useReducer(shadeReducer, undefined, loadShadeSession);
   const current = useRef(state);
-  const [notice, setNotice] = useState("");
-  const [fallback, setFallback] = useState(false);
   const rules = useRef<HTMLDialogElement>(null);
   const result = useRef<HTMLElement>(null);
   const phase = shadePhase(state);
@@ -62,10 +60,6 @@ export default function ColorfleGame() {
   useEffect(() => saveShadeSession(state), [state]);
   useEffect(() => { if (phase === "reveal" || phase === "finished") result.current?.focus(); }, [phase, round]);
   useEffect(() => { if (phase === "picking" && round > 0) document.querySelector(".shade-status")?.scrollIntoView({ block: "start", behavior: "instant" }); }, [round, phase]);
-  async function share() {
-    try { await navigator.clipboard.writeText(shadeShareText(state)); reachGoal(SHADE_GOALS.resultCopy, { score: total, method: "clipboard" }); setNotice("Результат скопирован."); setFallback(false); }
-    catch { setFallback(true); setNotice("Выдели и скопируй результат ниже."); }
-  }
   return <div className="app color-app">
     <a className="skip-link" href="#color-main">Перейти к игре</a>
     <header className="header"><PlayneBrand /><nav className="game-header-actions" aria-label="Навигация"><a className="back-to-hub" href="/">← Все игры</a><ThemeToggle /></nav></header>
@@ -74,8 +68,8 @@ export default function ColorfleGame() {
       {phase === "welcome" ? <section className="shade-welcome"><div className="shade-welcome-art" aria-hidden="true"><span /><span /><span /></div><p className="eyebrow">ПЯТЬ РАУНДОВ · 500 ОЧКОВ</p><h2>Сможешь попасть в цвет?</h2><p>Смотри на образец и выбирай такой же оттенок на палитре. Чем ближе твой цвет, тем больше очков.</p><button className="primary" onClick={() => dispatch({ type: "start" })}>Начать игру <span aria-hidden="true">↗</span></button><small>Без таймера и регистрации.</small></section> : <>
         <div className="shade-status"><div><span className="eyebrow">{phase === "finished" ? "ИГРА ЗАВЕРШЕНА" : `РАУНД ${round + 1} ИЗ ${ROUND_COUNT}`}</span><div className="shade-dots" aria-hidden="true">{Array.from({ length: ROUND_COUNT }, (_, i) => <i key={i} className={i < state.answers.length ? "done" : i === round ? "active" : ""} />)}</div></div><div className="shade-score">Очки <strong>{total}</strong> <span>/ {ROUND_COUNT * 100}</span></div></div>
         <div className="shade-play-area"><section className="shade-board" aria-label="Сравнение цветов"><Swatch label="Образец" color={state.targets[round]} showHex={!!answer} /><Swatch label={answer ? "Твой ответ" : "Твой выбор"} color={answer?.choice ?? state.draft} hint={!answer && !state.touched ? "Пока не выбран" : undefined} /></section>
-        {phase === "picking" ? <><Palette value={state.draft} onChange={(color) => dispatch({ type: "pick", color })} /><div className="shade-actions"><button className="primary" disabled={!state.touched} onClick={() => dispatch({ type: "submit" })}>Проверить <span aria-hidden="true">→</span></button><span>Один ответ на каждый раунд</span></div></> : <section className="shade-result" ref={result} tabIndex={-1} aria-live="polite"><p className="eyebrow">{phase === "finished" ? "ТВОЙ РЕЗУЛЬТАТ" : "РЕЗУЛЬТАТ РАУНДА"}</p><h2>{phase === "finished" ? `${total} из ${ROUND_COUNT * 100}` : `${answer.score} из 100`}</h2><p>{phase === "finished" ? "Все пять цветов пройдены. Сыграешь ещё?" : "Сравни образец со своим ответом. Чем ближе цвета, тем больше очков."}</p>{phase === "finished" ? <><div className="shade-final-stats"><span>Лучший результат <strong>{state.stats.best} / {ROUND_COUNT * 100}</strong></span><span>Партий сыграно <strong>{state.stats.played}</strong></span></div><div className="shade-round-scores">{state.answers.map((item, i) => <span key={i}>{i + 1}: {item.score}</span>)}</div><button className="primary" onClick={() => { dispatch({ type: "new", session: newShadeSession(state) }); setNotice(""); setFallback(false); }}>Играть ещё →</button><button className="shade-share" onClick={share}>Скопировать результат</button>{fallback && <textarea aria-label="Текст результата для копирования" readOnly value={shadeShareText(state)} onFocus={(event) => event.currentTarget.select()} onCopy={() => reachGoal(SHADE_GOALS.resultCopy, { score: total, method: "manual" })} />}</> : <button className="primary" onClick={() => dispatch({ type: "next" })}>Следующий цвет →</button>}</section>}
-        </div><p className="shade-notice" role="status">{notice}</p>
+        {phase === "picking" ? <><Palette value={state.draft} onChange={(color) => dispatch({ type: "pick", color })} /><div className="shade-actions"><button className="primary" disabled={!state.touched} onClick={() => dispatch({ type: "submit" })}>Проверить <span aria-hidden="true">→</span></button><span>Один ответ на каждый раунд</span></div></> : <section className="shade-result" ref={result} tabIndex={-1} aria-live="polite"><p className="eyebrow">{phase === "finished" ? "ТВОЙ РЕЗУЛЬТАТ" : "РЕЗУЛЬТАТ РАУНДА"}</p><h2>{phase === "finished" ? `${total} из ${ROUND_COUNT * 100}` : `${answer.score} из 100`}</h2><p>{phase === "finished" ? "Все пять цветов пройдены. Сыграешь ещё?" : "Сравни образец со своим ответом. Чем ближе цвета, тем больше очков."}</p>{phase === "finished" ? <><div className="shade-final-stats"><span>Лучший результат <strong>{state.stats.best} / {ROUND_COUNT * 100}</strong></span><span>Партий сыграно <strong>{state.stats.played}</strong></span></div><div className="shade-round-scores">{state.answers.map((item, i) => <span key={i}>{i + 1}: {item.score}</span>)}</div><button className="primary" onClick={() => { dispatch({ type: "new", session: newShadeSession(state) }); }}>Играть ещё →</button></> : <button className="primary" onClick={() => dispatch({ type: "next" })}>Следующий цвет →</button>}</section>}
+        </div>
       </>}
     </main>
     <footer className="color-footer"><span>Проверь своё чувство цвета.</span><a href="/">Все игры Playne ↗</a><FooterLinks /></footer>

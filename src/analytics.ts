@@ -23,7 +23,6 @@ export const SHADE_GOALS = {
   roundComplete: "ottenok_round_complete",
   gameComplete: "ottenok_game_complete",
   gameRestart: "ottenok_game_restart",
-  resultCopy: "ottenok_result_copy",
 } as const;
 
 type Values<T> = T[keyof T];

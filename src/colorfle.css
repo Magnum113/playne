@@ -53,9 +53,6 @@
 .shade-final-stats span { display: flex; gap: 7px; color: var(--muted); }
 .shade-final-stats strong { color: var(--text); }
 .shade-round-scores span { padding: 6px 10px; border-radius: 8px; background: var(--hover); font-size: 13px; }
-.shade-share { background: none; border: 0; color: var(--mint); text-decoration: underline; text-underline-offset: 3px; margin-left: 20px; }
-.shade-result textarea { display: block; width: 100%; margin-top: 18px; min-height: 100px; padding: 10px; }
-.shade-notice { text-align: center; color: var(--muted); min-height: 25px; }
 .color-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 30px 0 50px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
 .color-footer > a { margin-left: auto; }
 .color-rules-dialog { max-width: 540px; width: calc(100% - 28px); border: 1px solid var(--line); border-radius: 20px; background: var(--panel); color: var(--text); padding: 24px; box-shadow: 0 18px 70px #0005; }
