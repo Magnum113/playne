@@ -295,7 +295,7 @@ export default function Hub() {
       </main>
       <footer className="hub-footer">
         <PlayneBrand />
-        <span>Небольшие игры для любопытных.</span>
+        <span>Игры для любопытных.</span>
         <DestroyWebsiteLink badge />
         <a href="#games">Выбрать игру ↑</a>
         <FooterLinks />

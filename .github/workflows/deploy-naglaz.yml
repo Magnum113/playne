@@ -99,14 +99,14 @@ jobs:
           grep -Fq '/art/playne-favicon-32.png' dist/index.html
           grep -Fq '/favicon.ico' dist/index.html
           grep -Fq '/art/playne-favicon-32.png' dist/naglaz/index.html
-          grep -Fq 'Playne — небольшие игры' dist/index.html
-          grep -Fq 'На глаз — игра в размеры | Playne' dist/naglaz/index.html
+          grep -Fq '<title>Playne — игры онлайн для любопытных</title>' dist/index.html
+          grep -Fq '<title>На глаз — сравни размеры и проверь глазомер | Playne</title>' dist/naglaz/index.html
           grep -Fq 'https://mc.yandex.ru/watch/112711950' dist/index.html
           grep -Fq 'https://mc.yandex.ru/metrika/tag.js?id=' "dist/assets/$javascript_file"
           grep -Fq '112711950' "dist/assets/$javascript_file"
           grep -Fq 'naglaz_game_complete' "dist/assets/$javascript_file"
-          grep -Fq 'Круг — нарисуй идеальный круг | Playne' dist/circle/index.html
-          grep -Fq 'Оттенок — подбери цвет на палитре | Playne' dist/colorfle/index.html
+          grep -Fq '<title>Нарисуй идеальный круг — игра «Круг» | Playne</title>' dist/circle/index.html
+          grep -Fq '<title>Угадай цвет на палитре — игра «Оттенок» | Playne</title>' dist/colorfle/index.html
           if grep -Eq '(src|href)="/naglaz/(assets|art)/' dist/index.html; then exit 1; fi
 
           printf 'javascript_file=%s\n' "$javascript_file" >> "$GITHUB_OUTPUT"
