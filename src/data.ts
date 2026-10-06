@@ -17,6 +17,7 @@ export type ObjectId =
   | "hoop"
   | "sequoia"
   | "unity"
+  | "motherland"
   | "iss"
   | "squid";
 export type GameObject = {
@@ -213,6 +214,16 @@ export const objects: Record<ObjectId, GameObject> = {
     note: "Статуя Сардара Пателя достигает 182 м. В игре не учитываем основание и смотровую площадку.",
     source: "https://gujarattourism.com/central-zone/narmada/statue-of-unity.html",
   },
+  motherland: {
+    id: "motherland",
+    name: "Родина-мать зовёт!",
+    label: "Волгоград · вместе с мечом",
+    size: 85,
+    ...artwork.motherland,
+    axis: "y",
+    note: "Высота скульптуры вместе с мечом — 85 м. Это всего на 1,2 м выше секвойи Генерал Шерман.",
+    source: "https://stalingrad-battle.ru/about/about-museum-inner/2302/",
+  },
   iss: {
     id: "iss",
     name: "МКС",
@@ -357,6 +368,10 @@ export const pairs: Pair[] = [
   { id: "unity-pyramid", reference: "unity", target: "pyramid", title: "Пирамида рядом со Статуей Единства" },
   { id: "unity-eiffel", reference: "eiffel", target: "unity", title: "Самая высокая статуя рядом с башней" },
   { id: "unity-clock", reference: "unity", target: "clock", title: "Биг-Бен рядом с гигантом" },
+  { id: "tree-motherland", reference: "sequoia", target: "motherland", title: "Родина-мать рядом с секвойей" },
+  { id: "rocket-motherland", reference: "rocket", target: "motherland", title: "Родина-мать и ракета" },
+  { id: "unity-motherland", reference: "unity", target: "motherland", title: "Две огромные статуи" },
+  { id: "liberty-motherland", reference: "liberty", target: "motherland", title: "Статуя Свободы и Родина-мать" },
   { id: "iss-pitch", reference: "pitch", target: "iss", title: "Футбольное поле и МКС" },
   { id: "iss-airbus", reference: "iss", target: "airbus", title: "Авиалайнер рядом с МКС" },
   { id: "iss-titanic", reference: "titanic", target: "iss", title: "Космическая станция рядом с лайнером" },

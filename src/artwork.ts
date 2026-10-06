@@ -23,4 +23,5 @@ export const artwork = {
   giraffe: art("giraffe", 512, 768, [22, 32, 457, 688], "y", 5),
   elephant: art("elephant", 817, 481, [24, 19, 764, 443], "y", 3.2),
   hoop: art("hoop", 613, 641, [59, 21, 521, 598], "y", 3.05, 436),
+  motherland: art("motherland", 512, 768, [116, 11, 360, 738], "y", 85),
 };

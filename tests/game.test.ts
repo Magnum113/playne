@@ -45,8 +45,8 @@ describe("scoring", () => {
 });
 describe("catalogue", () => {
   it("has distinct, reachable comparisons", () => {
-    expect(Object.keys(objects)).toHaveLength(18);
-    expect(pairs).toHaveLength(30);
+    expect(Object.keys(objects)).toHaveLength(19);
+    expect(pairs).toHaveLength(34);
     expect(new Set(pairs.map((p) => p.id)).size).toBe(pairs.length);
     expect(new Set(pairs.map((p) => [p.reference, p.target].sort().join(":"))).size).toBe(pairs.length);
     for (const p of pairs) {
