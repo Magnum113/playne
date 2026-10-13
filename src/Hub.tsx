@@ -292,7 +292,7 @@ export default function Hub() {
                   Где я<span className="brand-dot">?</span>
                 </h2>
                 <p>
-                  Осмотрись в незнакомом месте.
+                  Бесплатный аналог GeoGuessr.
                   <br /> Найди его на карте мира.
                 </p>
               </div>

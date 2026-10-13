@@ -660,3 +660,44 @@
     outline: 1px solid CanvasText;
   }
 }
+
+.geo-about {
+  padding: 48px 0 0;
+  margin-top: 44px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+}
+.geo-about h2 {
+  font-size: clamp(22px, 2.5vw, 28px);
+  line-height: 1.25;
+  letter-spacing: -0.7px;
+  margin: 0 0 20px;
+}
+.geo-about-copy > p:not(.eyebrow) {
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 15px;
+}
+.geo-about-copy > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--mint);
+  text-underline-offset: 4px;
+}
+.geo-about .faq-items summary {
+  font-size: 15px;
+}
+.geo-about .faq-items p {
+  font-size: 14px;
+}
+@media (max-width: 800px) {
+  .geo-about {
+    grid-template-columns: 1fr;
+    gap: 30px;
+    padding-top: 30px;
+    margin-top: 30px;
+  }
+}

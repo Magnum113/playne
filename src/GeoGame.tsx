@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 import GeoPreview from "./GeoPreview";
+import GeoAbout from "./GeoAbout";
 import { GEO_GOALS, reachGoal } from "./analytics";
 import {
   chooseGeoRounds,
@@ -450,10 +451,10 @@ export default function GeoGame() {
           <section className="geo-welcome">
             <div className="geo-welcome-copy">
               <p className="eyebrow">ПЯТЬ РАУНДОВ · 500 ОЧКОВ</p>
-              <h2>Мир полон подсказок.</h2>
+              <h2>Угадай страну по панораме.</h2>
               <p>
-                Осмотрись в незнакомом месте и найди его на карте. Чем ближе
-                твоя точка, тем больше очков.
+                Узнай страну и город по панораме Google Street View. Поставь
+                точку на карте: чем ближе к месту, тем больше очков.
               </p>
               <ol>
                 <li>Вращай панораму и замечай детали.</li>
@@ -463,7 +464,7 @@ export default function GeoGame() {
               <button className="primary" onClick={() => start()}>
                 Начать игру <span aria-hidden="true">↗</span>
               </button>
-              <small>Без перемещения по улицам. Без таймера.</small>
+              <small>Бесплатно, без регистрации и таймера. Панорамы без перемещения по улицам.</small>
               {stats.best > 0 && (
                 <p className="geo-best">
                   Твой рекорд: <strong>{stats.best} / 500</strong>
@@ -668,6 +669,7 @@ export default function GeoGame() {
             <SaveResult run={ranked} game="geo" />
           </section>
         )}
+        {(phase === "welcome" || phase === "finished") && <GeoAbout />}
       </main>
       <footer className="geo-footer">
         <span>Замечай детали. Находи своё место.</span>
