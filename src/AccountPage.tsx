@@ -1,6 +1,6 @@
 import { geoModeName, type GeoMode } from "./geo";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, useAuth, gameNames, resultText, type GameId } from "./account";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
@@ -12,12 +12,14 @@ export default function AccountPage() {
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
+    [savingClaim, setSavingClaim] = useState(false),
     [deleting, setDeleting] = useState(false),
     [confirmation, setConfirmation] = useState("");
   const claim = new URLSearchParams(
     typeof window === "undefined" ? "" : window.location.search,
   ).get("claim");
   const validClaim = claim && /^[0-9a-f-]{36}$/.test(claim) ? claim : null;
+  const publishing = useRef<string | null>(null);
   const authError = new URLSearchParams(
     typeof window === "undefined" ? "" : window.location.search,
   ).get("auth");
@@ -32,9 +34,27 @@ export default function AccountPage() {
   useEffect(() => {
     if (validClaim)
       void api(`/games/${validClaim}`)
-        .then(setPending)
+        .then((result) =>
+          setPending((previous: any) =>
+            previous?.id === result.id && previous.published
+              ? previous
+              : result,
+          ),
+        )
         .catch((e) => setError(e.message));
   }, [validClaim]);
+  useEffect(() => {
+    if (
+      !user ||
+      !validClaim ||
+      !pending?.completed ||
+      pending.published ||
+      publishing.current === validClaim
+    )
+      return;
+    publishing.current = validClaim;
+    void publish();
+  }, [user?.id, validClaim, pending?.completed, pending?.published]);
   async function save(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
@@ -53,12 +73,10 @@ export default function AccountPage() {
     }
   }
   async function publish() {
-    if (!validClaim || busy) return;
-    setBusy(true);
+    if (!validClaim || savingClaim) return;
+    setSavingClaim(true);
     setError("");
     try {
-      await api("/me", "PATCH", { nickname });
-      await refresh();
       await api(`/games/${validClaim}/publish`, "POST", {});
       setPending((p: any) => ({ ...p, published: true }));
       setData(await api("/account"));
@@ -66,11 +84,12 @@ export default function AccountPage() {
       reachGoal(ACCOUNT_GOALS.resultPublished, {
         game: pending.game,
         score: pending.score,
+        automatic: true,
       });
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      setSavingClaim(false);
     }
   }
   const returnPath = validClaim ? `/account/?claim=${validClaim}` : "/account/";
@@ -136,8 +155,9 @@ export default function AccountPage() {
               </p>
             )}
             <small>
-              При первом входе подставим имя из Яндекса. Ник можно изменить
-              перед публикацией.
+              При первом входе подставим имя из Яндекса. Ник можно изменить в
+              любое время. После входа результаты сохраняются в рейтинг
+              автоматически.
             </small>
             <p>
               <a href="/privacy/">Как мы используем данные</a>
@@ -189,18 +209,19 @@ export default function AccountPage() {
                 ) : (
                   <>
                     <p>
-                      Публикуем под ником «{nickname}». Партия уже сохранена —
-                      переигрывать не нужно.
+                      {savingClaim || !error
+                        ? "Сохраняем результат в рейтинг…"
+                        : "Не удалось сохранить результат. Попробуй ещё раз."}
                     </p>
-                    <button
-                      className="primary"
-                      disabled={busy}
-                      onClick={() => void publish()}
-                    >
-                      {busy
-                        ? "Сохраняем…"
-                        : "Подтвердить ник и сохранить результат"}
-                    </button>
+                    {!savingClaim && error && (
+                      <button
+                        className="primary"
+                        disabled={savingClaim}
+                        onClick={() => void publish()}
+                      >
+                        Повторить сохранение
+                      </button>
+                    )}
                   </>
                 )}
               </section>

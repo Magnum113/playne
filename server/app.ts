@@ -598,7 +598,6 @@ export async function buildApp(
   });
   app.post("/api/games/:id/publish", async (req, reply) => {
     const u = await requireUser(req);
-    if (!u.nickname_confirmed) failure("Подтверди ник в личном кабинете", 422);
     const c = await pool.connect();
     try {
       await c.query("BEGIN");

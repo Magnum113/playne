@@ -166,14 +166,24 @@ suite("Playne database and OAuth integration", () => {
     });
     expect(replay.headers.location).toContain("expired");
   });
-  it("requires nickname confirmation, publishes idempotently and reflects nickname changes in rankings", async () => {
+  it("publishes with the default nickname without confirmation, retries idempotently and reflects nickname changes", async () => {
     const no = await app.inject({
       method: "POST",
       url: `/api/games/${id}/publish`,
       headers: { origin, cookie: logged },
       payload: {},
     });
-    expect(no.statusCode).toBe(422);
+    expect(no.statusCode).toBe(200);
+    const defaultRank = await app.inject({
+      url: "/api/leaderboard?game=colorfle&period=week",
+      headers: { cookie: logged },
+    });
+    expect(defaultRank.json().entries[0].nickname).toBe("Тестовый Иван");
+    const profile = await app.inject({
+      url: "/api/me",
+      headers: { cookie: logged },
+    });
+    expect(profile.json().user.nickname_confirmed).toBe(false);
     const nick = await app.inject({
       method: "PATCH",
       url: "/api/me",

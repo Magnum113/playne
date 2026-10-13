@@ -128,6 +128,8 @@ type RunState = {
     | "ready"
     | "checking"
     | "complete"
+    | "saving"
+    | "save-error"
     | "saved"
     | "error";
   id?: string;
@@ -136,7 +138,9 @@ type RunState = {
 };
 type Task = { index: number; answer: unknown };
 export function useRankedRun(game: GameId) {
+  const { user, refresh } = useAuth();
   const [state, setState] = useState<RunState>({ status: "idle" });
+  const publishing = useRef<string | null>(null);
   const current = useRef<{
     epoch: number;
     mode?: GeoMode;
@@ -163,6 +167,36 @@ export function useRankedRun(game: GameId) {
   function setFor(run: typeof current.current, next: RunState) {
     if (alive.current && current.current === run) setState(next);
   }
+  useEffect(() => {
+    if (state.status !== "complete" || !state.id || !user) return;
+    const id = state.id;
+    if (publishing.current === id) return;
+    publishing.current = id;
+    const activeRun = current.current;
+    setFor(activeRun, { ...state, status: "saving" });
+    void api(`/games/${id}/publish`, "POST", {})
+      .then(() => {
+        setFor(activeRun, { ...state, status: "saved" });
+        reachGoal(ACCOUNT_GOALS.resultPublished, {
+          game,
+          score: state.score ?? 0,
+          automatic: true,
+          mode: activeRun.mode ?? "classic",
+        });
+      })
+      .catch((e) => {
+        setFor(activeRun, {
+          ...state,
+          status: "save-error",
+          message:
+            e instanceof Error ? e.message : "Не удалось сохранить результат",
+        });
+        if (e instanceof ApiError && e.status === 401) void refresh();
+      })
+      .finally(() => {
+        if (publishing.current === id) publishing.current = null;
+      });
+  }, [state, game, user?.id]);
   function begin(mode?: GeoMode): Promise<Run | null> {
     const run = {
       epoch: current.current.epoch + 1,
@@ -338,16 +372,25 @@ export function useRankedRun(game: GameId) {
     geoPin,
     geoAnswer,
     retry: () => void flush(),
+    retrySave: () =>
+      setState((s) => ({ ...s, status: "complete", message: undefined })),
     saved: (id: string) =>
       setState((s) => (s.id === id ? { ...s, status: "saved" } : s)),
   };
 }
 export type RankedRun = ReturnType<typeof useRankedRun>;
 export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
-  const { user } = useAuth();
-  const [saving, setSaving] = useState(false),
-    [error, setError] = useState("");
+  const { user, loading } = useAuth();
   const s = run.state;
+  const ranking = `/leaderboard/?game=${game}&mode=${run.mode}`;
+  function login() {
+    if (!s.id) return;
+    reachGoal(ACCOUNT_GOALS.loginStart, { source: "game_result", game });
+    window.location.assign(
+      "/api/auth/yandex/start?return=" +
+        encodeURIComponent(`/account/?claim=${s.id}`),
+    );
+  }
   if (s.status === "idle" || s.status === "local")
     return (
       <div className="save-result">
@@ -355,9 +398,7 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
           Рекорд сохранён в этом браузере. Для рейтинга начни новую партию с
           доступным соединением.
         </p>
-        <a href={`/leaderboard/?game=${game}&mode=${run.mode}`}>
-          Рейтинг игры →
-        </a>
+        <a href={ranking}>Рейтинг игры →</a>
       </div>
     );
   if (["loading", "checking", "ready"].includes(s.status))
@@ -375,62 +416,33 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
         </button>
       </div>
     );
-  async function save() {
-    if (!s.id || saving) return;
-    setSaving(true);
-    setError("");
-    try {
-      if (!user || !user.nickname_confirmed) {
-        if (!user)
-          reachGoal(ACCOUNT_GOALS.loginStart, { source: "game_result", game });
-        window.location.assign(
-          !user
-            ? "/api/auth/yandex/start?return=" +
-                encodeURIComponent(`/account/?claim=${s.id}`)
-            : `/account/?claim=${s.id}`,
-        );
-        return;
-      }
-      await api(`/games/${s.id}/publish`, "POST", {});
-      run.saved(s.id);
-      reachGoal(ACCOUNT_GOALS.resultPublished, { game, score: s.score ?? 0 });
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 401)
-        window.location.assign(
-          "/api/auth/yandex/start?return=" +
-            encodeURIComponent(`/account/?claim=${s.id}`),
-        );
-      else setError(e instanceof Error ? e.message : "Не удалось сохранить");
-    } finally {
-      setSaving(false);
-    }
-  }
+  const waiting =
+    loading || s.status === "saving" || (s.status === "complete" && !!user);
   return (
     <div className="save-result">
-      <p>
+      <p role="status">
         {s.status === "saved"
           ? "Результат сохранён в рейтинг."
-          : user
-            ? "Сохрани результат в общий рейтинг."
-            : "Войди через Яндекс, чтобы сохранить этот результат в рейтинг."}
+          : waiting
+            ? "Сохраняем результат в рейтинг…"
+            : s.status === "save-error"
+              ? "Не удалось сохранить результат. Проверь соединение и попробуй ещё раз."
+              : "Войди через Яндекс, чтобы сохранить этот результат в рейтинг."}
       </p>
       <div>
-        {s.status !== "saved" && (
-          <button
-            className="primary"
-            disabled={saving}
-            onClick={() => void save()}
-          >
-            {saving ? "Сохраняем…" : "Сохранить в рейтинг"}
-          </button>
-        )}
-        <a href={`/leaderboard/?game=${game}&mode=${run.mode}`}>
-          Рейтинг игры →
-        </a>
+        {!waiting &&
+          s.status !== "saved" &&
+          (user ? (
+            <button className="primary" onClick={run.retrySave}>
+              Повторить сохранение
+            </button>
+          ) : (
+            <button className="primary" onClick={login}>
+              Войти и сохранить
+            </button>
+          ))}
+        <a href={ranking}>Рейтинг игры →</a>
       </div>
-      <p className="account-message" role="status">
-        {error}
-      </p>
     </div>
   );
 }
