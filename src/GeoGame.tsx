@@ -647,16 +647,26 @@ export default function GeoGame() {
           <div
             className="geo-panorama"
             ref={panoNode}
-            inert={phase === "loading" || phase === "error"}
+            inert={
+              phase === "loading" || phase === "error" || phase === "checking"
+            }
             aria-label="Панорама: осмотрись и угадай место"
           />
           <section
             className="geo-map-panel"
-            inert={phase === "loading" || phase === "error"}
+            inert={
+              phase === "loading" || phase === "error" || phase === "checking"
+            }
             aria-label="Карта для ответа"
           >
             <div className="geo-map-heading">
-              <h2>{phase === "reveal" ? "Сравни точки" : "Где это?"}</h2>
+              <h2>
+                {phase === "reveal"
+                  ? answer?.guess
+                    ? "Сравни точки"
+                    : "Правильное место"
+                  : "Где это?"}
+              </h2>
               <button
                 className="geo-map-close"
                 aria-label="Вернуться к панораме"
@@ -669,9 +679,11 @@ export default function GeoGame() {
             <div className="geo-map-tools">
               {phase === "reveal" ? (
                 <div className="geo-legend">
-                  <span>
-                    <i className="guess" /> Твой ответ
-                  </span>
+                  {answer?.guess && (
+                    <span>
+                      <i className="guess" /> Твой ответ
+                    </span>
+                  )}
                   <span>
                     <i className="actual" /> Правильное место
                   </span>
