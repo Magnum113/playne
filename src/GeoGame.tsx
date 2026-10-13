@@ -487,10 +487,10 @@ export default function GeoGame() {
     if (result.score === GEO_ROUND_POINTS)
       reachGoal(GEO_GOALS.perfectRound, { round: round + 1 });
     if (answersRef.current.length === 5) {
-      const score = answersRef.current.reduce(
-        (sum, item) => sum + item.score,
-        0,
-      );
+      const score =
+        Math.round(
+          answersRef.current.reduce((sum, item) => sum + item.score, 0) * 10,
+        ) / 10;
       const nextStats = {
         best: Math.max(statsRef.current.best, score),
         played: statsRef.current.played + 1,

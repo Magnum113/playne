@@ -1,4 +1,4 @@
-import { geoModeName, type GeoMode } from "./geo";
+import { geoModeName, geoPoints, type GeoMode } from "./geo";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useState } from "react";
 import { api, gameNames, resultText, AccountNav, type GameId } from "./account";
@@ -67,7 +67,7 @@ export default function LeaderboardPage() {
         {game !== "circle" && (
           <small className="rank-rounds">
             {e.rounds.map((s: number, i: number) => (
-              <span key={i}>{s}</span>
+              <span key={i}>{geoPoints(s)}</span>
             ))}
           </small>
         )}
