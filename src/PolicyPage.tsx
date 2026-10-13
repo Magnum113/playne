@@ -95,6 +95,11 @@ export default function PolicyPage({ terms = false }: { terms?: boolean }) {
                 профиль. Резервные копии базы хранятся в закрытой папке до 14
                 дней и удаляются по сроку хранения.
               </p>
+              <h2>Связаться с Playne</h2>
+              <p>
+                По вопросам аккаунта и обработки данных:{" "}
+                <a href="mailto:smmshit@yandex.ru">smmshit@yandex.ru</a>.
+              </p>
             </>
           )}
         </article>
