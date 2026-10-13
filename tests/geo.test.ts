@@ -9,10 +9,16 @@ import {
   geoClock,
   geoPoints,
   geoWholeRound,
+  GEO_MODES,
+  geoModeFor,
+  geoIsTimed,
+  geoCanMove,
+  validGeoMode,
   GEO_MAX_POINTS,
   readGeoStats,
   saveGeoStats,
 } from "../src/geo";
+import { hasStreetViewLinks } from "../src/googleMaps";
 import { geoLocations } from "../src/geoLocations";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -66,6 +72,37 @@ describe("geographical answers", () => {
   });
 });
 describe("geographical sessions", () => {
+  it("combines movement and time independently and keeps four separate browser records", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k),
+      setItem: (k: string, v: string) => store.set(k, v),
+    });
+    for (const [index, mode] of GEO_MODES.entries()) {
+      expect(validGeoMode(mode)).toBe(true);
+      expect(geoModeFor(geoCanMove(mode), geoIsTimed(mode))).toBe(mode);
+      expect(readGeoStats(mode).best).toBe(0);
+      saveGeoStats(
+        { best: (index + 1) * 100, played: index + 1, recent: [] },
+        mode,
+      );
+    }
+    expect(GEO_MODES.map((mode) => readGeoStats(mode).best)).toEqual([
+      100, 200, 300, 400,
+    ]);
+    expect(geoIsTimed("moving-timed")).toBe(true);
+    expect(geoCanMove("moving-timed")).toBe(true);
+    expect(geoIsTimed("moving")).toBe(false);
+    expect(geoCanMove("timed")).toBe(false);
+    expect(validGeoMode("unknown")).toBe(false);
+  });
+  it("requires a usable neighboring panorama before starting a moving round", () => {
+    expect(hasStreetViewLinks(undefined, "start")).toBe(false);
+    expect(hasStreetViewLinks([], "start")).toBe(false);
+    expect(hasStreetViewLinks([{ pano: "start" }, {}], "start")).toBe(false);
+    expect(hasStreetViewLinks([{ pano: "next" }], "start")).toBe(true);
+  });
+
   it("selects five different regions and countries without repeating recent locations", () => {
     let recent: string[] = [];
     for (let i = 0; i < 300; i++) {

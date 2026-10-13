@@ -582,6 +582,179 @@ suite("Playne database and OAuth integration", () => {
       clock.mockRestore();
     }
   });
+  it("keeps the original location in both moving modes and separates all four rankings", async () => {
+    const headers = { origin, cookie: logged };
+    for (const [movingMode, timed] of [
+      ["moving", false],
+      ["moving-timed", true],
+    ] as const) {
+      const call = (request: any) =>
+        app.inject({
+          remoteAddress: timed ? "127.0.0.4" : "127.0.0.3",
+          headers,
+          ...request,
+        });
+      const bad = await call({
+        method: "POST",
+        url: "/api/games",
+        payload: { game: "geo", mode: movingMode, geoRulesVersion: 3 },
+      });
+      expect(bad.statusCode).toBe(400);
+      const start = await call({
+        method: "POST",
+        url: "/api/games",
+        payload: { game: "geo", mode: movingMode, geoRulesVersion: 4 },
+      });
+      expect(start.statusCode).toBe(200);
+      const run = start.json();
+      expect(run.challenge.mode).toBe(movingMode);
+      for (let index = 0; index < 5; index++) {
+        const actual = {
+          lat: run.challenge.places[index].lat,
+          lng: run.challenge.places[index].lng,
+        };
+        const displaced = { lat: actual.lat + 1, lng: actual.lng };
+        metadataLocation = actual;
+        expect(
+          (
+            await call({
+              method: "POST",
+              url: `/api/games/${run.id}/panorama`,
+              payload: { index, pano: `moving-start-${index}` },
+            })
+          ).statusCode,
+        ).toBe(200);
+        if (index === 0) {
+          metadataLocation = displaced;
+          const replace = await call({
+            method: "POST",
+            url: `/api/games/${run.id}/panorama`,
+            payload: { index, pano: "moved-panorama" },
+          });
+          expect(replace.statusCode).toBe(409);
+          const original = await call({
+            method: "POST",
+            url: `/api/games/${run.id}/panorama`,
+            payload: { index, pano: `moving-start-${index}` },
+          });
+          expect(original.json().actual).toEqual(actual);
+        }
+        const ready = await call({
+          method: "POST",
+          url: `/api/games/${run.id}/ready`,
+          payload: { index },
+        });
+        expect(ready.statusCode).toBe(timed ? 200 : 409);
+        if (timed) {
+          const repeated = await call({
+            method: "POST",
+            url: `/api/games/${run.id}/ready`,
+            payload: { index },
+          });
+          expect(repeated.json().deadline).toBe(ready.json().deadline);
+          if (index === 0) {
+            expect(
+              (
+                await call({
+                  method: "POST",
+                  url: `/api/games/${run.id}/answers`,
+                  payload: {
+                    index,
+                    answer: { expired: true, mode: "classic" },
+                  },
+                })
+              ).statusCode,
+            ).toBe(400);
+            expect(
+              (
+                await call({
+                  method: "POST",
+                  url: `/api/games/${run.id}/pin`,
+                  payload: { index, guess: displaced },
+                })
+              ).statusCode,
+            ).toBe(200);
+          }
+          const record = (
+            await pool.query("SELECT challenge FROM playne_games WHERE id=$1", [
+              run.id,
+            ])
+          ).rows[0];
+          record.challenge.panoramas[index].deadline = Date.now() - 1000;
+          await pool.query("UPDATE playne_games SET challenge=$1 WHERE id=$2", [
+            JSON.stringify(record.challenge),
+            run.id,
+          ]);
+          expect(
+            (
+              await call({
+                method: "POST",
+                url: `/api/games/${run.id}/pin`,
+                payload: { index, guess: actual },
+              })
+            ).statusCode,
+          ).toBe(409);
+        }
+        const guess = index === 0 ? displaced : actual;
+        const answer = await call({
+          method: "POST",
+          url: `/api/games/${run.id}/answers`,
+          payload: {
+            index,
+            answer: { guess, actual: guess, score: 100, expired: timed },
+          },
+        });
+        expect(answer.statusCode).toBe(200);
+        expect(answer.json().answer.actual).toEqual(actual);
+        expect(answer.json().answer.score).toBe(
+          index === 0 ? 95 : timed ? 0 : 100,
+        );
+        if (timed) expect(answer.json().answer.timedOut).toBe(true);
+      }
+      expect(
+        (
+          await call({
+            method: "POST",
+            url: `/api/games/${run.id}/publish`,
+            payload: {},
+          })
+        ).statusCode,
+      ).toBe(200);
+      const stored = (
+        await pool.query(
+          "SELECT challenge,answers,mode FROM playne_games WHERE id=$1",
+          [run.id],
+        )
+      ).rows[0];
+      expect(stored.mode).toBe(movingMode);
+      expect(stored.challenge).not.toHaveProperty("panoramas");
+      expect(stored.answers[0]).not.toHaveProperty("actual");
+    }
+    for (const [mode, score] of [
+      ["classic", 500],
+      ["timed", 100],
+      ["moving", 495],
+      ["moving-timed", 95],
+    ] as const) {
+      const ranking = (
+        await app.inject(`/api/leaderboard?game=geo&mode=${mode}&version=4`)
+      ).json();
+      expect(ranking.mode).toBe(mode);
+      expect(ranking.entries[0].score).toBe(score);
+    }
+    const profile = (
+      await app.inject({
+        url: "/api/account",
+        headers: { ...headers, "x-playne-geo-version": "4" },
+      })
+    ).json();
+    expect(
+      profile.best
+        .filter((b: any) => b.game === "geo")
+        .map((b: any) => b.mode)
+        .sort(),
+    ).toEqual(["classic", "moving", "moving-timed", "timed"]);
+  });
   it("revokes the authenticated session on logout", async () => {
     const out = await app.inject({
       method: "POST",

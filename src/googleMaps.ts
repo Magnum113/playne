@@ -73,3 +73,7 @@ export async function findPanorama(point: { lat: number; lng: number }) {
     clearTimeout(timer);
   }
 }
+export const hasStreetViewLinks = (
+  links: readonly { pano?: string | null }[] | undefined,
+  pano: string,
+) => !!links?.some((link) => link.pano && link.pano !== pano);

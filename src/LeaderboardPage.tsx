@@ -1,4 +1,11 @@
-import { geoModeName, geoPoints, type GeoMode } from "./geo";
+import {
+  geoPoints,
+  validGeoMode,
+  geoCanMove,
+  geoIsTimed,
+  geoModeFor,
+  type GeoMode,
+} from "./geo";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useState } from "react";
 import { api, gameNames, resultText, AccountNav, type GameId } from "./account";
@@ -16,7 +23,9 @@ export default function LeaderboardPage() {
       : "naglaz",
   );
   const [mode, setMode] = useState<GeoMode>(
-    query?.get("mode") === "timed" ? "timed" : "classic",
+    validGeoMode(query?.get("mode"))
+      ? (query!.get("mode") as GeoMode)
+      : "classic",
   );
   const [period, setPeriod] = useState<"all" | "week">("week"),
     [page, setPage] = useState(1),
@@ -34,7 +43,11 @@ export default function LeaderboardPage() {
       .then((d) => {
         if (active) {
           setData(d);
-          reachGoal(ACCOUNT_GOALS.leaderboardOpen, { game, period });
+          reachGoal(ACCOUNT_GOALS.leaderboardOpen, {
+            game,
+            period,
+            ...(game === "geo" ? { mode } : {}),
+          });
         }
       })
       .catch((e) => {
@@ -54,6 +67,15 @@ export default function LeaderboardPage() {
       null,
       "",
       "/leaderboard/?game=" + next + (next === "geo" ? `&mode=${mode}` : ""),
+    );
+  }
+  function chooseMode(next: GeoMode) {
+    setMode(next);
+    setPage(1);
+    window.history.replaceState(
+      null,
+      "",
+      `/leaderboard/?game=geo&mode=${next}`,
     );
   }
   const entry = (e: any, key: string) => (
@@ -107,24 +129,36 @@ export default function LeaderboardPage() {
           ))}
         </div>
         {game === "geo" && (
-          <div className="rank-period geo-rank-modes" aria-label="Режим игры">
-            {(["classic", "timed"] as const).map((m) => (
-              <button
-                key={m}
-                aria-pressed={mode === m}
-                onClick={() => {
-                  setMode(m);
-                  setPage(1);
-                  window.history.replaceState(
-                    null,
-                    "",
-                    `/leaderboard/?game=geo&mode=${m}`,
-                  );
-                }}
-              >
-                {geoModeName(m)}
-              </button>
-            ))}
+          <div className="geo-ranking-filters">
+            <div
+              className="rank-period geo-rank-modes"
+              aria-label="Перемещение"
+            >
+              {([false, true] as const).map((moving) => (
+                <button
+                  key={String(moving)}
+                  aria-pressed={geoCanMove(mode) === moving}
+                  onClick={() =>
+                    chooseMode(geoModeFor(moving, geoIsTimed(mode)))
+                  }
+                >
+                  {moving ? "С перемещением" : "Без перемещения"}
+                </button>
+              ))}
+            </div>
+            <div className="rank-period geo-rank-modes" aria-label="Время">
+              {([false, true] as const).map((timed) => (
+                <button
+                  key={String(timed)}
+                  aria-pressed={geoIsTimed(mode) === timed}
+                  onClick={() =>
+                    chooseMode(geoModeFor(geoCanMove(mode), timed))
+                  }
+                >
+                  {timed ? "На время" : "Без таймера"}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         <div className="rank-toolbar">
@@ -214,7 +248,7 @@ export default function LeaderboardPage() {
               </p>
               <a
                 className="primary"
-                href={`/${game}/${game === "geo" && mode === "timed" ? "?mode=timed" : ""}`}
+                href={`/${game}/${game === "geo" && mode !== "classic" ? `?mode=${mode}` : ""}`}
               >
                 Играть в «{gameNames[game]}» ↗
               </a>

@@ -1,15 +1,29 @@
 import { geoLocations, type GeoLocation, type GeoRegion } from "./geoLocations";
 
 export type GeoPoint = { lat: number; lng: number };
-export type GeoMode = "classic" | "timed";
+export const GEO_MODES = [
+  "classic",
+  "timed",
+  "moving",
+  "moving-timed",
+] as const;
+export type GeoMode = (typeof GEO_MODES)[number];
 export const GEO_SCORE_VERSION = 4;
 export const GEO_ROUND_POINTS = 100;
 export const GEO_MAX_POINTS = 500;
 export const GEO_TIME_LIMIT_MS = 180000;
+export const geoCanMove = (mode: GeoMode) =>
+  mode === "moving" || mode === "moving-timed";
+export const geoIsTimed = (mode: GeoMode) =>
+  mode === "timed" || mode === "moving-timed";
+export const geoModeFor = (moving: boolean, timed: boolean): GeoMode =>
+  moving ? (timed ? "moving-timed" : "moving") : timed ? "timed" : "classic";
+export const geoTimeName = (mode: GeoMode) =>
+  geoIsTimed(mode) ? "На время" : "Без таймера";
 export const geoModeName = (mode: GeoMode) =>
-  mode === "timed" ? "На время" : "Без таймера";
+  `${geoCanMove(mode) ? "С перемещением" : "Без перемещения"} · ${geoTimeName(mode)}`;
 export const validGeoMode = (mode: unknown): mode is GeoMode =>
-  mode === "classic" || mode === "timed";
+  typeof mode === "string" && GEO_MODES.includes(mode as GeoMode);
 export const geoRemaining = (deadline: number, now = Date.now()) =>
   Math.max(0, Math.ceil((deadline - now) / 1000));
 export const geoClock = (seconds: number) =>

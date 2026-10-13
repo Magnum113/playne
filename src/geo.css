@@ -810,3 +810,30 @@
     padding: 6px 10px;
   }
 }
+
+.geo-return-start {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 5;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 3px 12px #0002;
+}
+.geo-return-start:hover {
+  background: var(--hover);
+}
+.geo-return-start:focus-visible {
+  outline: 3px solid var(--mint);
+  outline-offset: 3px;
+}
+@media (max-width: 650px) {
+  .geo-map-open .geo-return-start {
+    display: none;
+  }
+}

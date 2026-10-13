@@ -10,6 +10,7 @@ import {
   geoWholeRound,
   validPoint,
   validGeoMode,
+  geoIsTimed,
   type GeoMode,
 } from "../src/geo";
 export const GAME_NAMES = {
@@ -129,7 +130,7 @@ export function validateAnswer(
   const panorama = challenge.panoramas?.[index];
   const actual = panorama?.actual;
   if (!actual) throw new Error("Панорама не проверена");
-  const timed = challenge.mode === "timed";
+  const timed = geoIsTimed(challenge.mode);
   if (timed && !Number.isFinite(panorama.deadline))
     throw new Error("Таймер ещё не запущен");
   const timedOut = timed && now >= panorama.deadline;

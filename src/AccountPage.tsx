@@ -1,4 +1,4 @@
-import { geoModeName, type GeoMode } from "./geo";
+import { GEO_MODES, geoModeName, type GeoMode } from "./geo";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, useAuth, gameNames, resultText, type GameId } from "./account";
@@ -232,10 +232,11 @@ export default function AccountPage() {
                 {Object.entries(gameNames)
                   .flatMap(([id, name]) =>
                     id === "geo"
-                      ? [
-                          [id, `${name} · Без таймера`, "classic"],
-                          [id, `${name} · На время`, "timed"],
-                        ]
+                      ? GEO_MODES.map((mode) => [
+                          id,
+                          `${name} · ${geoModeName(mode)}`,
+                          mode,
+                        ])
                       : [[id, name, "classic"]],
                   )
                   .map(([id, name, mode]) => {

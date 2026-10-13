@@ -24,6 +24,8 @@ import {
   distanceKm,
   validPoint,
   validGeoMode,
+  geoIsTimed,
+  geoCanMove,
   GEO_TIME_LIMIT_MS,
 } from "../src/geo";
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
@@ -332,6 +334,8 @@ export async function buildApp(
                 ? 2
                 : 1
           : scoreVersion(game);
+      if (game === "geo" && geoCanMove(mode) && version < 4)
+        failure("Обнови страницу, чтобы играть с перемещением");
       const challenge = makeChallenge(
         game,
         recent,
@@ -507,7 +511,7 @@ export async function buildApp(
       const run = await owned(req, reply, (req.params as any).id, c, true);
       if (
         run.game !== "geo" ||
-        run.mode !== "timed" ||
+        !geoIsTimed(run.mode) ||
         !Number.isInteger(index) ||
         index !== run.answers.length ||
         run.completed_at
@@ -543,7 +547,7 @@ export async function buildApp(
       const run = await owned(req, reply, (req.params as any).id, c, true);
       if (
         run.game !== "geo" ||
-        run.mode !== "timed" ||
+        !geoIsTimed(run.mode) ||
         run.answers.length !== body.index ||
         run.completed_at
       )

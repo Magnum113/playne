@@ -15,6 +15,10 @@ import {
   GEO_MAX_POINTS,
   GEO_TIME_LIMIT_MS,
   geoModeName,
+  geoCanMove,
+  geoIsTimed,
+  geoModeFor,
+  validGeoMode,
   geoRemaining,
   geoClock,
   geoPoints,
@@ -25,7 +29,12 @@ import {
   type GeoPoint,
 } from "./geo";
 import { geoLocations, type GeoLocation } from "./geoLocations";
-import { findPanorama, loadGoogleMaps, onMapsAuthFailure } from "./googleMaps";
+import {
+  findPanorama,
+  hasStreetViewLinks,
+  loadGoogleMaps,
+  onMapsAuthFailure,
+} from "./googleMaps";
 import "./geo.css";
 
 type Phase =
@@ -42,8 +51,8 @@ function Rules() {
       <p>Ты в незнакомом месте. Осмотрись и найди его на карте мира.</p>
       <ol>
         <li>
-          Вращай панораму мышью или пальцем. Приближать можно, идти по улицам —
-          нельзя.
+          Вращай панораму мышью или пальцем. В режиме «С перемещением» можно
+          идти по улице по стрелкам или нажатием на дорогу.
         </li>
         <li>
           Открой карту, приблизь нужный участок и поставь точку. До ответа её
@@ -58,8 +67,10 @@ function Rules() {
         последнюю выбранную точку; без точки — ноль очков.
       </p>
       <p>
-        Ищи подсказки в языке вывесок, архитектуре, растениях и разметке. Рекорд
-        сохраняется в этом браузере.
+        Найди на карте место, откуда начался раунд. Кнопка «На старт» возвращает
+        к начальной панораме и не сбрасывает таймер. Ищи подсказки в языке
+        вывесок, архитектуре, растениях и разметке. Рекорд сохраняется в этом
+        браузере.
       </p>
     </div>
   );
@@ -67,12 +78,13 @@ function Rules() {
 
 export default function GeoGame() {
   const ranked = useRankedRun("geo");
-  const [mode, setMode] = useState<GeoMode>(() =>
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("mode") === "timed"
-      ? "timed"
-      : "classic",
-  );
+  const [mode, setMode] = useState<GeoMode>(() => {
+    const value =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("mode")
+        : null;
+    return validGeoMode(value) ? value : "classic";
+  });
   const modeRef = useRef<GeoMode>(mode);
   const [deadline, setDeadline] = useState<number | null>(null);
   const deadlineRef = useRef<number | null>(null);
@@ -104,6 +116,7 @@ export default function GeoGame() {
   const actual = useRef<GeoPoint | null>(null);
   const activePlace = useRef<GeoLocation | null>(null);
   const allowedPano = useRef("");
+  const startHeading = useRef(0);
   const busy = useRef(false),
     operation = useRef(0);
   const cancelWait = useRef<(() => void) | null>(null);
@@ -118,14 +131,14 @@ export default function GeoGame() {
   function choosePoint(point: GeoPoint) {
     if (phaseRef.current !== "guessing" || !map.current) return;
     if (
-      modeRef.current === "timed" &&
+      geoIsTimed(modeRef.current) &&
       deadlineRef.current !== null &&
       Date.now() >= deadlineRef.current
     ) {
       void submit(true);
       return;
     }
-    if (modeRef.current === "timed") ranked.geoPin(round, point);
+    if (geoIsTimed(modeRef.current)) ranked.geoPin(round, point);
     guessRef.current = point;
     setGuess(point);
     setError("");
@@ -134,7 +147,7 @@ export default function GeoGame() {
   }
   timeoutAction.current = () => void submit(true);
   useEffect(() => {
-    if (phase !== "guessing" || mode !== "timed" || deadline === null) return;
+    if (phase !== "guessing" || !geoIsTimed(mode) || deadline === null) return;
     const tick = () => {
       const left = geoRemaining(deadline);
       setRemaining(left);
@@ -238,7 +251,12 @@ export default function GeoGame() {
     });
     panorama.current.addListener("pano_changed", () => {
       const view = panorama.current;
-      if (view && allowedPano.current && view.getPano() !== allowedPano.current)
+      if (
+        view &&
+        allowedPano.current &&
+        view.getPano() !== allowedPano.current &&
+        (!geoCanMove(modeRef.current) || phaseRef.current !== "guessing")
+      )
         view.setPano(allowedPano.current);
     });
     panorama.current.addListener("zoom_changed", () => {
@@ -313,6 +331,7 @@ export default function GeoGame() {
     busy.current = true;
     const token = ++operation.current;
     setPhase("loading");
+    panorama.current?.setOptions({ linksControl: false, clickToGo: false });
     setMapOpen(false);
     setGuess(null);
     guessRef.current = null;
@@ -341,19 +360,23 @@ export default function GeoGame() {
           const data = response.data;
           if (!data.location?.latLng || !data.location.pano)
             throw new Error("No panorama");
+          if (
+            geoCanMove(modeRef.current) &&
+            !hasStreetViewLinks(data.links, data.location.pano)
+          )
+            throw new Error("Panorama has no navigation links");
           const verifiedActual = await ranked.panorama(
             index,
             data.location.pano,
           );
-          await showPanorama(
-            data.location.pano,
-            place.heading ?? data.tiles?.centerHeading ?? 0,
-          );
+          const heading = place.heading ?? data.tiles?.centerHeading ?? 0;
+          await showPanorama(data.location.pano, heading);
+          startHeading.current = heading;
           if (token !== operation.current) return;
           actual.current = verifiedActual ?? data.location.latLng.toJSON();
           activePlace.current = place;
           rounds.current[index] = place;
-          if (modeRef.current === "timed") {
+          if (geoIsTimed(modeRef.current)) {
             const started = await ranked.geoReady(index);
             if (token !== operation.current) return;
             deadlineRef.current = started ?? Date.now() + GEO_TIME_LIMIT_MS;
@@ -361,6 +384,10 @@ export default function GeoGame() {
             setRemaining(geoRemaining(deadlineRef.current));
           }
           setPhase("guessing");
+          panorama.current!.setOptions({
+            linksControl: geoCanMove(modeRef.current),
+            clickToGo: geoCanMove(modeRef.current),
+          });
           busy.current = false;
           return;
         } catch {
@@ -419,7 +446,7 @@ export default function GeoGame() {
   async function submit(expired = false) {
     if (phaseRef.current !== "guessing") return;
     const timedOut =
-      modeRef.current === "timed" &&
+      geoIsTimed(modeRef.current) &&
       (expired ||
         (deadlineRef.current !== null && Date.now() >= deadlineRef.current));
     if (!guessRef.current && !timedOut) {
@@ -437,6 +464,7 @@ export default function GeoGame() {
     const place = activePlace.current;
     const correct = actual.current;
     setPhase("checking");
+    panorama.current?.setOptions({ linksControl: false, clickToGo: false });
     if (timedOut) rules.current?.close();
     const verified = await ranked.geoAnswer(round, selected, timedOut);
     if (token !== operation.current) return;
@@ -562,24 +590,54 @@ export default function GeoGame() {
                 <li>Проверь ответ и узнай, где оказался.</li>
               </ol>
               <fieldset className="geo-mode-choice">
-                <legend>Режим игры</legend>
-                {(["classic", "timed"] as const).map((value) => (
+                <legend>Перемещение</legend>
+                {([false, true] as const).map((moving) => (
                   <label
-                    key={value}
-                    className={mode === value ? "selected" : ""}
+                    key={String(moving)}
+                    className={geoCanMove(mode) === moving ? "selected" : ""}
                   >
                     <input
                       type="radio"
-                      name="geo-mode"
-                      value={value}
-                      checked={mode === value}
+                      name="geo-movement"
+                      checked={geoCanMove(mode) === moving}
                       disabled={ranked.state.status === "loading"}
-                      onChange={() => chooseMode(value)}
+                      onChange={() =>
+                        chooseMode(geoModeFor(moving, geoIsTimed(mode)))
+                      }
                     />
                     <span>
-                      <strong>{geoModeName(value)}</strong>
+                      <strong>
+                        {moving ? "С перемещением" : "Без перемещения"}
+                      </strong>
                       <small>
-                        {value === "timed"
+                        {moving
+                          ? "Пройди по улице и найди подсказки"
+                          : "Осмотрись из одной точки"}
+                      </small>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              <fieldset className="geo-mode-choice">
+                <legend>Время</legend>
+                {([false, true] as const).map((timed) => (
+                  <label
+                    key={String(timed)}
+                    className={geoIsTimed(mode) === timed ? "selected" : ""}
+                  >
+                    <input
+                      type="radio"
+                      name="geo-time"
+                      checked={geoIsTimed(mode) === timed}
+                      disabled={ranked.state.status === "loading"}
+                      onChange={() =>
+                        chooseMode(geoModeFor(geoCanMove(mode), timed))
+                      }
+                    />
+                    <span>
+                      <strong>{timed ? "На время" : "Без таймера"}</strong>
+                      <small>
+                        {timed
                           ? "3 минуты на каждый раунд"
                           : "Осматривайся в своём темпе"}
                       </small>
@@ -595,7 +653,7 @@ export default function GeoGame() {
                 Начать игру <span aria-hidden="true">↗</span>
               </button>
               <small>
-                Бесплатно и без регистрации. Панорамы без перемещения по улицам.
+                Бесплатно и без регистрации. У каждого режима свой рейтинг.
               </small>
               {stats.best > 0 && (
                 <p className="geo-best">
@@ -626,7 +684,7 @@ export default function GeoGame() {
             </div>
             <div className="geo-status-meta">
               <span className="geo-mode-label">{geoModeName(mode)}</span>
-              {mode === "timed" && (
+              {geoIsTimed(mode) && (
                 <span
                   className={`geo-timer ${remaining <= 15 ? "geo-timer-urgent" : ""}`}
                   role="timer"
@@ -654,6 +712,21 @@ export default function GeoGame() {
             }
             aria-label="Панорама: осмотрись и угадай место"
           />
+          {phase === "guessing" && geoCanMove(mode) && (
+            <button
+              className="geo-return-start"
+              onClick={() => {
+                const view = panorama.current;
+                if (!view || !allowedPano.current) return;
+                view.setPano(allowedPano.current);
+                view.setPov({ heading: startHeading.current, pitch: 0 });
+                view.setZoom(0);
+              }}
+              aria-label="На старт — вернуться к начальной панораме"
+            >
+              ↶ На старт
+            </button>
+          )}
           <section
             className="geo-map-panel"
             inert={
