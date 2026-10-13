@@ -99,7 +99,7 @@ export function AccountNav() {
   const { user } = useAuth();
   return (
     <a
-      className="account-nav"
+      className={`account-nav${user ? "" : " account-nav-login"}`}
       href="/account/"
       aria-label={user ? "Личный кабинет" : "Войти через Яндекс"}
       title={user ? "Личный кабинет" : "Войти через Яндекс"}
@@ -116,6 +116,7 @@ export function AccountNav() {
         <circle cx="12" cy="8" r="3.5" />
         <path d="M4 21v-2a8 8 0 0 1 16 0v2" />
       </svg>
+      {!user && <span>Войти</span>}
     </a>
   );
 }

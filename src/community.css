@@ -1,4 +1,5 @@
-.account-nav {
+.account-nav,
+.hub-header nav a.account-nav {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -10,6 +11,19 @@
   border-radius: 50%;
   background: var(--panel);
   color: var(--text);
+}
+.account-nav.account-nav-login,
+.hub-header nav a.account-nav-login {
+  width: auto;
+  padding: 10px 14px;
+  gap: 8px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+.account-nav svg {
+  flex: none;
 }
 .account-nav:hover {
   background: var(--hover);
