@@ -35,12 +35,22 @@ export const GEO_GOALS = {
   loadError: "geo_load_error",
 } as const;
 
+export const ACCOUNT_GOALS = {
+  loginStart: "account_yandex_login_start",
+  loginSuccess: "account_yandex_login_success",
+  nicknameSaved: "account_nickname_saved",
+  resultPublished: "leaderboard_result_saved",
+  leaderboardOpen: "leaderboard_open",
+  logout: "account_logout",
+} as const;
+
 type Values<T> = T[keyof T];
 export type MetrikaGoal =
   | Values<typeof METRIKA_GOALS>
   | Values<typeof CIRCLE_GOALS>
   | Values<typeof SHADE_GOALS>
-  | Values<typeof GEO_GOALS>;
+  | Values<typeof GEO_GOALS>
+  | Values<typeof ACCOUNT_GOALS>;
 export type MetrikaParams = Record<string, string | number | boolean>;
 
 type MetrikaFunction = {

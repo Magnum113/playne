@@ -1,3 +1,4 @@
+import { AccountNav, useRankedRun, SaveResult } from "./account";
 import FooterLinks from "./FooterLinks";
 import { CIRCLE_GOALS, reachGoal } from "./analytics";
 import { createCircleTracker } from "./gameAnalytics";
@@ -16,6 +17,7 @@ import "./circle.css";
 type Stroke = { id: number; points: CirclePoint[]; rect: DOMRect };
 
 export default function CircleGame() {
+  const ranked = useRankedRun("circle");
   const [path, setPath] = useState("");
   const [drawing, setDrawing] = useState(false);
   const [result, setResult] = useState<CircleResult | null>(null);
@@ -65,6 +67,7 @@ export default function CircleGame() {
       });
       return;
     }
+    void ranked.begin();
     event.currentTarget.setPointerCapture(event.pointerId);
     stroke.current = { id: event.pointerId, points: [start], rect };
     setResult(null);
@@ -111,11 +114,16 @@ export default function CircleGame() {
     if (!current) return;
     stroke.current = null;
     setDrawing(false);
-    const next = evaluateCircle(current.points);
+    const normalized = current.points.map((p) => ({
+      x: Math.round(p.x * 100) / 100,
+      y: Math.round(p.y * 100) / 100,
+    }));
+    const next = evaluateCircle(normalized);
     setResult(next);
     const previous = Math.max(best, readCircleBest());
     analytics.finish(next, previous);
     if (next.valid) {
+      ranked.submit(0, { points: normalized });
       setRecord(next.score > previous);
       setBest(Math.max(previous, saveCircleBest(next.score)));
     }
@@ -144,6 +152,7 @@ export default function CircleGame() {
           <a className="back-to-hub" href="/">
             ← Все игры
           </a>
+          <AccountNav />
           <ThemeToggle />
         </nav>
       </header>
@@ -308,6 +317,7 @@ export default function CircleGame() {
             Рекорд хранится в этом браузере.
           </p>
         </details>
+        {success && <SaveResult run={ranked} game="circle" />}
       </main>
       <footer className="circle-footer">
         <span>Одна попытка — несколько секунд.</span>

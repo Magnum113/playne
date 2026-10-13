@@ -5,10 +5,44 @@ export type PageMeta = {
   path: string;
   title: string;
   description: string;
-  kind: "home" | "game" | "guides" | "article";
+  kind: "home" | "game" | "guides" | "article" | "info";
+  noindex?: boolean;
   name: string;
 };
 export const pages: PageMeta[] = [
+  {
+    path: "/leaderboard/",
+    title: "Рейтинг игроков — лучшие результаты игр | Playne",
+    description:
+      "Рейтинги На глаз, Круг, Оттенок и Где я. Лучшие результаты недели и за всё время. Играй бесплатно и сохраняй результаты через Яндекс ID.",
+    kind: "guides",
+    name: "Рейтинг",
+  },
+  {
+    path: "/account/",
+    title: "Личный кабинет | Playne",
+    description:
+      "Вход через Яндекс ID, изменение ника и сохранённые результаты игр Playne.",
+    kind: "info",
+    name: "Личный кабинет",
+    noindex: true,
+  },
+  {
+    path: "/privacy/",
+    title: "Конфиденциальность и данные аккаунта | Playne",
+    description:
+      "Какие данные сохраняет Playne при входе через Яндекс ID и публикации результатов, как работают cookies и как управлять своим профилем.",
+    kind: "info",
+    name: "Конфиденциальность",
+  },
+  {
+    path: "/terms/",
+    title: "Правила игр и общего рейтинга | Playne",
+    description:
+      "Правила публикации результатов и участия в рейтингах Playne. Гостевые игры, проверка очков, ник и сохранение результатов.",
+    kind: "info",
+    name: "Правила сайта",
+  },
   {
     path: "/",
     title: "Playne — игры онлайн для любопытных",

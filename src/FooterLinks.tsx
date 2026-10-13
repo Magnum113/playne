@@ -3,6 +3,8 @@ export default function FooterLinks() {
     <nav className="footer-links" aria-label="Игры и правила">
       <div>
         <strong>Играть</strong>
+        <a href="/leaderboard/">Рейтинг</a>
+        <a href="/account/">Личный кабинет</a>
         <a href="/naglaz/">На глаз</a>
         <a href="/circle/">Круг</a>
         <a href="/colorfle/">Оттенок</a>
@@ -15,6 +17,8 @@ export default function FooterLinks() {
         <a href="/guides/naglaz/">Как сравнивать размеры</a>
         <a href="/guides/perfect-circle/">Как нарисовать круг</a>
         <a href="/guides/colorfle/">Как подобрать оттенок</a>
+        <a href="/privacy/">Конфиденциальность</a>
+        <a href="/terms/">Правила сайта</a>
       </div>
     </nav>
   );

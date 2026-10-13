@@ -1,3 +1,4 @@
+import { AccountNav, useRankedRun, SaveResult } from "./account";
 import { useEffect, useRef, useState } from "react";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
@@ -53,6 +54,7 @@ function Rules() {
 }
 
 export default function GeoGame() {
+  const ranked = useRankedRun("geo");
   const [phase, setPhaseState] = useState<Phase>("welcome");
   const phaseRef = useRef<Phase>("welcome");
   const setPhase = (value: Phase) => {
@@ -278,12 +280,13 @@ export default function GeoGame() {
           const data = response.data;
           if (!data.location?.latLng || !data.location.pano)
             throw new Error("No panorama");
+          const verifiedActual = await ranked.panorama(index, data.location.pano);
           await showPanorama(
             data.location.pano,
             place.heading ?? data.tiles?.centerHeading ?? 0,
           );
           if (token !== operation.current) return;
-          actual.current = data.location.latLng.toJSON();
+          actual.current = verifiedActual ?? data.location.latLng.toJSON();
           activePlace.current = place;
           rounds.current[index] = place;
           setPhase("guessing");
@@ -292,6 +295,9 @@ export default function GeoGame() {
         } catch {
           if (token !== operation.current) return;
           badPlaces.current.add(place.id);
+          const onlineReplacement = await ranked.replaceGeo(index);
+          if (onlineReplacement) { place = onlineReplacement; rounds.current[index] = place; continue; }
+          ranked.local();
           const next = geoLocations.find(
             (candidate) =>
               candidate.region === place.region &&
@@ -319,9 +325,12 @@ export default function GeoGame() {
       if (token === operation.current) busy.current = false;
     }
   }
-  function start(replay = false) {
+  async function start(replay = false) {
     if (busy.current) return;
-    rounds.current = chooseGeoRounds(statsRef.current.recent);
+    if (ranked.state.status === "loading") return;
+    const online = await ranked.begin();
+    rounds.current =
+      online?.challenge.places ?? chooseGeoRounds(statsRef.current.recent);
     answersRef.current = [];
     setAnswers([]);
     reachGoal(replay ? GEO_GOALS.gameRestart : GEO_GOALS.gameStart);
@@ -339,6 +348,7 @@ export default function GeoGame() {
       return;
     }
     if (!actual.current || !activePlace.current) return;
+    ranked.submit(round, { guess: guessRef.current });
     const distance = distanceKm(guessRef.current, actual.current);
     const result: GeoAnswer = {
       location: activePlace.current,
@@ -411,6 +421,7 @@ export default function GeoGame() {
           <a className="back-to-hub" href="/">
             ← Все игры
           </a>
+          <AccountNav />
           <ThemeToggle />
         </nav>
       </header>
@@ -653,6 +664,7 @@ export default function GeoGame() {
             <button className="primary" onClick={() => start(true)}>
               Играть ещё <span aria-hidden="true">↗</span>
             </button>
+            <SaveResult run={ranked} game="geo" />
           </section>
         )}
       </main>

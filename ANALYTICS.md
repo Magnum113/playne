@@ -100,3 +100,18 @@
 | Ошибка загрузки | `geo_load_error` |
 
 Параметры событий и описание игры — в [GEO_GAME.md](GEO_GAME.md).
+
+## Аккаунты и рейтинги
+
+JavaScript-события того же счётчика 112711950:
+
+| Название | Идентификатор |
+|---|---|
+| Переход к входу через Яндекс | account_yandex_login_start |
+| Успешный вход | account_yandex_login_success |
+| Сохранение ника | account_nickname_saved |
+| Публикация результата | leaderboard_result_saved |
+| Открытие рейтинга | leaderboard_open |
+| Выход | account_logout |
+
+В события не передаются ник, имя, email, идентификатор Яндекса или токены.

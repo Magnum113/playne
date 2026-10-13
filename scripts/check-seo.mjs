@@ -50,7 +50,7 @@ try {
       1,
       `${page.path}: exactly one H1`,
     );
-    assert(html.includes('lang="ru"') && !html.includes('content="noindex'));
+    assert(html.includes('lang="ru"') && (page.noindex || !html.includes('content="noindex')));
     assert(html.includes("og:image") && html.includes("twitter:card"));
     assert(html.includes('data-playne-mark="vector"'));
     assert(
@@ -72,6 +72,7 @@ try {
       /(?:href|src)="(\/[^"?#]*)(?:[?#][^"]*)?"/g,
     )) {
       const path = match[1];
+      if (path.startsWith("/api/")) { assert(path === "/api/auth/yandex/start"); continue; }
       if (path.endsWith("/"))
         assert(paths.has(path), `${page.path}: broken route ${path}`);
       else await access(new URL(path.slice(1), dist));
@@ -94,7 +95,7 @@ try {
   }
   const sitemap = await readFile(new URL("sitemap.xml", dist), "utf8");
   const listed = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]);
-  assert.deepEqual(listed.sort(), pages.map((p) => SITE_URL + p.path).sort());
+  assert.deepEqual(listed.sort(), pages.filter(p=>!p.noindex).map((p) => SITE_URL + p.path).sort());
   const robots = await readFile(new URL("robots.txt", dist), "utf8");
   assert(robots.includes(`Sitemap: ${SITE_URL}/sitemap.xml`));
   assert(!robots.includes("Disallow: /"));

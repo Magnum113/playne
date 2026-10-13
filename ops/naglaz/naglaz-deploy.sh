@@ -23,6 +23,8 @@ PREPARED_RELEASE_DIR=''
 ACTIVATION_PENDING=0
 ACTIVATION_OLD_SHA=''
 ACTIVATION_OLD_PREVIOUS_SHA=''
+API_ACTIVATION_PENDING=0
+ACTIVATION_OLD_API_TARGET=''
 
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
@@ -62,6 +64,14 @@ atomic_link() {
     rm -f -- "$temporary_link"
     return 1
   fi
+}
+
+api_link() {
+  local target="$1"
+  [[ "$target" = /srv/playne/api/bootstrap || "$target" =~ ^/srv/playne/releases/[0-9a-f]{40}/api$ ]] || fail 'Invalid API target'
+  [[ -d "$target" && ! -L "$target" && -f "$target/server.cjs" ]] || fail 'API target is missing'
+  ln -s -- "$target" /srv/playne/api/current.new.$$
+  mv -Tf -- /srv/playne/api/current.new.$$ /srv/playne/api/current
 }
 
 linked_release_sha() {
@@ -118,6 +128,11 @@ cleanup() {
     log 'Interrupted activation detected; restoring prior links'
     restore_release_link "$CURRENT_LINK" "$ACTIVATION_OLD_SHA"
     restore_release_link "$PREVIOUS_LINK" "$ACTIVATION_OLD_PREVIOUS_SHA"
+  fi
+  if (( API_ACTIVATION_PENDING )); then
+    API_ACTIVATION_PENDING=0
+    api_link "$ACTIVATION_OLD_API_TARGET"
+    systemctl restart playne-api.service
   fi
   if [[ -n "$ACTIVE_STAGING_DIR" &&
         "$ACTIVE_STAGING_DIR" = "$RELEASES_DIR"/.staging-* &&
@@ -289,13 +304,13 @@ with tarfile.open(archive, mode="r:") as bundle:
         if normalized in seen:
             raise SystemExit("archive contains a duplicate path")
         seen.add(normalized)
-        if normalized != "REVISION" and path.parts[0] != "naglaz":
+        if normalized != "REVISION" and path.parts[0] not in {"naglaz", "api"}:
             raise SystemExit("archive contains a path outside the release root")
         if any(part.startswith("._") or part == ".DS_Store" for part in path.parts):
             raise SystemExit("archive contains platform metadata")
         if member.isdir() and member.type != tarfile.DIRTYPE:
             raise SystemExit("archive contains a non-standard directory")
-        if member.isdir() and normalized not in {"naglaz", "naglaz/assets", "naglaz/art", "naglaz/naglaz", "naglaz/circle", "naglaz/colorfle", "naglaz/geo", "naglaz/guides", "naglaz/guides/naglaz", "naglaz/guides/perfect-circle", "naglaz/guides/colorfle"}:
+        if member.isdir() and normalized not in {"api", "naglaz/account", "naglaz/leaderboard", "naglaz/privacy", "naglaz/terms", "naglaz", "naglaz/assets", "naglaz/art", "naglaz/naglaz", "naglaz/circle", "naglaz/colorfle", "naglaz/geo", "naglaz/guides", "naglaz/guides/naglaz", "naglaz/guides/perfect-circle", "naglaz/guides/colorfle"}:
             raise SystemExit("archive contains an unexpected directory")
         if member.isfile() and member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}:
             raise SystemExit("archive contains a sparse or non-standard regular file")
@@ -330,8 +345,11 @@ with tarfile.open(archive, mode="r:") as bundle:
         "naglaz/guides/index.html", "naglaz/guides/naglaz/index.html",
         "naglaz/guides/perfect-circle/index.html", "naglaz/guides/colorfle/index.html",
         "naglaz/robots.txt", "naglaz/sitemap.xml", "naglaz/404.html",
-        "naglaz/destroy.html",
+        "naglaz/destroy.html", "naglaz/account/index.html", "naglaz/leaderboard/index.html",
+        "naglaz/privacy/index.html", "naglaz/terms/index.html", "api/server.cjs", "api/schema.sql",
     } & set(regular_files)
+    if any(name.startswith("api/") for name in regular_files) and not {"api/server.cjs", "api/schema.sql"}.issubset(regular_files):
+        raise SystemExit("archive is missing API release files")
     allowed_files = required | optional_pages | set(javascript) | set(stylesheets) | set(artwork)
     if set(regular_files) != allowed_files:
         raise SystemExit("archive contains an unexpected public file")
@@ -501,7 +519,7 @@ health_check() {
   fi
 
   # Optional for compatibility with releases built before the SEO pages existed.
-  for public_path in geo/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html; do
+  for public_path in account/index.html leaderboard/index.html privacy/index.html terms/index.html geo/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html; do
     if [[ -f "$release_dir/naglaz/$public_path" ]]; then
       request_path="${public_path%index.html}"
       curl "${curl_options[@]}" --fail "https://playne.ru/$request_path" --output "$index_file" || return 1
@@ -510,6 +528,15 @@ health_check() {
   done
 
 
+  if [[ -f "$release_dir/api/server.cjs" ]]; then
+    local api_ready=0
+    for attempt in {1..15}; do
+      if curl "${curl_options[@]}" --fail https://playne.ru/api/health --output "$index_file"; then api_ready=1; break; fi
+      sleep 1
+    done
+    (( api_ready == 1 )) || return 1
+    grep -Fq "$(cat "$release_dir/REVISION")" "$index_file" || return 1
+  fi
   root_result="$(curl "${curl_options[@]}" --output /dev/null \
     --write-out '%{http_code}|%{redirect_url}' https://www.playne.ru/)" || return 1
   [[ "$root_result" = '308|https://playne.ru/' ]] || return 1
@@ -577,6 +604,7 @@ deploy_release() {
   local release_dir
   local old_sha=''
   local old_previous_sha=''
+  local old_api_target=''
 
   is_sha "$release_sha" || fail 'Deploy requires a full lowercase Git SHA'
   is_digest "$expected_digest" || fail 'Deploy requires a lowercase SHA-256 digest'
@@ -612,15 +640,29 @@ deploy_release() {
     atomic_link "$PREVIOUS_LINK" "$RELEASES_DIR/$old_sha"
   fi
   atomic_link "$CURRENT_LINK" "$release_dir"
+  if [[ -f "$release_dir/api/server.cjs" ]]; then
+    old_api_target="$(readlink -f /srv/playne/api/current)"
+    ACTIVATION_OLD_API_TARGET="$old_api_target"
+    API_ACTIVATION_PENDING=1
+    api_link "$release_dir/api"
+    systemctl restart playne-api.service
+  fi
   if ! health_check "$release_dir"; then
     restore_release_link "$CURRENT_LINK" "$old_sha"
     restore_release_link "$PREVIOUS_LINK" "$old_previous_sha"
+    if [[ -n "$old_api_target" ]]; then
+      api_link "$old_api_target"
+      API_ACTIVATION_PENDING=0
+      systemctl restart playne-api.service
+    fi
     ACTIVATION_PENDING=0
     fail "$release_sha failed production verification and was rolled back"
   fi
   ACTIVATION_PENDING=0
   ACTIVATION_OLD_SHA=''
   ACTIVATION_OLD_PREVIOUS_SHA=''
+  API_ACTIVATION_PENDING=0
+  ACTIVATION_OLD_API_TARGET=''
 
   rm -f -- "$sealed_archive" "$tar_archive"
   ACTIVE_SEALED_ARCHIVE=''

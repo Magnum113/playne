@@ -1,10 +1,11 @@
+import { AccountNav, useRankedRun, SaveResult } from "./account";
 import FooterLinks from "./FooterLinks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Board from "./Board";
 import Silhouette from "./Silhouette";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import { METRIKA_GOALS, reachGoal } from "./analytics";
-import { objects, chooseRounds } from "./data";
+import { objects, chooseRounds, pairs } from "./data";
 import type { Pair } from "./data";
 import {
   clamp,
@@ -117,6 +118,7 @@ function Hero() {
   );
 }
 export default function App() {
+  const ranked = useRankedRun("naglaz");
   const [screen, setScreen] = useState<"start" | "game" | "summary">("start");
   const [rounds, setRounds] = useState<Pair[]>([]);
   const [index, setIndex] = useState(0);
@@ -159,7 +161,7 @@ export default function App() {
     reachGoal(METRIKA_GOALS.rulesOpen, { screen });
     setHelp(true);
   }
-  function start(source: "initial" | "restart") {
+  async function start(source: "initial" | "restart") {
     if (source === "restart") {
       reachGoal(METRIKA_GOALS.gameRestart, { previous_score: total });
     }
@@ -168,7 +170,13 @@ export default function App() {
       round_count: ROUND_COUNT,
       previous_best: best,
     });
-    const nextRounds = chooseRounds(previousRoundIds.current);
+    if (ranked.state.status === "loading") return;
+    const online = await ranked.begin();
+    const nextRounds: Pair[] = online
+      ? online.challenge.pairIds.map(
+          (id: string) => pairs.find((p) => p.id === id)!,
+        )
+      : chooseRounds(previousRoundIds.current);
     previousRoundIds.current = nextRounds.map((round) => round.id);
     setRounds(nextRounds);
     setIndex(0);
@@ -195,6 +203,7 @@ export default function App() {
     const guess = objects[pair.reference].size * ratio;
     const target = objects[pair.target];
     const points = score(guess, target.size);
+    ranked.submit(index, { guess });
     setResults((prev) => [
       ...prev,
       {
@@ -257,6 +266,7 @@ export default function App() {
           <a href="/" className="back-to-hub">
             Все игры
           </a>
+          <AccountNav />
           <ThemeToggle />
           <button className="help-button" onClick={openHelp}>
             <span className="question">?</span> Правила
@@ -509,6 +519,7 @@ export default function App() {
             >
               К правилам игры
             </button>
+            <SaveResult run={ranked} game="naglaz" />
           </section>
         )}
       </main>

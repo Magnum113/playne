@@ -1,0 +1,30 @@
+[Unit]
+Description=Playne accounts and leaderboard API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=playne-api
+Group=playne-api
+EnvironmentFile=/etc/playne/api.env
+WorkingDirectory=/srv/playne/api/current
+ExecStart=/usr/bin/node /srv/playne/api/current/server.cjs
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectProc=invisible
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+UMask=0077
+MemoryMax=384M
+TasksMax=80
+
+[Install]
+WantedBy=multi-user.target

@@ -20,6 +20,20 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: naglaz-production
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: playne_test
+          POSTGRES_USER: playne_test
+          POSTGRES_PASSWORD: playne_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Check out the triggering commit
@@ -44,6 +58,8 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Test
+        env:
+          TEST_DATABASE_URL: postgresql://playne_test:playne_test@127.0.0.1:5432/playne_test
         run: npm test
 
       - name: Build production assets
@@ -52,6 +68,7 @@ jobs:
         run: |
           test -n "$VITE_GOOGLE_MAPS_API_KEY"
           npm run build
+          npm run build:api
 
       - name: Validate the domain-root build
         id: assets
@@ -73,12 +90,12 @@ jobs:
               printf 'Symbolic link in output: %s\n' "$relative" >&2
               exit 1
             elif [[ -d "$entry" ]]; then
-              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' || "$relative" = 'circle' || "$relative" = 'colorfle' || "$relative" = 'geo' || "$relative" = 'guides' || "$relative" = 'guides/naglaz' || "$relative" = 'guides/perfect-circle' || "$relative" = 'guides/colorfle' ]] || {
+              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' || "$relative" = 'circle' || "$relative" = 'colorfle' || "$relative" = 'geo' || "$relative" = 'account' || "$relative" = 'leaderboard' || "$relative" = 'privacy' || "$relative" = 'terms' || "$relative" = 'guides' || "$relative" = 'guides/naglaz' || "$relative" = 'guides/perfect-circle' || "$relative" = 'guides/colorfle' ]] || {
                 printf 'Unexpected output directory: %s\n' "$relative" >&2
                 exit 1
               }
             elif [[ -f "$entry" ]]; then
-              [[ "$relative" = 'destroy.html' || "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'circle/index.html' || "$relative" = 'colorfle/index.html' || "$relative" = 'geo/index.html' || "$relative" = 'guides/index.html' || "$relative" = 'guides/naglaz/index.html' || "$relative" = 'guides/perfect-circle/index.html' || "$relative" = 'guides/colorfle/index.html' || "$relative" = 'robots.txt' || "$relative" = 'sitemap.xml' || "$relative" = '404.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
+              [[ "$relative" = 'destroy.html' || "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'circle/index.html' || "$relative" = 'colorfle/index.html' || "$relative" = 'account/index.html' || "$relative" = 'leaderboard/index.html' || "$relative" = 'privacy/index.html' || "$relative" = 'terms/index.html' || "$relative" = 'geo/index.html' || "$relative" = 'guides/index.html' || "$relative" = 'guides/naglaz/index.html' || "$relative" = 'guides/perfect-circle/index.html' || "$relative" = 'guides/colorfle/index.html' || "$relative" = 'robots.txt' || "$relative" = 'sitemap.xml' || "$relative" = '404.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
                 "$relative" =~ ^assets/[A-Za-z0-9._-]+\.(js|css)$ ||
                 "$relative" =~ ^art/[A-Za-z0-9._-]+\.png$ ]] || {
                 printf 'Unexpected output file: %s\n' "$relative" >&2
@@ -128,6 +145,8 @@ jobs:
           package_root="$RUNNER_TEMP/package"
           install -d "$package_root/naglaz"
           cp -a dist/. "$package_root/naglaz/"
+          install -d "$package_root/api"
+          cp -a api-dist/. "$package_root/api/"
           printf '%s\n' "$GITHUB_SHA" > "$package_root/REVISION"
 
           archive="$RUNNER_TEMP/$GITHUB_SHA.tar.gz"
@@ -140,7 +159,7 @@ jobs:
             --owner=0 \
             --group=0 \
             --numeric-owner \
-            REVISION naglaz | gzip -n > "$archive"
+            REVISION naglaz api | gzip -n > "$archive"
 
           digest="$(sha256sum "$archive" | awk '{print $1}')"
           [[ "$digest" =~ ^[0-9a-f]{64}$ ]]
@@ -297,7 +316,10 @@ jobs:
             https://www.playne.ru/)"
           test "$root_result" = '308|https://playne.ru/'
 
-          for public_path in robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html; do
+          curl --fail --silent --show-error https://playne.ru/api/health --output "$RUNNER_TEMP/playne-api-health.json"
+          grep -Fq "$GITHUB_SHA" "$RUNNER_TEMP/playne-api-health.json"
+
+          for public_path in account/index.html leaderboard/index.html privacy/index.html terms/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html; do
             request_path="${public_path%index.html}"
             curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 "https://playne.ru/$request_path" --output "$RUNNER_TEMP/seo-response"
             cmp "dist/$public_path" "$RUNNER_TEMP/seo-response"

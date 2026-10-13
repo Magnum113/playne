@@ -1,6 +1,6 @@
 # Playne production deployment
 
-Every push to `main` is built by `.github/workflows/deploy-naglaz.yml` and deployed as an immutable static release to `/srv/playne/releases/<git-sha>`.
+Every push to `main` is built by `.github/workflows/deploy-naglaz.yml` and deployed as an immutable frontend and API release to `/srv/playne/releases/<git-sha>`.
 
 The server uses a dedicated locked account and forced SSH command. GitHub Actions can only upload a digest-bound archive, request deployment of that exact SHA, and read back the active SHA/digest. The root deployment script validates archive paths and sizes, rejects links and special files, switches `current` atomically, verifies the public page and hashed assets, rolls back on failure, and retains four releases.
 
@@ -53,7 +53,10 @@ Yandex Metrika domains. The Metrika counter `112711950` accepts only
 - `/srv/playne/backups` contains private migration backups, outside the public Nginx root.
 - `naglaz-deploy` is the existing dedicated locked SSH account. Its home and upload lock are in `/var/lib/naglaz-deploy`.
 - `/usr/local/libexec/naglaz-ci-ssh` and `/usr/local/sbin/naglaz-deploy` operate only on `/srv/playne`.
-- The game is static: it needs no application process or database.
+- Static frontend: `/srv/playne/current/naglaz`. API: `/srv/playne/api/current`, systemd `playne-api`, loopback `127.0.0.1:3035`.
+- PostgreSQL database `playne` and role `playne_app` are dedicated to Playne. `/etc/playne/api.env` holds server secrets with mode 600.
+- The deployment switches frontend and API together, checks the API revision and rolls both back on failure. See `AUTH_LEADERBOARD.md` for provisioning and recovery.
+- `playne-db-backup.timer` creates daily private database dumps with 14-day retention.
 - Nginx is shared host infrastructure; Playne has its own domain, site configuration and TLS certificate.
 
 ## Page-copy services (Destroy Any Website)

@@ -1,0 +1,7 @@
+[Unit]
+Description=Back up the Playne database
+After=postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/playne-db-backup

@@ -1,9 +1,11 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import Site from "./Site";
+import { AuthProvider } from "./account";
+import "./style.css";
+import "./community.css";
 import { initTheme } from "./theme";
 import { initMetrika } from "./analytics";
-import "./style.css";
 
 const root = document.getElementById("root")!;
 // Sprite Fusion marks its copied document and rewrites image URLs to its proxy.
@@ -14,7 +16,9 @@ if (!document.querySelector('meta[name="daw-status"]')) {
   initTheme();
   createRoot(root).render(
     <React.StrictMode>
-      <Site path={root.dataset.pagePath ?? window.location.pathname} />
+      <AuthProvider>
+        <Site path={root.dataset.pagePath ?? window.location.pathname} />
+      </AuthProvider>
     </React.StrictMode>,
   );
 }

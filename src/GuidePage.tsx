@@ -1,3 +1,4 @@
+import { AccountNav } from "./account";
 import { guides } from "./guides";
 import { PlayneBrand, DestroyWebsiteLink, ThemeToggle } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
@@ -21,7 +22,7 @@ export default function GuidePage({
           <a href="/">Игры</a>
           <a href="/guides/">Правила</a>
           <DestroyWebsiteLink />
-          <ThemeToggle />
+          <AccountNav /><ThemeToggle />
         </nav>
       </header>
       <main id="guide-main" className="guide-main">

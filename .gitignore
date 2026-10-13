@@ -5,3 +5,8 @@ dist/
 *.tsbuildinfo
 .env.local
 .env.*.local
+
+api-dist/
+
+.ai/leaderboard/*.env
+.ai/leaderboard/*setup.sql

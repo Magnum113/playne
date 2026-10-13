@@ -1,3 +1,4 @@
+import { AccountNav } from "./account";
 import FooterLinks from "./FooterLinks";
 import { DestroyWebsiteLink, PlayneBrand, ThemeToggle } from "./SiteHeader";
 import Silhouette from "./Silhouette";
@@ -161,7 +162,11 @@ export default function Hub() {
         <nav aria-label="Навигация">
           <a href="#games">Игры</a>
           <a href="#about">О Playne</a>
+          <a className="hub-ranking-link" href="/leaderboard/">
+            Рейтинг
+          </a>
           <DestroyWebsiteLink />
+          <AccountNav />
           <ThemeToggle />
         </nav>
       </header>
