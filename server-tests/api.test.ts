@@ -248,7 +248,7 @@ suite("Playne database and OAuth integration", () => {
       method: "POST",
       url: "/api/games",
       headers,
-      payload: { game: "geo", geoRulesVersion: 2 },
+      payload: { game: "geo", geoRulesVersion: 3 },
     });
     const run = start.json();
     const old = run.challenge.places[0];
@@ -305,7 +305,7 @@ suite("Playne database and OAuth integration", () => {
         },
       });
       expect(answer.statusCode).toBe(200);
-      expect(answer.json().answer.score).toBeLessThan(5000);
+      expect(answer.json().answer.score).toBeLessThan(100);
     }
     const published = await app.inject({
       method: "POST",
@@ -324,16 +324,16 @@ suite("Playne database and OAuth integration", () => {
     expect(stored.answers[0]).not.toHaveProperty("actual");
     expect(stored.answers[0]).not.toHaveProperty("guess");
   });
-  it("stores a 25,000-point classic game while retaining old 500-point games separately", async () => {
+  it("stores 500-point decimal games and projects v2 records while supporting older clients", async () => {
     const headers = { origin, cookie: logged };
-    for (const version of [2, 1]) {
+    for (const version of [3, 2, 1]) {
       const start = await app.inject({
         method: "POST",
         url: "/api/games",
         headers,
         payload: {
           game: "geo",
-          ...(version === 2 ? { geoRulesVersion: 2 } : {}),
+          ...(version > 1 ? { geoRulesVersion: version } : {}),
         },
       });
       const run = start.json();
@@ -382,10 +382,10 @@ suite("Playne database and OAuth integration", () => {
     ).toBe(500);
     const profile = await app.inject({
       url: "/api/account",
-      headers: { ...headers, "x-playne-geo-version": "2" },
+      headers: { ...headers, "x-playne-geo-version": "3" },
     });
     expect(profile.json().best.find((b: any) => b.game === "geo").score).toBe(
-      25000,
+      500,
     );
     expect(
       profile
@@ -395,23 +395,82 @@ suite("Playne database and OAuth integration", () => {
         ),
     ).toBe(true);
   });
+  it("ranks converted old records alongside new decimal scores, keeps equal ranks and preserves the raw records", async () => {
+    const people = (
+      await pool.query(
+        "INSERT INTO playne_users(nickname) VALUES('Old scale'),('New scale') RETURNING id,nickname",
+      )
+    ).rows;
+    const oldRounds = [3033, 1839, 5000, 4999, 0].map((score) => ({ score }));
+    const newRounds = [60.7, 36.8, 100, 99.9, 0].map((score) => ({ score }));
+    try {
+      for (const [owner, version, answers, units] of [
+        [people[0].id, 2, oldRounds, 148710],
+        [
+          people[0].id,
+          3,
+          [
+            { score: 100 },
+            { score: 100 },
+            { score: 90 },
+            { score: 0 },
+            { score: 0 },
+          ],
+          2900,
+        ],
+        [people[1].id, 3, newRounds, 2974],
+      ] as const) {
+        await pool.query(
+          "INSERT INTO playne_games(browser_hash,owner_id,game,version,challenge,answers,score_units,completed_at,published_at) VALUES($1,$2,'geo',$3,'{}',$4,$5,now(),now())",
+          ["0".repeat(64), owner, version, JSON.stringify(answers), units],
+        );
+      }
+      const rank = (
+        await app.inject("/api/leaderboard?game=geo&version=3")
+      ).json();
+      const old = rank.entries.find((r: any) => r.nickname === "Old scale");
+      const current = rank.entries.find((r: any) => r.nickname === "New scale");
+      expect(old.score).toBe(297.4);
+      expect(old.rounds).toEqual([60.7, 36.8, 100, 99.9, 0]);
+      expect(old.place).toBe(current.place);
+      expect(current.score).toBe(297.4);
+      const legacy = (
+        await app.inject("/api/leaderboard?game=geo&version=2")
+      ).json();
+      expect(
+        legacy.entries.find((r: any) => r.nickname === "Old scale").score,
+      ).toBe(14871);
+      const raw = (
+        await pool.query(
+          "SELECT score_units,answers FROM playne_games WHERE owner_id=$1 AND version=2",
+          [people[0].id],
+        )
+      ).rows[0];
+      expect(raw.score_units).toBe(148710);
+      expect(raw.answers).toEqual(oldRounds);
+    } finally {
+      await pool.query("DELETE FROM playne_users WHERE id=ANY($1::uuid[])", [
+        people.map((p) => p.id),
+      ]);
+    }
+  });
   it("enforces an immutable three-minute timer and separates timed/classic rankings", async () => {
     const headers = { origin, cookie: logged };
     const bad = await app.inject({
       method: "POST",
       url: "/api/games",
       headers,
-      payload: { game: "geo", mode: "unknown", geoRulesVersion: 2 },
+      payload: { game: "geo", mode: "unknown", geoRulesVersion: 3 },
     });
     expect(bad.statusCode).toBe(400);
     const start = await app.inject({
       method: "POST",
       url: "/api/games",
       headers,
-      payload: { game: "geo", mode: "timed", geoRulesVersion: 2 },
+      payload: { game: "geo", mode: "timed", geoRulesVersion: 3 },
     });
     const run = start.json();
-    expect(run.version).toBe(2);
+    expect(run.version).toBe(3);
     const clock = vi.spyOn(Date, "now");
     let now = Date.now();
     clock.mockImplementation(() => now);
@@ -477,7 +536,7 @@ suite("Playne database and OAuth integration", () => {
           },
         });
         expect(answer.statusCode).toBe(200);
-        expect(answer.json().answer.score).toBe(index === 0 ? 5000 : 0);
+        expect(answer.json().answer.score).toBe(index === 0 ? 100 : 0);
         expect(answer.json().answer.timedOut).toBe(true);
       }
       const published = await app.inject({
@@ -488,15 +547,15 @@ suite("Playne database and OAuth integration", () => {
       });
       expect(published.statusCode).toBe(200);
       const timed = await app.inject(
-        "/api/leaderboard?game=geo&mode=timed&version=2",
+        "/api/leaderboard?game=geo&mode=timed&version=3",
       );
       expect(timed.json().total).toBe(1);
-      expect(timed.json().entries[0].score).toBe(5000);
+      expect(timed.json().entries[0].score).toBe(100);
       const classic = await app.inject(
-        "/api/leaderboard?game=geo&mode=classic&version=2",
+        "/api/leaderboard?game=geo&mode=classic&version=3",
       );
       expect(classic.json().total).toBe(1);
-      expect(classic.json().entries[0].score).not.toBe(5000);
+      expect(classic.json().entries[0].score).not.toBe(100);
     } finally {
       clock.mockRestore();
     }

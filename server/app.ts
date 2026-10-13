@@ -15,6 +15,8 @@ import {
   safeReturn,
   SCORE_VERSION,
   scoreVersion,
+  geoProjection,
+  GEO_V3_UNITS_SQL,
 } from "./scoring";
 import { geoLocations } from "../src/geoLocations";
 import {
@@ -22,6 +24,7 @@ import {
   validPoint,
   validGeoMode,
   GEO_TIME_LIMIT_MS,
+  geoFrom5000,
 } from "../src/geo";
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
 const token = () => randomBytes(32).toString("base64url");
@@ -30,6 +33,12 @@ const uuid = (v: unknown): v is string =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     v,
   );
+const geoViewerVersion = (req: FastifyRequest, query: any = {}) =>
+  req.headers["x-playne-geo-version"] === "3" || query.version === "3"
+    ? 3
+    : req.headers["x-playne-geo-version"] === "2" || query.version === "2"
+      ? 2
+      : 1;
 export type Config = {
   origin: string;
   yandexId: string;
@@ -310,9 +319,14 @@ export async function buildApp(
       const mode =
         game === "geo" ? ((req.body as any)?.mode ?? "classic") : "classic";
       if (!validGeoMode(mode)) failure("Неизвестный режим");
+      const geoVersion = (req.body as any)?.geoRulesVersion;
       const version =
-        game === "geo" && (req.body as any)?.geoRulesVersion !== 2
-          ? 1
+        game === "geo"
+          ? geoVersion === 3
+            ? 3
+            : geoVersion === 2
+              ? 2
+              : 1
           : scoreVersion(game);
       const challenge = makeChallenge(
         game,
@@ -339,7 +353,10 @@ export async function buildApp(
     },
   );
   app.get("/api/games/:id", async (req, reply) => {
-    const run = await owned(req, reply, (req.params as any).id, pool);
+    const run = geoProjection(
+      await owned(req, reply, (req.params as any).id, pool),
+      geoViewerVersion(req),
+    );
     return {
       id: run.id,
       game: run.game,
@@ -618,7 +635,10 @@ export async function buildApp(
         [u.id, JSON.stringify(answers), JSON.stringify(challenge), run.id],
       );
       await c.query("COMMIT");
-      return { ok: true, score: run.score_units / 10 };
+      return {
+        ok: true,
+        score: geoProjection(run, geoViewerVersion(req)).score_units / 10,
+      };
     } catch (e) {
       await c.query("ROLLBACK");
       throw e;
@@ -637,25 +657,21 @@ export async function buildApp(
     const u = await user(req);
     const mode = q.game === "geo" ? (q.mode ?? "classic") : "classic";
     if (!validGeoMode(mode)) failure("Неизвестный режим");
-    const base = `WITH best AS (SELECT DISTINCT ON(owner_id) owner_id,score_units,answers,completed_at FROM playne_games WHERE game=$1 AND version=$2 AND mode=$4 AND published_at IS NOT NULL AND ($3='all' OR completed_at >= date_trunc('week',now() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow') ORDER BY owner_id,score_units DESC,completed_at ASC), ranked AS (SELECT u.id,u.nickname,b.score_units/10.0 AS score,b.answers,b.completed_at,rank() OVER(ORDER BY b.score_units DESC) AS place FROM best b JOIN playne_users u ON u.id=b.owner_id)`;
+    const base = `WITH eligible AS (SELECT owner_id,version,answers,completed_at,CASE WHEN $2=3 THEN ${GEO_V3_UNITS_SQL} ELSE score_units END AS score_units FROM playne_games WHERE game=$1 AND (version=$2 OR ($1='geo' AND $2=3 AND version=2)) AND mode=$4 AND published_at IS NOT NULL AND ($3='all' OR completed_at >= date_trunc('week',now() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow')), best AS (SELECT DISTINCT ON(owner_id) owner_id,version,score_units,answers,completed_at FROM eligible ORDER BY owner_id,score_units DESC,completed_at ASC), ranked AS (SELECT u.id,u.nickname,b.version,b.score_units/10.0 AS score,b.answers,b.completed_at,rank() OVER(ORDER BY b.score_units DESC) AS place FROM best b JOIN playne_users u ON u.id=b.owner_id)`;
     const requestedVersion =
-      q.game === "geo" &&
-      req.headers["x-playne-geo-version"] !== "2" &&
-      q.version !== "2"
-        ? 1
-        : scoreVersion(q.game);
+      q.game === "geo" ? geoViewerVersion(req, q) : scoreVersion(q.game);
     const params = [q.game, requestedVersion, period, mode];
     const [entries, count, mine] = await Promise.all([
       pool.query(
         base +
-          " SELECT id,nickname,score,place,answers FROM ranked ORDER BY score DESC,completed_at,id LIMIT 25 OFFSET $5",
+          " SELECT id,nickname,score,place,answers,version FROM ranked ORDER BY score DESC,completed_at,id LIMIT 25 OFFSET $5",
         [...params, (page - 1) * 25],
       ),
       pool.query(base + " SELECT count(*)::int AS count FROM ranked", params),
       u
         ? pool.query(
             base +
-              " SELECT id,nickname,score,place,answers FROM ranked WHERE id=$5",
+              " SELECT id,nickname,score,place,answers,version FROM ranked WHERE id=$5",
             [...params, u.id],
           )
         : Promise.resolve({ rows: [] }),
@@ -664,7 +680,11 @@ export async function buildApp(
       nickname: r.nickname,
       score: Number(r.score),
       place: Number(r.place),
-      rounds: r.answers.map((a: any) => a.score),
+      rounds: r.answers.map((a: any) =>
+        requestedVersion === 3 && q.game === "geo" && r.version === 2
+          ? geoFrom5000(a.score)
+          : a.score,
+      ),
       isMe: r.id === u?.id,
     });
     return {
@@ -680,21 +700,23 @@ export async function buildApp(
   app.get("/api/account", async (req) => {
     const u = await requireUser(req);
     const rows = await pool.query(
-      "SELECT id,game,mode,version,score_units/10.0 AS score,completed_at FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL ORDER BY completed_at DESC LIMIT 30",
+      "SELECT id,game,mode,version,score_units,answers,completed_at FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL ORDER BY completed_at DESC LIMIT 30",
       [u.id],
     );
     const best = await pool.query(
-      "SELECT game,mode,max(score_units)/10.0 AS score FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL AND ((game='geo' AND version=$3) OR (game<>'geo' AND version=$2)) GROUP BY game,mode",
-      [
-        u.id,
-        SCORE_VERSION,
-        req.headers["x-playne-geo-version"] === "2" ? 2 : 1,
-      ],
+      `SELECT game,mode,max(CASE WHEN $3=3 THEN ${GEO_V3_UNITS_SQL} ELSE score_units END)/10.0 AS score FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL AND ((game='geo' AND (version=$3 OR ($3=3 AND version=2))) OR (game<>'geo' AND version=$2)) GROUP BY game,mode`,
+      [u.id, SCORE_VERSION, geoViewerVersion(req)],
     );
     return {
       user: u,
       best: best.rows.map((r) => ({ ...r, score: Number(r.score) })),
-      history: rows.rows.map((r) => ({ ...r, score: Number(r.score) })),
+      history: rows.rows.map((r) => {
+        const { answers, score_units, ...rest } = geoProjection(
+          r,
+          geoViewerVersion(req),
+        );
+        return { ...rest, score: score_units / 10 };
+      }),
     };
   });
   app.post("/api/account/delete", async (req, reply) => {

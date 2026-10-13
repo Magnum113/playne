@@ -299,8 +299,8 @@ export default function Hub() {
               <div className="card-bottom">
                 <span>
                   {geoBest > 0
-                    ? `Твой рекорд: ${geoBest.toLocaleString("ru-RU")} / 25 000`
-                    : "5 мест · 25 000 очков"}
+                    ? `Твой рекорд: ${geoBest.toLocaleString("ru-RU")} / 500`
+                    : "5 мест · 500 очков"}
                 </span>
                 <span className="card-play">
                   Играть <Arrow />

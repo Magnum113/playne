@@ -39,7 +39,7 @@ export async function api<T = any>(
     method,
     credentials: "same-origin",
     headers: {
-      "X-Playne-Geo-Version": "2",
+      "X-Playne-Geo-Version": "3",
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -212,7 +212,7 @@ export function useRankedRun(game: GameId) {
     run.run = api<Run>("/games", "POST", {
       game,
       mode,
-      geoRulesVersion: game === "geo" ? 2 : undefined,
+      geoRulesVersion: game === "geo" ? 3 : undefined,
     })
       .then((data) => {
         setFor(run, { status: "ready", id: data.id });
@@ -447,7 +447,7 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
     </div>
   );
 }
-export const resultText = (game: GameId, score: number, version = 2) =>
+export const resultText = (game: GameId, score: number, version = 3) =>
   game === "circle"
     ? `${score.toFixed(1).replace(".", ",")}%`
     : `${geoPoints(score)} / ${game === "geo" && version !== 1 ? geoPoints(GEO_MAX_POINTS) : "500"}`;

@@ -52,9 +52,9 @@ function Rules() {
         <li>Нажми «Ответить». Увидишь правильное место, расстояние и очки.</li>
       </ol>
       <p>
-        Пять раундов, до 25 000 очков. За попадание в пределах 250 метров — 5
-        000 очков. Дальше оценка плавно уменьшается с расстоянием. Выбери режим
-        без таймера или три минуты на раунд. Когда время закончится, примем
+        Пять раундов, до 500 очков. За попадание в пределах 250 метров — 100
+        очков. Дальше оценка плавно уменьшается с расстоянием. Выбери режим без
+        таймера или три минуты на раунд. Когда время закончится, примем
         последнюю выбранную точку; без точки — ноль очков.
       </p>
       <p>
@@ -110,7 +110,9 @@ export default function GeoGame() {
   const badPlaces = useRef(new Set<string>());
   const rules = useRef<HTMLDialogElement>(null),
     result = useRef<HTMLElement>(null);
-  const total = answers.reduce((sum, answer) => sum + answer.score, 0);
+  const total =
+    Math.round(answers.reduce((sum, answer) => sum + answer.score, 0) * 10) /
+    10;
   const answer = answers[round];
 
   function choosePoint(point: GeoPoint) {
@@ -548,7 +550,7 @@ export default function GeoGame() {
         {phase === "welcome" && (
           <section className="geo-welcome">
             <div className="geo-welcome-copy">
-              <p className="eyebrow">ПЯТЬ РАУНДОВ · 25 000 ОЧКОВ</p>
+              <p className="eyebrow">ПЯТЬ РАУНДОВ · 500 ОЧКОВ</p>
               <h2>Угадай страну по панораме.</h2>
               <p>
                 Узнай страну и город по панораме Google Street View. Поставь
@@ -597,7 +599,7 @@ export default function GeoGame() {
               </small>
               {stats.best > 0 && (
                 <p className="geo-best">
-                  Твой рекорд: <strong>{geoPoints(stats.best)} / 25 000</strong>
+                  Твой рекорд: <strong>{geoPoints(stats.best)} / 500</strong>
                 </p>
               )}
             </div>
@@ -635,7 +637,7 @@ export default function GeoGame() {
                 </span>
               )}
               <span className="geo-score">
-                Очки <strong>{geoPoints(total)}</strong> / 25 000
+                Очки <strong>{geoPoints(total)}</strong> / 500
               </span>
             </div>
           </div>
@@ -784,7 +786,7 @@ export default function GeoGame() {
               )}
               <strong>
                 {geoPoints(answer.score)}
-                <span> / 5 000</span>
+                <span> / 100</span>
               </strong>
               <span>
                 {answer.distance === null ? (
@@ -809,7 +811,7 @@ export default function GeoGame() {
             </p>
             <h2>
               {geoPoints(total)}
-              <span> из 25 000</span>
+              <span> из 500</span>
             </h2>
             <p>
               {total >= 20000
@@ -818,7 +820,7 @@ export default function GeoGame() {
             </p>
             <div className="geo-summary-stats">
               <span>
-                Рекорд <strong>{geoPoints(stats.best)} / 25 000</strong>
+                Рекорд <strong>{geoPoints(stats.best)} / 500</strong>
               </span>
               <span>
                 Партий сыграно <strong>{stats.played}</strong>
@@ -839,7 +841,7 @@ export default function GeoGame() {
                   </div>
                   <b>
                     {geoPoints(item.score)}
-                    <span> / 5 000</span>
+                    <span> / 100</span>
                   </b>
                 </li>
               ))}

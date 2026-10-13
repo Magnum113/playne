@@ -89,7 +89,7 @@ describe("server-owned results", () => {
         { guess: { lat: 60, lng: 100 }, expired: true },
         1001,
       ).score,
-    ).toBe(5000);
+    ).toBe(100);
     expect(() => validateAnswer("geo", c, 0, { expired: true }, 999)).toThrow(
       "Время ещё",
     );
