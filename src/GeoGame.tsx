@@ -540,6 +540,7 @@ export default function GeoGame() {
                       : "Нажми на нужное место"}
                   </span>
                   <button
+                    disabled={phase !== "guessing"}
                     onClick={() => {
                       const center = map.current?.getCenter();
                       if (center) choosePoint(center.toJSON());
