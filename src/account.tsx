@@ -244,7 +244,9 @@ export function useRankedRun(game: GameId) {
     }
   }
   async function replaceGeo(index: number) {
-    const data = await current.current.run;
+    const run = current.current;
+    await flush(run);
+    const data = await run.run;
     if (!data) return null;
     try {
       return (await api(`/games/${data.id}/replace`, "POST", { index })).place;
