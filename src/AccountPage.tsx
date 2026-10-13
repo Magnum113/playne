@@ -304,6 +304,7 @@ export default function AccountPage() {
                     .then(() => {
                       setData(null);
                       setMessage("Вы вышли из аккаунта.");
+                      reachGoal(ACCOUNT_GOALS.logout);
                     })
                     .catch((e) => setError(e.message));
                 }}
