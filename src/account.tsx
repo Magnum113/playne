@@ -140,6 +140,7 @@ export function useRankedRun(game: GameId) {
     tasks: Task[];
     accepted: number;
     working: boolean;
+    drained?: Promise<void>;
   }>({
     epoch: 0,
     run: Promise.resolve(null),
@@ -179,11 +180,16 @@ export function useRankedRun(game: GameId) {
     return run.run;
   }
   async function flush(run = current.current) {
-    if (run.working) return;
+    if (run.working) return run.drained;
     run.working = true;
+    let finish: () => void = () => {};
+    run.drained = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
     const data = await run.run;
     if (!data) {
       run.working = false;
+      finish();
       return;
     }
     try {
@@ -207,6 +213,7 @@ export function useRankedRun(game: GameId) {
       });
     } finally {
       run.working = false;
+      finish();
     }
   }
   function submit(index: number, answer: unknown) {
@@ -216,8 +223,10 @@ export function useRankedRun(game: GameId) {
     void flush(run);
   }
   async function panorama(index: number, pano: string) {
-    const run = current.current,
-      data = await run.run;
+    const run = current.current;
+    // Commit the preceding answer before registering the next round.
+    await flush(run);
+    const data = await run.run;
     if (!data) return null;
     try {
       const verified = await api(`/games/${data.id}/panorama`, "POST", {
