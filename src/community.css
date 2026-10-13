@@ -2,19 +2,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 12px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  flex: none;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  white-space: nowrap;
+  border-radius: 50%;
+  background: var(--panel);
   color: var(--text);
-  font-size: 13px;
 }
-.account-nav span {
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.account-nav:hover {
+  background: var(--hover);
 }
 .community-main {
   padding: 48px 0 64px;
@@ -352,14 +350,6 @@
   border: 0;
 }
 @media (max-width: 650px) {
-  .account-nav {
-    padding: 10px;
-    width: 44px;
-    flex: none;
-  }
-  .account-nav span {
-    display: none;
-  }
   .community-main {
     padding: 28px 0 40px;
   }
