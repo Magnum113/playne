@@ -67,8 +67,13 @@ function Rules() {
 
 export default function GeoGame() {
   const ranked = useRankedRun("geo");
-  const [mode, setMode] = useState<GeoMode>("classic");
-  const modeRef = useRef<GeoMode>("classic");
+  const [mode, setMode] = useState<GeoMode>(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("mode") === "timed"
+      ? "timed"
+      : "classic",
+  );
+  const modeRef = useRef<GeoMode>(mode);
   const [deadline, setDeadline] = useState<number | null>(null);
   const deadlineRef = useRef<number | null>(null);
   const [remaining, setRemaining] = useState(GEO_TIME_LIMIT_MS / 1000);
@@ -79,7 +84,7 @@ export default function GeoGame() {
     phaseRef.current = value;
     setPhaseState(value);
   };
-  const [stats, setStats] = useState(readGeoStats);
+  const [stats, setStats] = useState(() => readGeoStats(mode));
   const statsRef = useRef(stats);
   const [round, setRound] = useState(0);
   const rounds = useRef<GeoLocation[]>([]);

@@ -212,7 +212,10 @@ export default function LeaderboardPage() {
                   ? "На этой неделе ещё никто не сохранил результат."
                   : "В этой игре ещё нет опубликованных результатов."}
               </p>
-              <a className="primary" href={`/${game}/`}>
+              <a
+                className="primary"
+                href={`/${game}/${game === "geo" && mode === "timed" ? "?mode=timed" : ""}`}
+              >
                 Играть в «{gameNames[game]}» ↗
               </a>
             </div>
