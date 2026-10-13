@@ -47,7 +47,11 @@ jobs:
         run: npm test
 
       - name: Build production assets
-        run: npm run build
+        env:
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.PLAYNE_GOOGLE_MAPS_API_KEY }}
+        run: |
+          test -n "$VITE_GOOGLE_MAPS_API_KEY"
+          npm run build
 
       - name: Validate the domain-root build
         id: assets
@@ -57,6 +61,7 @@ jobs:
           test -f dist/naglaz/index.html
           test -f dist/circle/index.html
           test -f dist/colorfle/index.html
+          test -f dist/geo/index.html
           test -f dist/destroy.html
           test -f dist/art/playne-logo.png
           test -f dist/favicon.svg
@@ -68,12 +73,12 @@ jobs:
               printf 'Symbolic link in output: %s\n' "$relative" >&2
               exit 1
             elif [[ -d "$entry" ]]; then
-              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' || "$relative" = 'circle' || "$relative" = 'colorfle' || "$relative" = 'guides' || "$relative" = 'guides/naglaz' || "$relative" = 'guides/perfect-circle' || "$relative" = 'guides/colorfle' ]] || {
+              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' || "$relative" = 'circle' || "$relative" = 'colorfle' || "$relative" = 'geo' || "$relative" = 'guides' || "$relative" = 'guides/naglaz' || "$relative" = 'guides/perfect-circle' || "$relative" = 'guides/colorfle' ]] || {
                 printf 'Unexpected output directory: %s\n' "$relative" >&2
                 exit 1
               }
             elif [[ -f "$entry" ]]; then
-              [[ "$relative" = 'destroy.html' || "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'circle/index.html' || "$relative" = 'colorfle/index.html' || "$relative" = 'guides/index.html' || "$relative" = 'guides/naglaz/index.html' || "$relative" = 'guides/perfect-circle/index.html' || "$relative" = 'guides/colorfle/index.html' || "$relative" = 'robots.txt' || "$relative" = 'sitemap.xml' || "$relative" = '404.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
+              [[ "$relative" = 'destroy.html' || "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'circle/index.html' || "$relative" = 'colorfle/index.html' || "$relative" = 'geo/index.html' || "$relative" = 'guides/index.html' || "$relative" = 'guides/naglaz/index.html' || "$relative" = 'guides/perfect-circle/index.html' || "$relative" = 'guides/colorfle/index.html' || "$relative" = 'robots.txt' || "$relative" = 'sitemap.xml' || "$relative" = '404.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
                 "$relative" =~ ^assets/[A-Za-z0-9._-]+\.(js|css)$ ||
                 "$relative" =~ ^art/[A-Za-z0-9._-]+\.png$ ]] || {
                 printf 'Unexpected output file: %s\n' "$relative" >&2
@@ -273,6 +278,15 @@ jobs:
             --output /dev/null --write-out '%{http_code}|%{redirect_url}' \
             https://playne.ru/colorfle)"
           test "$colorfle_redirect" = '308|https://playne.ru/colorfle/'
+
+          curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
+            --dump-header "$RUNNER_TEMP/playne-geo.headers" \
+            https://playne.ru/geo/ --output "$RUNNER_TEMP/playne-geo.html"
+          cmp dist/geo/index.html "$RUNNER_TEMP/playne-geo.html"
+          tr -d '\r' < "$RUNNER_TEMP/playne-geo.headers" | grep -Eiq '^referrer-policy: strict-origin-when-cross-origin$'
+          tr -d '\r' < "$RUNNER_TEMP/playne-geo.headers" | grep -Eiq '^content-security-policy:.*maps\.googleapis\.com'
+          geo_redirect="$(curl --silent --show-error --max-time 60 --output /dev/null --write-out '%{http_code}|%{redirect_url}' https://playne.ru/geo)"
+          test "$geo_redirect" = '308|https://playne.ru/geo/'
 
           curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             https://playne.ru/destroy.html --output "$RUNNER_TEMP/playne-destroy.html"

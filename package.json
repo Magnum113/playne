@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build && node scripts/build-pages.mjs && node scripts/check-seo.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
+    "check:google": "node scripts/google-check.mjs",
     "check:seo": "node scripts/check-seo.mjs"
   },
   "dependencies": {
@@ -15,6 +16,7 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@types/google.maps": "^3.66.6",
     "@types/node": "^22.20.3",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

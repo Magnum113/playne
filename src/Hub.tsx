@@ -4,6 +4,8 @@ import Silhouette from "./Silhouette";
 import { objects } from "./data";
 import { readBest } from "./game";
 import { circlePercent, readCircleBest } from "./circle";
+import GeoPreview from "./GeoPreview";
+import { readGeoStats } from "./geo";
 
 function Arrow() {
   return (
@@ -96,19 +98,59 @@ function CirclePreview() {
 }
 
 function ColorPreview() {
-  return <svg className="size-preview" viewBox="0 0 420 190" aria-hidden="true">
-    <defs><linearGradient id="shade-preview" x1="0" x2="1"><stop stopColor="#fff"/><stop offset="1" stopColor="#8e6ad7"/></linearGradient><linearGradient id="shade-preview-dark" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#000" stopOpacity="0"/><stop offset="1" stopColor="#000"/></linearGradient></defs>
-    <rect x="42" y="25" width="152" height="126" rx="15" fill="#7954c5"/>
-    <rect x="225" y="25" width="152" height="126" rx="15" fill="url(#shade-preview)"/>
-    <rect x="225" y="25" width="152" height="126" rx="15" fill="url(#shade-preview-dark)"/>
-    <circle cx="331" cy="62" r="10" fill="#8058ca" stroke="white" strokeWidth="4"/>
-    <path d="M198 88h21m-8-8 8 8-8 8" fill="none" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>;
+  return (
+    <svg className="size-preview" viewBox="0 0 420 190" aria-hidden="true">
+      <defs>
+        <linearGradient id="shade-preview" x1="0" x2="1">
+          <stop stopColor="#fff" />
+          <stop offset="1" stopColor="#8e6ad7" />
+        </linearGradient>
+        <linearGradient id="shade-preview-dark" x1="0" x2="0" y1="0" y2="1">
+          <stop stopColor="#000" stopOpacity="0" />
+          <stop offset="1" stopColor="#000" />
+        </linearGradient>
+      </defs>
+      <rect x="42" y="25" width="152" height="126" rx="15" fill="#7954c5" />
+      <rect
+        x="225"
+        y="25"
+        width="152"
+        height="126"
+        rx="15"
+        fill="url(#shade-preview)"
+      />
+      <rect
+        x="225"
+        y="25"
+        width="152"
+        height="126"
+        rx="15"
+        fill="url(#shade-preview-dark)"
+      />
+      <circle
+        cx="331"
+        cy="62"
+        r="10"
+        fill="#8058ca"
+        stroke="white"
+        strokeWidth="4"
+      />
+      <path
+        d="M198 88h21m-8-8 8 8-8 8"
+        fill="none"
+        stroke="var(--muted)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 export default function Hub() {
   const best = readBest();
   const circleBest = readCircleBest();
+  const geoBest = readGeoStats().best;
   return (
     <div className="hub app">
       <a className="skip-link" href="#main-content">
@@ -131,7 +173,7 @@ export default function Hub() {
               <h1 id="games-title">Во что сыграем?</h1>
             </div>
             <p>
-              Проверь глазомер и точность.
+              Проверь глазомер, точность и знание мира.
               <br /> Без скачивания и регистрации.
             </p>
           </div>
@@ -228,6 +270,38 @@ export default function Hub() {
                 </span>
               </div>
             </a>
+            <a
+              className="game-card game-card-live"
+              href="/geo/"
+              aria-label="Играть в Где я?"
+            >
+              <div className="card-topline">
+                <span className="card-category">ГЕОГРАФИЯ</span>
+                <span className="card-badge available">
+                  <i /> Можно играть
+                </span>
+              </div>
+              <GeoPreview />
+              <div className="card-copy">
+                <h2>
+                  Где я<span className="brand-dot">?</span>
+                </h2>
+                <p>
+                  Осмотрись в незнакомом месте.
+                  <br /> Найди его на карте мира.
+                </p>
+              </div>
+              <div className="card-bottom">
+                <span>
+                  {geoBest > 0
+                    ? `Твой рекорд: ${geoBest} / 500`
+                    : "5 мест · 500 очков"}
+                </span>
+                <span className="card-play">
+                  Играть <Arrow />
+                </span>
+              </div>
+            </a>
           </div>
         </section>
         <section className="hub-about" id="about" aria-labelledby="about-title">
@@ -286,8 +360,8 @@ export default function Hub() {
                 Можно играть с телефона?<span aria-hidden="true">+</span>
               </summary>
               <p>
-                Да. В «На глаз» меняй размер пальцем, а в «Круге» рисуй прямо на
-                экране.
+                Да. Меняй размеры, рисуй круг, подбирай цвет и осматривай
+                панорамы пальцем прямо на экране.
               </p>
             </details>
           </div>

@@ -25,11 +25,22 @@ export const SHADE_GOALS = {
   gameRestart: "ottenok_game_restart",
 } as const;
 
+export const GEO_GOALS = {
+  rulesOpen: "geo_rules_open",
+  gameStart: "geo_game_start",
+  roundComplete: "geo_round_complete",
+  perfectRound: "geo_perfect_round",
+  gameComplete: "geo_game_complete",
+  gameRestart: "geo_game_restart",
+  loadError: "geo_load_error",
+} as const;
+
 type Values<T> = T[keyof T];
 export type MetrikaGoal =
   | Values<typeof METRIKA_GOALS>
   | Values<typeof CIRCLE_GOALS>
-  | Values<typeof SHADE_GOALS>;
+  | Values<typeof SHADE_GOALS>
+  | Values<typeof GEO_GOALS>;
 export type MetrikaParams = Record<string, string | number | boolean>;
 
 type MetrikaFunction = {

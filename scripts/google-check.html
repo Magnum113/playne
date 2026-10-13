@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playne — проверка Google Maps</title>
+    <style>
+      [hidden] {
+        display: none !important;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f6f6f1;
+        color: #252b2c;
+        font:
+          16px system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1 {
+        font-size: clamp(24px, 4vw, 40px);
+        margin: 10px 0;
+      }
+      p {
+        color: #687779;
+        line-height: 1.5;
+      }
+      form {
+        display: flex;
+        gap: 12px;
+        align-items: end;
+        flex-wrap: wrap;
+        margin: 24px 0;
+      }
+      label {
+        display: grid;
+        gap: 8px;
+        flex: 1;
+        min-width: 240px;
+      }
+      input {
+        padding: 14px;
+        border: 1px solid #d9dfd9;
+        border-radius: 12px;
+        background: white;
+        font: inherit;
+      }
+      button {
+        padding: 15px 20px;
+        border: 0;
+        border-radius: 12px;
+        background: #bba5f5;
+        color: #252b2c;
+        font: 600 16px system-ui;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      output {
+        display: block;
+        padding: 16px;
+        background: white;
+        border: 1px solid #d9dfd9;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+      .views {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 16px;
+      }
+      .view {
+        height: 480px;
+        border-radius: 20px;
+        overflow: hidden;
+        background: #e6eae3;
+        border: 1px solid #d9dfd9;
+      }
+      #status[data-ready="true"] {
+        color: #167665;
+      }
+      #status[data-error="true"] {
+        color: #a03030;
+      }
+      @media (max-width: 650px) {
+        main {
+          padding: 16px;
+        }
+        .views {
+          grid-template-columns: 1fr;
+        }
+        .view {
+          height: 360px;
+        }
+        #map {
+          height: 240px;
+        }
+        button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Playne · Google Maps</h1>
+      <p>
+        Проверка подключения. Можно осматриваться и приближать панораму.
+        Переходы по улицам отключены.
+      </p>
+      <form id="setup">
+        <label
+          >Назначение<select id="mode">
+            <option value="development">
+              Разработка — сохранить и проверить
+            </option>
+            <option value="production">Сайт — только сохранить</option>
+          </select></label
+        >
+        <label
+          >Ключ разработки<input
+            id="key"
+            type="password"
+            autocomplete="off"
+            required
+        /></label>
+        <button id="start">Сохранить ключ и проверить</button>
+      </form>
+      <output id="status" aria-live="polite">Готов к проверке.</output>
+      <div class="views">
+        <div class="view" id="panorama" aria-label="Тестовая панорама"></div>
+        <div class="view" id="map" aria-label="Карта для выбора точки"></div>
+      </div>
+    </main>
+    <script>
+      const status = document.querySelector("#status");
+      const button = document.querySelector("#start");
+      let savedPano;
+      let panorama;
+      let marker;
+      function report(message, ready = false, error = false) {
+        status.textContent = message;
+        status.dataset.ready = ready;
+        status.dataset.error = error;
+      }
+      window.gm_authFailure = () =>
+        report(
+          "Google отклонил подключение. Проверь API, биллинг и ограничения ключа.",
+          false,
+          true,
+        );
+      window.initPlayneCheck = async () => {
+        try {
+          const point = { lat: 37.86926, lng: -122.254811 };
+          const data = await new google.maps.StreetViewService().getPanorama({
+            location: point,
+            radius: 100,
+            source: google.maps.StreetViewSource.OUTDOOR,
+          });
+          savedPano = data.data.location.pano;
+          panorama = new google.maps.StreetViewPanorama(
+            document.querySelector("#panorama"),
+            {
+              pano: savedPano,
+              pov: { heading: 270, pitch: 0 },
+              zoom: 0,
+              visible: true,
+              addressControl: false,
+              linksControl: false,
+              clickToGo: false,
+              showRoadLabels: false,
+              enableCloseButton: false,
+              fullscreenControl: true,
+              zoomControl: true,
+              motionTracking: false,
+              motionTrackingControl: false,
+            },
+          );
+          panorama.addListener("pano_changed", () => {
+            if (panorama.getPano() !== savedPano) panorama.setPano(savedPano);
+          });
+          panorama.addListener("zoom_changed", () => {
+            if (!Number.isFinite(panorama.getZoom())) panorama.setZoom(0);
+          });
+          window.addEventListener("resize", () =>
+            requestAnimationFrame(() => {
+              const view = document.querySelector("#panorama");
+              if (view.clientWidth > 0 && view.clientHeight > 0) {
+                google.maps.event.trigger(panorama, "resize");
+                panorama.setZoom(0);
+              }
+            }),
+          );
+          const map = new google.maps.Map(document.querySelector("#map"), {
+            center: { lat: 20, lng: 0 },
+            zoom: 1,
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false,
+            gestureHandling: "greedy",
+          });
+          map.addListener("click", (event) => {
+            if (!event.latLng) return;
+            if (marker) marker.setPosition(event.latLng);
+            else
+              marker = new google.maps.Marker({ position: event.latLng, map });
+            report("Панорама и карта работают. Точка на карте выбрана.", true);
+          });
+          panorama.addListener("status_changed", () => {
+            if (panorama.getStatus() === google.maps.StreetViewStatus.OK)
+              report(
+                "Панорама и карта работают. Вращение и приближение доступны, переходы отключены.",
+                true,
+              );
+            else
+              report(
+                "Панорама недоступна: " + panorama.getStatus(),
+                false,
+                true,
+              );
+          });
+          report("Панорама и карта подключены. Проверяем отображение…");
+        } catch {
+          report(
+            "Не удалось загрузить тестовую панораму. Проверь доступ к Google Maps.",
+            false,
+            true,
+          );
+        }
+      };
+      document
+        .querySelector("#setup")
+        .addEventListener("submit", async (event) => {
+          event.preventDefault();
+          button.disabled = true;
+          const key = document.querySelector("#key").value.trim();
+          const mode = document.querySelector("#mode").value;
+          try {
+            const response = await fetch("/config", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ key, mode }),
+            });
+            if (!response.ok) throw new Error("Не удалось сохранить ключ");
+            document.querySelector("#setup").hidden = true;
+            if (mode === "production") {
+              report("Ключ сайта сохранён в локальной конфигурации.", true);
+              return;
+            }
+            report("Настройки сохранены. Подключаем Google Maps…");
+            const script = document.createElement("script");
+            script.src =
+              "https://maps.googleapis.com/maps/api/js?" +
+              new URLSearchParams({
+                key,
+                callback: "initPlayneCheck",
+                loading: "async",
+                v: "quarterly",
+                language: "ru",
+              });
+            script.async = true;
+            script.onerror = () =>
+              report(
+                "Не удалось подключиться к Google Maps. Проверь соединение.",
+                false,
+                true,
+              );
+            document.head.append(script);
+          } catch {
+            report("Не удалось сохранить настройки подключения.", false, true);
+            button.disabled = false;
+          }
+        });
+    </script>
+  </body>
+</html>

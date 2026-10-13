@@ -6,6 +6,7 @@ export default function FooterLinks() {
         <a href="/naglaz/">На глаз</a>
         <a href="/circle/">Круг</a>
         <a href="/colorfle/">Оттенок</a>
+        <a href="/geo/">Где я?</a>
       </div>
       <div>
         <a className="footer-heading" href="/guides/">

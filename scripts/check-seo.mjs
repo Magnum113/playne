@@ -109,7 +109,7 @@ try {
   assert(destroy.includes("<style>") && !destroy.includes("<script"));
   assert(!/<(?:img|link|iframe)\b/i.test(destroy));
   assert(!/@import\b|url\s*\(/i.test(destroy));
-  for (const game of ["На глаз", "Круг", "Оттенок"])
+  for (const game of ["На глаз", "Круг", "Оттенок", "Где я"])
     assert(destroy.includes(game), `Destroy page is missing ${game}`);
   const home = await readFile(new URL("index.html", dist), "utf8");
   assert(
