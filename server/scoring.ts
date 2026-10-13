@@ -2,7 +2,14 @@ import { chooseRounds, objects, pairs } from "../src/data";
 import { score } from "../src/game";
 import { evaluateCircle } from "../src/circle";
 import { randomTargets, shadeScore, validHSV } from "../src/colorfle";
-import { chooseGeoRounds, distanceKm, geoScore, validPoint } from "../src/geo";
+import {
+  chooseGeoRounds,
+  distanceKm,
+  geoScore,
+  validPoint,
+  validGeoMode,
+  type GeoMode,
+} from "../src/geo";
 export const GAME_NAMES = {
   naglaz: "На глаз",
   circle: "Круг",
@@ -13,15 +20,26 @@ export type GameId = keyof typeof GAME_NAMES;
 export const isGame = (v: unknown): v is GameId =>
   typeof v === "string" && Object.hasOwn(GAME_NAMES, v);
 export const SCORE_VERSION = 1;
-export function makeChallenge(game: GameId, recent: string[] = []) {
+export const scoreVersion = (game: GameId) =>
+  game === "geo" ? 2 : SCORE_VERSION;
+export function makeChallenge(
+  game: GameId,
+  recent: string[] = [],
+  mode: GeoMode = "classic",
+) {
   if (game === "naglaz")
     return { pairIds: chooseRounds(recent).map((p) => p.id) };
   if (game === "colorfle") return { targets: randomTargets() };
-  if (game === "geo") return { places: chooseGeoRounds(recent), panoramas: {} };
+  if (game === "geo")
+    return { places: chooseGeoRounds(recent), panoramas: {}, mode };
   return {};
 }
 export function publicChallenge(game: GameId, challenge: any) {
-  if (game === "geo") return { places: challenge.places };
+  if (game === "geo")
+    return {
+      places: challenge.places,
+      mode: validGeoMode(challenge.mode) ? challenge.mode : "classic",
+    };
   return challenge;
 }
 export function validateAnswer(
@@ -29,6 +47,8 @@ export function validateAnswer(
   challenge: any,
   index: number,
   input: any,
+  now = Date.now(),
+  version = 2,
 ) {
   if (game === "naglaz") {
     const pair = pairs.find((p) => p.id === challenge.pairIds[index]);
@@ -78,15 +98,38 @@ export function validateAnswer(
     if (!result.valid) throw new Error(result.message);
     return { score: result.score };
   }
-  const actual = challenge.panoramas?.[index]?.actual;
-  if (!actual || !input?.guess || !validPoint(input.guess))
-    throw new Error("Некорректная точка");
-  const distance = distanceKm(input.guess, actual);
+  const panorama = challenge.panoramas?.[index];
+  const actual = panorama?.actual;
+  if (!actual) throw new Error("Панорама не проверена");
+  const timed = challenge.mode === "timed";
+  if (timed && !Number.isFinite(panorama.deadline))
+    throw new Error("Таймер ещё не запущен");
+  const timedOut = timed && now >= panorama.deadline;
+  if (input?.expired && !timedOut) throw new Error("Время ещё не истекло");
+  const guess = timedOut ? (panorama.pin ?? null) : input?.guess;
+  if (guess === null && timedOut)
+    return {
+      guess: null,
+      actual,
+      distance: null,
+      score: 0,
+      timedOut: true,
+      location: challenge.places[index],
+    };
+  if (!guess || !validPoint(guess)) throw new Error("Некорректная точка");
+  const distance = distanceKm(guess, actual);
+  const points =
+    version === 1
+      ? distance <= 0.25
+        ? 100
+        : Math.min(99, Math.round(100 * Math.exp(-distance / 2000)))
+      : geoScore(distance);
   return {
-    guess: { lat: input.guess.lat, lng: input.guess.lng },
+    guess: { lat: guess.lat, lng: guess.lng },
     actual,
     distance,
-    score: geoScore(distance),
+    score: points,
+    timedOut,
     location: challenge.places[index],
   };
 }

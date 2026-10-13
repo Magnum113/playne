@@ -1,16 +1,31 @@
 import { geoLocations, type GeoLocation, type GeoRegion } from "./geoLocations";
 
 export type GeoPoint = { lat: number; lng: number };
+export type GeoMode = "classic" | "timed";
+export const GEO_ROUND_POINTS = 5000;
+export const GEO_MAX_POINTS = 25000;
+export const GEO_TIME_LIMIT_MS = 180000;
+export const geoModeName = (mode: GeoMode) =>
+  mode === "timed" ? "На время" : "Без таймера";
+export const validGeoMode = (mode: unknown): mode is GeoMode =>
+  mode === "classic" || mode === "timed";
+export const geoRemaining = (deadline: number, now = Date.now()) =>
+  Math.max(0, Math.ceil((deadline - now) / 1000));
+export const geoClock = (seconds: number) =>
+  `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+export const geoPoints = (n: number) => n.toLocaleString("ru-RU");
+
 export type GeoStats = { best: number; played: number; recent: string[] };
 export type GeoAnswer = {
   location: GeoLocation;
-  guess: GeoPoint;
+  guess: GeoPoint | null;
   actual: GeoPoint;
-  distance: number;
+  distance: number | null;
+  timedOut?: boolean;
   score: number;
 };
 export const GEO_ROUNDS = 5;
-const STORAGE_KEY = "playne:geo:v1";
+const storageKey = (mode: GeoMode) => `playne:geo:v2:${mode}`;
 const REGIONS: GeoRegion[] = [
   "europe",
   "asia",
@@ -41,8 +56,11 @@ export function distanceKm(a: GeoPoint, b: GeoPoint) {
 }
 export function geoScore(distance: number) {
   if (!Number.isFinite(distance) || distance < 0) return 0;
-  if (distance <= 0.25) return 100;
-  return Math.min(99, Math.round(100 * Math.exp(-distance / 2000)));
+  if (distance <= 0.25) return GEO_ROUND_POINTS;
+  return Math.min(
+    GEO_ROUND_POINTS - 1,
+    Math.round(GEO_ROUND_POINTS * Math.exp(-distance / 2000)),
+  );
 }
 export function geoDistance(distance: number) {
   if (distance < 1)
@@ -79,15 +97,15 @@ export function chooseGeoRounds(
   }
   return result;
 }
-export function readGeoStats(): GeoStats {
+export function readGeoStats(mode: GeoMode = "classic"): GeoStats {
   const empty = { best: 0, played: 0, recent: [] };
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
+    const raw = JSON.parse(localStorage.getItem(storageKey(mode)) ?? "null");
     if (
       !raw ||
       !Number.isInteger(raw.best) ||
       raw.best < 0 ||
-      raw.best > 500 ||
+      raw.best > GEO_MAX_POINTS ||
       !Number.isInteger(raw.played) ||
       raw.played < 0
     )
@@ -109,9 +127,9 @@ export function readGeoStats(): GeoStats {
     return empty;
   }
 }
-export function saveGeoStats(stats: GeoStats) {
+export function saveGeoStats(stats: GeoStats, mode: GeoMode = "classic") {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
+    localStorage.setItem(storageKey(mode), JSON.stringify(stats));
   } catch {
     /* The game also works without browser storage. */
   }

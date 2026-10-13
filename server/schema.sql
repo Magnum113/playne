@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS playne_games (
  CHECK(score_units IS NULL OR score_units BETWEEN 0 AND 5000),
  CHECK(published_at IS NULL OR (completed_at IS NOT NULL AND owner_id IS NOT NULL AND score_units IS NOT NULL))
 );
+ALTER TABLE playne_games ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'classic';
+ALTER TABLE playne_games DROP CONSTRAINT IF EXISTS playne_games_score_units_check;
+ALTER TABLE playne_games ADD CONSTRAINT playne_games_score_units_check CHECK(score_units IS NULL OR score_units BETWEEN 0 AND 250000);
+CREATE INDEX IF NOT EXISTS playne_games_modes ON playne_games(game,version,mode,score_units DESC,completed_at) WHERE published_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS playne_games_leaderboard ON playne_games(game,version,score_units DESC,completed_at) WHERE published_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS playne_games_owner ON playne_games(owner_id,completed_at DESC) WHERE published_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS playne_games_expiry ON playne_games(expires_at) WHERE published_at IS NULL;

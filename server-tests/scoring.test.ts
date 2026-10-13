@@ -63,12 +63,53 @@ describe("server-owned results", () => {
         actual: { lat: 40, lng: 100 },
         score: 100,
       }).score,
-    ).toBeLessThan(5);
+    ).toBeLessThan(500);
     expect(() =>
       validateAnswer("geo", { places: [], panoramas: {} }, 0, {
         guess: { lat: 0, lng: 0 },
       }),
     ).toThrow();
+  });
+  it("uses the server's last accepted pin on timeout and scores an unanswered timeout zero", () => {
+    const panorama = {
+      actual: { lat: 0, lng: 0 },
+      deadline: 1000,
+      pin: { lat: 0, lng: 0 },
+    };
+    const c = {
+      mode: "timed",
+      places: [{ name: "Test" }],
+      panoramas: { 0: panorama },
+    };
+    expect(
+      validateAnswer(
+        "geo",
+        c,
+        0,
+        { guess: { lat: 60, lng: 100 }, expired: true },
+        1001,
+      ).score,
+    ).toBe(5000);
+    expect(() => validateAnswer("geo", c, 0, { expired: true }, 999)).toThrow(
+      "Время ещё",
+    );
+    const noPin = {
+      ...c,
+      panoramas: { 0: { actual: { lat: 0, lng: 0 }, deadline: 1000 } },
+    };
+    expect(
+      validateAnswer("geo", noPin, 0, { guess: { lat: 0, lng: 0 } }, 1001),
+    ).toMatchObject({ score: 0, guess: null, distance: null, timedOut: true });
+    expect(
+      validateAnswer(
+        "geo",
+        { places: [{}], panoramas: { 0: { actual: { lat: 0, lng: 0 } } } },
+        0,
+        { guess: { lat: 0, lng: 0 } },
+        0,
+        1,
+      ).score,
+    ).toBe(100);
   });
   it("validates nickname text and return destinations", () => {
     expect(initialNickname({ last_name: "Иванов", first_name: "Иван" })).toBe(

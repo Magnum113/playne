@@ -1,3 +1,4 @@
+import { geoModeName, type GeoMode } from "./geo";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useState, type FormEvent } from "react";
 import { api, useAuth, gameNames, resultText, type GameId } from "./account";
@@ -104,7 +105,11 @@ export default function AccountPage() {
                 Твой результат:{" "}
                 <strong>
                   {gameNames[pending.game as GameId]} —{" "}
-                  {resultText(pending.game, pending.score ?? 0)}
+                  {resultText(
+                    pending.game,
+                    pending.score ?? 0,
+                    pending.version,
+                  )}
                 </strong>
               </p>
             )}
@@ -169,14 +174,14 @@ export default function AccountPage() {
                 <p className="eyebrow">ТВОЙ РЕЗУЛЬТАТ</p>
                 <h2>
                   {gameNames[pending.game as GameId]} ·{" "}
-                  {resultText(pending.game, pending.score)}
+                  {resultText(pending.game, pending.score, pending.version)}
                 </h2>
                 {pending.published ? (
                   <>
                     <p>Результат уже в рейтинге.</p>
                     <a
                       className="primary"
-                      href={`/leaderboard/?game=${pending.game}`}
+                      href={`/leaderboard/?game=${pending.game}&mode=${pending.mode ?? "classic"}`}
                     >
                       Посмотреть рейтинг →
                     </a>
@@ -203,23 +208,34 @@ export default function AccountPage() {
             <section>
               <h2>Лучшие результаты в рейтинге</h2>
               <div className="account-bests">
-                {Object.entries(gameNames).map(([id, name]) => {
-                  const best = data?.best.find((b: any) => b.game === id);
-                  return (
-                    <a
-                      className="community-panel"
-                      href={`/leaderboard/?game=${id}`}
-                      key={id}
-                    >
-                      <span>{name}</span>
-                      <strong>
-                        {best
-                          ? resultText(id as GameId, best.score)
-                          : "Пока нет"}
-                      </strong>
-                    </a>
-                  );
-                })}
+                {Object.entries(gameNames)
+                  .flatMap(([id, name]) =>
+                    id === "geo"
+                      ? [
+                          [id, `${name} · Без таймера`, "classic"],
+                          [id, `${name} · На время`, "timed"],
+                        ]
+                      : [[id, name, "classic"]],
+                  )
+                  .map(([id, name, mode]) => {
+                    const best = data?.best.find(
+                      (b: any) => b.game === id && b.mode === mode,
+                    );
+                    return (
+                      <a
+                        className="community-panel"
+                        href={`/leaderboard/?game=${id}&mode=${mode}`}
+                        key={id + mode}
+                      >
+                        <span>{name}</span>
+                        <strong>
+                          {best
+                            ? resultText(id as GameId, best.score)
+                            : "Пока нет"}
+                        </strong>
+                      </a>
+                    );
+                  })}
               </div>
             </section>
             <section className="community-panel">
@@ -230,6 +246,8 @@ export default function AccountPage() {
                     <li key={h.id}>
                       <span>
                         {gameNames[h.game as GameId]}
+                        {h.game === "geo" &&
+                          ` · ${h.version === 1 ? "Прежние правила" : geoModeName(h.mode as GeoMode)}`}
                         <small>
                           {new Date(h.completed_at).toLocaleDateString(
                             "ru-RU",
@@ -237,7 +255,7 @@ export default function AccountPage() {
                           )}
                         </small>
                       </span>
-                      <strong>{resultText(h.game, h.score)}</strong>
+                      <strong>{resultText(h.game, h.score, h.version)}</strong>
                     </li>
                   ))}
                 </ol>

@@ -11,6 +11,14 @@ import {
   geoBounds,
   geoDistance,
   geoScore,
+  GEO_ROUND_POINTS,
+  GEO_MAX_POINTS,
+  GEO_TIME_LIMIT_MS,
+  geoModeName,
+  geoRemaining,
+  geoClock,
+  geoPoints,
+  type GeoMode,
   readGeoStats,
   saveGeoStats,
   type GeoAnswer,
@@ -24,6 +32,7 @@ type Phase =
   | "welcome"
   | "loading"
   | "guessing"
+  | "checking"
   | "reveal"
   | "finished"
   | "error";
@@ -43,8 +52,10 @@ function Rules() {
         <li>Нажми «Ответить». Увидишь правильное место, расстояние и очки.</li>
       </ol>
       <p>
-        Пять раундов, до 500 очков. За попадание в пределах 250 метров — 100
-        очков. Дальше оценка плавно уменьшается с расстоянием. Таймера нет.
+        Пять раундов, до 25 000 очков. За попадание в пределах 250 метров — 5
+        000 очков. Дальше оценка плавно уменьшается с расстоянием. Выбери режим
+        без таймера или три минуты на раунд. Когда время закончится, примем
+        последнюю выбранную точку; без точки — ноль очков.
       </p>
       <p>
         Ищи подсказки в языке вывесок, архитектуре, растениях и разметке. Рекорд
@@ -56,6 +67,12 @@ function Rules() {
 
 export default function GeoGame() {
   const ranked = useRankedRun("geo");
+  const [mode, setMode] = useState<GeoMode>("classic");
+  const modeRef = useRef<GeoMode>("classic");
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const deadlineRef = useRef<number | null>(null);
+  const [remaining, setRemaining] = useState(GEO_TIME_LIMIT_MS / 1000);
+  const timeoutAction = useRef<() => void>(() => {});
   const [phase, setPhaseState] = useState<Phase>("welcome");
   const phaseRef = useRef<Phase>("welcome");
   const setPhase = (value: Phase) => {
@@ -93,11 +110,44 @@ export default function GeoGame() {
 
   function choosePoint(point: GeoPoint) {
     if (phaseRef.current !== "guessing" || !map.current) return;
+    if (
+      modeRef.current === "timed" &&
+      deadlineRef.current !== null &&
+      Date.now() >= deadlineRef.current
+    ) {
+      void submit(true);
+      return;
+    }
+    if (modeRef.current === "timed") ranked.geoPin(round, point);
     guessRef.current = point;
     setGuess(point);
     setError("");
     guessMarker.current?.setPosition(point);
     guessMarker.current?.setMap(map.current);
+  }
+  timeoutAction.current = () => void submit(true);
+  useEffect(() => {
+    if (phase !== "guessing" || mode !== "timed" || deadline === null) return;
+    const tick = () => {
+      const left = geoRemaining(deadline);
+      setRemaining(left);
+      if (left === 0 && phaseRef.current === "guessing")
+        timeoutAction.current();
+    };
+    tick();
+    const timer = window.setInterval(tick, 200);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [phase, mode, deadline]);
+  function chooseMode(value: GeoMode) {
+    setMode(value);
+    modeRef.current = value;
+    const stored = readGeoStats(value);
+    statsRef.current = stored;
+    setStats(stored);
   }
   useEffect(
     () =>
@@ -261,6 +311,9 @@ export default function GeoGame() {
     guessRef.current = null;
     setError("");
     setRound(index);
+    deadlineRef.current = null;
+    setDeadline(null);
+    setRemaining(GEO_TIME_LIMIT_MS / 1000);
     guessMarker.current?.setMap(null);
     actualMarker.current?.setMap(null);
     line.current?.setMap(null);
@@ -281,7 +334,10 @@ export default function GeoGame() {
           const data = response.data;
           if (!data.location?.latLng || !data.location.pano)
             throw new Error("No panorama");
-          const verifiedActual = await ranked.panorama(index, data.location.pano);
+          const verifiedActual = await ranked.panorama(
+            index,
+            data.location.pano,
+          );
           await showPanorama(
             data.location.pano,
             place.heading ?? data.tiles?.centerHeading ?? 0,
@@ -290,6 +346,13 @@ export default function GeoGame() {
           actual.current = verifiedActual ?? data.location.latLng.toJSON();
           activePlace.current = place;
           rounds.current[index] = place;
+          if (modeRef.current === "timed") {
+            const started = await ranked.geoReady(index);
+            if (token !== operation.current) return;
+            deadlineRef.current = started ?? Date.now() + GEO_TIME_LIMIT_MS;
+            setDeadline(deadlineRef.current);
+            setRemaining(geoRemaining(deadlineRef.current));
+          }
           setPhase("guessing");
           busy.current = false;
           return;
@@ -297,7 +360,11 @@ export default function GeoGame() {
           if (token !== operation.current) return;
           badPlaces.current.add(place.id);
           const onlineReplacement = await ranked.replaceGeo(index);
-          if (onlineReplacement) { place = onlineReplacement; rounds.current[index] = place; continue; }
+          if (onlineReplacement) {
+            place = onlineReplacement;
+            rounds.current[index] = place;
+            continue;
+          }
           ranked.local();
           const next = geoLocations.find(
             (candidate) =>
@@ -329,17 +396,26 @@ export default function GeoGame() {
   async function start(replay = false) {
     if (busy.current) return;
     if (ranked.state.status === "loading") return;
-    const online = await ranked.begin();
+    busy.current = true;
+    modeRef.current = mode;
+    const token = ++operation.current;
+    const online = await ranked.begin(mode);
+    if (token !== operation.current) return;
+    busy.current = false;
     rounds.current =
       online?.challenge.places ?? chooseGeoRounds(statsRef.current.recent);
     answersRef.current = [];
     setAnswers([]);
-    reachGoal(replay ? GEO_GOALS.gameRestart : GEO_GOALS.gameStart);
+    reachGoal(replay ? GEO_GOALS.gameRestart : GEO_GOALS.gameStart, { mode });
     void loadRound(0);
   }
-  function submit() {
+  async function submit(expired = false) {
     if (phaseRef.current !== "guessing") return;
-    if (!guessRef.current) {
+    const timedOut =
+      modeRef.current === "timed" &&
+      (expired ||
+        (deadlineRef.current !== null && Date.now() >= deadlineRef.current));
+    if (!guessRef.current && !timedOut) {
       setMapOpen(true);
       mapNode.current?.scrollIntoView({
         block: "nearest",
@@ -349,14 +425,22 @@ export default function GeoGame() {
       return;
     }
     if (!actual.current || !activePlace.current) return;
-    ranked.submit(round, { guess: guessRef.current });
-    const distance = distanceKm(guessRef.current, actual.current);
-    const result: GeoAnswer = {
-      location: activePlace.current,
-      guess: guessRef.current,
-      actual: actual.current,
+    const token = operation.current;
+    const selected = guessRef.current;
+    const place = activePlace.current;
+    const correct = actual.current;
+    setPhase("checking");
+    if (timedOut) rules.current?.close();
+    const verified = await ranked.geoAnswer(round, selected, timedOut);
+    if (token !== operation.current) return;
+    const distance = selected ? distanceKm(selected, correct) : null;
+    const result: GeoAnswer = verified ?? {
+      location: place,
+      guess: selected,
+      actual: correct,
       distance,
-      score: geoScore(distance),
+      score: distance === null ? 0 : geoScore(distance),
+      timedOut,
     };
     answersRef.current = [...answersRef.current, result];
     setAnswers(answersRef.current);
@@ -365,26 +449,35 @@ export default function GeoGame() {
     setError("");
     actualMarker.current!.setPosition(result.actual);
     actualMarker.current!.setMap(map.current);
-    line.current = new google.maps.Polyline({
-      map: map.current,
-      path: [result.guess, result.actual],
-      geodesic: true,
-      strokeColor: "#a188e3",
-      strokeWeight: 3,
-      strokeOpacity: 0.8,
-    });
-    const bounds = geoBounds(result.guess, result.actual);
-    if (distance < 0.01) {
+    if (result.guess) {
+      guessMarker.current!.setPosition(result.guess);
+      guessMarker.current!.setMap(map.current);
+      line.current = new google.maps.Polyline({
+        map: map.current,
+        path: [result.guess, result.actual],
+        geodesic: true,
+        strokeColor: "#a188e3",
+        strokeWeight: 3,
+        strokeOpacity: 0.8,
+      });
+      if (result.distance !== null && result.distance < 0.01) {
+        map.current!.setCenter(result.actual);
+        map.current!.setZoom(15);
+      } else map.current!.fitBounds(geoBounds(result.guess, result.actual), 55);
+    } else {
+      guessMarker.current?.setMap(null);
       map.current!.setCenter(result.actual);
-      map.current!.setZoom(15);
-    } else map.current!.fitBounds(bounds, 55);
+      map.current!.setZoom(12);
+    }
     reachGoal(GEO_GOALS.roundComplete, {
       round: round + 1,
       score: result.score,
-      distance_km: Math.round(distance),
+      distance_km: result.distance === null ? -1 : Math.round(result.distance),
+      mode: modeRef.current,
+      timed_out: !!result.timedOut,
       country: result.location.countryCode,
     });
-    if (result.score === 100)
+    if (result.score === GEO_ROUND_POINTS)
       reachGoal(GEO_GOALS.perfectRound, { round: round + 1 });
     if (answersRef.current.length === 5) {
       const score = answersRef.current.reduce(
@@ -401,8 +494,8 @@ export default function GeoGame() {
       };
       statsRef.current = nextStats;
       setStats(nextStats);
-      saveGeoStats(nextStats);
-      reachGoal(GEO_GOALS.gameComplete, { score });
+      saveGeoStats(nextStats, modeRef.current);
+      reachGoal(GEO_GOALS.gameComplete, { score, mode: modeRef.current });
     }
   }
   function next() {
@@ -450,7 +543,7 @@ export default function GeoGame() {
         {phase === "welcome" && (
           <section className="geo-welcome">
             <div className="geo-welcome-copy">
-              <p className="eyebrow">ПЯТЬ РАУНДОВ · 500 ОЧКОВ</p>
+              <p className="eyebrow">ПЯТЬ РАУНДОВ · 25 000 ОЧКОВ</p>
               <h2>Угадай страну по панораме.</h2>
               <p>
                 Узнай страну и город по панораме Google Street View. Поставь
@@ -461,13 +554,45 @@ export default function GeoGame() {
                 <li>Поставь точку на карте мира.</li>
                 <li>Проверь ответ и узнай, где оказался.</li>
               </ol>
-              <button className="primary" onClick={() => start()}>
+              <fieldset className="geo-mode-choice">
+                <legend>Режим игры</legend>
+                {(["classic", "timed"] as const).map((value) => (
+                  <label
+                    key={value}
+                    className={mode === value ? "selected" : ""}
+                  >
+                    <input
+                      type="radio"
+                      name="geo-mode"
+                      value={value}
+                      checked={mode === value}
+                      disabled={ranked.state.status === "loading"}
+                      onChange={() => chooseMode(value)}
+                    />
+                    <span>
+                      <strong>{geoModeName(value)}</strong>
+                      <small>
+                        {value === "timed"
+                          ? "3 минуты на каждый раунд"
+                          : "Осматривайся в своём темпе"}
+                      </small>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              <button
+                className="primary"
+                disabled={ranked.state.status === "loading"}
+                onClick={() => void start()}
+              >
                 Начать игру <span aria-hidden="true">↗</span>
               </button>
-              <small>Бесплатно, без регистрации и таймера. Панорамы без перемещения по улицам.</small>
+              <small>
+                Бесплатно и без регистрации. Панорамы без перемещения по улицам.
+              </small>
               {stats.best > 0 && (
                 <p className="geo-best">
-                  Твой рекорд: <strong>{stats.best} / 500</strong>
+                  Твой рекорд: <strong>{geoPoints(stats.best)} / 25 000</strong>
                 </p>
               )}
             </div>
@@ -492,9 +617,22 @@ export default function GeoGame() {
                 ))}
               </div>
             </div>
-            <span className="geo-score">
-              Очки <strong>{total}</strong> / 500
-            </span>
+            <div className="geo-status-meta">
+              <span className="geo-mode-label">{geoModeName(mode)}</span>
+              {mode === "timed" && (
+                <span
+                  className={`geo-timer ${remaining <= 15 ? "geo-timer-urgent" : ""}`}
+                  role="timer"
+                  aria-label={`Осталось ${remaining} секунд`}
+                  aria-live="off"
+                >
+                  {geoClock(remaining)}
+                </span>
+              )}
+              <span className="geo-score">
+                Очки <strong>{geoPoints(total)}</strong> / 25 000
+              </span>
+            </div>
           </div>
         )}
         <div
@@ -553,11 +691,19 @@ export default function GeoGame() {
               )}
             </div>
           </section>
-          {phase === "loading" && (
+          {(phase === "loading" || phase === "checking") && (
             <div className="geo-loading" role="status">
               <span className="geo-loader" aria-hidden="true" />
-              <strong>Открываем новое место…</strong>
-              <span>Скоро можно будет осмотреться.</span>
+              <strong>
+                {phase === "checking"
+                  ? "Проверяем ответ…"
+                  : "Открываем новое место…"}
+              </strong>
+              <span>
+                {phase === "checking"
+                  ? "Сейчас покажем место и очки."
+                  : "Таймер начнётся после загрузки панорамы."}
+              </span>
             </div>
           )}
           {phase === "error" && (
@@ -594,7 +740,7 @@ export default function GeoGame() {
                     ? "Изменить точку"
                     : "Открыть карту"}
               </button>
-              <button className="primary" onClick={submit}>
+              <button className="primary" onClick={() => void submit()}>
                 Ответить <span aria-hidden="true">→</span>
               </button>
             </div>
@@ -613,12 +759,24 @@ export default function GeoGame() {
               {answer.location.note && <p>{answer.location.note}</p>}
             </div>
             <div className="geo-round-result">
+              {answer.timedOut && (
+                <span className="geo-timeout-note" role="status">
+                  Время вышло
+                  {answer.guess ? " — принят последний ответ" : " — 0 очков"}
+                </span>
+              )}
               <strong>
-                {answer.score}
-                <span> / 100</span>
+                {geoPoints(answer.score)}
+                <span> / 5 000</span>
               </strong>
               <span>
-                До правильного места — <b>{geoDistance(answer.distance)}</b>
+                {answer.distance === null ? (
+                  "Точка не выбрана"
+                ) : (
+                  <>
+                    До правильного места — <b>{geoDistance(answer.distance)}</b>
+                  </>
+                )}
               </span>
               <button className="primary" onClick={next}>
                 {round === 4 ? "Мой результат" : "Следующее место"}{" "}
@@ -629,19 +787,21 @@ export default function GeoGame() {
         )}
         {phase === "finished" && (
           <section className="geo-summary" ref={result} tabIndex={-1}>
-            <p className="eyebrow">ТВОЙ РЕЗУЛЬТАТ</p>
+            <p className="eyebrow">
+              ТВОЙ РЕЗУЛЬТАТ · {geoModeName(mode).toUpperCase()}
+            </p>
             <h2>
-              {total}
-              <span> из 500</span>
+              {geoPoints(total)}
+              <span> из 25 000</span>
             </h2>
             <p>
-              {total >= 400
+              {total >= 20000
                 ? "Ты отлично ориентируешься. Проверим ещё пять мест?"
                 : "Партия закончена. Сыграешь ещё?"}
             </p>
             <div className="geo-summary-stats">
               <span>
-                Рекорд <strong>{stats.best} / 500</strong>
+                Рекорд <strong>{geoPoints(stats.best)} / 25 000</strong>
               </span>
               <span>
                 Партий сыграно <strong>{stats.played}</strong>
@@ -653,18 +813,32 @@ export default function GeoGame() {
                   <div>
                     <strong>{item.location.name}</strong>
                     <span>
-                      {item.location.country} · {geoDistance(item.distance)}
+                      {item.location.country} ·{" "}
+                      {item.distance === null
+                        ? "Точка не выбрана"
+                        : geoDistance(item.distance)}
+                      {item.timedOut ? " · Время вышло" : ""}
                     </span>
                   </div>
                   <b>
-                    {item.score}
-                    <span> / 100</span>
+                    {geoPoints(item.score)}
+                    <span> / 5 000</span>
                   </b>
                 </li>
               ))}
             </ol>
-            <button className="primary" onClick={() => start(true)}>
+            <button className="primary" onClick={() => void start(true)}>
               Играть ещё <span aria-hidden="true">↗</span>
+            </button>
+            <button
+              className="text-button"
+              onClick={() => {
+                setPhase("welcome");
+                deadlineRef.current = null;
+                setDeadline(null);
+              }}
+            >
+              Выбрать другой режим
             </button>
             <SaveResult run={ranked} game="geo" />
           </section>

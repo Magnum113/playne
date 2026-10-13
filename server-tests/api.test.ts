@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, it, expect } from "vitest";
+import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 import { Pool } from "pg";
 import { readFileSync } from "node:fs";
 import { buildApp } from "../server/app";
@@ -238,7 +238,7 @@ suite("Playne database and OAuth integration", () => {
       method: "POST",
       url: "/api/games",
       headers,
-      payload: { game: "geo" },
+      payload: { game: "geo", geoRulesVersion: 2 },
     });
     const run = start.json();
     const old = run.challenge.places[0];
@@ -295,7 +295,7 @@ suite("Playne database and OAuth integration", () => {
         },
       });
       expect(answer.statusCode).toBe(200);
-      expect(answer.json().answer.score).toBeLessThan(100);
+      expect(answer.json().answer.score).toBeLessThan(5000);
     }
     const published = await app.inject({
       method: "POST",
@@ -313,6 +313,183 @@ suite("Playne database and OAuth integration", () => {
     expect(stored.challenge).not.toHaveProperty("panoramas");
     expect(stored.answers[0]).not.toHaveProperty("actual");
     expect(stored.answers[0]).not.toHaveProperty("guess");
+  });
+  it("stores a 25,000-point classic game while retaining old 500-point games separately", async () => {
+    const headers = { origin, cookie: logged };
+    for (const version of [2, 1]) {
+      const start = await app.inject({
+        method: "POST",
+        url: "/api/games",
+        headers,
+        payload: {
+          game: "geo",
+          ...(version === 2 ? { geoRulesVersion: 2 } : {}),
+        },
+      });
+      const run = start.json();
+      expect(run.version).toBe(version);
+      for (let index = 0; index < 5; index++) {
+        metadataLocation = {
+          lat: run.challenge.places[index].lat,
+          lng: run.challenge.places[index].lng,
+        };
+        const pano = await app.inject({
+          remoteAddress: "127.0.0.2",
+          method: "POST",
+          url: `/api/games/${run.id}/panorama`,
+          headers,
+          payload: { index, pano: `perfect-${version}-${index}` },
+        });
+        expect(pano.statusCode).toBe(200);
+        const answer = await app.inject({
+          method: "POST",
+          url: `/api/games/${run.id}/answers`,
+          headers,
+          payload: { index, answer: { guess: metadataLocation } },
+        });
+        expect(answer.statusCode).toBe(200);
+        expect(answer.json().answer.score).toBe(version === 2 ? 5000 : 100);
+        if (index === 4)
+          expect(answer.json().score).toBe(version === 2 ? 25000 : 500);
+      }
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: `/api/games/${run.id}/publish`,
+            headers,
+            payload: {},
+          })
+        ).statusCode,
+      ).toBe(200);
+    }
+    expect(
+      (await app.inject("/api/leaderboard?game=geo&version=2")).json()
+        .entries[0].score,
+    ).toBe(25000);
+    expect(
+      (await app.inject("/api/leaderboard?game=geo")).json().entries[0].score,
+    ).toBe(500);
+    const profile = await app.inject({
+      url: "/api/account",
+      headers: { ...headers, "x-playne-geo-version": "2" },
+    });
+    expect(profile.json().best.find((b: any) => b.game === "geo").score).toBe(
+      25000,
+    );
+    expect(
+      profile
+        .json()
+        .history.some(
+          (h: any) => h.game === "geo" && h.version === 1 && h.score === 500,
+        ),
+    ).toBe(true);
+  });
+  it("enforces an immutable three-minute timer and separates timed/classic rankings", async () => {
+    const headers = { origin, cookie: logged };
+    const bad = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers,
+      payload: { game: "geo", mode: "unknown", geoRulesVersion: 2 },
+    });
+    expect(bad.statusCode).toBe(400);
+    const start = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers,
+      payload: { game: "geo", mode: "timed", geoRulesVersion: 2 },
+    });
+    const run = start.json();
+    expect(run.version).toBe(2);
+    const clock = vi.spyOn(Date, "now");
+    let now = Date.now();
+    clock.mockImplementation(() => now);
+    try {
+      for (let index = 0; index < 5; index++) {
+        metadataLocation = {
+          lat: run.challenge.places[index].lat,
+          lng: run.challenge.places[index].lng,
+        };
+        const pano = await app.inject({
+          method: "POST",
+          url: `/api/games/${run.id}/panorama`,
+          headers,
+          payload: { index, pano: "timed-" + index },
+        });
+        expect(pano.statusCode).toBe(200);
+        const ready = await app.inject({
+          method: "POST",
+          url: `/api/games/${run.id}/ready`,
+          headers,
+          payload: { index },
+        });
+        expect(ready.statusCode).toBe(200);
+        expect(ready.json().deadline - now).toBe(180000);
+        const second = await app.inject({
+          method: "POST",
+          url: `/api/games/${run.id}/ready`,
+          headers,
+          payload: { index },
+        });
+        expect(second.json().deadline).toBe(ready.json().deadline);
+        if (index === 0) {
+          const pin = await app.inject({
+            method: "POST",
+            url: `/api/games/${run.id}/pin`,
+            headers,
+            payload: { index, guess: metadataLocation },
+          });
+          expect(pin.statusCode).toBe(200);
+          const early = await app.inject({
+            method: "POST",
+            url: `/api/games/${run.id}/answers`,
+            headers,
+            payload: { index, answer: { expired: true } },
+          });
+          expect(early.statusCode).toBe(400);
+        }
+        now = ready.json().deadline + 1;
+        const late = await app.inject({
+          method: "POST",
+          url: `/api/games/${run.id}/pin`,
+          headers,
+          payload: { index, guess: { lat: 0, lng: 0 } },
+        });
+        expect(late.statusCode).toBe(409);
+        const answer = await app.inject({
+          method: "POST",
+          url: `/api/games/${run.id}/answers`,
+          headers,
+          payload: {
+            index,
+            answer: { expired: true, guess: { lat: 0, lng: 0 } },
+          },
+        });
+        expect(answer.statusCode).toBe(200);
+        expect(answer.json().answer.score).toBe(index === 0 ? 5000 : 0);
+        expect(answer.json().answer.timedOut).toBe(true);
+      }
+      const published = await app.inject({
+        method: "POST",
+        url: `/api/games/${run.id}/publish`,
+        headers,
+        payload: {},
+      });
+      expect(published.statusCode).toBe(200);
+      const timed = await app.inject(
+        "/api/leaderboard?game=geo&mode=timed&version=2",
+      );
+      expect(timed.json().total).toBe(1);
+      expect(timed.json().entries[0].score).toBe(5000);
+      const classic = await app.inject(
+        "/api/leaderboard?game=geo&mode=classic&version=2",
+      );
+      expect(classic.json().total).toBe(1);
+      expect(classic.json().entries[0].score).not.toBe(5000);
+    } finally {
+      clock.mockRestore();
+    }
   });
   it("revokes the authenticated session on logout", async () => {
     const out = await app.inject({
@@ -374,8 +551,8 @@ suite("Playne database and OAuth integration", () => {
     expect(
       (await app.inject("/api/leaderboard?game=colorfle")).json().total,
     ).toBe(0);
-    expect((await app.inject("/api/leaderboard?game=geo")).json().total).toBe(
-      0,
-    );
+    expect(
+      (await app.inject("/api/leaderboard?game=geo&version=2")).json().total,
+    ).toBe(0);
   });
 });

@@ -1,3 +1,4 @@
+import { geoModeName, type GeoMode } from "./geo";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useState } from "react";
 import { api, gameNames, resultText, AccountNav, type GameId } from "./account";
@@ -14,6 +15,9 @@ export default function LeaderboardPage() {
       ? (initial as GameId)
       : "naglaz",
   );
+  const [mode, setMode] = useState<GeoMode>(
+    query?.get("mode") === "timed" ? "timed" : "classic",
+  );
   const [period, setPeriod] = useState<"all" | "week">("week"),
     [page, setPage] = useState(1),
     [data, setData] = useState<any>(null),
@@ -24,7 +28,9 @@ export default function LeaderboardPage() {
     let active = true;
     setLoading(true);
     setError("");
-    void api(`/leaderboard?game=${game}&period=${period}&page=${page}`)
+    void api(
+      `/leaderboard?game=${game}&period=${period}&page=${page}&mode=${mode}`,
+    )
       .then((d) => {
         if (active) {
           setData(d);
@@ -40,11 +46,15 @@ export default function LeaderboardPage() {
     return () => {
       active = false;
     };
-  }, [game, period, page, retry]);
+  }, [game, period, page, mode, retry]);
   function change(next: GameId) {
     setGame(next);
     setPage(1);
-    window.history.replaceState(null, "", "/leaderboard/?game=" + next);
+    window.history.replaceState(
+      null,
+      "",
+      "/leaderboard/?game=" + next + (next === "geo" ? `&mode=${mode}` : ""),
+    );
   }
   const entry = (e: any, key: string) => (
     <tr className={e.isMe ? "my-entry" : ""} key={key}>
@@ -96,6 +106,27 @@ export default function LeaderboardPage() {
             </button>
           ))}
         </div>
+        {game === "geo" && (
+          <div className="rank-period geo-rank-modes" aria-label="Режим игры">
+            {(["classic", "timed"] as const).map((m) => (
+              <button
+                key={m}
+                aria-pressed={mode === m}
+                onClick={() => {
+                  setMode(m);
+                  setPage(1);
+                  window.history.replaceState(
+                    null,
+                    "",
+                    `/leaderboard/?game=geo&mode=${m}`,
+                  );
+                }}
+              >
+                {geoModeName(m)}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="rank-toolbar">
           <div className="rank-period" aria-label="Период рейтинга">
             <button

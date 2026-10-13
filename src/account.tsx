@@ -1,3 +1,4 @@
+import { GEO_MAX_POINTS, geoPoints, type GeoMode, type GeoPoint } from "./geo";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import {
   createContext,
@@ -37,7 +38,10 @@ export async function api<T = any>(
   const response = await fetch("/api" + path, {
     method,
     credentials: "same-origin",
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    headers: {
+      "X-Playne-Geo-Version": "2",
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(path === "/games" ? 3500 : 15000),
   });
@@ -116,7 +120,7 @@ export function AccountNav() {
     </a>
   );
 }
-type Run = { id: string; game: GameId; challenge: any };
+type Run = { id: string; game: GameId; challenge: any; version?: number };
 type RunState = {
   status:
     | "idle"
@@ -136,11 +140,13 @@ export function useRankedRun(game: GameId) {
   const [state, setState] = useState<RunState>({ status: "idle" });
   const current = useRef<{
     epoch: number;
+    mode?: GeoMode;
     run: Promise<Run | null>;
     tasks: Task[];
     accepted: number;
     working: boolean;
     drained?: Promise<void>;
+    pinWork?: Promise<void>;
   }>({
     epoch: 0,
     run: Promise.resolve(null),
@@ -158,9 +164,10 @@ export function useRankedRun(game: GameId) {
   function setFor(run: typeof current.current, next: RunState) {
     if (alive.current && current.current === run) setState(next);
   }
-  function begin(): Promise<Run | null> {
+  function begin(mode?: GeoMode): Promise<Run | null> {
     const run = {
       epoch: current.current.epoch + 1,
+      mode,
       run: Promise.resolve(null) as Promise<Run | null>,
       tasks: [] as Task[],
       accepted: 0,
@@ -168,7 +175,11 @@ export function useRankedRun(game: GameId) {
     };
     current.current = run;
     setState({ status: "loading" });
-    run.run = api<Run>("/games", "POST", { game })
+    run.run = api<Run>("/games", "POST", {
+      game,
+      mode,
+      geoRulesVersion: game === "geo" ? 2 : undefined,
+    })
       .then((data) => {
         setFor(run, { status: "ready", id: data.id });
         return data;
@@ -255,6 +266,62 @@ export function useRankedRun(game: GameId) {
       return null;
     }
   }
+  async function geoReady(index: number) {
+    const run = current.current;
+    await flush(run);
+    const data = await run.run;
+    if (!data) return null;
+    try {
+      const timing = await api(`/games/${data.id}/ready`, "POST", { index });
+      return Date.now() + timing.deadline - timing.serverNow;
+    } catch {
+      if (current.current === run) local();
+      return null;
+    }
+  }
+  function geoPin(index: number, guess: GeoPoint) {
+    const run = current.current;
+    run.pinWork = (run.pinWork ?? Promise.resolve()).then(async () => {
+      const data = await run.run;
+      if (!data) return;
+      try {
+        await api(`/games/${data.id}/pin`, "POST", { index, guess });
+      } catch (e) {
+        if (
+          !(e instanceof ApiError && e.status === 409) &&
+          current.current === run
+        )
+          local();
+      }
+    });
+  }
+  async function geoAnswer(
+    index: number,
+    guess: GeoPoint | null,
+    expired: boolean,
+  ) {
+    const run = current.current;
+    await flush(run);
+    await run.pinWork;
+    const data = await run.run;
+    if (!data) return null;
+    try {
+      setFor(run, { status: "checking", id: data.id });
+      const result = await api(`/games/${data.id}/answers`, "POST", {
+        index,
+        answer: { guess, expired },
+      });
+      setFor(run, {
+        status: result.completed ? "complete" : "ready",
+        id: data.id,
+        score: result.score ?? undefined,
+      });
+      return result.answer;
+    } catch {
+      if (current.current === run) local();
+      return null;
+    }
+  }
   function local() {
     const run = current.current;
     setFor(run, { status: "local" });
@@ -262,11 +329,15 @@ export function useRankedRun(game: GameId) {
   }
   return {
     state,
+    mode: current.current.mode ?? "classic",
     local,
     replaceGeo,
     begin,
     submit,
     panorama,
+    geoReady,
+    geoPin,
+    geoAnswer,
     retry: () => void flush(),
     saved: (id: string) =>
       setState((s) => (s.id === id ? { ...s, status: "saved" } : s)),
@@ -285,7 +356,9 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
           Рекорд сохранён в этом браузере. Для рейтинга начни новую партию с
           доступным соединением.
         </p>
-        <a href={`/leaderboard/?game=${game}`}>Рейтинг игры →</a>
+        <a href={`/leaderboard/?game=${game}&mode=${run.mode}`}>
+          Рейтинг игры →
+        </a>
       </div>
     );
   if (["loading", "checking", "ready"].includes(s.status))
@@ -352,7 +425,9 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
             {saving ? "Сохраняем…" : "Сохранить в рейтинг"}
           </button>
         )}
-        <a href={`/leaderboard/?game=${game}`}>Рейтинг игры →</a>
+        <a href={`/leaderboard/?game=${game}&mode=${run.mode}`}>
+          Рейтинг игры →
+        </a>
       </div>
       <p className="account-message" role="status">
         {error}
@@ -360,7 +435,7 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
     </div>
   );
 }
-export const resultText = (game: GameId, score: number) =>
+export const resultText = (game: GameId, score: number, version = 2) =>
   game === "circle"
     ? `${score.toFixed(1).replace(".", ",")}%`
-    : `${score} / 500`;
+    : `${geoPoints(score)} / ${game === "geo" && version !== 1 ? geoPoints(GEO_MAX_POINTS) : "500"}`;

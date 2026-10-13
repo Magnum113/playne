@@ -701,3 +701,112 @@
     margin-top: 30px;
   }
 }
+
+.geo-mode-choice {
+  border: 0;
+  padding: 0;
+  margin: 24px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.geo-mode-choice legend {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.geo-mode-choice label {
+  display: flex;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  border-radius: 14px;
+  cursor: pointer;
+  min-height: 76px;
+  align-items: flex-start;
+}
+.geo-mode-choice label.selected {
+  border-color: var(--purple);
+  background: var(--purple-tint);
+}
+.geo-mode-choice input {
+  accent-color: var(--mint);
+  width: 18px;
+  height: 18px;
+  margin: 3px 0 0;
+  flex: none;
+}
+.geo-mode-choice strong {
+  display: block;
+  font-size: 14px;
+}
+.geo-mode-choice small {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.geo-mode-choice label:focus-within {
+  outline: 3px solid var(--mint);
+  outline-offset: 3px;
+}
+.geo-status .geo-status-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.geo-mode-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+.geo-timer {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  font-size: 22px;
+  background: var(--panel);
+}
+.geo-timer-urgent {
+  background: var(--purple-tint);
+  border-color: var(--purple);
+}
+.geo-timeout-note {
+  color: var(--purple);
+  font-weight: 600;
+}
+.geo-summary h2 {
+  font-size: clamp(42px, 7vw, 70px);
+}
+.geo-summary h2 > span {
+  display: block;
+  margin-top: 10px;
+  font-size: 20px;
+}
+.geo-rank-modes {
+  margin-bottom: 16px;
+}
+@media (max-width: 650px) {
+  .geo-mode-choice {
+    grid-template-columns: 1fr;
+  }
+  .geo-status .geo-status-meta {
+    gap: 8px;
+    max-width: 55%;
+  }
+  .geo-mode-label {
+    width: 100%;
+    text-align: right;
+  }
+  .geo-score strong {
+    font-size: 22px;
+  }
+  .geo-timer {
+    font-size: 18px;
+    padding: 6px 10px;
+  }
+}

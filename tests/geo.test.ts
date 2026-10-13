@@ -5,6 +5,9 @@ import {
   geoBounds,
   geoDistance,
   geoScore,
+  geoRemaining,
+  geoClock,
+  GEO_MAX_POINTS,
   readGeoStats,
   saveGeoStats,
 } from "../src/geo";
@@ -34,11 +37,11 @@ describe("geographical answers", () => {
     ).toThrow();
   });
   it("scores exact hits and gets lower as distance grows", () => {
-    expect(geoScore(0.25)).toBe(100);
-    expect(geoScore(0.251)).toBe(99);
+    expect(geoScore(0.25)).toBe(5000);
+    expect(geoScore(0.251)).toBe(4999);
     expect(geoScore(20015)).toBe(0);
     expect(geoScore(NaN)).toBe(0);
-    let previous = 100;
+    let previous = 5000;
     for (let d = 0; d < 21000; d += 20) {
       expect(geoScore(d)).toBeLessThanOrEqual(previous);
       previous = geoScore(d);
@@ -70,6 +73,30 @@ describe("geographical sessions", () => {
     for (const place of geoLocations)
       expect(() => distanceKm(place, place)).not.toThrow();
   });
+  it("separates both mode records and preserves the previous scoring storage", () => {
+    const storage = new Map<string, string>([
+      ["playne:geo:v1", '{"best":427,"played":2,"recent":[]}'],
+    ]);
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => storage.get(k),
+      setItem: (k: string, v: string) => storage.set(k, v),
+    });
+    expect(readGeoStats().best).toBe(0);
+    saveGeoStats({ best: 24000, played: 1, recent: [] }, "classic");
+    saveGeoStats({ best: 19000, played: 2, recent: [] }, "timed");
+    expect(readGeoStats("classic").best).toBe(24000);
+    expect(readGeoStats("timed").best).toBe(19000);
+    expect(JSON.parse(storage.get("playne:geo:v1")!).best).toBe(427);
+    expect(GEO_MAX_POINTS).toBe(25000);
+  });
+  it("uses a deadline instead of interval ticks, including after a background tab resumes", () => {
+    expect(geoRemaining(180000, 0)).toBe(180);
+    expect(geoRemaining(180000, 75001)).toBe(105);
+    expect(geoRemaining(180000, 300000)).toBe(0);
+    expect(geoClock(180)).toBe("3:00");
+    expect(geoClock(9)).toBe("0:09");
+  });
+
   it("retains the record and filters corrupt or unknown recent locations", () => {
     const storage = new Map<string, string>();
     vi.stubGlobal("localStorage", {
@@ -77,13 +104,13 @@ describe("geographical sessions", () => {
       setItem: (key: string, value: string) => storage.set(key, value),
     });
     const stats = {
-      best: 427,
+      best: 21427,
       played: 2,
       recent: [geoLocations[0].id, "missing"],
     };
     saveGeoStats(stats);
     expect(readGeoStats()).toEqual({ ...stats, recent: [geoLocations[0].id] });
-    storage.set("playne:geo:v1", '{"best":999,"played":1}');
+    storage.set("playne:geo:v2:classic", '{"best":999999,"played":1}');
     expect(readGeoStats().best).toBe(0);
     vi.stubGlobal("localStorage", {
       getItem: () => {

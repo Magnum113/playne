@@ -14,9 +14,15 @@ import {
   initialNickname,
   safeReturn,
   SCORE_VERSION,
+  scoreVersion,
 } from "./scoring";
 import { geoLocations } from "../src/geoLocations";
-import { distanceKm, validPoint } from "../src/geo";
+import {
+  distanceKm,
+  validPoint,
+  validGeoMode,
+  GEO_TIME_LIMIT_MS,
+} from "../src/geo";
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
 const token = () => randomBytes(32).toString("base64url");
 const uuid = (v: unknown): v is string =>
@@ -301,14 +307,33 @@ export async function buildApp(
             ? (r.challenge.places ?? []).map((p: any) => p.id)
             : [],
       );
-      const challenge = makeChallenge(game, recent);
+      const mode =
+        game === "geo" ? ((req.body as any)?.mode ?? "classic") : "classic";
+      if (!validGeoMode(mode)) failure("Неизвестный режим");
+      const version =
+        game === "geo" && (req.body as any)?.geoRulesVersion !== 2
+          ? 1
+          : scoreVersion(game);
+      const challenge = makeChallenge(
+        game,
+        recent,
+        version === 1 ? "classic" : mode,
+      );
       const { rows } = await pool.query(
-        "INSERT INTO playne_games(browser_hash,owner_id,game,challenge) VALUES($1,$2,$3,$4) RETURNING id",
-        [b, u?.id ?? null, game, JSON.stringify(challenge)],
+        "INSERT INTO playne_games(browser_hash,owner_id,game,challenge,version,mode) VALUES($1,$2,$3,$4,$5,$6) RETURNING id",
+        [
+          b,
+          u?.id ?? null,
+          game,
+          JSON.stringify(challenge),
+          version,
+          version === 1 ? "classic" : mode,
+        ],
       );
       return {
         id: rows[0].id,
         game,
+        version,
         challenge: publicChallenge(game, challenge),
       };
     },
@@ -318,6 +343,8 @@ export async function buildApp(
     return {
       id: run.id,
       game: run.game,
+      mode: run.mode,
+      version: run.version,
       score: run.score_units === null ? null : run.score_units / 10,
       answers: run.answers,
       published: !!run.published_at,
@@ -451,6 +478,72 @@ export async function buildApp(
       return { verified: true, actual: metadata.location };
     },
   );
+  app.post("/api/games/:id/ready", async (req, reply) => {
+    const index = (req.body as any)?.index;
+    const c = await pool.connect();
+    try {
+      await c.query("BEGIN");
+      const run = await owned(req, reply, (req.params as any).id, c, true);
+      if (
+        run.game !== "geo" ||
+        run.mode !== "timed" ||
+        !Number.isInteger(index) ||
+        index !== run.answers.length ||
+        run.completed_at
+      )
+        failure("Раунд недоступен", 409);
+      const pano = run.challenge.panoramas?.[index];
+      if (!pano) failure("Панорама не проверена", 409);
+      pano.deadline ??= Date.now() + GEO_TIME_LIMIT_MS;
+      await c.query("UPDATE playne_games SET challenge=$1 WHERE id=$2", [
+        JSON.stringify(run.challenge),
+        run.id,
+      ]);
+      await c.query("COMMIT");
+      return { deadline: pano.deadline, serverNow: Date.now() };
+    } catch (e) {
+      await c.query("ROLLBACK");
+      throw e;
+    } finally {
+      c.release();
+    }
+  });
+  app.post("/api/games/:id/pin", async (req, reply) => {
+    const body = req.body as any;
+    if (
+      !Number.isInteger(body?.index) ||
+      !body?.guess ||
+      !validPoint(body.guess)
+    )
+      failure("Некорректная точка");
+    const c = await pool.connect();
+    try {
+      await c.query("BEGIN");
+      const run = await owned(req, reply, (req.params as any).id, c, true);
+      if (
+        run.game !== "geo" ||
+        run.mode !== "timed" ||
+        run.answers.length !== body.index ||
+        run.completed_at
+      )
+        failure("Раунд недоступен", 409);
+      const pano = run.challenge.panoramas?.[body.index];
+      if (!pano?.deadline || Date.now() >= pano.deadline)
+        failure("Время истекло", 409);
+      pano.pin = { lat: body.guess.lat, lng: body.guess.lng };
+      await c.query("UPDATE playne_games SET challenge=$1 WHERE id=$2", [
+        JSON.stringify(run.challenge),
+        run.id,
+      ]);
+      await c.query("COMMIT");
+      return { ok: true };
+    } catch (e) {
+      await c.query("ROLLBACK");
+      throw e;
+    } finally {
+      c.release();
+    }
+  });
   app.post("/api/games/:id/answers", async (req, reply) => {
     const input = req.body as any;
     if (!Number.isInteger(input?.index) || input.index < 0 || input.index > 4)
@@ -477,6 +570,8 @@ export async function buildApp(
           run.challenge,
           input.index,
           input.answer,
+          Date.now(),
+          run.version,
         );
       } catch (e) {
         failure((e as Error).message);
@@ -516,7 +611,9 @@ export async function buildApp(
           ? run.answers.map(({ actual, guess, ...a }: any) => a)
           : run.answers;
       const challenge =
-        run.game === "geo" ? { places: run.challenge.places } : run.challenge;
+        run.game === "geo"
+          ? { places: run.challenge.places, mode: run.mode }
+          : run.challenge;
       await c.query(
         "UPDATE playne_games SET owner_id=$1,published_at=coalesce(published_at,now()),answers=$2,challenge=$3 WHERE id=$4",
         [u.id, JSON.stringify(answers), JSON.stringify(challenge), run.id],
@@ -539,19 +636,27 @@ export async function buildApp(
     if (!Number.isInteger(page) || page < 1 || page > 10000)
       failure("Некорректная страница");
     const u = await user(req);
-    const base = `WITH best AS (SELECT DISTINCT ON(owner_id) owner_id,score_units,answers,completed_at FROM playne_games WHERE game=$1 AND version=$2 AND published_at IS NOT NULL AND ($3='all' OR completed_at >= date_trunc('week',now() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow') ORDER BY owner_id,score_units DESC,completed_at ASC), ranked AS (SELECT u.id,u.nickname,b.score_units/10.0 AS score,b.answers,b.completed_at,rank() OVER(ORDER BY b.score_units DESC) AS place FROM best b JOIN playne_users u ON u.id=b.owner_id)`;
-    const params = [q.game, SCORE_VERSION, period];
+    const mode = q.game === "geo" ? (q.mode ?? "classic") : "classic";
+    if (!validGeoMode(mode)) failure("Неизвестный режим");
+    const base = `WITH best AS (SELECT DISTINCT ON(owner_id) owner_id,score_units,answers,completed_at FROM playne_games WHERE game=$1 AND version=$2 AND mode=$4 AND published_at IS NOT NULL AND ($3='all' OR completed_at >= date_trunc('week',now() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow') ORDER BY owner_id,score_units DESC,completed_at ASC), ranked AS (SELECT u.id,u.nickname,b.score_units/10.0 AS score,b.answers,b.completed_at,rank() OVER(ORDER BY b.score_units DESC) AS place FROM best b JOIN playne_users u ON u.id=b.owner_id)`;
+    const requestedVersion =
+      q.game === "geo" &&
+      req.headers["x-playne-geo-version"] !== "2" &&
+      q.version !== "2"
+        ? 1
+        : scoreVersion(q.game);
+    const params = [q.game, requestedVersion, period, mode];
     const [entries, count, mine] = await Promise.all([
       pool.query(
         base +
-          " SELECT id,nickname,score,place,answers FROM ranked ORDER BY score DESC,completed_at,id LIMIT 25 OFFSET $4",
+          " SELECT id,nickname,score,place,answers FROM ranked ORDER BY score DESC,completed_at,id LIMIT 25 OFFSET $5",
         [...params, (page - 1) * 25],
       ),
       pool.query(base + " SELECT count(*)::int AS count FROM ranked", params),
       u
         ? pool.query(
             base +
-              " SELECT id,nickname,score,place,answers FROM ranked WHERE id=$4",
+              " SELECT id,nickname,score,place,answers FROM ranked WHERE id=$5",
             [...params, u.id],
           )
         : Promise.resolve({ rows: [] }),
@@ -565,6 +670,7 @@ export async function buildApp(
     });
     return {
       game: q.game,
+      mode,
       period,
       page,
       total: count.rows[0].count,
@@ -575,12 +681,16 @@ export async function buildApp(
   app.get("/api/account", async (req) => {
     const u = await requireUser(req);
     const rows = await pool.query(
-      "SELECT id,game,score_units/10.0 AS score,completed_at FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL ORDER BY completed_at DESC LIMIT 30",
+      "SELECT id,game,mode,version,score_units/10.0 AS score,completed_at FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL ORDER BY completed_at DESC LIMIT 30",
       [u.id],
     );
     const best = await pool.query(
-      "SELECT game,max(score_units)/10.0 AS score FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL AND version=$2 GROUP BY game",
-      [u.id, SCORE_VERSION],
+      "SELECT game,mode,max(score_units)/10.0 AS score FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL AND ((game='geo' AND version=$3) OR (game<>'geo' AND version=$2)) GROUP BY game,mode",
+      [
+        u.id,
+        SCORE_VERSION,
+        req.headers["x-playne-geo-version"] === "2" ? 2 : 1,
+      ],
     );
     return {
       user: u,
