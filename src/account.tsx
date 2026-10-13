@@ -1,4 +1,10 @@
-import { GEO_MAX_POINTS, geoPoints, type GeoMode, type GeoPoint } from "./geo";
+import {
+  GEO_MAX_POINTS,
+  GEO_SCORE_VERSION,
+  geoPoints,
+  type GeoMode,
+  type GeoPoint,
+} from "./geo";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import {
   createContext,
@@ -39,7 +45,7 @@ export async function api<T = any>(
     method,
     credentials: "same-origin",
     headers: {
-      "X-Playne-Geo-Version": "3",
+      "X-Playne-Geo-Version": String(GEO_SCORE_VERSION),
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -212,7 +218,7 @@ export function useRankedRun(game: GameId) {
     run.run = api<Run>("/games", "POST", {
       game,
       mode,
-      geoRulesVersion: game === "geo" ? 3 : undefined,
+      geoRulesVersion: game === "geo" ? GEO_SCORE_VERSION : undefined,
     })
       .then((data) => {
         setFor(run, { status: "ready", id: data.id });
@@ -447,7 +453,11 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
     </div>
   );
 }
-export const resultText = (game: GameId, score: number, version = 3) =>
+export const resultText = (
+  game: GameId,
+  score: number,
+  version = GEO_SCORE_VERSION,
+) =>
   game === "circle"
     ? `${score.toFixed(1).replace(".", ",")}%`
     : `${geoPoints(score)} / ${game === "geo" && version !== 1 ? geoPoints(GEO_MAX_POINTS) : "500"}`;

@@ -248,7 +248,7 @@ suite("Playne database and OAuth integration", () => {
       method: "POST",
       url: "/api/games",
       headers,
-      payload: { game: "geo", geoRulesVersion: 3 },
+      payload: { game: "geo", geoRulesVersion: 4 },
     });
     const run = start.json();
     const old = run.challenge.places[0];
@@ -324,9 +324,9 @@ suite("Playne database and OAuth integration", () => {
     expect(stored.answers[0]).not.toHaveProperty("actual");
     expect(stored.answers[0]).not.toHaveProperty("guess");
   });
-  it("stores 500-point decimal games and projects v2 records while supporting older clients", async () => {
+  it("stores whole-point games and projects old records while supporting older clients", async () => {
     const headers = { origin, cookie: logged };
-    for (const version of [3, 2, 1]) {
+    for (const version of [4, 3, 2, 1]) {
       const start = await app.inject({
         method: "POST",
         url: "/api/games",
@@ -382,11 +382,17 @@ suite("Playne database and OAuth integration", () => {
     ).toBe(500);
     const profile = await app.inject({
       url: "/api/account",
-      headers: { ...headers, "x-playne-geo-version": "3" },
+      headers: { ...headers, "x-playne-geo-version": "4" },
     });
     expect(profile.json().best.find((b: any) => b.game === "geo").score).toBe(
       500,
     );
+    expect(
+      profile
+        .json()
+        .history.filter((h: any) => h.game === "geo" && h.version !== 1)
+        .every((h: any) => h.version === 4 && Number.isInteger(h.score)),
+    ).toBe(true);
     expect(
       profile
         .json()
@@ -433,6 +439,22 @@ suite("Playne database and OAuth integration", () => {
       expect(old.score).toBe(297.4);
       expect(old.rounds).toEqual([60.7, 36.8, 100, 99.9, 0]);
       expect(old.place).toBe(current.place);
+      const whole = (
+        await app.inject("/api/leaderboard?game=geo&version=4")
+      ).json();
+      const oldWhole = whole.entries.find(
+        (r: any) => r.nickname === "Old scale",
+      );
+      const decimalWhole = whole.entries.find(
+        (r: any) => r.nickname === "New scale",
+      );
+      expect(oldWhole.score).toBe(297);
+      expect(oldWhole.rounds).toEqual([61, 37, 100, 99, 0]);
+      expect(oldWhole.rounds.reduce((a: number, b: number) => a + b, 0)).toBe(
+        oldWhole.score,
+      );
+      expect(decimalWhole.score).toBe(297);
+      expect(oldWhole.place).toBe(decimalWhole.place);
       expect(current.score).toBe(297.4);
       const legacy = (
         await app.inject("/api/leaderboard?game=geo&version=2")
@@ -460,17 +482,17 @@ suite("Playne database and OAuth integration", () => {
       method: "POST",
       url: "/api/games",
       headers,
-      payload: { game: "geo", mode: "unknown", geoRulesVersion: 3 },
+      payload: { game: "geo", mode: "unknown", geoRulesVersion: 4 },
     });
     expect(bad.statusCode).toBe(400);
     const start = await app.inject({
       method: "POST",
       url: "/api/games",
       headers,
-      payload: { game: "geo", mode: "timed", geoRulesVersion: 3 },
+      payload: { game: "geo", mode: "timed", geoRulesVersion: 4 },
     });
     const run = start.json();
-    expect(run.version).toBe(3);
+    expect(run.version).toBe(4);
     const clock = vi.spyOn(Date, "now");
     let now = Date.now();
     clock.mockImplementation(() => now);
@@ -547,12 +569,12 @@ suite("Playne database and OAuth integration", () => {
       });
       expect(published.statusCode).toBe(200);
       const timed = await app.inject(
-        "/api/leaderboard?game=geo&mode=timed&version=3",
+        "/api/leaderboard?game=geo&mode=timed&version=4",
       );
       expect(timed.json().total).toBe(1);
       expect(timed.json().entries[0].score).toBe(100);
       const classic = await app.inject(
-        "/api/leaderboard?game=geo&mode=classic&version=3",
+        "/api/leaderboard?game=geo&mode=classic&version=4",
       );
       expect(classic.json().total).toBe(1);
       expect(classic.json().entries[0].score).not.toBe(100);

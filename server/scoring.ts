@@ -7,6 +7,7 @@ import {
   distanceKm,
   geoScore,
   geoFrom5000,
+  geoWholeRound,
   validPoint,
   validGeoMode,
   type GeoMode,
@@ -22,19 +23,29 @@ export const isGame = (v: unknown): v is GameId =>
   typeof v === "string" && Object.hasOwn(GAME_NAMES, v);
 export const SCORE_VERSION = 1;
 export const scoreVersion = (game: GameId) =>
-  game === "geo" ? 3 : SCORE_VERSION;
+  game === "geo" ? 4 : SCORE_VERSION;
 // Convert old rounds into tenths before summing, so displayed rounds match the total.
 export const GEO_V3_UNITS_SQL = `CASE WHEN game='geo' AND version=2 THEN (SELECT coalesce(sum(CASE WHEN (a->>'score')::numeric >= 5000 THEN 1000 ELSE LEAST(999,round((a->>'score')::numeric/5)) END),0)::integer FROM jsonb_array_elements(answers) AS a) ELSE score_units END`;
+export const GEO_V4_UNITS_SQL = `CASE WHEN game='geo' AND version IN(2,3) THEN (SELECT coalesce(sum(CASE WHEN (a->>'score')::numeric >= CASE WHEN version=2 THEN 5000 ELSE 100 END THEN 1000 ELSE LEAST(99,round((a->>'score')::numeric/CASE WHEN version=2 THEN 50 ELSE 1 END))*10 END),0)::integer FROM jsonb_array_elements(answers) AS a) ELSE score_units END`;
 export function geoProjection(run: any, viewerVersion: number) {
-  if (run.game !== "geo" || run.version !== 2 || viewerVersion !== 3)
+  if (
+    run.game !== "geo" ||
+    !(
+      (viewerVersion === 3 && run.version === 2) ||
+      (viewerVersion === 4 && [2, 3].includes(run.version))
+    )
+  )
     return run;
   const answers = run.answers.map((a: any) => ({
     ...a,
-    score: geoFrom5000(a.score),
+    score:
+      viewerVersion === 4
+        ? geoWholeRound(a.score, run.version)
+        : geoFrom5000(a.score),
   }));
   return {
     ...run,
-    version: 3,
+    version: viewerVersion,
     answers,
     score_units: run.score_units === null ? null : scoreUnits(answers),
   };
@@ -65,7 +76,7 @@ export function validateAnswer(
   index: number,
   input: any,
   now = Date.now(),
-  version = 3,
+  version = 4,
 ) {
   if (game === "naglaz") {
     const pair = pairs.find((p) => p.id === challenge.pairIds[index]);
@@ -144,7 +155,13 @@ export function validateAnswer(
         ? distance <= 0.25
           ? 5000
           : Math.min(4999, Math.round(5000 * Math.exp(-distance / 2000)))
-        : geoScore(distance);
+        : version === 3
+          ? distance <= 0.25
+            ? 100
+            : geoFrom5000(
+                Math.min(4999, Math.round(5000 * Math.exp(-distance / 2000))),
+              )
+          : geoScore(distance);
   return {
     guess: { lat: guess.lat, lng: guess.lng },
     actual,

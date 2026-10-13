@@ -8,6 +8,7 @@ import {
   geoRemaining,
   geoClock,
   geoPoints,
+  geoWholeRound,
   GEO_MAX_POINTS,
   readGeoStats,
   saveGeoStats,
@@ -39,17 +40,22 @@ describe("geographical answers", () => {
   });
   it("scores exact hits and gets lower as distance grows", () => {
     expect(geoScore(0.25)).toBe(100);
-    expect(geoScore(0.251)).toBe(99.9);
+    expect(geoScore(0.251)).toBe(99);
     expect(geoScore(20015)).toBe(0);
     expect(geoScore(NaN)).toBe(0);
-    expect(geoScore(1000)).toBe(60.7);
-    expect(geoScore(2000)).toBe(36.8);
-    expect(geoPoints(60.7000000001)).toBe("60,7");
+    expect(geoScore(1000)).toBe(61);
+    expect(geoScore(2000)).toBe(37);
+    expect(geoPoints(60.7000000001)).toBe("61");
     let previous = 100;
     for (let d = 0; d < 21000; d += 20) {
       expect(geoScore(d)).toBeLessThanOrEqual(previous);
+      expect(Number.isInteger(geoScore(d))).toBe(true);
       previous = geoScore(d);
     }
+    expect(geoWholeRound(4999, 2)).toBe(99);
+    expect(geoWholeRound(99.9, 3)).toBe(99);
+    expect(geoWholeRound(5000, 2)).toBe(100);
+    expect(geoWholeRound(60.7, 3)).toBe(61);
     expect(geoDistance(0.12)).toBe("120 м");
     expect(geoBounds({ lat: 0, lng: 179 }, { lat: 10, lng: -179 })).toEqual({
       south: 0,
@@ -93,6 +99,21 @@ describe("geographical sessions", () => {
     expect(JSON.parse(storage.get("playne:geo:v1")!).best).toBe(427);
     expect(GEO_MAX_POINTS).toBe(500);
   });
+  it("rounds decimal browser records, keeps played counts and rejects fractional current records", () => {
+    const storage = new Map<string, string>([
+      ["playne:geo:v3:classic", '{"best":123.7,"played":3,"recent":[]}'],
+    ]);
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => storage.get(k),
+      setItem: (k: string, v: string) => storage.set(k, v),
+    });
+    expect(readGeoStats()).toEqual({ best: 124, played: 3, recent: [] });
+    saveGeoStats({ best: 140, played: 4, recent: [] });
+    expect(readGeoStats().best).toBe(140);
+    expect(JSON.parse(storage.get("playne:geo:v3:classic")!).best).toBe(123.7);
+    storage.set("playne:geo:v4:classic", '{"best":140.5,"played":4}');
+    expect(readGeoStats().best).toBe(0);
+  });
   it("uses a deadline instead of interval ticks, including after a background tab resumes", () => {
     expect(geoRemaining(180000, 0)).toBe(180);
     expect(geoRemaining(180000, 75001)).toBe(105);
@@ -109,10 +130,10 @@ describe("geographical sessions", () => {
       getItem: (key: string) => storage.get(key),
       setItem: (key: string, value: string) => storage.set(key, value),
     });
-    expect(readGeoStats()).toEqual({ best: 428.5, played: 4, recent: [] });
+    expect(readGeoStats()).toEqual({ best: 429, played: 4, recent: [] });
     expect(readGeoStats("timed").best).toBe(300);
-    saveGeoStats({ best: 450.1, played: 5, recent: [] });
-    expect(readGeoStats().best).toBe(450.1);
+    saveGeoStats({ best: 450, played: 5, recent: [] });
+    expect(readGeoStats().best).toBe(450);
     expect(JSON.parse(storage.get("playne:geo:v2:classic")!).best).toBe(21427);
   });
 
@@ -123,13 +144,13 @@ describe("geographical sessions", () => {
       setItem: (key: string, value: string) => storage.set(key, value),
     });
     const stats = {
-      best: 428.5,
+      best: 429,
       played: 2,
       recent: [geoLocations[0].id, "missing"],
     };
     saveGeoStats(stats);
     expect(readGeoStats()).toEqual({ ...stats, recent: [geoLocations[0].id] });
-    storage.set("playne:geo:v3:classic", '{"best":999999,"played":1}');
+    storage.set("playne:geo:v4:classic", '{"best":999999,"played":1}');
     expect(readGeoStats().best).toBe(0);
     vi.stubGlobal("localStorage", {
       getItem: () => {

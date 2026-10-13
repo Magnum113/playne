@@ -2,7 +2,7 @@ import { geoLocations, type GeoLocation, type GeoRegion } from "./geoLocations";
 
 export type GeoPoint = { lat: number; lng: number };
 export type GeoMode = "classic" | "timed";
-export const GEO_SCORE_VERSION = 3;
+export const GEO_SCORE_VERSION = 4;
 export const GEO_ROUND_POINTS = 100;
 export const GEO_MAX_POINTS = 500;
 export const GEO_TIME_LIMIT_MS = 180000;
@@ -15,9 +15,13 @@ export const geoRemaining = (deadline: number, now = Date.now()) =>
 export const geoClock = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 export const geoPoints = (n: number) =>
-  n.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+  n.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
 export const geoFrom5000 = (score: number) =>
   score >= 5000 ? 100 : Math.min(99.9, Math.round(score / 5) / 10);
+export const geoWholeRound = (score: number, version: number) => {
+  const value = version === 2 ? score / 50 : score;
+  return value >= 100 ? 100 : Math.min(99, Math.round(value));
+};
 
 export type GeoStats = { best: number; played: number; recent: string[] };
 export type GeoAnswer = {
@@ -29,7 +33,7 @@ export type GeoAnswer = {
   score: number;
 };
 export const GEO_ROUNDS = 5;
-const storageKey = (mode: GeoMode) => `playne:geo:v3:${mode}`;
+const storageKey = (mode: GeoMode) => `playne:geo:v4:${mode}`;
 const REGIONS: GeoRegion[] = [
   "europe",
   "asia",
@@ -61,9 +65,7 @@ export function distanceKm(a: GeoPoint, b: GeoPoint) {
 export function geoScore(distance: number) {
   if (!Number.isFinite(distance) || distance < 0) return 0;
   if (distance <= 0.25) return 100;
-  return geoFrom5000(
-    Math.min(4999, Math.round(5000 * Math.exp(-distance / 2000))),
-  );
+  return Math.min(99, Math.round(100 * Math.exp(-distance / 2000)));
 }
 export function geoDistance(distance: number) {
   if (distance < 1)
@@ -104,24 +106,29 @@ export function readGeoStats(mode: GeoMode = "classic"): GeoStats {
   const empty = { best: 0, played: 0, recent: [] };
   try {
     const current = localStorage.getItem(storageKey(mode));
-    const legacy = current == null;
+    const decimals =
+      current == null ? localStorage.getItem(`playne:geo:v3:${mode}`) : null;
+    const version = current != null ? 4 : decimals != null ? 3 : 2;
     const raw = JSON.parse(
-      current ?? localStorage.getItem(`playne:geo:v2:${mode}`) ?? "null",
+      current ??
+        decimals ??
+        localStorage.getItem(`playne:geo:v2:${mode}`) ??
+        "null",
     );
     if (
       !raw ||
       !Number.isFinite(raw.best) ||
       raw.best < 0 ||
-      raw.best > (legacy ? 25000 : GEO_MAX_POINTS) ||
-      (legacy
-        ? !Number.isInteger(raw.best)
-        : Math.abs(raw.best * 10 - Math.round(raw.best * 10)) > 1e-8) ||
+      raw.best > (version === 2 ? 25000 : GEO_MAX_POINTS) ||
+      (version === 3
+        ? Math.abs(raw.best * 10 - Math.round(raw.best * 10)) > 1e-8
+        : !Number.isInteger(raw.best)) ||
       !Number.isInteger(raw.played) ||
       raw.played < 0
     )
       return empty;
     return {
-      best: legacy ? Math.round(raw.best / 5) / 10 : raw.best,
+      best: Math.round(version === 2 ? raw.best / 50 : raw.best),
       played: raw.played,
       recent: Array.isArray(raw.recent)
         ? raw.recent
