@@ -190,9 +190,6 @@ export default function Hub() {
             >
               <div className="card-topline">
                 <span className="card-category">ГЛАЗОМЕР</span>
-                <span className="card-badge available">
-                  <i /> Можно играть
-                </span>
               </div>
               <SizePreview />
               <div className="card-copy">
@@ -222,9 +219,6 @@ export default function Hub() {
             >
               <div className="card-topline">
                 <span className="card-category">ТОЧНОСТЬ</span>
-                <span className="card-badge available">
-                  <i /> Можно играть
-                </span>
               </div>
               <CirclePreview />
               <div className="card-copy">
@@ -254,9 +248,6 @@ export default function Hub() {
             >
               <div className="card-topline">
                 <span className="card-category">ЧУВСТВО ЦВЕТА</span>
-                <span className="card-badge available">
-                  <i /> Можно играть
-                </span>
               </div>
               <ColorPreview />
               <div className="card-copy">
@@ -282,9 +273,6 @@ export default function Hub() {
             >
               <div className="card-topline">
                 <span className="card-category">ГЕОГРАФИЯ</span>
-                <span className="card-badge available">
-                  <i /> Можно играть
-                </span>
               </div>
               <GeoPreview />
               <div className="card-copy">
