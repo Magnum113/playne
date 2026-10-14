@@ -1,11 +1,18 @@
 import {
+  createRankedQueue,
+  retryable,
+  sameColorTargets,
+  type RankedState,
+  type ServerRun,
+} from "./rankedQueue";
+import {
   GEO_MAX_POINTS,
   GEO_SCORE_VERSION,
   geoPoints,
   type GeoMode,
   type GeoPoint,
 } from "./geo";
-import { ACCOUNT_GOALS, reachGoal } from "./analytics";
+import { ACCOUNT_GOALS, reachGoal, type MetrikaParams } from "./analytics";
 import {
   createContext,
   useContext,
@@ -49,18 +56,35 @@ export async function api<T = any>(
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(path === "/games" ? 3500 : 15000),
+    signal: AbortSignal.timeout(15000),
   });
   const data = await response
     .json()
     .catch(() => ({ error: "Сервис временно недоступен" }));
-  if (!response.ok)
+  if (!response.ok || data.error)
     throw new ApiError(
       data.error ?? "Не удалось выполнить запрос",
-      response.status,
+      response.ok ? 502 : response.status,
     );
   return data;
 }
+const publishedEvents = new Set<string>();
+export function trackPublished(id: string, params: MetrikaParams) {
+  if (publishedEvents.has(id)) return;
+  publishedEvents.add(id);
+  reachGoal(ACCOUNT_GOALS.resultPublished, params);
+}
+let refreshAuth: () => Promise<void> = async () => {};
+const rankedQueue = createRankedQueue(api, {
+  onUnauthorized: () => void refreshAuth(),
+  onPublished: (run, score) =>
+    trackPublished(run.id, {
+      game: run.game,
+      score,
+      automatic: true,
+      mode: run.mode ?? "classic",
+    }),
+});
 const AuthContext = createContext<{
   user: User | null;
   loading: boolean;
@@ -85,14 +109,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         url.searchParams.delete("auth");
         window.history.replaceState(null, "", url.pathname + url.search);
       }
-    } catch {
-      setUser(null);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) setUser(null);
     } finally {
       setLoading(false);
     }
   }
   useEffect(() => {
+    refreshAuth = refresh;
     void refresh();
+    return () => {
+      refreshAuth = async () => {};
+    };
+  }, []);
+  useEffect(() => {
+    rankedQueue.connect(user?.id ?? null);
+  }, [user?.id]);
+  useEffect(() => {
+    const recover = () => {
+      rankedQueue.retry();
+      void refresh();
+    };
+    const visible = () => {
+      if (document.visibilityState === "visible") recover();
+    };
+    window.addEventListener("online", recover);
+    window.addEventListener("focus", recover);
+    const stored = (e: StorageEvent) => {
+      if (e.key === "playne:ranked-pending:v1") rankedQueue.recover();
+    };
+    document.addEventListener("visibilitychange", visible);
+    window.addEventListener("storage", stored);
+    return () => {
+      window.removeEventListener("online", recover);
+      window.removeEventListener("focus", recover);
+      document.removeEventListener("visibilitychange", visible);
+      window.removeEventListener("storage", stored);
+    };
   }, []);
   return (
     <AuthContext.Provider value={{ user, loading, refresh }}>
@@ -126,263 +179,218 @@ export function AccountNav() {
     </a>
   );
 }
-type Run = { id: string; game: GameId; challenge: any; version?: number };
-type RunState = {
-  status:
-    | "idle"
-    | "loading"
-    | "local"
-    | "ready"
-    | "checking"
-    | "complete"
-    | "saving"
-    | "save-error"
-    | "saved"
-    | "error";
-  id?: string;
-  score?: number;
-  message?: string;
-};
-type Task = { index: number; answer: unknown };
+export class RankedSyncError extends Error {}
 export function useRankedRun(game: GameId) {
-  const { user, refresh } = useAuth();
-  const [state, setState] = useState<RunState>({ status: "idle" });
-  const publishing = useRef<string | null>(null);
+  const [state, setState] = useState<RankedState>({ status: "idle" });
   const current = useRef<{
-    epoch: number;
+    generation: number;
+    key?: string;
     mode?: GeoMode;
-    run: Promise<Run | null>;
-    tasks: Task[];
-    accepted: number;
-    working: boolean;
-    drained?: Promise<void>;
-    pinWork?: Promise<void>;
-  }>({
-    epoch: 0,
-    run: Promise.resolve(null),
-    tasks: [],
-    accepted: 0,
-    working: false,
-  });
-  const alive = useRef(true);
-  useEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-    };
-  }, []);
-  function setFor(run: typeof current.current, next: RunState) {
-    if (alive.current && current.current === run) setState(next);
+    run: Promise<ServerRun | null>;
+    queued: { index: number; answer: unknown }[];
+  }>({ generation: 0, run: Promise.resolve(null), queued: [] });
+  const restoreAction = useRef<(() => void) | null>(null);
+  const alive = useRef(true),
+    restoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function sync() {
+    const p = current.current.key && rankedQueue.get(current.current.key);
+    if (p && alive.current) setState({ ...p.state });
   }
   useEffect(() => {
-    if (state.status !== "complete" || !state.id || !user) return;
-    const id = state.id;
-    if (publishing.current === id) return;
-    publishing.current = id;
-    const activeRun = current.current;
-    setFor(activeRun, { ...state, status: "saving" });
-    void api(`/games/${id}/publish`, "POST", {})
-      .then(() => {
-        setFor(activeRun, { ...state, status: "saved" });
-        reachGoal(ACCOUNT_GOALS.resultPublished, {
-          game,
-          score: state.score ?? 0,
-          automatic: true,
-          mode: activeRun.mode ?? "classic",
-        });
-      })
-      .catch((e) => {
-        setFor(activeRun, {
-          ...state,
-          status: "save-error",
-          message:
-            e instanceof Error ? e.message : "Не удалось сохранить результат",
-        });
-        if (e instanceof ApiError && e.status === 401) void refresh();
-      })
-      .finally(() => {
-        if (publishing.current === id) publishing.current = null;
-      });
-  }, [state, game, user?.id]);
-  function begin(mode?: GeoMode): Promise<Run | null> {
-    const run = {
-      epoch: current.current.epoch + 1,
-      mode,
-      run: Promise.resolve(null) as Promise<Run | null>,
-      tasks: [] as Task[],
-      accepted: 0,
-      working: false,
+    alive.current = true;
+    const off = rankedQueue.subscribe(sync);
+    return () => {
+      alive.current = false;
+      off();
+      if (restoreTimer.current) clearTimeout(restoreTimer.current);
     };
-    current.current = run;
+  }, []);
+  function activate(data: ServerRun | null, generation: number) {
+    const key = rankedQueue.add(data, game, current.current.mode);
+    if (current.current.generation === generation) {
+      current.current.key = key;
+      rankedQueue.enqueueMany(key, current.current.queued);
+      current.current.queued = [];
+      sync();
+    }
+    return data;
+  }
+  function begin(mode?: GeoMode): Promise<ServerRun | null> {
+    const generation = current.current.generation + 1;
+    if (restoreTimer.current) clearTimeout(restoreTimer.current);
+    restoreAction.current = null;
+    const active = {
+      generation,
+      mode,
+      key: undefined as string | undefined,
+      queued: [] as { index: number; answer: unknown }[],
+      run: Promise.resolve(null) as Promise<ServerRun | null>,
+    };
+    current.current = active;
+    if (game === "circle") {
+      active.key = rankedQueue.add(null, "circle");
+      sync();
+      return active.run;
+    }
     setState({ status: "loading" });
-    run.run = api<Run>("/games", "POST", {
+    active.run = api<ServerRun>("/games", "POST", {
       game,
       mode,
       geoRulesVersion: game === "geo" ? GEO_SCORE_VERSION : undefined,
     })
-      .then((data) => {
-        setFor(run, { status: "ready", id: data.id });
-        return data;
-      })
-      .catch(() => {
-        setFor(run, { status: "local" });
+      .then((data) => activate(data, generation))
+      .catch((e) => {
+        if (alive.current && current.current === active)
+          setState({
+            status: "error",
+            message:
+              "Не удалось загрузить партию. Проверь соединение и попробуй ещё раз.",
+          });
         return null;
       });
-    return run.run;
-  }
-  async function flush(run = current.current) {
-    if (run.working) return run.drained;
-    run.working = true;
-    let finish: () => void = () => {};
-    run.drained = new Promise<void>((resolve) => {
-      finish = resolve;
-    });
-    const data = await run.run;
-    if (!data) {
-      run.working = false;
-      finish();
-      return;
-    }
-    try {
-      while (run.accepted < run.tasks.length) {
-        setFor(run, { status: "checking", id: data.id });
-        const task = run.tasks[run.accepted];
-        const result = await api(`/games/${data.id}/answers`, "POST", task);
-        run.accepted++;
-        setFor(run, {
-          status: result.completed ? "complete" : "ready",
-          id: data.id,
-          score: result.score ?? undefined,
-        });
-      }
-    } catch (e) {
-      setFor(run, {
-        status: "error",
-        id: data.id,
-        message:
-          e instanceof Error ? e.message : "Не удалось проверить результат",
-      });
-    } finally {
-      run.working = false;
-      finish();
-    }
+    return active.run;
   }
   function submit(index: number, answer: unknown) {
-    const run = current.current;
-    if (!run.tasks.some((t) => t.index === index))
-      run.tasks.push({ index, answer });
-    void flush(run);
+    const active = current.current;
+    if (active.key) rankedQueue.enqueue(active.key, index, answer);
+    else if (!active.queued.some((t) => t.index === index))
+      active.queued.push({ index, answer });
   }
-  async function panorama(index: number, pano: string) {
-    const run = current.current;
-    // Commit the preceding answer before registering the next round.
-    await flush(run);
-    const data = await run.run;
-    if (!data) return null;
-    try {
-      const verified = await api(`/games/${data.id}/panorama`, "POST", {
-        index,
-        pano,
-      });
-      return verified.actual;
-    } catch (e) {
-      setFor(run, {
-        status: "local",
-        message: e instanceof Error ? e.message : undefined,
-      });
-      current.current = { ...run, run: Promise.resolve(null) };
-      return null;
+  async function resumeColor(
+    id: string | undefined,
+    targets: unknown[],
+    answers: { choice: unknown }[],
+  ) {
+    if (game !== "colorfle") return;
+    if (restoreTimer.current) clearTimeout(restoreTimer.current);
+    restoreAction.current = () => void resumeColor(id, targets, answers);
+    const active = current.current;
+    const known = active.key ? rankedQueue.get(active.key) : undefined;
+    if (known?.run && sameColorTargets(known.run.challenge.targets, targets))
+      return;
+    const key = id ? rankedQueue.find(id) : rankedQueue.findColor(targets);
+    const cached = key ? rankedQueue.get(key) : undefined;
+    if (
+      cached?.run &&
+      sameColorTargets(cached.run.challenge.targets, targets)
+    ) {
+      active.key = key;
+      active.run = Promise.resolve(cached.run);
+      rankedQueue.enqueueMany(key!, [
+        ...answers.map((answer, index) => ({
+          index,
+          answer: { choice: answer.choice },
+        })),
+        ...active.queued,
+      ]);
+      active.queued = [];
+      sync();
+      void rankedQueue.drain(key!);
+      return;
     }
-  }
-  async function replaceGeo(index: number) {
-    const run = current.current;
-    await flush(run);
-    const data = await run.run;
-    if (!data) return null;
-    try {
-      return (await api(`/games/${data.id}/replace`, "POST", { index })).place;
-    } catch {
-      local();
-      return null;
-    }
-  }
-  async function geoReady(index: number) {
-    const run = current.current;
-    await flush(run);
-    const data = await run.run;
-    if (!data) return null;
-    try {
-      const timing = await api(`/games/${data.id}/ready`, "POST", { index });
-      return Date.now() + timing.deadline - timing.serverNow;
-    } catch {
-      if (current.current === run) local();
-      return null;
-    }
-  }
-  function geoPin(index: number, guess: GeoPoint) {
-    const run = current.current;
-    run.pinWork = (run.pinWork ?? Promise.resolve()).then(async () => {
-      const data = await run.run;
-      if (!data) return;
-      try {
-        await api(`/games/${data.id}/pin`, "POST", { index, guess });
-      } catch (e) {
+    setState({ status: "loading" });
+    active.run = (
+      id
+        ? api<ServerRun>(`/games/${id}`)
+        : api<ServerRun>("/games/resume", "POST", { game, targets })
+    )
+      .then((data) => {
         if (
-          !(e instanceof ApiError && e.status === 409) &&
-          current.current === run
+          data.game !== game ||
+          !sameColorTargets(data.challenge?.targets, targets)
         )
-          local();
-      }
-    });
+          throw new ApiError(
+            "Сохранённая партия не совпадает с серверным заданием.",
+            409,
+          );
+        if (current.current !== active) return null;
+        active.queued = [
+          ...answers.map((answer, index) => ({
+            index,
+            answer: { choice: answer.choice },
+          })),
+          ...active.queued,
+        ];
+        activate(data, active.generation);
+        void rankedQueue.drain(active.key!);
+        return data;
+      })
+      .catch((e) => {
+        if (alive.current && current.current === active) {
+          setState({
+            status: "error",
+            message: retryable(e)
+              ? "Восстанавливаем соединение. Результат отправится автоматически."
+              : e instanceof Error
+                ? e.message
+                : "Не удалось восстановить партию.",
+          });
+          if (retryable(e))
+            restoreTimer.current = setTimeout(
+              () => void resumeColor(id, targets, answers),
+              2000,
+            );
+        }
+        return null;
+      });
+    await active.run;
+  }
+  async function geoRequest(path: string, body: unknown) {
+    const active = current.current,
+      data = await active.run;
+    if (!data || !active.key)
+      throw new RankedSyncError("Нет соединения с сервером");
+    await rankedQueue.drain(active.key);
+    if (rankedQueue.get(active.key)?.tasks.length)
+      throw new RankedSyncError("Предыдущий ответ ещё отправляется");
+    try {
+      return await api(`/games/${data.id}/${path}`, "POST", body);
+    } catch (e) {
+      if (retryable(e))
+        throw new RankedSyncError(
+          "Не удалось связаться с сервером. Раунд сохранён, попробуй ещё раз.",
+        );
+      throw e;
+    }
   }
   async function geoAnswer(
     index: number,
     guess: GeoPoint | null,
     expired: boolean,
   ) {
-    const run = current.current;
-    await flush(run);
-    await run.pinWork;
-    const data = await run.run;
-    if (!data) return null;
-    try {
-      setFor(run, { status: "checking", id: data.id });
-      const result = await api(`/games/${data.id}/answers`, "POST", {
-        index,
-        answer: { guess, expired },
-      });
-      setFor(run, {
-        status: result.completed ? "complete" : "ready",
-        id: data.id,
-        score: result.score ?? undefined,
-      });
-      return result.answer;
-    } catch {
-      if (current.current === run) local();
-      return null;
-    }
-  }
-  function local() {
-    const run = current.current;
-    setFor(run, { status: "local" });
-    current.current = { ...run, run: Promise.resolve(null) };
+    const active = current.current;
+    submit(index, { guess, expired });
+    await active.run;
+    if (!active.key) return null;
+    await rankedQueue.drain(active.key);
+    return rankedQueue.get(active.key)?.results[index]?.answer ?? null;
   }
   return {
     state,
     mode: current.current.mode ?? "classic",
-    local,
-    replaceGeo,
     begin,
     submit,
-    panorama,
-    geoReady,
-    geoPin,
+    resumeColor,
+    panorama: async (index: number, pano: string) =>
+      (await geoRequest("panorama", { index, pano })).actual,
+    replaceGeo: async (index: number) =>
+      (await geoRequest("replace", { index })).place,
+    geoReady: async (index: number) => {
+      const timing = await geoRequest("ready", { index });
+      return Date.now() + timing.deadline - timing.serverNow;
+    },
+    geoPin: (index: number, guess: GeoPoint) => {
+      if (current.current.key)
+        rankedQueue.pin(current.current.key, index, guess);
+    },
     geoAnswer,
-    retry: () => void flush(),
-    retrySave: () =>
-      setState((s) => ({ ...s, status: "complete", message: undefined })),
-    saved: (id: string) =>
-      setState((s) => (s.id === id ? { ...s, status: "saved" } : s)),
+    retry: () => {
+      if (current.current.key) rankedQueue.retry(current.current.key);
+      else restoreAction.current?.();
+    },
+    retrySave: () => {
+      if (current.current.key) rankedQueue.retry(current.current.key);
+    },
   };
 }
 export type RankedRun = ReturnType<typeof useRankedRun>;
@@ -398,13 +406,10 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
         encodeURIComponent(`/account/?claim=${s.id}`),
     );
   }
-  if (s.status === "idle" || s.status === "local")
+  if (s.status === "idle")
     return (
       <div className="save-result">
-        <p>
-          Рекорд сохранён в этом браузере. Для рейтинга начни новую партию с
-          доступным соединением.
-        </p>
+        <p>Восстанавливаем сохранение результата…</p>
         <a href={ranking}>Рейтинг игры →</a>
       </div>
     );
@@ -433,7 +438,8 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
           : waiting
             ? "Сохраняем результат в рейтинг…"
             : s.status === "save-error"
-              ? "Не удалось сохранить результат. Проверь соединение и попробуй ещё раз."
+              ? (s.message ??
+                "Результат сохранён в браузере. Повторяем отправку в рейтинг…")
               : "Войди через Яндекс, чтобы сохранить этот результат в рейтинг."}
       </p>
       <div>

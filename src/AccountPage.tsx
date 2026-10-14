@@ -1,7 +1,14 @@
 import { GEO_MODES, geoModeName, type GeoMode } from "./geo";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { api, useAuth, gameNames, resultText, type GameId } from "./account";
+import {
+  api,
+  useAuth,
+  gameNames,
+  resultText,
+  trackPublished,
+  type GameId,
+} from "./account";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 export default function AccountPage() {
@@ -81,7 +88,7 @@ export default function AccountPage() {
       setPending((p: any) => ({ ...p, published: true }));
       setData(await api("/account"));
       setMessage("Результат сохранён в рейтинг.");
-      reachGoal(ACCOUNT_GOALS.resultPublished, {
+      trackPublished(validClaim, {
         game: pending.game,
         score: pending.score,
         automatic: true,

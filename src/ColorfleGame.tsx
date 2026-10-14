@@ -200,11 +200,21 @@ export default function ColorfleGame() {
   async function beginOnline(replay = false) {
     if (ranked.state.status === "loading") return;
     const online = await ranked.begin();
+    if (!online) return;
     if (replay)
       dispatch({ type: "new", session: newShadeSession(current.current) });
-    if (online) dispatch({ type: "ranked", targets: online.challenge.targets });
+    if (online)
+      dispatch({
+        type: "ranked",
+        targets: online.challenge.targets,
+        id: online.id,
+      });
     if (!replay) dispatch({ type: "start" });
   }
+  useEffect(() => {
+    if (state.started)
+      void ranked.resumeColor(state.rankedId, state.targets, state.answers);
+  }, [state.started, state.rankedId, state.targets]);
   useEffect(() => saveShadeSession(state), [state]);
   useEffect(() => {
     if (phase === "reveal" || phase === "finished") result.current?.focus();
@@ -272,6 +282,9 @@ export default function ColorfleGame() {
             >
               Начать игру <span aria-hidden="true">↗</span>
             </button>
+            {ranked.state.status === "error" && (
+              <p role="status">{ranked.state.message}</p>
+            )}
             <small>Без таймера и регистрации.</small>
           </section>
         ) : (

@@ -1,4 +1,9 @@
-import { AccountNav, useRankedRun, SaveResult } from "./account";
+import {
+  AccountNav,
+  useRankedRun,
+  SaveResult,
+  RankedSyncError,
+} from "./account";
 import { useEffect, useRef, useState } from "react";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
@@ -6,7 +11,6 @@ import GeoPreview from "./GeoPreview";
 import GeoAbout from "./GeoAbout";
 import { GEO_GOALS, reachGoal } from "./analytics";
 import {
-  chooseGeoRounds,
   distanceKm,
   geoBounds,
   geoDistance,
@@ -17,7 +21,6 @@ import {
   geoModeName,
   geoCanMove,
   geoIsLandmarks,
-  geoCatalog,
   geoBearing,
   geoPanoramaFits,
   geoIsTimed,
@@ -472,8 +475,9 @@ export default function GeoGame() {
           });
           busy.current = false;
           return;
-        } catch {
+        } catch (e) {
           if (token !== operation.current) return;
+          if (e instanceof RankedSyncError) throw e;
           badPlaces.current.add(place.id);
           const onlineReplacement = await ranked.replaceGeo(index);
           if (onlineReplacement) {
@@ -481,20 +485,7 @@ export default function GeoGame() {
             rounds.current[index] = place;
             continue;
           }
-          ranked.local();
-          const next = geoCatalog(modeRef.current).find(
-            (candidate) =>
-              candidate.region === place.region &&
-              !badPlaces.current.has(candidate.id) &&
-              !rounds.current.some(
-                (other, i) =>
-                  i !== index &&
-                  (other.id === candidate.id ||
-                    other.countryCode === candidate.countryCode),
-              ),
-          );
-          if (!next) throw new Error("No alternative");
-          place = next;
+          throw new Error("No replacement available");
         }
       }
       throw new Error("No panorama");
@@ -518,9 +509,13 @@ export default function GeoGame() {
     const online = await ranked.begin(mode);
     if (token !== operation.current) return;
     busy.current = false;
-    rounds.current =
-      online?.challenge.places ??
-      chooseGeoRounds(statsRef.current.recent, Math.random, modeRef.current);
+    if (!online) {
+      setError(
+        "Не удалось загрузить партию. Проверь соединение и попробуй ещё раз.",
+      );
+      return;
+    }
+    rounds.current = online.challenge.places;
     answersRef.current = [];
     setAnswers([]);
     reachGoal(replay ? GEO_GOALS.gameRestart : GEO_GOALS.gameStart, { mode });
@@ -552,13 +547,14 @@ export default function GeoGame() {
     const verified = await ranked.geoAnswer(round, selected, timedOut);
     if (token !== operation.current) return;
     const distance = selected ? distanceKm(selected, correct) : null;
-    const result: GeoAnswer = verified ?? {
+    const result: GeoAnswer = {
       location: place,
       guess: selected,
       actual: correct,
       distance,
       score: distance === null ? 0 : geoScore(distance),
       timedOut,
+      ...verified,
     };
     answersRef.current = [...answersRef.current, result];
     setAnswers(answersRef.current);
@@ -800,6 +796,7 @@ export default function GeoGame() {
               >
                 Начать игру <span aria-hidden="true">↗</span>
               </button>
+              {error && <p role="status">{error}</p>}
               <small>
                 Бесплатно и без регистрации. У каждого режима свой рейтинг.
               </small>

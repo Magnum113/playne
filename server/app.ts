@@ -1,4 +1,5 @@
 import Fastify, { type FastifyRequest } from "fastify";
+import { validHSV } from "../src/colorfle";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import { randomBytes, createHash } from "node:crypto";
@@ -147,7 +148,7 @@ export async function buildApp(
     )
       failure("Партия не найдена", 404);
     if (!game.published_at && new Date(game.expires_at).getTime() < Date.now())
-      failure("Срок сохранения партии истёк. Начни новую.", 410);
+      failure("Срок сохранения этой партии истёк.", 410);
     return game;
   }
   app.get("/api/health", async () => {
@@ -367,6 +368,40 @@ export async function buildApp(
       };
     },
   );
+  // Recover only a challenge previously issued to this browser or account.
+  app.post("/api/games/resume", async (req, reply) => {
+    const { game, targets } = req.body as any;
+    if (
+      game !== "colorfle" ||
+      !Array.isArray(targets) ||
+      targets.length !== 5 ||
+      !targets.every(validHSV)
+    )
+      failure("Некорректная сохранённая партия");
+    const b = browser(req, reply),
+      u = await user(req);
+    const { rows } = await pool.query(
+      "SELECT * FROM playne_games WHERE game='colorfle' AND version=$1 AND (browser_hash=$2 OR owner_id=$3) AND challenge->'targets'=$4::jsonb AND (published_at IS NOT NULL OR expires_at>now()) ORDER BY created_at DESC LIMIT 1",
+      [scoreVersion("colorfle"), b, u?.id ?? null, JSON.stringify(targets)],
+    );
+    const run = rows[0];
+    if (!run)
+      failure(
+        "Для этой партии не найдено серверное задание. Результат сохранён в браузере.",
+        404,
+      );
+    return {
+      id: run.id,
+      game: run.game,
+      mode: run.mode,
+      version: run.version,
+      challenge: publicChallenge(run.game, run.challenge),
+      answers: run.answers,
+      score: run.score_units === null ? null : run.score_units / 10,
+      completed: !!run.completed_at,
+      published: !!run.published_at,
+    };
+  });
   app.get("/api/games/:id", async (req, reply) => {
     const run = geoProjection(
       await owned(req, reply, (req.params as any).id, pool),
@@ -379,6 +414,7 @@ export async function buildApp(
       version: run.version,
       score: run.score_units === null ? null : run.score_units / 10,
       answers: run.answers,
+      challenge: publicChallenge(run.game, run.challenge),
       published: !!run.published_at,
       completed: !!run.completed_at,
     };
@@ -592,6 +628,7 @@ export async function buildApp(
         return {
           answer: run.answers[input.index],
           completed: !!run.completed_at,
+          published: !!run.published_at,
           score: run.score_units === null ? null : run.score_units / 10,
         };
       }
@@ -613,14 +650,33 @@ export async function buildApp(
       const answers = [...run.answers, answer],
         complete = answers.length === (run.game === "circle" ? 1 : 5),
         units = complete ? scoreUnits(answers) : null;
+      const viewer = complete ? await user(req, c) : null;
+      const publish = !!viewer && (!run.owner_id || run.owner_id === viewer.id);
+      const savedAnswers =
+        publish && run.game === "geo"
+          ? answers.map(({ actual, guess, ...answer }: any) => answer)
+          : answers;
+      const savedChallenge =
+        publish && run.game === "geo"
+          ? { places: run.challenge.places, mode: run.mode }
+          : run.challenge;
       await c.query(
-        "UPDATE playne_games SET answers=$1,score_units=$2,completed_at=CASE WHEN $3 THEN now() ELSE NULL END WHERE id=$4",
-        [JSON.stringify(answers), units, complete, run.id],
+        "UPDATE playne_games SET answers=$1,score_units=$2,completed_at=CASE WHEN $3 THEN now() ELSE NULL END,owner_id=CASE WHEN $5 THEN $6 ELSE owner_id END,published_at=CASE WHEN $5 THEN coalesce(published_at,now()) ELSE published_at END,challenge=$7 WHERE id=$4",
+        [
+          JSON.stringify(savedAnswers),
+          units,
+          complete,
+          run.id,
+          publish,
+          viewer?.id ?? null,
+          JSON.stringify(savedChallenge),
+        ],
       );
       await c.query("COMMIT");
       return {
         answer,
         completed: complete,
+        published: publish || !!run.published_at,
         score: units === null ? null : units / 10,
       };
     } catch (e) {

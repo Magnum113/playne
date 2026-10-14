@@ -5,6 +5,7 @@ export type ShadeAnswer = { choice: HSV; score: number };
 export type ShadeStats = { played: number; best: number };
 export type ShadeSession = {
   version: 2;
+  rankedId?: string;
   targets: HSV[];
   answers: ShadeAnswer[];
   round: number;
@@ -120,7 +121,7 @@ export const shadePhase = (
         ? "reveal"
         : "picking";
 export type ShadeAction =
-  | { type: "ranked"; targets: HSV[] }
+  | { type: "ranked"; targets: HSV[]; id: string }
   | { type: "start" }
   | { type: "pick"; color: HSV }
   | { type: "submit" }
@@ -134,7 +135,7 @@ export function shadeReducer(
     return state.answers.length === 0 &&
       action.targets.length === 5 &&
       action.targets.every(validHSV)
-      ? { ...state, targets: action.targets }
+      ? { ...state, targets: action.targets, rankedId: action.id }
       : state;
   if (action.type === "start")
     return state.started ? state : { ...state, started: true };
@@ -209,6 +210,11 @@ export function parseShadeSession(raw: string | null): ShadeSession | null {
       s.stats.best < 0 ||
       s.stats.best > ROUND_COUNT * 100 ||
       (s.answers.length === ROUND_COUNT && s.stats.played < 1)
+    )
+      return null;
+    if (
+      s.rankedId !== undefined &&
+      (typeof s.rankedId !== "string" || !/^[0-9a-f-]{36}$/i.test(s.rankedId))
     )
       return null;
     return s as ShadeSession;

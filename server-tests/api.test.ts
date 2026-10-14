@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 import { Pool } from "pg";
 import { readFileSync } from "node:fs";
+import { pairs, objects } from "../src/data";
 import { buildApp } from "../server/app";
 const db = process.env.TEST_DATABASE_URL;
 const suite = db ? describe : describe.skip;
@@ -907,6 +908,151 @@ suite("Playne database and OAuth integration", () => {
       "moving-timed",
       "timed",
     ]);
+  });
+  it("recovers only previously issued color challenges owned by this browser", async () => {
+    const headers = { origin, cookie: guest };
+    const start = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers,
+      payload: { game: "colorfle" },
+    });
+    const issued = start.json();
+    const body = { game: "colorfle", targets: issued.challenge.targets };
+    const resume = await app.inject({
+      method: "POST",
+      url: "/api/games/resume",
+      headers,
+      payload: body,
+    });
+    expect(resume.statusCode).toBe(200);
+    expect(resume.json().id).toBe(issued.id);
+    expect(resume.json().challenge).toEqual(issued.challenge);
+    const unrelated = await app.inject({
+      method: "POST",
+      url: "/api/games/resume",
+      headers: { origin },
+      payload: body,
+    });
+    expect(unrelated.statusCode).toBe(404);
+    const changed = structuredClone(body);
+    changed.targets[0].h = (changed.targets[0].h + 1) % 360;
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/games/resume",
+          headers,
+          payload: changed,
+        })
+      ).statusCode,
+    ).toBe(404);
+    for (let index = 0; index < 5; index++)
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: `/api/games/${issued.id}/answers`,
+            headers,
+            payload: { index, answer: { choice: { h: 180, s: 50, v: 75 } } },
+          })
+        ).json().published,
+      ).toBe(false);
+    const complete = (
+      await app.inject({
+        method: "POST",
+        url: "/api/games/resume",
+        headers,
+        payload: body,
+      })
+    ).json();
+    expect(complete.completed).toBe(true);
+    expect(complete.published).toBe(false);
+    expect(complete.answers).toHaveLength(5);
+  });
+  it("automatically publishes each authenticated game on its final answer exactly once", async () => {
+    const headers = { origin, cookie: logged, "x-playne-geo-version": "4" };
+    for (const game of ["naglaz", "circle", "colorfle", "geo"]) {
+      const issued = (
+        await app.inject({
+          method: "POST",
+          url: "/api/games",
+          headers,
+          payload: { game, geoRulesVersion: 4 },
+        })
+      ).json();
+      const count = game === "circle" ? 1 : 5;
+      let answer: any;
+      for (let index = 0; index < count; index++) {
+        if (game === "naglaz") {
+          const pair = pairs.find(
+            (p) => p.id === issued.challenge.pairIds[index],
+          )!;
+          answer = { guess: objects[pair.reference].size * 0.7 };
+        } else if (game === "colorfle")
+          answer = { choice: { h: 180, s: 50, v: 75 } };
+        else if (game === "circle")
+          answer = {
+            points: Array.from({ length: 181 }, (_, i) => ({
+              x: 300 + 150 * Math.cos((i / 180) * 2 * Math.PI),
+              y: 300 + 140 * Math.sin((i / 180) * 2 * Math.PI),
+            })),
+          };
+        else {
+          const place = issued.challenge.places[index];
+          metadataLocation = place.view ?? { lat: place.lat, lng: place.lng };
+          expect(
+            (
+              await app.inject({
+                method: "POST",
+                url: `/api/games/${issued.id}/panorama`,
+                headers,
+                payload: { index, pano: "automatic-" + index },
+              })
+            ).statusCode,
+          ).toBe(200);
+          answer = { guess: { lat: 20, lng: 0 }, expired: false };
+        }
+        const response = await app.inject({
+          method: "POST",
+          url: `/api/games/${issued.id}/answers`,
+          headers,
+          payload: { index, answer },
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.json().published).toBe(index === count - 1);
+      }
+      const before = (
+        await pool.query("SELECT published_at FROM playne_games WHERE id=$1", [
+          issued.id,
+        ])
+      ).rows[0].published_at;
+      expect(before).not.toBeNull();
+      const retry = await app.inject({
+        method: "POST",
+        url: `/api/games/${issued.id}/answers`,
+        headers,
+        payload: { index: count - 1, answer },
+      });
+      expect(retry.json().published).toBe(true);
+      const saved = (
+        await app.inject({ url: `/api/games/${issued.id}`, headers })
+      ).json();
+      expect(saved.completed).toBe(true);
+      expect(saved.published).toBe(true);
+      expect(
+        (
+          await pool.query(
+            "SELECT published_at FROM playne_games WHERE id=$1",
+            [issued.id],
+          )
+        ).rows[0].published_at,
+      ).toEqual(before);
+      if (game === "geo") {
+        expect(saved.answers[4].actual).toBeUndefined();
+        expect(saved.answers[4].guess).toBeUndefined();
+      }
+    }
   });
   it("revokes the authenticated session on logout", async () => {
     const out = await app.inject({

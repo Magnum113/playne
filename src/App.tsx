@@ -5,7 +5,7 @@ import Board from "./Board";
 import Silhouette from "./Silhouette";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import { METRIKA_GOALS, reachGoal } from "./analytics";
-import { objects, chooseRounds, pairs } from "./data";
+import { objects, pairs } from "./data";
 import type { Pair } from "./data";
 import {
   clamp,
@@ -134,7 +134,6 @@ export default function App() {
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const locked = useRef(false);
-  const previousRoundIds = useRef<string[]>([]);
   const preloadedImages = useRef<HTMLImageElement[]>([]);
   const total = results.reduce((sum, r) => sum + r.points, 0);
   useEffect(() => {
@@ -172,12 +171,10 @@ export default function App() {
     });
     if (ranked.state.status === "loading") return;
     const online = await ranked.begin();
-    const nextRounds: Pair[] = online
-      ? online.challenge.pairIds.map(
-          (id: string) => pairs.find((p) => p.id === id)!,
-        )
-      : chooseRounds(previousRoundIds.current);
-    previousRoundIds.current = nextRounds.map((round) => round.id);
+    if (!online) return;
+    const nextRounds: Pair[] = online.challenge.pairIds.map((id: string) =>
+      pairs.find((p) => p.id === id)!,
+    );
     setRounds(nextRounds);
     setIndex(0);
     setResults([]);
@@ -274,6 +271,9 @@ export default function App() {
         </div>
       </header>
       <main id="main-content">
+        {screen === "start" && ranked.state.status === "error" && (
+          <p role="status">{ranked.state.message}</p>
+        )}
         {screen === "start" && (
           <section className="start-screen">
             <div className="intro">
