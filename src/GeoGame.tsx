@@ -740,7 +740,7 @@ export default function GeoGame() {
         )}
         {active && (
           <div className="geo-status">
-            <div>
+            <div className="geo-status-round">
               <span className="eyebrow">РАУНД {round + 1} ИЗ 5</span>
               <div className="geo-dots" aria-hidden="true">
                 {[0, 1, 2, 3, 4].map((i) => (
@@ -765,8 +765,13 @@ export default function GeoGame() {
                   {geoClock(remaining)}
                 </span>
               )}
-              <span className="geo-score">
-                Очки <strong>{geoPoints(total)}</strong> / 500
+              <span
+                className="geo-score"
+                aria-label={`Очки: ${geoPoints(total)} из 500`}
+              >
+                <span className="geo-score-label">Очки</span>
+                <strong>{geoPoints(total)}</strong>
+                <span className="geo-score-max">/ 500</span>
               </span>
             </div>
           </div>
