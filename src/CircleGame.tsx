@@ -14,7 +14,7 @@ import {
 } from "./circle";
 import "./circle.css";
 
-type Stroke = { id: number; points: CirclePoint[]; rect: DOMRect };
+type Stroke = { id: number; points: CirclePoint[] };
 
 export default function CircleGame() {
   const ranked = useRankedRun("circle");
@@ -69,7 +69,7 @@ export default function CircleGame() {
     }
     void ranked.begin();
     event.currentTarget.setPointerCapture(event.pointerId);
-    stroke.current = { id: event.pointerId, points: [start], rect };
+    stroke.current = { id: event.pointerId, points: [start] };
     setResult(null);
     setRecord(false);
     setDrawing(true);
@@ -79,13 +79,7 @@ export default function CircleGame() {
     const current = stroke.current;
     if (!current || current.id !== event.pointerId) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    if (
-      Math.abs(rect.width - current.rect.width) > 1 ||
-      Math.abs(rect.top - current.rect.top) > 2
-    ) {
-      cancel();
-      return;
-    }
+    // Map into the current SVG coordinates even if scrolling or reflow moves it.
     const events = event.nativeEvent.getCoalescedEvents?.() ?? [];
     const batch = events.length ? events : [event];
     let fragment = "";
@@ -110,15 +104,30 @@ export default function CircleGame() {
   function finish(event: PointerEvent<SVGSVGElement>) {
     if (stroke.current?.id !== event.pointerId) return;
     append(event);
+    complete();
+  }
+  function interrupt(event: PointerEvent<SVGSVGElement>) {
+    if (stroke.current?.id !== event.pointerId) return;
+    // A cancelled event need not contain a usable endpoint. Judge the line
+    // already drawn instead of discarding a completed circle.
+    complete(true);
+  }
+  function complete(interrupted = false) {
     const current = stroke.current;
     if (!current) return;
-    stroke.current = null;
-    setDrawing(false);
     const normalized = current.points.map((p) => ({
       x: Math.round(p.x * 100) / 100,
       y: Math.round(p.y * 100) / 100,
     }));
     const next = evaluateCircle(normalized);
+    if (interrupted && !next.valid) {
+      cancel();
+      return;
+    }
+    // Clear before capture is implicitly released, so a second ending event
+    // cannot score or submit this attempt twice.
+    stroke.current = null;
+    setDrawing(false);
     setResult(next);
     const previous = Math.max(best, readCircleBest());
     analytics.finish(next, previous);
@@ -187,12 +196,8 @@ export default function CircleGame() {
               onPointerDown={begin}
               onPointerMove={append}
               onPointerUp={finish}
-              onPointerCancel={() => {
-                if (stroke.current) cancel();
-              }}
-              onLostPointerCapture={() => {
-                if (stroke.current) cancel();
-              }}
+              onPointerCancel={interrupt}
+              onLostPointerCapture={interrupt}
               onKeyDown={(event) => {
                 if (event.key === "Escape") clear();
               }}
