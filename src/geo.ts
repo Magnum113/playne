@@ -1,4 +1,5 @@
 import { geoLocations, type GeoLocation, type GeoRegion } from "./geoLocations";
+import { geoLandmarks } from "./geoLandmarks";
 
 export type GeoPoint = { lat: number; lng: number };
 export const GEO_MODES = [
@@ -6,6 +7,8 @@ export const GEO_MODES = [
   "timed",
   "moving",
   "moving-timed",
+  "landmarks",
+  "landmarks-timed",
 ] as const;
 export type GeoMode = (typeof GEO_MODES)[number];
 export const GEO_SCORE_VERSION = 4;
@@ -15,13 +18,31 @@ export const GEO_TIME_LIMIT_MS = 180000;
 export const geoCanMove = (mode: GeoMode) =>
   mode === "moving" || mode === "moving-timed";
 export const geoIsTimed = (mode: GeoMode) =>
-  mode === "timed" || mode === "moving-timed";
-export const geoModeFor = (moving: boolean, timed: boolean): GeoMode =>
-  moving ? (timed ? "moving-timed" : "moving") : timed ? "timed" : "classic";
+  mode === "timed" || mode === "moving-timed" || mode === "landmarks-timed";
+export const geoIsLandmarks = (mode: GeoMode) =>
+  mode === "landmarks" || mode === "landmarks-timed";
+export const geoModeFor = (
+  moving: boolean,
+  timed: boolean,
+  landmarks = false,
+): GeoMode =>
+  landmarks
+    ? timed
+      ? "landmarks-timed"
+      : "landmarks"
+    : moving
+      ? timed
+        ? "moving-timed"
+        : "moving"
+      : timed
+        ? "timed"
+        : "classic";
+export const geoCatalog = (mode: GeoMode) =>
+  geoIsLandmarks(mode) ? geoLandmarks : geoLocations;
 export const geoTimeName = (mode: GeoMode) =>
   geoIsTimed(mode) ? "На время" : "Без таймера";
 export const geoModeName = (mode: GeoMode) =>
-  `${geoCanMove(mode) ? "С перемещением" : "Без перемещения"} · ${geoTimeName(mode)}`;
+  `${geoIsLandmarks(mode) ? "Достопримечательности" : geoCanMove(mode) ? "С перемещением" : "Без перемещения"} · ${geoTimeName(mode)}`;
 export const validGeoMode = (mode: unknown): mode is GeoMode =>
   typeof mode === "string" && GEO_MODES.includes(mode as GeoMode);
 export const geoRemaining = (deadline: number, now = Date.now()) =>
@@ -76,6 +97,25 @@ export function distanceKm(a: GeoPoint, b: GeoPoint) {
       Math.sin(lng / 2) ** 2;
   return 6371.0088 * 2 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, h))));
 }
+export function geoBearing(from: GeoPoint, to: GeoPoint) {
+  const rad = Math.PI / 180;
+  const a = from.lat * rad,
+    b = to.lat * rad,
+    d = (to.lng - from.lng) * rad;
+  return (
+    (Math.atan2(
+      Math.sin(d) * Math.cos(b),
+      Math.cos(a) * Math.sin(b) - Math.sin(a) * Math.cos(b) * Math.cos(d),
+    ) /
+      rad +
+      360) %
+    360
+  );
+}
+export const geoPanoramaFits = (place: GeoLocation, point: GeoPoint) =>
+  validPoint(point) &&
+  distanceKm(place.view ?? place, point) <=
+    (place.radius == null ? 0.8 : place.radius / 1000);
 export function geoScore(distance: number) {
   if (!Number.isFinite(distance) || distance < 0) return 0;
   if (distance <= 0.25) return 100;
@@ -97,11 +137,12 @@ function shuffled<T>(values: readonly T[], random: () => number): T[] {
 export function chooseGeoRounds(
   recent: readonly string[] = [],
   random = Math.random,
+  mode: GeoMode = "classic",
 ) {
   const result: GeoLocation[] = [];
   for (const region of shuffled(REGIONS, random)) {
     const candidates = shuffled(
-      geoLocations.filter(
+      geoCatalog(mode).filter(
         (place) =>
           place.region === region &&
           !result.some((other) => other.countryCode === place.countryCode),
@@ -110,7 +151,15 @@ export function chooseGeoRounds(
     );
     const place =
       candidates.find((candidate) => !recent.includes(candidate.id)) ??
-      candidates[0];
+      (geoIsLandmarks(mode)
+        ? candidates.reduce(
+            (oldest, candidate) =>
+              recent.lastIndexOf(candidate.id) < recent.lastIndexOf(oldest.id)
+                ? candidate
+                : oldest,
+            candidates[0],
+          )
+        : candidates[0]);
     if (!place) throw new Error(`No locations for ${region}`);
     result.push(place);
   }
@@ -149,7 +198,7 @@ export function readGeoStats(mode: GeoMode = "classic"): GeoStats {
             .filter(
               (id: unknown) =>
                 typeof id === "string" &&
-                geoLocations.some((place) => place.id === id),
+                geoCatalog(mode).some((place) => place.id === id),
             )
             .slice(-30)
         : [],

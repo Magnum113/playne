@@ -27,12 +27,15 @@
 }
 .geo-welcome {
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   gap: 32px;
   border: 1px solid var(--line);
   border-radius: 28px;
   background: var(--panel);
   padding: 48px;
+}
+.geo-welcome-copy {
+  min-width: 0;
 }
 .geo-welcome h2 {
   font-size: clamp(28px, 4vw, 40px);
@@ -551,7 +554,7 @@
     width: 100%;
   }
   .geo-welcome {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 28px;
   }
   .geo-welcome-art {

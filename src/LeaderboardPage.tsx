@@ -3,6 +3,7 @@ import {
   validGeoMode,
   geoCanMove,
   geoIsTimed,
+  geoIsLandmarks,
   geoModeFor,
   type GeoMode,
 } from "./geo";
@@ -130,29 +131,48 @@ export default function LeaderboardPage() {
         </div>
         {game === "geo" && (
           <div className="geo-ranking-filters">
-            <div
-              className="rank-period geo-rank-modes"
-              aria-label="Перемещение"
-            >
-              {([false, true] as const).map((moving) => (
+            <div className="rank-period geo-rank-modes" aria-label="Места">
+              {([false, true] as const).map((landmarks) => (
                 <button
-                  key={String(moving)}
-                  aria-pressed={geoCanMove(mode) === moving}
+                  key={String(landmarks)}
+                  aria-pressed={geoIsLandmarks(mode) === landmarks}
                   onClick={() =>
-                    chooseMode(geoModeFor(moving, geoIsTimed(mode)))
+                    chooseMode(
+                      geoModeFor(geoCanMove(mode), geoIsTimed(mode), landmarks),
+                    )
                   }
                 >
-                  {moving ? "С перемещением" : "Без перемещения"}
+                  {landmarks ? "Достопримечательности" : "Весь мир"}
                 </button>
               ))}
             </div>
+            {!geoIsLandmarks(mode) && (
+              <div
+                className="rank-period geo-rank-modes"
+                aria-label="Перемещение"
+              >
+                {([false, true] as const).map((moving) => (
+                  <button
+                    key={String(moving)}
+                    aria-pressed={geoCanMove(mode) === moving}
+                    onClick={() =>
+                      chooseMode(geoModeFor(moving, geoIsTimed(mode)))
+                    }
+                  >
+                    {moving ? "С перемещением" : "Без перемещения"}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="rank-period geo-rank-modes" aria-label="Время">
               {([false, true] as const).map((timed) => (
                 <button
                   key={String(timed)}
                   aria-pressed={geoIsTimed(mode) === timed}
                   onClick={() =>
-                    chooseMode(geoModeFor(geoCanMove(mode), timed))
+                    chooseMode(
+                      geoModeFor(geoCanMove(mode), timed, geoIsLandmarks(mode)),
+                    )
                   }
                 >
                   {timed ? "На время" : "Без таймера"}

@@ -755,6 +755,159 @@ suite("Playne database and OAuth integration", () => {
         .sort(),
     ).toEqual(["classic", "moving", "moving-timed", "timed"]);
   });
+  it("checks landmark cameras, keeps replacements in the collection and isolates both new rankings", async () => {
+    const headers = { origin, cookie: logged };
+    for (const [mode, timed] of [
+      ["landmarks", false],
+      ["landmarks-timed", true],
+    ] as const) {
+      const call = (request: any) =>
+        app.inject({
+          remoteAddress: timed ? "127.0.0.6" : "127.0.0.5",
+          headers,
+          ...request,
+        });
+      expect(
+        (
+          await call({
+            method: "POST",
+            url: "/api/games",
+            payload: { game: "geo", mode, geoRulesVersion: 3 },
+          })
+        ).statusCode,
+      ).toBe(400);
+      const start = await call({
+        method: "POST",
+        url: "/api/games",
+        payload: { game: "geo", mode, geoRulesVersion: 4 },
+      });
+      expect(start.statusCode).toBe(200);
+      const run = start.json();
+      expect(run.challenge.mode).toBe(mode);
+      expect(
+        run.challenge.places.every((p: any) => p.id.startsWith("lm-")),
+      ).toBe(true);
+      const oldPlace = run.challenge.places[0];
+      const replacement = await call({
+        method: "POST",
+        url: `/api/games/${run.id}/replace`,
+        payload: { index: 0 },
+      });
+      expect(replacement.statusCode).toBe(200);
+      run.challenge.places[0] = replacement.json().place;
+      expect(run.challenge.places[0].id).not.toBe(oldPlace.id);
+      expect(run.challenge.places[0].id.startsWith("lm-")).toBe(true);
+      expect(run.challenge.places[0].region).toBe(oldPlace.region);
+      for (let index = 0; index < 5; index++) {
+        const place = run.challenge.places[index];
+        const object = { lat: place.lat, lng: place.lng };
+        metadataLocation = { ...place.view, lat: place.view.lat + 0.01 };
+        expect(
+          (
+            await call({
+              method: "POST",
+              url: `/api/games/${run.id}/panorama`,
+              payload: { index, pano: `lm-far-${index}` },
+            })
+          ).statusCode,
+        ).toBe(400);
+        metadataLocation = place.view;
+        expect(
+          (
+            await call({
+              method: "POST",
+              url: `/api/games/${run.id}/panorama`,
+              payload: { index, pano: `lm-start-${index}` },
+            })
+          ).statusCode,
+        ).toBe(200);
+        if (timed) {
+          const ready = await call({
+            method: "POST",
+            url: `/api/games/${run.id}/ready`,
+            payload: { index },
+          });
+          expect(ready.statusCode).toBe(200);
+          const again = await call({
+            method: "POST",
+            url: `/api/games/${run.id}/ready`,
+            payload: { index },
+          });
+          expect(again.json().deadline).toBe(ready.json().deadline);
+          expect(
+            (
+              await call({
+                method: "POST",
+                url: `/api/games/${run.id}/pin`,
+                payload: { index, guess: object },
+              })
+            ).statusCode,
+          ).toBe(200);
+        }
+        const answer = await call({
+          method: "POST",
+          url: `/api/games/${run.id}/answers`,
+          payload: {
+            index,
+            answer: { guess: object, actual: place.view, score: 0 },
+          },
+        });
+        expect(answer.statusCode).toBe(200);
+        expect(answer.json().answer).toMatchObject({
+          actual: object,
+          score: 100,
+          distance: 0,
+        });
+      }
+      expect(
+        (
+          await call({
+            method: "POST",
+            url: `/api/games/${run.id}/publish`,
+            payload: {},
+          })
+        ).statusCode,
+      ).toBe(200);
+      const stored = (
+        await pool.query(
+          "SELECT challenge,answers,mode FROM playne_games WHERE id=$1",
+          [run.id],
+        )
+      ).rows[0];
+      expect(stored.mode).toBe(mode);
+      expect(stored.challenge).not.toHaveProperty("panoramas");
+      expect(stored.answers[0]).not.toHaveProperty("actual");
+      const ranking = (
+        await app.inject(`/api/leaderboard?game=geo&mode=${mode}&version=4`)
+      ).json();
+      expect(ranking.mode).toBe(mode);
+      expect(ranking.entries[0].score).toBe(500);
+    }
+    expect(
+      (
+        await app.inject("/api/leaderboard?game=geo&mode=moving&version=4")
+      ).json().entries[0].score,
+    ).toBe(495);
+    const profile = (
+      await app.inject({
+        url: "/api/account",
+        headers: { ...headers, "x-playne-geo-version": "4" },
+      })
+    ).json();
+    expect(
+      profile.best
+        .filter((b: any) => b.game === "geo")
+        .map((b: any) => b.mode)
+        .sort(),
+    ).toEqual([
+      "classic",
+      "landmarks",
+      "landmarks-timed",
+      "moving",
+      "moving-timed",
+      "timed",
+    ]);
+  });
   it("revokes the authenticated session on logout", async () => {
     const out = await app.inject({
       method: "POST",

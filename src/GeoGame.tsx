@@ -16,6 +16,10 @@ import {
   GEO_TIME_LIMIT_MS,
   geoModeName,
   geoCanMove,
+  geoIsLandmarks,
+  geoCatalog,
+  geoBearing,
+  geoPanoramaFits,
   geoIsTimed,
   geoModeFor,
   validGeoMode,
@@ -28,7 +32,7 @@ import {
   type GeoAnswer,
   type GeoPoint,
 } from "./geo";
-import { geoLocations, type GeoLocation } from "./geoLocations";
+import { type GeoLocation } from "./geoLocations";
 import {
   findPanorama,
   hasStreetViewLinks,
@@ -45,14 +49,20 @@ type Phase =
   | "reveal"
   | "finished"
   | "error";
-function Rules() {
+function Rules({ landmarks = false }: { landmarks?: boolean }) {
   return (
     <div className="geo-rules-copy">
-      <p>Ты в незнакомом месте. Осмотрись и найди его на карте мира.</p>
+      <p>
+        {landmarks
+          ? "Узнай достопримечательность и найди её на карте мира."
+          : "Ты в незнакомом месте. Осмотрись и найди его на карте мира."}
+      </p>
       <ol>
         <li>
-          Вращай панораму мышью или пальцем. В режиме «С перемещением» можно
-          идти по улице по стрелкам или нажатием на дорогу.
+          Вращай панораму мышью или пальцем.{" "}
+          {landmarks
+            ? "Можно приближать детали. Переходы по улицам отключены."
+            : "В режиме «С перемещением» можно идти по улице по стрелкам или нажатием на дорогу."}
         </li>
         <li>
           Открой карту, приблизь нужный участок и поставь точку. До ответа её
@@ -67,10 +77,10 @@ function Rules() {
         последнюю выбранную точку; без точки — ноль очков.
       </p>
       <p>
-        Найди на карте место, откуда начался раунд. Кнопка «На старт» возвращает
-        к начальной панораме и не сбрасывает таймер. Ищи подсказки в языке
-        вывесок, архитектуре, растениях и разметке. Рекорд сохраняется в этом
-        браузере.
+        {landmarks
+          ? "Поставь точку на самой достопримечательности — положение камеры не влияет на очки."
+          : "Найди на карте место, откуда начался раунд. Кнопка «На старт» возвращает к начальной панораме и не сбрасывает таймер. Ищи подсказки в языке вывесок, архитектуре, растениях и разметке."}{" "}
+        Рекорд сохраняется в этом браузере.
       </p>
     </div>
   );
@@ -347,7 +357,7 @@ export default function GeoGame() {
       zIndex: 3,
     });
   }
-  function showPanorama(pano: string, heading: number) {
+  function showPanorama(pano: string, heading: number, pitch = 0) {
     return new Promise<void>((resolve, reject) => {
       const view = panorama.current!;
       let settled = false;
@@ -371,7 +381,7 @@ export default function GeoGame() {
       }
       cancelWait.current = () => finish(new Error("Cancelled"));
       allowedPano.current = pano;
-      view.setPov({ heading, pitch: 0 });
+      view.setPov({ heading, pitch });
       view.setZoom(0);
       view.setPano(pano);
       // Reusing an already-loaded panorama may not emit another status event.
@@ -416,6 +426,8 @@ export default function GeoGame() {
           const data = response.data;
           if (!data.location?.latLng || !data.location.pano)
             throw new Error("No panorama");
+          if (!geoPanoramaFits(place, data.location.latLng.toJSON()))
+            throw new Error("Panorama is outside the search area");
           if (
             geoCanMove(modeRef.current) &&
             !hasStreetViewLinks(data.links, data.location.pano)
@@ -425,11 +437,17 @@ export default function GeoGame() {
             index,
             data.location.pano,
           );
-          const heading = place.heading ?? data.tiles?.centerHeading ?? 0;
-          await showPanorama(data.location.pano, heading);
+          const heading =
+            place.heading ??
+            (geoIsLandmarks(modeRef.current)
+              ? geoBearing(data.location.latLng.toJSON(), place)
+              : (data.tiles?.centerHeading ?? 0));
+          await showPanorama(data.location.pano, heading, place.pitch ?? 0);
           startHeading.current = heading;
           if (token !== operation.current) return;
-          actual.current = verifiedActual ?? data.location.latLng.toJSON();
+          actual.current = geoIsLandmarks(modeRef.current)
+            ? { lat: place.lat, lng: place.lng }
+            : (verifiedActual ?? data.location.latLng.toJSON());
           activePlace.current = place;
           rounds.current[index] = place;
           if (geoIsTimed(modeRef.current)) {
@@ -456,7 +474,7 @@ export default function GeoGame() {
             continue;
           }
           ranked.local();
-          const next = geoLocations.find(
+          const next = geoCatalog(modeRef.current).find(
             (candidate) =>
               candidate.region === place.region &&
               !badPlaces.current.has(candidate.id) &&
@@ -493,7 +511,8 @@ export default function GeoGame() {
     if (token !== operation.current) return;
     busy.current = false;
     rounds.current =
-      online?.challenge.places ?? chooseGeoRounds(statsRef.current.recent);
+      online?.challenge.places ??
+      chooseGeoRounds(statsRef.current.recent, Math.random, modeRef.current);
     answersRef.current = [];
     setAnswers([]);
     reachGoal(replay ? GEO_GOALS.gameRestart : GEO_GOALS.gameStart, { mode });
@@ -650,10 +669,15 @@ export default function GeoGame() {
           <section className="geo-welcome">
             <div className="geo-welcome-copy">
               <p className="eyebrow">ПЯТЬ РАУНДОВ · 500 ОЧКОВ</p>
-              <h2>Угадай страну по панораме.</h2>
+              <h2>
+                {geoIsLandmarks(mode)
+                  ? "Узнай и найди на карте."
+                  : "Угадай страну по панораме."}
+              </h2>
               <p>
-                Узнай страну и город по панораме Google Street View. Поставь
-                точку на карте: чем ближе к месту, тем больше очков.
+                {geoIsLandmarks(mode)
+                  ? "Храмы, памятники и необычные места со всего мира. Найди на карте достопримечательность, которую видишь на панораме."
+                  : "Узнай страну и город по панораме Google Street View. Поставь точку на карте: чем ближе к месту, тем больше очков."}
               </p>
               <ol>
                 <li>Вращай панораму и замечай детали.</li>
@@ -661,34 +685,73 @@ export default function GeoGame() {
                 <li>Проверь ответ и узнай, где оказался.</li>
               </ol>
               <fieldset className="geo-mode-choice">
-                <legend>Перемещение</legend>
-                {([false, true] as const).map((moving) => (
+                <legend>Места</legend>
+                {([false, true] as const).map((landmarks) => (
                   <label
-                    key={String(moving)}
-                    className={geoCanMove(mode) === moving ? "selected" : ""}
+                    key={String(landmarks)}
+                    className={
+                      geoIsLandmarks(mode) === landmarks ? "selected" : ""
+                    }
                   >
                     <input
                       type="radio"
-                      name="geo-movement"
-                      checked={geoCanMove(mode) === moving}
+                      name="geo-collection"
+                      checked={geoIsLandmarks(mode) === landmarks}
                       disabled={ranked.state.status === "loading"}
                       onChange={() =>
-                        chooseMode(geoModeFor(moving, geoIsTimed(mode)))
+                        chooseMode(
+                          geoModeFor(
+                            geoCanMove(mode),
+                            geoIsTimed(mode),
+                            landmarks,
+                          ),
+                        )
                       }
                     />
                     <span>
                       <strong>
-                        {moving ? "С перемещением" : "Без перемещения"}
+                        {landmarks ? "Достопримечательности" : "Весь мир"}
                       </strong>
                       <small>
-                        {moving
-                          ? "Пройди по улице и найди подсказки"
-                          : "Осмотрись из одной точки"}
+                        {landmarks
+                          ? "Узнай памятники, храмы и чудеса природы"
+                          : "Города, дороги и пейзажи"}
                       </small>
                     </span>
                   </label>
                 ))}
               </fieldset>
+              {!geoIsLandmarks(mode) && (
+                <fieldset className="geo-mode-choice">
+                  <legend>Перемещение</legend>
+                  {([false, true] as const).map((moving) => (
+                    <label
+                      key={String(moving)}
+                      className={geoCanMove(mode) === moving ? "selected" : ""}
+                    >
+                      <input
+                        type="radio"
+                        name="geo-movement"
+                        checked={geoCanMove(mode) === moving}
+                        disabled={ranked.state.status === "loading"}
+                        onChange={() =>
+                          chooseMode(geoModeFor(moving, geoIsTimed(mode)))
+                        }
+                      />
+                      <span>
+                        <strong>
+                          {moving ? "С перемещением" : "Без перемещения"}
+                        </strong>
+                        <small>
+                          {moving
+                            ? "Пройди по улице и найди подсказки"
+                            : "Осмотрись из одной точки"}
+                        </small>
+                      </span>
+                    </label>
+                  ))}
+                </fieldset>
+              )}
               <fieldset className="geo-mode-choice">
                 <legend>Время</legend>
                 {([false, true] as const).map((timed) => (
@@ -702,7 +765,13 @@ export default function GeoGame() {
                       checked={geoIsTimed(mode) === timed}
                       disabled={ranked.state.status === "loading"}
                       onChange={() =>
-                        chooseMode(geoModeFor(geoCanMove(mode), timed))
+                        chooseMode(
+                          geoModeFor(
+                            geoCanMove(mode),
+                            timed,
+                            geoIsLandmarks(mode),
+                          ),
+                        )
                       }
                     />
                     <span>
@@ -734,7 +803,11 @@ export default function GeoGame() {
             </div>
             <div className="geo-welcome-art">
               <GeoPreview />
-              <span>Города, побережья, горы и дороги.</span>
+              <span>
+                {geoIsLandmarks(mode)
+                  ? "Памятники, храмы и чудеса природы."
+                  : "Города, побережья, горы и дороги."}
+              </span>
             </div>
           </section>
         )}
@@ -798,7 +871,10 @@ export default function GeoGame() {
                 const view = panorama.current;
                 if (!view || !allowedPano.current) return;
                 view.setPano(allowedPano.current);
-                view.setPov({ heading: startHeading.current, pitch: 0 });
+                view.setPov({
+                  heading: startHeading.current,
+                  pitch: activePlace.current?.pitch ?? 0,
+                });
                 view.setZoom(0);
               }}
               aria-label="На старт — вернуться к начальной панораме"
@@ -1050,7 +1126,7 @@ export default function GeoGame() {
             ×
           </button>
         </div>
-        <Rules />
+        <Rules landmarks={geoIsLandmarks(mode)} />
         <button className="primary" onClick={() => rules.current?.close()}>
           Понятно
         </button>

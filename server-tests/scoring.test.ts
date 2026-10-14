@@ -111,6 +111,51 @@ describe("server-owned results", () => {
       ).score,
     ).toBe(100);
   });
+  it("scores the landmark itself and requires a verified panorama before accepting answers", () => {
+    for (const mode of ["landmarks", "landmarks-timed"] as const) {
+      const challenge = makeChallenge("geo", [], mode) as any;
+      expect(challenge.places.every((p: any) => p.id.startsWith("lm-"))).toBe(
+        true,
+      );
+      const object = {
+        lat: challenge.places[0].lat,
+        lng: challenge.places[0].lng,
+      };
+      const camera = { lat: object.lat + 0.1, lng: object.lng };
+      expect(() =>
+        validateAnswer("geo", challenge, 0, { guess: object }),
+      ).toThrow("Панорама не проверена");
+      challenge.panoramas[0] = { actual: camera, deadline: 1000, pin: object };
+      expect(
+        validateAnswer("geo", challenge, 0, { guess: object }, 999),
+      ).toMatchObject({ score: 100, actual: object, distance: 0 });
+      expect(
+        validateAnswer(
+          "geo",
+          challenge,
+          0,
+          { guess: camera, actual: camera, score: 100 },
+          999,
+        ).score,
+      ).toBeLessThan(100);
+      if (mode === "landmarks-timed") {
+        expect(
+          validateAnswer(
+            "geo",
+            challenge,
+            0,
+            { guess: camera, expired: true },
+            1001,
+          ),
+        ).toMatchObject({
+          score: 100,
+          actual: object,
+          guess: object,
+          timedOut: true,
+        });
+      }
+    }
+  });
   it("validates nickname text and return destinations", () => {
     expect(initialNickname({ last_name: "Иванов", first_name: "Иван" })).toBe(
       "Иванов Иван",

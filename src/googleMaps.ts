@@ -52,10 +52,18 @@ export function loadGoogleMaps() {
   return loading;
 }
 
-export async function findPanorama(point: { lat: number; lng: number }) {
+export async function findPanorama(point: {
+  lat: number;
+  lng: number;
+  radius?: number;
+  view?: { lat: number; lng: number };
+}) {
   const response = new google.maps.StreetViewService().getPanorama({
-    location: point,
-    radius: 500,
+    location: point.view ?? point,
+    ...(point.view
+      ? { preference: google.maps.StreetViewPreference.NEAREST }
+      : {}),
+    radius: point.radius ?? 500,
     sources: [
       google.maps.StreetViewSource.GOOGLE,
       google.maps.StreetViewSource.OUTDOOR,

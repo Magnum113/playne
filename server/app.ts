@@ -19,13 +19,14 @@ import {
   GEO_V3_UNITS_SQL,
   GEO_V4_UNITS_SQL,
 } from "./scoring";
-import { geoLocations } from "../src/geoLocations";
 import {
-  distanceKm,
   validPoint,
   validGeoMode,
   geoIsTimed,
   geoCanMove,
+  geoIsLandmarks,
+  geoCatalog,
+  geoPanoramaFits,
   GEO_TIME_LIMIT_MS,
 } from "../src/geo";
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
@@ -313,7 +314,9 @@ export async function buildApp(
         "SELECT challenge FROM playne_games WHERE game=$1 AND browser_hash=$2 ORDER BY created_at DESC LIMIT 6",
         [game, b],
       );
-      const recent = recentRows.rows.flatMap((r) =>
+      const recent = (
+        game === "geo" ? [...recentRows.rows].reverse() : recentRows.rows
+      ).flatMap((r) =>
         game === "naglaz"
           ? (r.challenge.pairIds ?? [])
           : game === "geo"
@@ -334,8 +337,12 @@ export async function buildApp(
                 ? 2
                 : 1
           : scoreVersion(game);
-      if (game === "geo" && geoCanMove(mode) && version < 4)
-        failure("Обнови страницу, чтобы играть с перемещением");
+      if (
+        game === "geo" &&
+        (geoCanMove(mode) || geoIsLandmarks(mode)) &&
+        version < 4
+      )
+        failure("Обнови страницу, чтобы играть в этом режиме");
       const challenge = makeChallenge(
         game,
         recent,
@@ -394,7 +401,7 @@ export async function buildApp(
       const excluded = run.challenge.unavailable ?? [];
       if (excluded.length >= 12) failure("Не удалось подобрать панораму", 503);
       excluded.push(run.challenge.places[index].id);
-      const places = geoLocations.filter(
+      const places = geoCatalog(run.mode).filter(
         (p) =>
           p.region === run.challenge.places[index].region &&
           !excluded.includes(p.id) &&
@@ -468,7 +475,7 @@ export async function buildApp(
         metadata.status !== "OK" ||
         !metadata.location ||
         !validPoint(metadata.location) ||
-        distanceKm(run.challenge.places[body.index], metadata.location) > 0.8
+        !geoPanoramaFits(run.challenge.places[body.index], metadata.location)
       )
         failure("Панорама не подходит к выбранному месту", 400);
       const c = await pool.connect();
@@ -478,8 +485,10 @@ export async function buildApp(
         if (
           locked.answers.length !== body.index ||
           locked.completed_at ||
-          distanceKm(locked.challenge.places[body.index], metadata.location) >
-            0.8
+          !geoPanoramaFits(
+            locked.challenge.places[body.index],
+            metadata.location,
+          )
         )
           failure("Раунд уже завершён", 409);
         const existing = locked.challenge.panoramas[body.index];

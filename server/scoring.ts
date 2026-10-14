@@ -11,6 +11,7 @@ import {
   validPoint,
   validGeoMode,
   geoIsTimed,
+  geoIsLandmarks,
   type GeoMode,
 } from "../src/geo";
 export const GAME_NAMES = {
@@ -60,7 +61,11 @@ export function makeChallenge(
     return { pairIds: chooseRounds(recent).map((p) => p.id) };
   if (game === "colorfle") return { targets: randomTargets() };
   if (game === "geo")
-    return { places: chooseGeoRounds(recent), panoramas: {}, mode };
+    return {
+      places: chooseGeoRounds(recent, Math.random, mode),
+      panoramas: {},
+      mode,
+    };
   return {};
 }
 export function publicChallenge(game: GameId, challenge: any) {
@@ -128,8 +133,10 @@ export function validateAnswer(
     return { score: result.score };
   }
   const panorama = challenge.panoramas?.[index];
-  const actual = panorama?.actual;
-  if (!actual) throw new Error("Панорама не проверена");
+  if (!panorama?.actual) throw new Error("Панорама не проверена");
+  const actual = geoIsLandmarks(challenge.mode)
+    ? { lat: challenge.places[index].lat, lng: challenge.places[index].lng }
+    : panorama.actual;
   const timed = geoIsTimed(challenge.mode);
   if (timed && !Number.isFinite(panorama.deadline))
     throw new Error("Таймер ещё не запущен");

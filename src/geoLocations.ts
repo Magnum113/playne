@@ -8,6 +8,9 @@ export type GeoLocation = {
   lat: number;
   lng: number;
   heading?: number;
+  view?: { lat: number; lng: number };
+  radius?: number;
+  pitch?: number;
   note: string;
 };
 

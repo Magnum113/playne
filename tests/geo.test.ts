@@ -13,6 +13,10 @@ import {
   geoModeFor,
   geoIsTimed,
   geoCanMove,
+  geoIsLandmarks,
+  geoCatalog,
+  geoBearing,
+  geoPanoramaFits,
   validGeoMode,
   GEO_MAX_POINTS,
   readGeoStats,
@@ -72,7 +76,7 @@ describe("geographical answers", () => {
   });
 });
 describe("geographical sessions", () => {
-  it("combines movement and time independently and keeps four separate browser records", () => {
+  it("combines movement and time independently and keeps six separate browser records", () => {
     const store = new Map<string, string>();
     vi.stubGlobal("localStorage", {
       getItem: (k: string) => store.get(k),
@@ -80,21 +84,70 @@ describe("geographical sessions", () => {
     });
     for (const [index, mode] of GEO_MODES.entries()) {
       expect(validGeoMode(mode)).toBe(true);
-      expect(geoModeFor(geoCanMove(mode), geoIsTimed(mode))).toBe(mode);
+      expect(
+        geoModeFor(geoCanMove(mode), geoIsTimed(mode), geoIsLandmarks(mode)),
+      ).toBe(mode);
       expect(readGeoStats(mode).best).toBe(0);
       saveGeoStats(
-        { best: (index + 1) * 100, played: index + 1, recent: [] },
+        { best: (index + 1) * 50, played: index + 1, recent: [] },
         mode,
       );
     }
     expect(GEO_MODES.map((mode) => readGeoStats(mode).best)).toEqual([
-      100, 200, 300, 400,
+      50, 100, 150, 200, 250, 300,
     ]);
     expect(geoIsTimed("moving-timed")).toBe(true);
     expect(geoCanMove("moving-timed")).toBe(true);
     expect(geoIsTimed("moving")).toBe(false);
     expect(geoCanMove("timed")).toBe(false);
     expect(validGeoMode("unknown")).toBe(false);
+  });
+  it("keeps landmark collections separate and aims at the object from a checked camera area", () => {
+    expect(geoIsLandmarks("landmarks-timed")).toBe(true);
+    expect(geoCanMove("landmarks")).toBe(false);
+    expect(geoIsTimed("landmarks-timed")).toBe(true);
+    expect(geoModeFor(true, true, true)).toBe("landmarks-timed");
+    const catalog = geoCatalog("landmarks");
+    expect(new Set(catalog.map((p) => p.id)).size).toBe(catalog.length);
+    expect(catalog.every((p) => !geoLocations.some((w) => w.id === p.id))).toBe(
+      true,
+    );
+    let recent: string[] = [];
+    for (let i = 0; i < 300; i++) {
+      const rounds = chooseGeoRounds(recent, Math.random, "landmarks");
+      expect(new Set(rounds.map((p) => p.region)).size).toBe(5);
+      expect(new Set(rounds.map((p) => p.countryCode)).size).toBe(5);
+      expect(rounds.every((p) => !recent.includes(p.id))).toBe(true);
+      recent = rounds.map((p) => p.id);
+    }
+    for (const place of catalog) {
+      expect(geoPanoramaFits(place, place.view!)).toBe(true);
+      expect(
+        geoPanoramaFits(place, {
+          lat: place.view!.lat + 0.01,
+          lng: place.view!.lng,
+        }),
+      ).toBe(false);
+      expect(geoPanoramaFits(place, { lat: NaN, lng: 0 })).toBe(false);
+    }
+    expect(geoBearing({ lat: 0, lng: 0 }, { lat: 1, lng: 0 })).toBeCloseTo(0);
+    expect(geoBearing({ lat: 0, lng: 0 }, { lat: 0, lng: 1 })).toBeCloseTo(90);
+    expect(geoBearing({ lat: 0, lng: 0 }, { lat: 0, lng: -1 })).toBeCloseTo(
+      270,
+    );
+  });
+  it("returns the least recently played landmarks when a region's fresh pool is exhausted", () => {
+    const catalog = geoCatalog("landmarks");
+    let recent = catalog.map((p) => p.id);
+    let previous: string[] = [];
+    for (let i = 0; i < 40; i++) {
+      const next = chooseGeoRounds(recent, Math.random, "landmarks").map(
+        (p) => p.id,
+      );
+      expect(next.every((id) => !previous.includes(id))).toBe(true);
+      recent.push(...next);
+      previous = next;
+    }
   });
   it("requires a usable neighboring panorama before starting a moving round", () => {
     expect(hasStreetViewLinks(undefined, "start")).toBe(false);
