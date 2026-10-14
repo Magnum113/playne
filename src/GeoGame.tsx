@@ -123,6 +123,9 @@ export default function GeoGame() {
   const badPlaces = useRef(new Set<string>());
   const rules = useRef<HTMLDialogElement>(null),
     result = useRef<HTMLElement>(null);
+  const mapExpand = useRef<HTMLButtonElement>(null),
+    mapClose = useRef<HTMLButtonElement>(null),
+    mapToggle = useRef<HTMLButtonElement>(null);
   const total =
     Math.round(answers.reduce((sum, answer) => sum + answer.score, 0) * 10) /
     10;
@@ -196,7 +199,6 @@ export default function GeoGame() {
         google.maps.event.trigger(panorama.current, "resize");
         // A hidden/zero-size viewport can make Google's zoom non-finite.
         panorama.current.setZoom(0);
-        if (map.current) google.maps.event.trigger(map.current, "resize");
       });
     });
     if (panoNode.current) observer.observe(panoNode.current);
@@ -205,6 +207,58 @@ export default function GeoGame() {
       cancelAnimationFrame(frame);
     };
   }, []);
+  useEffect(() => {
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const view = map.current;
+        if (
+          !view ||
+          !mapNode.current?.clientWidth ||
+          !mapNode.current.clientHeight
+        )
+          return;
+        const center = view.getCenter();
+        google.maps.event.trigger(view, "resize");
+        const revealed = answersRef.current[round];
+        if (
+          phaseRef.current === "reveal" &&
+          revealed?.guess &&
+          revealed.distance !== null &&
+          revealed.distance >= 0.01
+        )
+          view.fitBounds(geoBounds(revealed.guess, revealed.actual), 55);
+        else if (center) view.setCenter(center);
+      });
+    });
+    if (mapNode.current) observer.observe(mapNode.current);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [round]);
+  function closeMap() {
+    setMapOpen(false);
+    const control = window.matchMedia(
+      "(max-width: 750px), (max-width: 1000px) and (max-height: 520px)",
+    ).matches
+      ? mapToggle.current
+      : mapExpand.current;
+    control?.focus({ preventScroll: true });
+  }
+  useEffect(() => {
+    if (!mapOpen || phase !== "guessing") return;
+    const frame = requestAnimationFrame(() => {
+      const control = window.matchMedia(
+        "(max-width: 750px), (max-width: 1000px) and (max-height: 520px)",
+      ).matches
+        ? mapClose.current
+        : mapExpand.current;
+      control?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [mapOpen, phase]);
   useEffect(() => {
     if (phase === "reveal" || phase === "finished" || phase === "error")
       result.current?.focus({ preventScroll: true });
@@ -246,6 +300,8 @@ export default function GeoGame() {
       enableCloseButton: false,
       fullscreenControl: true,
       zoomControl: true,
+      zoomControlOptions: { position: google.maps.ControlPosition.LEFT_BOTTOM },
+      panControlOptions: { position: google.maps.ControlPosition.LEFT_BOTTOM },
       motionTracking: false,
       motionTrackingControl: false,
     });
@@ -540,7 +596,7 @@ export default function GeoGame() {
   }
   const active = phase !== "welcome" && phase !== "finished";
   return (
-    <div className="app geo-app">
+    <div className={`app geo-app ${active ? "geo-playing" : ""}`}>
       <a className="skip-link" href="#geo-main">
         Перейти к игре
       </a>
@@ -550,11 +606,26 @@ export default function GeoGame() {
           <a className="back-to-hub" href="/">
             ← Все игры
           </a>
+          {active && (
+            <button
+              className="help-button geo-playing-help"
+              aria-label="Как играть"
+              onClick={() => {
+                rules.current?.showModal();
+                reachGoal(GEO_GOALS.rulesOpen);
+              }}
+            >
+              <span className="question" aria-hidden="true">
+                ?
+              </span>
+            </button>
+          )}
           <AccountNav />
           <ThemeToggle />
         </nav>
       </header>
       <main id="geo-main" className="geo-main">
+        {active && <h1 className="sr-only">Где я?</h1>}
         <div className="geo-heading">
           <div>
             <p className="eyebrow">УГАДАЙ МЕСТО</p>
@@ -708,7 +779,10 @@ export default function GeoGame() {
             className="geo-panorama"
             ref={panoNode}
             inert={
-              phase === "loading" || phase === "error" || phase === "checking"
+              mapOpen ||
+              phase === "loading" ||
+              phase === "error" ||
+              phase === "checking"
             }
             aria-label="Панорама: осмотрись и угадай место"
           />
@@ -729,6 +803,12 @@ export default function GeoGame() {
           )}
           <section
             className="geo-map-panel"
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && mapOpen && phase === "guessing") {
+                event.stopPropagation();
+                closeMap();
+              }
+            }}
             inert={
               phase === "loading" || phase === "error" || phase === "checking"
             }
@@ -742,15 +822,30 @@ export default function GeoGame() {
                     : "Правильное место"
                   : "Где это?"}
               </h2>
-              <button
-                className="geo-map-close"
-                aria-label="Вернуться к панораме"
-                onClick={() => setMapOpen(false)}
-              >
-                ×
-              </button>
+              {phase !== "reveal" && (
+                <button
+                  ref={mapExpand}
+                  className="geo-map-expand"
+                  aria-label={mapOpen ? "Уменьшить карту" : "Увеличить карту"}
+                  aria-expanded={mapOpen}
+                  aria-controls="geo-answer-map"
+                  onClick={() => setMapOpen(!mapOpen)}
+                >
+                  {mapOpen ? "Уменьшить" : "Увеличить"}
+                </button>
+              )}
+              {phase !== "reveal" && (
+                <button
+                  ref={mapClose}
+                  className="geo-map-close"
+                  aria-label="Вернуться к панораме"
+                  onClick={closeMap}
+                >
+                  ×
+                </button>
+              )}
             </div>
-            <div className="geo-map" ref={mapNode} />
+            <div className="geo-map" id="geo-answer-map" ref={mapNode} />
             <div className="geo-map-tools">
               {phase === "reveal" ? (
                 <div className="geo-legend">
@@ -765,7 +860,7 @@ export default function GeoGame() {
                 </div>
               ) : (
                 <>
-                  <span>
+                  <span className="geo-map-hint">
                     {guess
                       ? "Точку можно передвинуть"
                       : "Нажми на нужное место"}
@@ -779,10 +874,33 @@ export default function GeoGame() {
                   >
                     Выбрать центр карты
                   </button>
+                  {error && (
+                    <span className="geo-inline-error" role="status">
+                      {error}
+                    </span>
+                  )}
+                  <button
+                    className="primary geo-map-answer"
+                    disabled={phase !== "guessing"}
+                    onClick={() => void submit()}
+                  >
+                    Ответить <span aria-hidden="true">→</span>
+                  </button>
                 </>
               )}
             </div>
           </section>
+          {phase === "guessing" && (
+            <button
+              ref={mapToggle}
+              className="geo-map-toggle"
+              aria-expanded={mapOpen}
+              aria-controls="geo-answer-map"
+              onClick={() => (mapOpen ? closeMap() : setMapOpen(true))}
+            >
+              {mapOpen ? "Панорама" : guess ? "Карта · точка выбрана" : "Карта"}
+            </button>
+          )}
           {(phase === "loading" || phase === "checking") && (
             <div className="geo-loading" role="status">
               <span className="geo-loader" aria-hidden="true" />
@@ -808,36 +926,6 @@ export default function GeoGame() {
             </section>
           )}
         </div>
-        {phase === "guessing" && (
-          <div className="geo-actions">
-            <div className="geo-action-tip">
-              <span>
-                {guess
-                  ? "Точка выбрана. Готов проверить?"
-                  : "Осмотрись и поставь точку на карте."}
-              </span>
-              <span className="geo-inline-error" role="status">
-                {error}
-              </span>
-            </div>
-            <div className="geo-action-buttons">
-              <button
-                className="geo-map-toggle"
-                aria-expanded={mapOpen}
-                onClick={() => setMapOpen(!mapOpen)}
-              >
-                {mapOpen
-                  ? "Панорама"
-                  : guess
-                    ? "Изменить точку"
-                    : "Открыть карту"}
-              </button>
-              <button className="primary" onClick={() => void submit()}>
-                Ответить <span aria-hidden="true">→</span>
-              </button>
-            </div>
-          </div>
-        )}
         {phase === "reveal" && answer && (
           <section
             className="geo-result"

@@ -837,3 +837,302 @@
     display: none;
   }
 }
+
+/* During a round, the panorama is the main workspace. */
+.geo-app.geo-playing {
+  max-width: none;
+  padding-inline: 24px;
+}
+.geo-playing .header {
+  height: 64px;
+}
+.geo-playing .geo-heading,
+.geo-playing .geo-footer {
+  display: none;
+}
+.geo-playing .geo-main {
+  padding: 12px 0 16px;
+  min-height: 0;
+}
+.geo-playing-help {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+.geo-playing .header .geo-playing-help .question {
+  display: grid;
+}
+.geo-playing .geo-status {
+  min-height: 44px;
+  margin-bottom: 12px;
+}
+.geo-playing .geo-status > div {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+.geo-playing .geo-status .eyebrow {
+  margin: 0;
+  white-space: nowrap;
+}
+.geo-playing .geo-status-meta {
+  max-width: none;
+}
+.geo-playing .geo-mode-label {
+  width: auto;
+}
+.geo-playing .geo-score strong {
+  font-size: 24px;
+}
+.geo-playing .geo-timer {
+  font-size: 20px;
+  padding: 6px 10px;
+}
+.geo-playing .geo-stage {
+  display: block;
+  height: calc(100svh - 148px);
+  min-height: 440px;
+}
+.geo-playing .geo-panorama {
+  height: 100%;
+  border-radius: 20px;
+}
+.geo-playing .geo-map-panel {
+  position: absolute;
+  inset: auto 16px 16px auto;
+  width: 320px;
+  height: auto;
+  z-index: 3;
+  border-radius: 16px;
+  box-shadow: 0 6px 28px #0003;
+  visibility: visible;
+  pointer-events: auto;
+  opacity: 1;
+}
+.geo-playing .geo-map-heading {
+  padding: 4px 12px;
+  gap: 8px;
+  min-height: 44px;
+}
+.geo-playing .geo-map-heading h2 {
+  font-size: 14px;
+}
+.geo-map-expand {
+  margin-inline-start: auto;
+  min-height: 44px;
+  padding: 8px;
+  font-size: 12px;
+  color: var(--mint);
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+}
+.geo-map-expand:hover {
+  background: var(--hover);
+}
+.geo-playing .geo-map {
+  height: 240px;
+  min-height: 0;
+  flex: none;
+}
+.geo-playing .geo-map-tools {
+  padding: 4px 12px 12px;
+  gap: 4px;
+  min-height: 0;
+}
+.geo-playing .geo-map-hint {
+  display: none;
+}
+.geo-playing .geo-map-tools > .geo-map-answer {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px 16px;
+  background: var(--purple-soft);
+  color: #17131e;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 14px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.geo-playing .geo-map-answer:hover {
+  background: #cbb8fb;
+}
+.geo-playing .geo-map-open .geo-map-panel {
+  inset: 16px;
+  width: auto;
+  height: auto;
+}
+.geo-playing .geo-map-open .geo-return-start {
+  display: none;
+}
+.geo-playing .geo-map-open .geo-map,
+.geo-playing .geo-revealed .geo-map {
+  height: auto;
+  min-height: 120px;
+  flex: 1;
+}
+.geo-playing .geo-map-close {
+  display: none;
+}
+.geo-playing .geo-revealed {
+  height: max(320px, calc(100svh - 360px));
+  min-height: 0;
+}
+.geo-playing .geo-revealed .geo-panorama {
+  visibility: hidden;
+  pointer-events: none;
+}
+.geo-playing .geo-revealed .geo-map-panel {
+  inset: 0;
+  width: auto;
+  height: auto;
+  box-shadow: none;
+}
+.geo-playing .geo-revealed .geo-map-tools {
+  padding: 12px 16px;
+}
+.geo-playing .geo-result {
+  margin-top: 16px;
+  padding: 20px 24px;
+  gap: 20px;
+}
+.geo-playing .geo-result .eyebrow {
+  margin: 0;
+}
+.geo-playing .geo-result h2 {
+  margin-block: 8px;
+}
+.geo-playing .geo-round-result {
+  gap: 10px;
+}
+.geo-playing .geo-round-result > strong {
+  font-size: 40px;
+}
+@media (max-width: 750px), (max-width: 1000px) and (max-height: 520px) {
+  .geo-app.geo-playing {
+    padding-inline: 12px;
+  }
+  .geo-playing .geo-main {
+    padding-top: 8px;
+  }
+  .geo-playing .geo-status {
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .geo-playing .geo-status > div {
+    gap: 8px;
+  }
+  .geo-playing .geo-status-meta {
+    flex: 1;
+    justify-content: flex-end;
+  }
+  .geo-playing .geo-mode-label {
+    font-size: 10px;
+  }
+  .geo-playing .geo-score {
+    font-size: 11px;
+  }
+  .geo-playing .geo-score strong {
+    font-size: 20px;
+  }
+  .geo-playing .geo-timer {
+    font-size: 18px;
+    padding: 4px 8px;
+  }
+  .geo-playing .geo-stage {
+    height: calc(100svh - 164px);
+    min-height: 380px;
+  }
+  .geo-playing .geo-panorama {
+    height: calc(100% - 60px);
+    border-radius: 16px;
+  }
+  .geo-playing .geo-map-panel {
+    visibility: hidden;
+    pointer-events: none;
+    opacity: 0;
+  }
+  .geo-playing .geo-map-open .geo-map-panel {
+    inset: 0 0 60px;
+    visibility: visible;
+    pointer-events: auto;
+    opacity: 1;
+  }
+  .geo-playing .geo-map-close {
+    display: block;
+    flex: none;
+  }
+  .geo-playing .geo-map-expand {
+    display: none;
+  }
+  .geo-playing .geo-map-toggle {
+    display: block;
+    position: absolute;
+    inset: auto 0 0;
+    width: 100%;
+    min-height: 48px;
+  }
+  .geo-playing .geo-map-open .geo-return-start {
+    display: none;
+  }
+  .geo-playing .geo-revealed {
+    height: clamp(250px, 45svh, 460px);
+    min-height: 0;
+  }
+  .geo-playing .geo-revealed .geo-map-panel {
+    inset: 0;
+    visibility: visible;
+    pointer-events: auto;
+    opacity: 1;
+  }
+  .geo-playing .geo-result {
+    padding: 16px;
+    gap: 16px;
+  }
+}
+@media (max-width: 420px) {
+  .geo-playing .geo-status > div:first-child {
+    gap: 6px;
+  }
+  .geo-playing .geo-dots {
+    gap: 4px;
+  }
+  .geo-playing .geo-status .eyebrow {
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .geo-playing .geo-status-meta {
+    gap: 6px;
+  }
+  .geo-playing .geo-status-meta .geo-mode-label {
+    flex-basis: 100%;
+    text-align: right;
+  }
+}
+
+@media (max-width: 1000px) and (max-height: 520px) {
+  .geo-playing .header {
+    height: 48px;
+  }
+  .geo-playing .geo-stage {
+    height: calc(100svh - 116px);
+    min-height: 220px;
+  }
+  .geo-playing .geo-map-open .geo-map-panel {
+    bottom: 0;
+  }
+  .geo-playing .geo-map-open .geo-map-toggle {
+    display: none;
+  }
+  .geo-playing .geo-map-open .geo-map {
+    min-height: 80px;
+  }
+  .geo-playing .geo-revealed {
+    height: 260px;
+  }
+}
