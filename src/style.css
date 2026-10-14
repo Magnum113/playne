@@ -184,6 +184,30 @@ p {
 .intro h1 > span {
   color: var(--purple);
 }
+.naglaz-intro-top,
+.naglaz-round-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.naglaz-intro-top {
+  flex-wrap: wrap;
+  gap: 0 16px;
+  margin-bottom: 26px;
+}
+.naglaz-intro-top .eyebrow {
+  margin-bottom: 0;
+}
+.naglaz-intro-top .help-button,
+.naglaz-round-heading .help-button {
+  min-height: 44px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.naglaz-round-heading .round-title {
+  min-width: 0;
+}
 .lead {
   color: var(--muted);
   font-size: 17px;
@@ -796,6 +820,20 @@ dialog .primary {
   .intro .eyebrow {
     margin-bottom: 20px;
     font-size: 10px;
+  }
+  .naglaz-intro-top {
+    margin-bottom: 20px;
+  }
+  .naglaz-intro-top .eyebrow {
+    margin-bottom: 0;
+  }
+  .naglaz-round-heading {
+    flex-wrap: wrap;
+    gap: 0 12px;
+    margin: 20px 0;
+  }
+  .naglaz-round-heading .round-title {
+    margin: 0;
   }
   .intro h1 {
     font-size: 43px;

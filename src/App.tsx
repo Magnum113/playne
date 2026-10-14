@@ -39,14 +39,6 @@ function Arrow() {
     </svg>
   );
 }
-function Mark() {
-  return (
-    <svg width="27" height="27" viewBox="0 0 30 30" aria-hidden="true">
-      <path d="M3 24V13h9v11" fill="#61d7c1" />
-      <path d="M18 24V4h9v20" fill="#bea5f7" />
-    </svg>
-  );
-}
 function Hero() {
   return (
     <div className="hero-art" aria-hidden="true">
@@ -253,22 +245,14 @@ export default function App() {
         Перейти к игре
       </a>
       <header className="header">
-        <div className="brand">
-          <Mark />
-          <span>
-            На глаз<span className="brand-dot">.</span>
-          </span>
-        </div>
-        <div className="game-header-actions">
+        <PlayneBrand />
+        <nav className="game-header-actions" aria-label="Навигация">
           <a href="/" className="back-to-hub">
-            Все игры
+            ← Все игры
           </a>
           <AccountNav />
           <ThemeToggle />
-          <button className="help-button" onClick={openHelp}>
-            <span className="question">?</span> Правила
-          </button>
-        </div>
+        </nav>
       </header>
       <main id="main-content">
         {screen === "start" && ranked.state.status === "error" && (
@@ -277,9 +261,17 @@ export default function App() {
         {screen === "start" && (
           <section className="start-screen">
             <div className="intro">
-              <p className="eyebrow">
-                <span /> ИГРА В РАЗМЕРЫ
-              </p>
+              <div className="naglaz-intro-top">
+                <p className="eyebrow">
+                  <span /> ИГРА В РАЗМЕРЫ
+                </p>
+                <button className="help-button" onClick={openHelp}>
+                  Как играть{" "}
+                  <span className="question" aria-hidden="true">
+                    ?
+                  </span>
+                </button>
+              </div>
               <h1>
                 А насколько
                 <br />
@@ -348,9 +340,17 @@ export default function App() {
                 <span>/ 500</span>
               </span>
             </div>
-            <h1 ref={heading} tabIndex={-1} className="round-title">
-              {pair.title}
-            </h1>
+            <div className="naglaz-round-heading">
+              <h1 ref={heading} tabIndex={-1} className="round-title">
+                {pair.title}
+              </h1>
+              <button className="help-button" onClick={openHelp}>
+                Как играть{" "}
+                <span className="question" aria-hidden="true">
+                  ?
+                </span>
+              </button>
+            </div>
             <Board
               key={pair.id}
               reference={reference}
