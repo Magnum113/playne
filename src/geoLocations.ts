@@ -11,6 +11,7 @@ export type GeoLocation = {
   view?: { lat: number; lng: number };
   radius?: number;
   pitch?: number;
+  zoom?: number;
   note: string;
 };
 

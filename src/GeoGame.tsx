@@ -357,7 +357,7 @@ export default function GeoGame() {
       zIndex: 3,
     });
   }
-  function showPanorama(pano: string, heading: number, pitch = 0) {
+  function showPanorama(pano: string, heading: number, pitch = 0, zoom = 0) {
     return new Promise<void>((resolve, reject) => {
       const view = panorama.current!;
       let settled = false;
@@ -377,19 +377,22 @@ export default function GeoGame() {
         listener.remove();
         cancelWait.current = null;
         if (reason) reject(reason);
-        else resolve();
+        else {
+          view.setPov({ heading, pitch });
+          view.setZoom(zoom);
+          resolve();
+        }
       }
       cancelWait.current = () => finish(new Error("Cancelled"));
+      const alreadyLoaded =
+        view.getPano() === pano &&
+        view.getStatus() === google.maps.StreetViewStatus.OK;
       allowedPano.current = pano;
       view.setPov({ heading, pitch });
-      view.setZoom(0);
+      view.setZoom(zoom);
       view.setPano(pano);
       // Reusing an already-loaded panorama may not emit another status event.
-      if (
-        view.getStatus() === google.maps.StreetViewStatus.OK &&
-        view.getPano() === pano
-      )
-        finish();
+      if (alreadyLoaded) finish();
     });
   }
   async function loadRound(index: number) {
@@ -442,7 +445,12 @@ export default function GeoGame() {
             (geoIsLandmarks(modeRef.current)
               ? geoBearing(data.location.latLng.toJSON(), place)
               : (data.tiles?.centerHeading ?? 0));
-          await showPanorama(data.location.pano, heading, place.pitch ?? 0);
+          await showPanorama(
+            data.location.pano,
+            heading,
+            place.pitch ?? 0,
+            place.zoom ?? 0,
+          );
           startHeading.current = heading;
           if (token !== operation.current) return;
           actual.current = geoIsLandmarks(modeRef.current)
@@ -875,7 +883,7 @@ export default function GeoGame() {
                   heading: startHeading.current,
                   pitch: activePlace.current?.pitch ?? 0,
                 });
-                view.setZoom(0);
+                view.setZoom(activePlace.current?.zoom ?? 0);
               }}
               aria-label="На старт — вернуться к начальной панораме"
             >

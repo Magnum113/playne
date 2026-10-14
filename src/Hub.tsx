@@ -6,6 +6,7 @@ import { objects } from "./data";
 import { readBest } from "./game";
 import { circlePercent, readCircleBest } from "./circle";
 import GeoPreview from "./GeoPreview";
+import LandmarkPreview from "./LandmarkPreview";
 import { readGeoStats } from "./geo";
 
 function Arrow() {
@@ -152,6 +153,7 @@ export default function Hub() {
   const best = readBest();
   const circleBest = readCircleBest();
   const geoBest = readGeoStats().best;
+  const landmarkBest = readGeoStats("landmarks").best;
   return (
     <div className="hub app">
       <a className="skip-link" href="#main-content">
@@ -288,6 +290,36 @@ export default function Hub() {
                 <span>
                   {geoBest > 0
                     ? `Твой рекорд: ${geoBest.toLocaleString("ru-RU")} / 500`
+                    : "5 мест · 500 очков"}
+                </span>
+                <span className="card-play">
+                  Играть <Arrow />
+                </span>
+              </div>
+            </a>
+            <a
+              className="game-card game-card-live landmark-card"
+              href="/geo/?mode=landmarks"
+              aria-label="Играть в Достопримечательности"
+            >
+              <div className="card-topline">
+                <span className="card-category">ЗНАМЕНИТЫЕ МЕСТА</span>
+              </div>
+              <LandmarkPreview />
+              <div className="card-copy">
+                <h2>
+                  Достопримечательности<span className="brand-dot">.</span>
+                </h2>
+                <p>
+                  Узнай храмы, памятники и чудеса природы.
+                  <br />
+                  Найди их на карте мира.
+                </p>
+              </div>
+              <div className="card-bottom">
+                <span>
+                  {landmarkBest > 0
+                    ? `Твой рекорд: ${landmarkBest.toLocaleString("ru-RU")} / 500`
                     : "5 мест · 500 очков"}
                 </span>
                 <span className="card-play">

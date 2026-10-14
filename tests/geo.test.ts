@@ -108,6 +108,8 @@ describe("geographical sessions", () => {
     expect(geoIsTimed("landmarks-timed")).toBe(true);
     expect(geoModeFor(true, true, true)).toBe("landmarks-timed");
     const catalog = geoCatalog("landmarks");
+    expect(catalog).toHaveLength(100);
+    expect(new Set(catalog.map((p) => p.name)).size).toBe(100);
     expect(new Set(catalog.map((p) => p.id)).size).toBe(catalog.length);
     expect(catalog.every((p) => !geoLocations.some((w) => w.id === p.id))).toBe(
       true,
@@ -121,6 +123,17 @@ describe("geographical sessions", () => {
       recent = rounds.map((p) => p.id);
     }
     for (const place of catalog) {
+      expect(Number.isFinite(place.lat) && Math.abs(place.lat) <= 90).toBe(
+        true,
+      );
+      expect(Number.isFinite(place.lng) && Math.abs(place.lng) <= 180).toBe(
+        true,
+      );
+      expect(place.note.trim().length).toBeGreaterThan(0);
+      expect(place.pitch ?? 0).toBeGreaterThanOrEqual(-90);
+      expect(place.pitch ?? 0).toBeLessThanOrEqual(90);
+      expect(place.zoom ?? 0).toBeGreaterThanOrEqual(0);
+      expect(place.zoom ?? 0).toBeLessThanOrEqual(3);
       expect(geoPanoramaFits(place, place.view!)).toBe(true);
       expect(
         geoPanoramaFits(place, {
