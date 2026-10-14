@@ -23,9 +23,7 @@ describe("Оттенок", () => {
     expect(state.answers[0]).toMatchObject({score:0,timedOut:true,noChoice:true});
     expect(shadeReducer(state, { type: "submit", expired:true })).toBe(state);
     expect(parseShadeSession(JSON.stringify(state))).toEqual(state);
-    const reset = shadeReducer(state, { type: "menu" });
-    expect(shadePhase(reset)).toBe("welcome");
-    expect(reset.stats.played).toBe(0);
+    expect(shadeReducer(state, { type: "menu" })).toBe(state);
     for (let i=1; i<5; i++) {
       state = shadeReducer(state,{type:"next"});
       state = shadeReducer(state,{type:"pick", color:state.targets[i]});

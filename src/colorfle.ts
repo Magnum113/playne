@@ -185,7 +185,7 @@ export function shadeReducer(
   state: ShadeSession,
   action: ShadeAction,
 ): ShadeSession {
-  if (action.type === "menu" && state.started)
+  if (action.type === "menu" && shadePhase(state) === "finished")
     return { ...newShadeSession(state), started: false };
   if (action.type === "mode" && !state.started)
     return newShadeSession(state, Math.random, action.mode);

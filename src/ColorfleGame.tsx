@@ -472,20 +472,10 @@ export default function ColorfleGame() {
                 </div>
               </div>
             </div>
-            <div className="shade-active-mode">
-              <span>
-                {shadeModeName(mode)}
-                {timed ? " · 30 секунд на цвет" : ""}
-              </span>
-              {phase !== "finished" && (
-                <button
-                  className="text-button"
-                  onClick={() => dispatch({ type: "menu" })}
-                >
-                  Сменить режим
-                </button>
-              )}
-            </div>
+            <p className="shade-active-mode">
+              {shadeModeName(mode)}
+              {timed ? " · 30 секунд на цвет" : ""}
+            </p>
             {timerError && (
               <div className="shade-timer-error" role="status">
                 <p>{timerError}</p>
