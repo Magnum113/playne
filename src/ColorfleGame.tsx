@@ -380,53 +380,55 @@ export default function ColorfleGame() {
         </div>
         {phase === "welcome" ? (
           <section className="shade-welcome">
+            <div className="shade-welcome-copy">
+              <p className="eyebrow">ПЯТЬ РАУНДОВ · 500 ОЧКОВ</p>
+              <h2>Сможешь попасть в цвет?</h2>
+              <p>
+                Смотри на образец и выбирай такой же оттенок на палитре. Чем
+                ближе твой цвет, тем больше очков.
+              </p>
+              <fieldset className="shade-mode-choice">
+                <legend>Режим игры</legend>
+                {(["classic", "timed"] as ShadeMode[]).map((option) => (
+                  <label
+                    key={option}
+                    className={mode === option ? "selected" : ""}
+                  >
+                    <input
+                      type="radio"
+                      name="shade-mode"
+                      checked={mode === option}
+                      disabled={ranked.state.status === "loading"}
+                      onChange={() => dispatch({ type: "mode", mode: option })}
+                    />
+                    <span>
+                      <strong>{shadeModeName(option)}</strong>
+                      <small>
+                        {option === "timed"
+                          ? "30 секунд на цвет"
+                          : "В своём темпе"}
+                      </small>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              <button
+                className="primary"
+                disabled={ranked.state.status === "loading"}
+                onClick={() => void beginOnline()}
+              >
+                Начать игру <span aria-hidden="true">→</span>
+              </button>
+              {ranked.state.status === "error" && (
+                <p role="status">{ranked.state.message}</p>
+              )}
+              <small>Без регистрации. 150 оттенков в случайном порядке.</small>
+            </div>
             <div className="shade-welcome-art" aria-hidden="true">
               <span />
               <span />
               <span />
             </div>
-            <p className="eyebrow">ПЯТЬ РАУНДОВ · 500 ОЧКОВ</p>
-            <h2>Сможешь попасть в цвет?</h2>
-            <p>
-              Смотри на образец и выбирай такой же оттенок на палитре. Чем ближе
-              твой цвет, тем больше очков.
-            </p>
-            <fieldset className="shade-mode-choice">
-              <legend>Режим игры</legend>
-              {(["classic", "timed"] as ShadeMode[]).map((option) => (
-                <label
-                  key={option}
-                  className={mode === option ? "selected" : ""}
-                >
-                  <input
-                    type="radio"
-                    name="shade-mode"
-                    checked={mode === option}
-                    disabled={ranked.state.status === "loading"}
-                    onChange={() => dispatch({ type: "mode", mode: option })}
-                  />
-                  <span>
-                    <strong>{shadeModeName(option)}</strong>
-                    <small>
-                      {option === "timed"
-                        ? "30 секунд на цвет"
-                        : "В своём темпе"}
-                    </small>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-            <button
-              className="primary"
-              disabled={ranked.state.status === "loading"}
-              onClick={() => void beginOnline()}
-            >
-              Начать игру <span aria-hidden="true">↗</span>
-            </button>
-            {ranked.state.status === "error" && (
-              <p role="status">{ranked.state.message}</p>
-            )}
-            <small>Без регистрации. 150 оттенков в случайном порядке.</small>
           </section>
         ) : (
           <>
