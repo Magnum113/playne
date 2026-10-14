@@ -94,3 +94,5 @@
   .shade-status { position: sticky; top: 0; z-index: 3; background: var(--bg); padding-block: 8px; }
 }
 .shade-swatch-empty { display: grid; place-items: center; color: var(--muted); font-size: 14px; }
+.shade-active-mode { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
+.shade-active-mode .text-button { min-height: 44px; font-size: 12px; }

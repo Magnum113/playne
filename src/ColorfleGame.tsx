@@ -457,7 +457,9 @@ export default function ColorfleGame() {
                   <span
                     className={`shade-timer${remaining <= 5 ? " urgent" : ""}`}
                     role="timer"
-                    aria-label={state.deadline ? "Осталось времени" : "Запускаем таймер"}
+                    aria-label={
+                      state.deadline ? "Осталось времени" : "Запускаем таймер"
+                    }
                   >
                     {state.deadline
                       ? `0:${String(remaining).padStart(2, "0")}`
@@ -470,10 +472,20 @@ export default function ColorfleGame() {
                 </div>
               </div>
             </div>
-            <p className="shade-active-mode">
-              {shadeModeName(mode)}
-              {timed ? " · 30 секунд на цвет" : ""}
-            </p>
+            <div className="shade-active-mode">
+              <span>
+                {shadeModeName(mode)}
+                {timed ? " · 30 секунд на цвет" : ""}
+              </span>
+              {phase !== "finished" && (
+                <button
+                  className="text-button"
+                  onClick={() => dispatch({ type: "menu" })}
+                >
+                  Сменить режим
+                </button>
+              )}
+            </div>
             {timerError && (
               <div className="shade-timer-error" role="status">
                 <p>{timerError}</p>
