@@ -33,6 +33,35 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("durable result synchronization", () => {
+  it("restores a timed color answer after network loss and discards only an expired choice update", async () => {
+    const saved = storage();
+    const failed = queue(async () => {
+      throw new Error("offline");
+    }, saved);
+    const issued = { ...run(), mode: "timed" as const };
+    const key = failed.add(issued, "colorfle");
+    failed.pin(key, 0, { h: 240, s: 100, v: 100 });
+    failed.enqueue(key, 0, { choice: { h: 0, s: 100, v: 100 }, expired: true });
+    await failed.drain(key);
+    failed.dispose();
+    const paths: string[] = [];
+    const restored = queue(async (path: string, _method: string, body: any) => {
+      paths.push(path);
+      if (path.endsWith("/choice"))
+        throw Object.assign(new Error("expired"), { status: 409 });
+      expect(body.answer.expired).toBe(true);
+      return {
+        answer: { choice: null, score: 0, timedOut: true },
+        completed: false,
+        published: false,
+      };
+    }, saved);
+    restored.recover();
+    await restored.drain(key);
+    expect(paths).toEqual([`/games/${id}/choice`, `/games/${id}/answers`]);
+    expect(restored.get(key)?.results[0].answer.score).toBe(0);
+    expect(restored.get(key)?.tasks).toHaveLength(0);
+  });
   it.each(["naglaz", "circle", "colorfle", "geo"] as const)(
     "keeps %s answers until acknowledged and recognizes automatic server publication",
     async (game) => {

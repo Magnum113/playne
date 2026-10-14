@@ -1054,6 +1054,91 @@ suite("Playne database and OAuth integration", () => {
       }
     }
   });
+  it("times color rounds on the server, restores deadlines, publishes immediately and separates rankings", async () => {
+    const headers = { origin, cookie: logged };
+    const issued = (
+      await app.inject({
+        method: "POST",
+        url: "/api/games",
+        headers,
+        payload: { game: "colorfle", mode: "timed" },
+      })
+    ).json();
+    expect(issued.challenge.mode).toBe("timed");
+    const clock = vi.spyOn(Date, "now");
+    let now = Date.now();
+    clock.mockImplementation(() => now);
+    try {
+      for (let index = 0; index < 5; index++) {
+        const ready = (
+          await app.inject({
+            method: "POST",
+            url: `/api/games/${issued.id}/ready`,
+            headers,
+            payload: { index },
+          })
+        ).json();
+        expect(ready.deadline - now).toBe(30000);
+        now += 1000;
+        const restored = (
+          await app.inject({
+            method: "POST",
+            url: `/api/games/${issued.id}/ready`,
+            headers,
+            payload: { index },
+          })
+        ).json();
+        expect(restored.deadline).toBe(ready.deadline);
+        if (index > 0) {
+          const pin = await app.inject({
+            method: "POST",
+            url: `/api/games/${issued.id}/choice`,
+            headers,
+            payload: { index, choice: issued.challenge.targets[index] },
+          });
+          expect(pin.statusCode).toBe(200);
+        }
+        now = ready.deadline;
+        expect(
+          (
+            await app.inject({
+              method: "POST",
+              url: `/api/games/${issued.id}/choice`,
+              headers,
+              payload: { index, choice: issued.challenge.targets[index] },
+            })
+          ).statusCode,
+        ).toBe(409);
+        const saved = await app.inject({
+          method: "POST",
+          url: `/api/games/${issued.id}/answers`,
+          headers,
+          payload: {
+            index,
+            answer: { choice: issued.challenge.targets[index], expired: true },
+          },
+        });
+        expect(saved.statusCode).toBe(200);
+        expect(saved.json().answer.score).toBe(index === 0 ? 0 : 100);
+        expect(saved.json().published).toBe(index === 4);
+      }
+      const timed = (
+        await app.inject("/api/leaderboard?game=colorfle&mode=timed")
+      ).json();
+      expect(timed.entries[0].score).toBe(400);
+      expect(timed.mode).toBe("timed");
+      const classic = (
+        await app.inject("/api/leaderboard?game=colorfle&mode=classic")
+      ).json();
+      expect(classic.entries[0].score).toBe(500);
+      expect(
+        (await app.inject("/api/leaderboard?game=colorfle&mode=moving"))
+          .statusCode,
+      ).toBe(400);
+    } finally {
+      clock.mockRestore();
+    }
+  });
   it("revokes the authenticated session on logout", async () => {
     const out = await app.inject({
       method: "POST",

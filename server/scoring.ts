@@ -59,7 +59,8 @@ export function makeChallenge(
 ) {
   if (game === "naglaz")
     return { pairIds: chooseRounds(recent).map((p) => p.id) };
-  if (game === "colorfle") return { targets: randomTargets() };
+  if (game === "colorfle")
+    return { targets: randomTargets(Math.random, recent), mode, timers: {} };
   if (game === "geo")
     return {
       places: chooseGeoRounds(recent, Math.random, mode),
@@ -103,11 +104,21 @@ export function validateAnswer(
     };
   }
   if (game === "colorfle") {
-    if (!validHSV(input?.choice) || !challenge.targets[index])
-      throw new Error("Некорректный цвет");
+    if (!challenge.targets[index]) throw new Error("Некорректный цвет");
+    const timed = challenge.mode === "timed";
+    const timer = challenge.timers?.[index];
+    if (timed && !Number.isFinite(timer?.deadline))
+      throw new Error("Таймер ещё не запущен");
+    const timedOut = timed && now >= timer.deadline;
+    if (input?.expired && !timedOut) throw new Error("Время ещё не истекло");
+    const choice = timedOut ? (timer.choice ?? null) : input?.choice;
+    if (choice === null && timedOut)
+      return { choice: null, score: 0, timedOut: true };
+    if (!validHSV(choice)) throw new Error("Некорректный цвет");
     return {
-      choice: input.choice,
-      score: shadeScore(input.choice, challenge.targets[index]),
+      choice,
+      score: shadeScore(choice, challenge.targets[index]),
+      ...(timed ? { timedOut } : {}),
     };
   }
   if (game === "circle") {

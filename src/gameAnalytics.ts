@@ -5,15 +5,15 @@ import type { CircleResult } from "./circle";
 type GoalEvent = { goal: MetrikaGoal; params: MetrikaParams };
 export function shadeTransitionGoals(before: ShadeSession, after: ShadeSession, action: ShadeAction): GoalEvent[] {
   if (before === after) return [];
-  if (action.type === "start") return [{ goal: SHADE_GOALS.gameStart, params: { source: "initial", round_count: ROUND_COUNT } }];
+  if (action.type === "start") return [{ goal: SHADE_GOALS.gameStart, params: { source: "initial", round_count: ROUND_COUNT, mode: after.mode ?? "classic" } }];
   if (action.type === "new") return [
-    { goal: SHADE_GOALS.gameRestart, params: { previous_score: shadeTotal(before) } },
-    { goal: SHADE_GOALS.gameStart, params: { source: "restart", round_count: ROUND_COUNT } },
+    { goal: SHADE_GOALS.gameRestart, params: { previous_score: shadeTotal(before), mode: after.mode ?? "classic" } },
+    { goal: SHADE_GOALS.gameStart, params: { source: "restart", round_count: ROUND_COUNT, mode: after.mode ?? "classic" } },
   ];
   if (action.type !== "submit" || after.answers.length !== before.answers.length + 1) return [];
-  const events: GoalEvent[] = [{ goal: SHADE_GOALS.roundComplete, params: { round_number: after.answers.length, score: after.answers.at(-1)!.score } }];
+  const events: GoalEvent[] = [{ goal: SHADE_GOALS.roundComplete, params: { round_number: after.answers.length, score: after.answers.at(-1)!.score, mode: after.mode ?? "classic", timed_out: !!after.answers.at(-1)!.timedOut } }];
   if (shadePhase(after) === "finished") events.push({ goal: SHADE_GOALS.gameComplete, params: {
-    score: shadeTotal(after), previous_best: before.stats.best, new_record: shadeTotal(after) > before.stats.best,
+    mode: after.mode ?? "classic", score: shadeTotal(after), previous_best: before.stats.best, new_record: shadeTotal(after) > before.stats.best,
   } });
   return events;
 }

@@ -1,5 +1,10 @@
 import Fastify, { type FastifyRequest } from "fastify";
-import { validHSV } from "../src/colorfle";
+import {
+  validHSV,
+  validShadeMode,
+  hsvToHex,
+  SHADE_TIME_LIMIT_MS,
+} from "../src/colorfle";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import { randomBytes, createHash } from "node:crypto";
@@ -312,8 +317,8 @@ export async function buildApp(
       const b = browser(req, reply),
         u = await user(req);
       const recentRows = await pool.query(
-        "SELECT challenge FROM playne_games WHERE game=$1 AND browser_hash=$2 ORDER BY created_at DESC LIMIT 6",
-        [game, b],
+        "SELECT challenge FROM playne_games WHERE game=$1 AND browser_hash=$2 ORDER BY created_at DESC LIMIT $3",
+        [game, b, game === "colorfle" ? 30 : 6],
       );
       const recent = (
         game === "geo" ? [...recentRows.rows].reverse() : recentRows.rows
@@ -322,11 +327,16 @@ export async function buildApp(
           ? (r.challenge.pairIds ?? [])
           : game === "geo"
             ? (r.challenge.places ?? []).map((p: any) => p.id)
-            : [],
+            : game === "colorfle"
+              ? (r.challenge.targets ?? []).filter(validHSV).map(hsvToHex)
+              : [],
       );
       const mode =
-        game === "geo" ? ((req.body as any)?.mode ?? "classic") : "classic";
-      if (!validGeoMode(mode)) failure("Неизвестный режим");
+        game === "geo" || game === "colorfle"
+          ? ((req.body as any)?.mode ?? "classic")
+          : "classic";
+      if (!validGeoMode(mode) || (game === "colorfle" && !validShadeMode(mode)))
+        failure("Неизвестный режим");
       const geoVersion = (req.body as any)?.geoRulesVersion;
       const version =
         game === "geo"
@@ -347,7 +357,7 @@ export async function buildApp(
       const challenge = makeChallenge(
         game,
         recent,
-        version === 1 ? "classic" : mode,
+        game === "geo" && version === 1 ? "classic" : mode,
       );
       const { rows } = await pool.query(
         "INSERT INTO playne_games(browser_hash,owner_id,game,challenge,version,mode) VALUES($1,$2,$3,$4,$5,$6) RETURNING id",
@@ -357,7 +367,7 @@ export async function buildApp(
           game,
           JSON.stringify(challenge),
           version,
-          version === 1 ? "classic" : mode,
+          game === "geo" && version === 1 ? "classic" : mode,
         ],
       );
       return {
@@ -555,22 +565,67 @@ export async function buildApp(
       await c.query("BEGIN");
       const run = await owned(req, reply, (req.params as any).id, c, true);
       if (
-        run.game !== "geo" ||
-        !geoIsTimed(run.mode) ||
+        !(
+          (run.game === "geo" && geoIsTimed(run.mode)) ||
+          (run.game === "colorfle" && run.mode === "timed")
+        ) ||
         !Number.isInteger(index) ||
         index !== run.answers.length ||
         run.completed_at
       )
         failure("Раунд недоступен", 409);
-      const pano = run.challenge.panoramas?.[index];
+      if (run.game === "colorfle") run.challenge.timers ??= {};
+      const pano =
+        run.game === "colorfle"
+          ? (run.challenge.timers[index] ??= {})
+          : run.challenge.panoramas?.[index];
       if (!pano) failure("Панорама не проверена", 409);
-      pano.deadline ??= Date.now() + GEO_TIME_LIMIT_MS;
+      pano.deadline ??=
+        Date.now() +
+        (run.game === "colorfle" ? SHADE_TIME_LIMIT_MS : GEO_TIME_LIMIT_MS);
       await c.query("UPDATE playne_games SET challenge=$1 WHERE id=$2", [
         JSON.stringify(run.challenge),
         run.id,
       ]);
       await c.query("COMMIT");
       return { deadline: pano.deadline, serverNow: Date.now() };
+    } catch (e) {
+      await c.query("ROLLBACK");
+      throw e;
+    } finally {
+      c.release();
+    }
+  });
+  app.post("/api/games/:id/choice", async (req, reply) => {
+    const body = req.body as any;
+    if (
+      !Number.isInteger(body?.index) ||
+      body.index < 0 ||
+      body.index > 4 ||
+      !validHSV(body?.choice)
+    )
+      failure("Некорректный цвет");
+    const c = await pool.connect();
+    try {
+      await c.query("BEGIN");
+      const run = await owned(req, reply, (req.params as any).id, c, true);
+      const timer = run.challenge.timers?.[body.index];
+      if (
+        run.game !== "colorfle" ||
+        run.mode !== "timed" ||
+        run.completed_at ||
+        run.answers.length !== body.index ||
+        !timer?.deadline ||
+        Date.now() >= timer.deadline
+      )
+        failure("Время истекло или раунд недоступен", 409);
+      timer.choice = body.choice;
+      await c.query("UPDATE playne_games SET challenge=$1 WHERE id=$2", [
+        JSON.stringify(run.challenge),
+        run.id,
+      ]);
+      await c.query("COMMIT");
+      return { ok: true };
     } catch (e) {
       await c.query("ROLLBACK");
       throw e;
@@ -728,8 +783,12 @@ export async function buildApp(
     if (!Number.isInteger(page) || page < 1 || page > 10000)
       failure("Некорректная страница");
     const u = await user(req);
-    const mode = q.game === "geo" ? (q.mode ?? "classic") : "classic";
-    if (!validGeoMode(mode)) failure("Неизвестный режим");
+    const mode =
+      q.game === "geo" || q.game === "colorfle"
+        ? (q.mode ?? "classic")
+        : "classic";
+    if (!validGeoMode(mode) || (q.game === "colorfle" && !validShadeMode(mode)))
+      failure("Неизвестный режим");
     const base = `WITH eligible AS (SELECT owner_id,version,answers,completed_at,CASE WHEN $2=4 THEN ${GEO_V4_UNITS_SQL} WHEN $2=3 THEN ${GEO_V3_UNITS_SQL} ELSE score_units END AS score_units FROM playne_games WHERE game=$1 AND (version=$2 OR ($1='geo' AND $2=3 AND version=2) OR ($1='geo' AND $2=4 AND version IN(2,3))) AND mode=$4 AND published_at IS NOT NULL AND ($3='all' OR completed_at >= date_trunc('week',now() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow')), best AS (SELECT DISTINCT ON(owner_id) owner_id,version,score_units,answers,completed_at FROM eligible ORDER BY owner_id,score_units DESC,completed_at ASC), ranked AS (SELECT u.id,u.nickname,b.version,b.score_units/10.0 AS score,b.answers,b.completed_at,rank() OVER(ORDER BY b.score_units DESC) AS place FROM best b JOIN playne_users u ON u.id=b.owner_id)`;
     const requestedVersion =
       q.game === "geo" ? geoViewerVersion(req, q) : scoreVersion(q.game);

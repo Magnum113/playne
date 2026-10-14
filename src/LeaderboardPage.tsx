@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { api, gameNames, resultText, AccountNav, type GameId } from "./account";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
+import { shadeModeName, type ShadeMode } from "./colorfle";
 export default function LeaderboardPage() {
   const query =
     typeof window === "undefined"
@@ -47,7 +48,7 @@ export default function LeaderboardPage() {
           reachGoal(ACCOUNT_GOALS.leaderboardOpen, {
             game,
             period,
-            ...(game === "geo" ? { mode } : {}),
+            ...(game === "geo" || game === "colorfle" ? { mode } : {}),
           });
         }
       })
@@ -63,6 +64,7 @@ export default function LeaderboardPage() {
   }, [game, period, page, mode, retry]);
   function change(next: GameId) {
     setGame(next);
+    if (next !== "geo") setMode("classic");
     setPage(1);
     window.history.replaceState(
       null,
@@ -76,7 +78,7 @@ export default function LeaderboardPage() {
     window.history.replaceState(
       null,
       "",
-      `/leaderboard/?game=geo&mode=${next}`,
+      `/leaderboard/?game=${game}&mode=${next}`,
     );
   }
   const entry = (e: any, key: string) => (
@@ -129,6 +131,22 @@ export default function LeaderboardPage() {
             </button>
           ))}
         </div>
+        {game === "colorfle" && (
+          <div
+            className="rank-period geo-rank-modes"
+            aria-label="Режим Оттенка"
+          >
+            {(["classic", "timed"] as ShadeMode[]).map((option) => (
+              <button
+                key={option}
+                aria-pressed={mode === option}
+                onClick={() => chooseMode(option)}
+              >
+                {shadeModeName(option)}
+              </button>
+            ))}
+          </div>
+        )}
         {game === "geo" && (
           <div className="geo-ranking-filters">
             <div className="rank-period geo-rank-modes" aria-label="Места">

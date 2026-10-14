@@ -1,4 +1,5 @@
 import { GEO_MODES, geoModeName, type GeoMode } from "./geo";
+import { shadeModeName } from "./colorfle";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -244,7 +245,13 @@ export default function AccountPage() {
                           `${name} · ${geoModeName(mode)}`,
                           mode,
                         ])
-                      : [[id, name, "classic"]],
+                      : id === "colorfle"
+                        ? (["classic", "timed"] as const).map((mode) => [
+                            id,
+                            `${name} · ${shadeModeName(mode)}`,
+                            mode,
+                          ])
+                        : [[id, name, "classic"]],
                   )
                   .map(([id, name, mode]) => {
                     const best = data?.best.find(
@@ -277,6 +284,8 @@ export default function AccountPage() {
                         {gameNames[h.game as GameId]}
                         {h.game === "geo" &&
                           ` · ${h.version === 1 ? "Прежние правила" : geoModeName(h.mode as GeoMode)}`}
+                        {h.game === "colorfle" &&
+                          ` · ${shadeModeName(h.mode === "timed" ? "timed" : "classic")}`}
                         <small>
                           {new Date(h.completed_at).toLocaleDateString(
                             "ru-RU",

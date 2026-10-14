@@ -3,6 +3,7 @@ import {
   useEffect,
   useReducer,
   useRef,
+  useState,
   type KeyboardEvent,
   type PointerEvent,
 } from "react";
@@ -19,6 +20,9 @@ import {
   shadePhase,
   shadeReducer,
   shadeTotal,
+  shadeModeName,
+  SHADE_TIME_LIMIT_MS,
+  type ShadeMode,
   type HSV,
   type ShadeAction,
 } from "./colorfle";
@@ -30,23 +34,33 @@ function Swatch({
   color,
   hint,
   showHex = true,
+  empty = false,
 }: {
   label: string;
   color: HSV;
   hint?: string;
   showHex?: boolean;
+  empty?: boolean;
 }) {
   return (
     <div className="shade-swatch-card">
       <span className="shade-label">{label}</span>
       <div
-        className="shade-swatch"
-        style={{ backgroundColor: hsvToHex(color) }}
+        className={`shade-swatch${empty ? " shade-swatch-empty" : ""}`}
+        style={{ backgroundColor: empty ? "var(--hover)" : hsvToHex(color) }}
         role="img"
-        aria-label={showHex ? `${label}: ${colorText(color)}` : label}
-      />
+        aria-label={
+          empty
+            ? "Цвет не выбран"
+            : showHex
+              ? `${label}: ${colorText(color)}`
+              : label
+        }
+      >
+        {empty ? "Нет ответа" : null}
+      </div>
       <div className="shade-value">
-        {showHex ? colorText(color) : "Подбери на глаз"}
+        {empty ? "—" : showHex ? colorText(color) : "Подбери на глаз"}
         {hint && <span>{hint}</span>}
       </div>
     </div>
@@ -166,8 +180,10 @@ function Rules() {
         </li>
       </ol>
       <p>
-        Всего пять раундов. Максимум — 500 очков. Таймера нет, а лучший
-        результат сохраняется в этом браузере.
+        Всего пять раундов. Максимум — 500 очков. Можно играть без таймера или с
+        лимитом 30 секунд на цвет. Когда время истечёт, засчитывается последний
+        выбранный оттенок. Если ничего не выбрано — 0 очков. У каждого режима
+        свой рекорд и рейтинг.
       </p>
     </div>
   );
@@ -178,10 +194,35 @@ export default function ColorfleGame() {
   const current = useRef(state);
   const rules = useRef<HTMLDialogElement>(null);
   const result = useRef<HTMLElement>(null);
+  const [remaining, setRemaining] = useState(SHADE_TIME_LIMIT_MS / 1000);
+  const lastChoiceSent = useRef(0);
+  const pendingChoice = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [timerError, setTimerError] = useState("");
+  const [timerRetry, setTimerRetry] = useState(0);
+  const mode = state.mode ?? "classic";
+  const timed = mode === "timed";
   const phase = shadePhase(state);
   const round = state.round;
   const answer = state.answers[round];
   const total = shadeTotal(state);
+  function syncChoice() {
+    const latest = current.current;
+    if (
+      latest.mode !== "timed" ||
+      shadePhase(latest) !== "picking" ||
+      !latest.deadline ||
+      Date.now() >= latest.deadline
+    )
+      return;
+    lastChoiceSent.current = Date.now();
+    ranked.shadeChoice(latest.round, latest.draft);
+  }
+  useEffect(
+    () => () => {
+      if (pendingChoice.current) clearTimeout(pendingChoice.current);
+    },
+    [],
+  );
   function dispatch(action: ShadeAction) {
     const before = current.current,
       after = shadeReducer(before, action);
@@ -191,15 +232,31 @@ export default function ColorfleGame() {
     if (
       action.type === "submit" &&
       after.answers.length > before.answers.length
-    )
-      ranked.submit(before.round, { choice: before.draft });
+    ) {
+      if (before.mode === "timed" && before.touched)
+        ranked.shadeChoice(before.round, before.draft);
+      void ranked
+        .shadeAnswer(before.round, {
+          choice: before.touched ? before.draft : null,
+          expired: action.expired,
+        })
+        .then((answer) => {
+          if (answer && before.rankedId)
+            dispatch({
+              type: "verified",
+              index: before.round,
+              answer,
+              id: before.rankedId,
+            });
+        });
+    }
     shadeTransitionGoals(before, after, action).forEach(({ goal, params }) =>
       reachGoal(goal, params),
     );
   }
   async function beginOnline(replay = false) {
     if (ranked.state.status === "loading") return;
-    const online = await ranked.begin();
+    const online = await ranked.begin(mode);
     if (!online) return;
     if (replay)
       dispatch({ type: "new", session: newShadeSession(current.current) });
@@ -215,6 +272,65 @@ export default function ColorfleGame() {
     if (state.started)
       void ranked.resumeColor(state.rankedId, state.targets, state.answers);
   }, [state.started, state.rankedId, state.targets]);
+  useEffect(() => {
+    const results = ranked.shadeResults();
+    if (!state.rankedId || !results) return;
+    for (const [index, checked] of Object.entries(results)) {
+      const local = state.answers[Number(index)],
+        answer = checked.answer;
+      if (
+        local &&
+        (local.score !== answer.score ||
+          local.timedOut !== answer.timedOut ||
+          !!local.noChoice !== (answer.choice === null) ||
+          (answer.choice &&
+            colorText(local.choice) !== colorText(answer.choice)))
+      )
+        dispatch({
+          type: "verified",
+          index: Number(index),
+          answer,
+          id: state.rankedId,
+        });
+    }
+  }, [ranked.state, state.rankedId]);
+  useEffect(() => {
+    if (!timed || phase !== "picking") return;
+    let active = true;
+    setTimerError("");
+    setRemaining(SHADE_TIME_LIMIT_MS / 1000);
+    void ranked
+      .shadeReady(round)
+      .then((deadline) => {
+        if (active) dispatch({ type: "deadline", deadline });
+      })
+      .catch((e) => {
+        if (active) setTimerError(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [timed, phase, round, timerRetry]);
+  useEffect(() => {
+    if (!timed || phase !== "picking" || !state.deadline) return;
+    const tick = () => {
+      const left = Math.max(
+        0,
+        Math.ceil((state.deadline! - Date.now()) / 1000),
+      );
+      setRemaining(left);
+      if (!left) dispatch({ type: "submit", expired: true });
+    };
+    tick();
+    const interval = setInterval(tick, 100);
+    window.addEventListener("focus", tick);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", tick);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [timed, phase, state.deadline, round]);
   useEffect(() => saveShadeSession(state), [state]);
   useEffect(() => {
     if (phase === "reveal" || phase === "finished") result.current?.focus();
@@ -275,6 +391,31 @@ export default function ColorfleGame() {
               Смотри на образец и выбирай такой же оттенок на палитре. Чем ближе
               твой цвет, тем больше очков.
             </p>
+            <fieldset className="shade-mode-choice">
+              <legend>Режим игры</legend>
+              {(["classic", "timed"] as ShadeMode[]).map((option) => (
+                <label
+                  key={option}
+                  className={mode === option ? "selected" : ""}
+                >
+                  <input
+                    type="radio"
+                    name="shade-mode"
+                    checked={mode === option}
+                    disabled={ranked.state.status === "loading"}
+                    onChange={() => dispatch({ type: "mode", mode: option })}
+                  />
+                  <span>
+                    <strong>{shadeModeName(option)}</strong>
+                    <small>
+                      {option === "timed"
+                        ? "30 секунд на цвет"
+                        : "В своём темпе"}
+                    </small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
             <button
               className="primary"
               disabled={ranked.state.status === "loading"}
@@ -285,7 +426,7 @@ export default function ColorfleGame() {
             {ranked.state.status === "error" && (
               <p role="status">{ranked.state.message}</p>
             )}
-            <small>Без таймера и регистрации.</small>
+            <small>Без регистрации. 150 оттенков в случайном порядке.</small>
           </section>
         ) : (
           <>
@@ -311,10 +452,39 @@ export default function ColorfleGame() {
                   ))}
                 </div>
               </div>
-              <div className="shade-score">
-                Очки <strong>{total}</strong> <span>/ {ROUND_COUNT * 100}</span>
+              <div className="shade-status-right">
+                {timed && phase === "picking" && (
+                  <span
+                    className={`shade-timer${remaining <= 5 ? " urgent" : ""}`}
+                    role="timer"
+                    aria-label={state.deadline ? "Осталось времени" : "Запускаем таймер"}
+                  >
+                    {state.deadline
+                      ? `0:${String(remaining).padStart(2, "0")}`
+                      : "—:—"}
+                  </span>
+                )}
+                <div className="shade-score">
+                  Очки <strong>{total}</strong>{" "}
+                  <span>/ {ROUND_COUNT * 100}</span>
+                </div>
               </div>
             </div>
+            <p className="shade-active-mode">
+              {shadeModeName(mode)}
+              {timed ? " · 30 секунд на цвет" : ""}
+            </p>
+            {timerError && (
+              <div className="shade-timer-error" role="status">
+                <p>{timerError}</p>
+                <button
+                  className="text-button"
+                  onClick={() => setTimerRetry((n) => n + 1)}
+                >
+                  Повторить запуск таймера
+                </button>
+              </div>
+            )}
             <div className="shade-play-area">
               <section className="shade-board" aria-label="Сравнение цветов">
                 <Swatch
@@ -325,8 +495,13 @@ export default function ColorfleGame() {
                 <Swatch
                   label={answer ? "Твой ответ" : "Твой выбор"}
                   color={answer?.choice ?? state.draft}
+                  empty={answer?.noChoice}
                   hint={
-                    !answer && !state.touched ? "Пока не выбран" : undefined
+                    answer?.noChoice
+                      ? "Не выбран"
+                      : !answer && !state.touched
+                        ? "Пока не выбран"
+                        : undefined
                   }
                 />
               </section>
@@ -334,17 +509,40 @@ export default function ColorfleGame() {
                 <>
                   <Palette
                     value={state.draft}
-                    onChange={(color) => dispatch({ type: "pick", color })}
+                    onChange={(color) => {
+                      if (
+                        timed &&
+                        (!state.deadline || Date.now() >= state.deadline)
+                      )
+                        return;
+                      dispatch({ type: "pick", color });
+                      if (timed) {
+                        if (Date.now() - lastChoiceSent.current >= 500)
+                          syncChoice();
+                        else if (!pendingChoice.current)
+                          pendingChoice.current = setTimeout(
+                            () => {
+                              pendingChoice.current = null;
+                              syncChoice();
+                            },
+                            500 - (Date.now() - lastChoiceSent.current),
+                          );
+                      }
+                    }}
                   />
                   <div className="shade-actions">
                     <button
                       className="primary"
-                      disabled={!state.touched}
+                      disabled={!state.touched || (timed && !state.deadline)}
                       onClick={() => dispatch({ type: "submit" })}
                     >
                       Проверить <span aria-hidden="true">→</span>
                     </button>
-                    <span>Один ответ на каждый раунд</span>
+                    <span>
+                      {timed
+                        ? "Когда время истечёт, ответ засчитается сам"
+                        : "Один ответ на каждый раунд"}
+                    </span>
                   </div>
                 </>
               ) : (
@@ -369,6 +567,13 @@ export default function ColorfleGame() {
                       ? "Все пять цветов пройдены. Сыграешь ещё?"
                       : "Сравни образец со своим ответом. Чем ближе цвета, тем больше очков."}
                   </p>
+                  {answer?.timedOut && (
+                    <p>
+                      {answer.noChoice
+                        ? "Время вышло. Цвет не выбран — 0 очков."
+                        : "Время вышло. Засчитан последний выбранный оттенок."}
+                    </p>
+                  )}
                   {phase === "finished" ? (
                     <>
                       <div className="shade-final-stats">
@@ -396,6 +601,12 @@ export default function ColorfleGame() {
                         }}
                       >
                         Играть ещё →
+                      </button>
+                      <button
+                        className="text-button shade-other-mode"
+                        onClick={() => dispatch({ type: "menu" })}
+                      >
+                        Выбрать другой режим
                       </button>
                       <SaveResult run={ranked} game="colorfle" />
                     </>

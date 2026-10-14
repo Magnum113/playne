@@ -259,7 +259,7 @@ export function useRankedRun(game: GameId) {
   async function resumeColor(
     id: string | undefined,
     targets: unknown[],
-    answers: { choice: unknown }[],
+    answers: { choice: unknown; timedOut?: boolean; noChoice?: boolean }[],
   ) {
     if (game !== "colorfle") return;
     if (restoreTimer.current) clearTimeout(restoreTimer.current);
@@ -267,7 +267,7 @@ export function useRankedRun(game: GameId) {
     const active = current.current;
     const known = active.key ? rankedQueue.get(active.key) : undefined;
     if (known?.run && sameColorTargets(known.run.challenge.targets, targets))
-      return;
+      return known.run;
     const key = id ? rankedQueue.find(id) : rankedQueue.findColor(targets);
     const cached = key ? rankedQueue.get(key) : undefined;
     if (
@@ -275,18 +275,22 @@ export function useRankedRun(game: GameId) {
       sameColorTargets(cached.run.challenge.targets, targets)
     ) {
       active.key = key;
+      active.mode = cached.run.mode ?? cached.run.challenge.mode ?? "classic";
       active.run = Promise.resolve(cached.run);
       rankedQueue.enqueueMany(key!, [
         ...answers.map((answer, index) => ({
           index,
-          answer: { choice: answer.choice },
+          answer: {
+            choice: answer.noChoice ? null : answer.choice,
+            expired: answer.timedOut,
+          },
         })),
         ...active.queued,
       ]);
       active.queued = [];
       sync();
       void rankedQueue.drain(key!);
-      return;
+      return cached.run;
     }
     setState({ status: "loading" });
     active.run = (
@@ -304,10 +308,14 @@ export function useRankedRun(game: GameId) {
             409,
           );
         if (current.current !== active) return null;
+        active.mode = data.mode ?? data.challenge.mode ?? "classic";
         active.queued = [
           ...answers.map((answer, index) => ({
             index,
-            answer: { choice: answer.choice },
+            answer: {
+              choice: answer.noChoice ? null : answer.choice,
+              expired: answer.timedOut,
+            },
           })),
           ...active.queued,
         ];
@@ -333,7 +341,7 @@ export function useRankedRun(game: GameId) {
         }
         return null;
       });
-    await active.run;
+    return await active.run;
   }
   async function geoRequest(path: string, body: unknown) {
     const active = current.current,
@@ -379,6 +387,26 @@ export function useRankedRun(game: GameId) {
       const timing = await geoRequest("ready", { index });
       return Date.now() + timing.deadline - timing.serverNow;
     },
+    shadeReady: async (index: number) => {
+      const timing = await geoRequest("ready", { index });
+      return Date.now() + timing.deadline - timing.serverNow;
+    },
+    shadeChoice: (index: number, choice: unknown) => {
+      if (current.current.key)
+        rankedQueue.pin(current.current.key, index, choice);
+    },
+    shadeAnswer: async (index: number, answer: unknown) => {
+      const active = current.current;
+      submit(index, answer);
+      await active.run;
+      if (!active.key) return null;
+      await rankedQueue.drain(active.key);
+      return rankedQueue.get(active.key)?.results[index]?.answer ?? null;
+    },
+    shadeResults: () =>
+      current.current.key
+        ? rankedQueue.get(current.current.key)?.results
+        : undefined,
     geoPin: (index: number, guess: GeoPoint) => {
       if (current.current.key)
         rankedQueue.pin(current.current.key, index, guess);

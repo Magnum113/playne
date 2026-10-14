@@ -9,6 +9,54 @@ import {
 } from "../server/scoring";
 import { pairs, objects } from "../src/data";
 describe("server-owned results", () => {
+  it("uses the last server-accepted color after timeout and cannot improve the score late", () => {
+    const red = { h: 0, s: 100, v: 100 },
+      blue = { h: 240, s: 100, v: 100 };
+    const challenge = {
+      mode: "timed",
+      targets: [red],
+      timers: { 0: { deadline: 1000, choice: blue } },
+    };
+    expect(
+      validateAnswer("colorfle", challenge, 0, { choice: red }, 999).score,
+    ).toBe(100);
+    expect(
+      validateAnswer(
+        "colorfle",
+        challenge,
+        0,
+        { choice: red, expired: true },
+        1000,
+      ),
+    ).toMatchObject({ choice: blue, timedOut: true });
+    expect(
+      validateAnswer(
+        "colorfle",
+        { ...challenge, timers: { 0: { deadline: 1000 } } },
+        0,
+        { choice: red },
+        1001,
+      ),
+    ).toEqual({ choice: null, score: 0, timedOut: true });
+    expect(() =>
+      validateAnswer(
+        "colorfle",
+        challenge,
+        0,
+        { choice: red, expired: true },
+        999,
+      ),
+    ).toThrow("Время ещё");
+    expect(() =>
+      validateAnswer(
+        "colorfle",
+        { ...challenge, timers: {} },
+        0,
+        { choice: red },
+        999,
+      ),
+    ).toThrow("Таймер ещё");
+  });
   it("ignores claimed points and recalculates size and color answers", () => {
     const challenge = makeChallenge("naglaz") as any;
     const pair = pairs.find((p) => p.id === challenge.pairIds[0])!;

@@ -268,10 +268,14 @@ export function createRankedQueue(
           ) {
             const guess = p.pins[pinIndex];
             try {
-              await request(`/games/${p.run!.id}/pin`, "POST", {
-                index: pinIndex,
-                guess,
-              });
+              await request(
+                `/games/${p.run!.id}/${p.game === "colorfle" ? "choice" : "pin"}`,
+                "POST",
+                {
+                  index: pinIndex,
+                  ...(p.game === "colorfle" ? { choice: guess } : { guess }),
+                },
+              );
             } catch (e) {
               if ((e as any)?.status !== 409) throw e;
             }

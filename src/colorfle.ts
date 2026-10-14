@@ -1,11 +1,26 @@
 export const SHADE_KEY = "playne:ottenok:v2";
 export const ROUND_COUNT = 5;
+export const SHADE_TIME_LIMIT_MS = 30_000;
+export type ShadeMode = "classic" | "timed";
+export const validShadeMode = (v: unknown): v is ShadeMode =>
+  v === "classic" || v === "timed";
+export const shadeModeName = (mode: ShadeMode) =>
+  mode === "timed" ? "На время" : "Без таймера";
 export type HSV = { h: number; s: number; v: number };
-export type ShadeAnswer = { choice: HSV; score: number };
+export type ShadeAnswer = {
+  choice: HSV;
+  score: number;
+  timedOut?: boolean;
+  noChoice?: boolean;
+};
 export type ShadeStats = { played: number; best: number };
 export type ShadeSession = {
   version: 2;
   rankedId?: string;
+  mode?: ShadeMode;
+  deadline?: number;
+  previousBest?: number;
+  modeStats?: Partial<Record<ShadeMode, ShadeStats>>;
   targets: HSV[];
   answers: ShadeAnswer[];
   round: number;
@@ -83,29 +98,59 @@ export function shadeScore(choice: HSV, target: HSV): number {
   return clamp(Math.round(100 * (1 - distance / 0.6)), 0, 99);
 }
 const initialDraft = (): HSV => ({ h: 180, s: 50, v: 75 });
-export function randomTargets(random = Math.random): HSV[] {
-  return Array.from({ length: ROUND_COUNT }, () => ({
-    h: Math.floor(random() * 360) % 360,
-    s: 45 + (Math.floor(random() * 51) % 51),
-    v: 45 + (Math.floor(random() * 51) % 51),
-  }));
+// Six different lightness/saturation families across the full hue wheel, plus neutrals.
+export const SHADE_COLORS: HSV[] = [
+  ...Array.from({ length: 24 }, (_, i) =>
+    [
+      { s: 85, v: 95 },
+      { s: 30, v: 98 },
+      { s: 55, v: 80 },
+      { s: 80, v: 55 },
+      { s: 35, v: 60 },
+      { s: 65, v: 35 },
+    ].map((c) => ({ h: i * 15, ...c })),
+  ).flat(),
+  ...[22, 38, 54, 70, 86, 97].map((v) => ({ h: 0, s: 0, v })),
+];
+export function randomTargets(
+  random = Math.random,
+  recent: string[] = [],
+): HSV[] {
+  const excluded = new Set(recent);
+  let available = SHADE_COLORS.filter((c) => !excluded.has(hsvToHex(c)));
+  if (available.length < ROUND_COUNT) {
+    const lastParty = new Set(recent.slice(0, ROUND_COUNT));
+    available = SHADE_COLORS.filter((c) => !lastParty.has(hsvToHex(c)));
+  }
+  for (let i = available.length - 1; i > 0; i--) {
+    const j = Math.min(i, Math.floor(random() * (i + 1)));
+    [available[i], available[j]] = [available[j], available[i]];
+  }
+  return available.slice(0, ROUND_COUNT).map((c) => ({ ...c }));
 }
 export function newShadeSession(
   previous?: ShadeSession,
   random = Math.random,
+  mode: ShadeMode = previous?.mode ?? "classic",
 ): ShadeSession {
-  const targets = randomTargets(random);
-  if (previous && hsvToHex(targets[0]) === hsvToHex(previous.targets.at(-1)!))
-    targets[0] = { ...targets[0], h: (targets[0].h + 90) % 360 };
+  const targets = randomTargets(random, previous?.targets.map(hsvToHex));
+  const modeStats = {
+    ...previous?.modeStats,
+    ...(previous ? { [previous.mode ?? "classic"]: previous.stats } : {}),
+  };
+  const stats = modeStats[mode] ?? { played: 0, best: 0 };
   return {
     version: 2,
+    mode,
+    modeStats,
+    previousBest: stats.best,
     targets,
     answers: [],
     round: 0,
     draft: initialDraft(),
     touched: false,
     started: previous?.started ?? false,
-    stats: previous ? { ...previous.stats } : { played: 0, best: 0 },
+    stats: { ...stats },
   };
 }
 export const shadeTotal = (state: ShadeSession) =>
@@ -121,16 +166,57 @@ export const shadePhase = (
         ? "reveal"
         : "picking";
 export type ShadeAction =
+  | { type: "mode"; mode: ShadeMode }
+  | { type: "menu" }
+  | { type: "deadline"; deadline: number }
+  | {
+      type: "verified";
+      index: number;
+      answer: { choice: HSV | null; score: number; timedOut?: boolean };
+      id: string;
+    }
   | { type: "ranked"; targets: HSV[]; id: string }
   | { type: "start" }
   | { type: "pick"; color: HSV }
-  | { type: "submit" }
+  | { type: "submit"; expired?: boolean }
   | { type: "next" }
   | { type: "new"; session: ShadeSession };
 export function shadeReducer(
   state: ShadeSession,
   action: ShadeAction,
 ): ShadeSession {
+  if (action.type === "menu" && shadePhase(state) === "finished")
+    return { ...newShadeSession(state), started: false };
+  if (action.type === "mode" && !state.started)
+    return newShadeSession(state, Math.random, action.mode);
+  if (action.type === "deadline" && shadePhase(state) === "picking")
+    return { ...state, deadline: action.deadline };
+  if (
+    action.type === "verified" &&
+    state.rankedId === action.id &&
+    state.answers[action.index]
+  ) {
+    const answers = state.answers.map((a, i) =>
+      i === action.index
+        ? {
+            choice: action.answer.choice ?? a.choice,
+            score: action.answer.score,
+            timedOut: action.answer.timedOut,
+            noChoice: action.answer.choice === null,
+          }
+        : a,
+    );
+    const best = Math.max(
+      state.previousBest ?? state.stats.best,
+      answers.reduce((s, a) => s + a.score, 0),
+    );
+    return {
+      ...state,
+      answers,
+      stats:
+        answers.length === ROUND_COUNT ? { ...state.stats, best } : state.stats,
+    };
+  }
   if (action.type === "ranked")
     return state.answers.length === 0 &&
       action.targets.length === 5 &&
@@ -146,10 +232,16 @@ export function shadeReducer(
       if (!validHSV(action.color)) return state;
       return { ...state, draft: action.color, touched: true };
     }
-    if (action.type === "submit" && state.touched) {
+    if (
+      action.type === "submit" &&
+      (state.touched || (action.expired && state.mode === "timed"))
+    ) {
       const answer = {
         choice: state.draft,
-        score: shadeScore(state.draft, state.targets[state.round]),
+        score: state.touched
+          ? shadeScore(state.draft, state.targets[state.round])
+          : 0,
+        ...(action.expired ? { timedOut: true, noChoice: !state.touched } : {}),
       };
       const answers = [...state.answers, answer];
       const total = answers.reduce((sum, item) => sum + item.score, 0);
@@ -172,6 +264,7 @@ export function shadeReducer(
       round: state.round + 1,
       draft: initialDraft(),
       touched: false,
+      deadline: undefined,
     };
   return state;
 }
@@ -190,7 +283,14 @@ export function parseShadeSession(raw: string | null): ShadeSession | null {
         (answer: ShadeAnswer, i: number) =>
           validHSV(answer?.choice) &&
           Number.isInteger(answer.score) &&
-          answer.score === shadeScore(answer.choice, s.targets[i]),
+          answer.score ===
+            (answer.noChoice && s.mode === "timed"
+              ? 0
+              : shadeScore(answer.choice, s.targets[i])) &&
+          (answer.noChoice === undefined ||
+            typeof answer.noChoice === "boolean") &&
+          (answer.timedOut === undefined ||
+            typeof answer.timedOut === "boolean"),
       ) ||
       !Number.isInteger(s.round) ||
       s.round < 0 ||
@@ -210,6 +310,30 @@ export function parseShadeSession(raw: string | null): ShadeSession | null {
       s.stats.best < 0 ||
       s.stats.best > ROUND_COUNT * 100 ||
       (s.answers.length === ROUND_COUNT && s.stats.played < 1)
+    )
+      return null;
+    if (s.mode !== undefined && !validShadeMode(s.mode)) return null;
+    if (s.deadline !== undefined && !Number.isFinite(s.deadline)) return null;
+    if (
+      s.previousBest !== undefined &&
+      (!Number.isInteger(s.previousBest) ||
+        s.previousBest < 0 ||
+        s.previousBest > 500)
+    )
+      return null;
+    if (
+      s.modeStats !== undefined &&
+      (typeof s.modeStats !== "object" ||
+        !s.modeStats ||
+        Object.values(s.modeStats).some(
+          (stats: any) =>
+            !stats ||
+            !Number.isSafeInteger(stats.played) ||
+            stats.played < 0 ||
+            !Number.isInteger(stats.best) ||
+            stats.best < 0 ||
+            stats.best > 500,
+        ))
     )
       return null;
     if (

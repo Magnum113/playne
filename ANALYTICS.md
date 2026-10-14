@@ -119,3 +119,5 @@ JavaScript-события того же счётчика 112711950:
 В события не передаются ник, имя, email, идентификатор Яндекса или токены.
 
 Для событий «Где я?» с версии правил 2 передаётся `mode=classic|timed|moving|moving-timed|landmarks|landmarks-timed`; `geo_round_complete` также содержит `timed_out=true|false`. С версии правил 4 очки — до 100 за раунд и 500 за партию, только целые числа. Идентификаторы существующих целей не меняются.
+
+Для целей `ottenok_game_start`, `ottenok_game_restart`, `ottenok_round_complete`, `ottenok_game_complete` передаётся параметр `mode`: `classic` или `timed`. В `ottenok_round_complete` также есть `timed_out`. Новые цели не нужны: режимы доступны через параметры существующих событий.
