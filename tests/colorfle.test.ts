@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hsvToHex, newShadeSession, parseShadeSession, ROUND_COUNT, shadePhase, shadeReducer, shadeScore, shadeTotal, SHADE_COLORS, randomTargets, type ShadeSession } from "../src/colorfle";
+import { hsvToHex, hsvToRgb, newShadeSession, parseShadeSession, ROUND_COUNT, shadePhase, shadeReducer, shadeScore, shadeTotal, SHADE_COLORS, randomTargets, legacyShadeScore, SHADE_SCORE_VERSION, type ShadeSession } from "../src/colorfle";
 const red = { h: 0, s: 100, v: 100 };
 const blue = { h: 240, s: 100, v: 100 };
 describe("Оттенок", () => {
@@ -43,6 +43,37 @@ describe("Оттенок", () => {
   it("gives an exact match 100 and a distant choice less", () => {
     expect(shadeScore(red, red)).toBe(100);
     expect(shadeScore(blue, red)).toBeLessThan(50);
+  });
+  it("reserves 95–99 for nearly identical colors across all palette families", () => {
+    const pastel = {h:210,s:30,v:98};
+    expect(shadeScore({...pastel,h:211},pastel)).toBe(98);
+    expect(shadeScore({...pastel,v:93},pastel)).toBe(77);
+    expect(legacyShadeScore({...pastel,v:93},pastel)).toBe(95);
+    for(const target of SHADE_COLORS) {
+      expect(shadeScore(target,target)).toBe(100);
+      for(const h of [0,1,5,15,60,180]) for(const delta of [0,1,5,15]) {
+        const choice={h:(target.h+h)%360,s:Math.min(100,target.s+delta),v:Math.max(0,target.v-delta)};
+        const points=shadeScore(choice,target);
+        expect(Number.isInteger(points)&&points>=0&&points<=100).toBe(true);
+        expect(shadeScore(target,choice)).toBe(points);
+        if(points===100) expect(hsvToHex(choice)).toBe(hsvToHex(target));
+        if(points>=95&&points<100) {
+          const rgb=hsvToRgb(choice),reference=hsvToRgb(target);
+          expect(Math.max(...rgb.map((c,i)=>Math.abs(c-reference[i])))).toBeLessThanOrEqual(5);
+        }
+      }
+    }
+  });
+  it("migrates a legacy party by its saved colors while keeping its identity and progress", () => {
+    const target={h:210,s:30,v:98},choice={...target,v:93};
+    const old={...newShadeSession(),scoringVersion:undefined,started:true,rankedId:'11111111-1111-4111-8111-111111111111',targets:Array(5).fill(target),answers:[{choice,score:95}],stats:{best:480,played:3}};
+    const migrated=parseShadeSession(JSON.stringify(old))!;
+    expect(migrated.answers[0].score).toBe(77);
+    expect(migrated.rankedId).toBe(old.rankedId);
+    expect(migrated.round).toBe(0);
+    expect(migrated.scoringVersion).toBe(SHADE_SCORE_VERSION);
+    expect(migrated.stats).toEqual({best:0,played:3});
+    expect(parseShadeSession(JSON.stringify({...old,scoringVersion:SHADE_SCORE_VERSION}))).toBeNull();
   });
   it("reconciles an expired answer with the server's last choice and corrects the local record", () => {
     const id = "11111111-1111-4111-8111-111111111111";

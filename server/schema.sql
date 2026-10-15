@@ -34,4 +34,9 @@ CREATE INDEX IF NOT EXISTS playne_games_leaderboard ON playne_games(game,version
 CREATE INDEX IF NOT EXISTS playne_games_owner ON playne_games(owner_id,completed_at DESC) WHERE published_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS playne_games_expiry ON playne_games(expires_at) WHERE published_at IS NULL;
 CREATE INDEX IF NOT EXISTS playne_sessions_expiry ON playne_auth_sessions(expires_at);
+CREATE TABLE IF NOT EXISTS playne_color_score_backups (
+ game_id uuid PRIMARY KEY REFERENCES playne_games(id) ON DELETE CASCADE,
+ version integer NOT NULL, answers jsonb NOT NULL, score_units integer,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
 COMMIT;

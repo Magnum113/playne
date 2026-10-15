@@ -6,7 +6,11 @@ import {
   newShadeSession,
   shadeReducer,
   saveShadeSession,
+  SHADE_KEY,
+  LEGACY_SHADE_KEY,
+  legacyShadeScore,
 } from "../src/colorfle";
+import { RANKED_PENDING_KEY } from "../src/rankedQueue";
 let root: Root | undefined, container: HTMLDivElement;
 afterEach(() => {
   if (root) act(() => root!.unmount());
@@ -17,9 +21,13 @@ afterEach(() => {
   root = undefined;
 });
 describe("color game restoration", () => {
-  it.each([false, true])(
-    "saves a finished party after reload without replay (stored ID: %s)",
-    async (withId) => {
+  it.each([
+    { withId: false, cached: false },
+    { withId: true, cached: false },
+    { withId: true, cached: true },
+  ])(
+    "saves or refreshes a finished party after reload without replay: %j",
+    async ({ withId, cached }) => {
       vi.useFakeTimers();
       vi.resetModules();
       vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -37,6 +45,50 @@ describe("color game restoration", () => {
         if (i < 4) session = shadeReducer(session, { type: "next" });
       }
       saveShadeSession(session);
+      const score = session.answers.reduce((sum, a) => sum + a.score, 0);
+      let legacyRaw = "";
+      if (cached) {
+        const answers = session.answers.map((a, i) => ({
+          ...a,
+          score: legacyShadeScore(a.choice, session.targets[i]),
+        }));
+        const oldScore = answers.reduce((sum, a) => sum + a.score, 0);
+        legacyRaw = JSON.stringify({
+          ...session,
+          scoringVersion: undefined,
+          answers,
+          stats: { played: 1, best: oldScore },
+        });
+        localStorage.removeItem(SHADE_KEY);
+        localStorage.setItem(LEGACY_SHADE_KEY, legacyRaw);
+        localStorage.setItem(
+          RANKED_PENDING_KEY,
+          JSON.stringify([
+            {
+              key: id,
+              game: "colorfle",
+              mode: "classic",
+              run: {
+                id,
+                game: "colorfle",
+                version: 1,
+                challenge: { targets: session.targets },
+                answers,
+                score: oldScore,
+                completed: true,
+                published: true,
+              },
+              score: oldScore,
+              completed: true,
+              published: true,
+              updated: Date.now(),
+              tasks: [],
+              pins: {},
+              results: {},
+            },
+          ]),
+        );
+      }
       const calls: string[] = [];
       let accepted = 0;
       vi.stubGlobal(
@@ -56,6 +108,7 @@ describe("color game restoration", () => {
             data = {
               id,
               game: "colorfle",
+              version: 2,
               challenge: {
                 targets: session.targets.map((c) => ({
                   v: c.v,
@@ -63,9 +116,10 @@ describe("color game restoration", () => {
                   h: c.h,
                 })),
               },
-              answers: [],
-              completed: false,
-              published: false,
+              answers: cached ? session.answers : [],
+              completed: cached,
+              published: cached,
+              score: cached ? score : null,
             };
           else if (url.endsWith("/answers")) {
             const body = JSON.parse(String(init?.body));
@@ -102,8 +156,16 @@ describe("color game restoration", () => {
       });
       expect(container.textContent).toContain("Результат сохранён в рейтинг.");
       expect(container.textContent).not.toContain("начни новую партию");
-      expect(accepted).toBe(5);
+      expect(accepted).toBe(cached ? 0 : 5);
       expect(calls).not.toContain("/api/games");
+      if (cached) {
+        expect(calls).toContain(`/api/games/${id}`);
+        expect(container.textContent).toContain(`${score} из 500`);
+        expect(localStorage.getItem(LEGACY_SHADE_KEY)).toBe(legacyRaw);
+        expect(
+          JSON.parse(localStorage.getItem(SHADE_KEY)!).scoringVersion,
+        ).toBe(2);
+      }
     },
   );
 });

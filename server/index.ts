@@ -3,6 +3,7 @@ setDefaultResultOrder("ipv4first");
 import { Pool } from "pg";
 import { readFileSync } from "node:fs";
 import { buildApp } from "./app";
+import { migrateShadeScores } from "./shade-migration";
 const env = process.env;
 for (const key of [
   "DATABASE_URL",
@@ -26,6 +27,9 @@ async function main() {
       "utf8",
     ),
   );
+  const migrated = await migrateShadeScores(pool);
+  if (migrated.updated || migrated.skipped)
+    console.log("Shade score migration", migrated);
   const app = await buildApp(pool, {
     origin,
     yandexId: env.YANDEX_CLIENT_ID!,

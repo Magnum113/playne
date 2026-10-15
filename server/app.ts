@@ -4,6 +4,7 @@ import {
   validShadeMode,
   hsvToHex,
   SHADE_TIME_LIMIT_MS,
+  SHADE_SCORE_VERSION,
 } from "../src/colorfle";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
@@ -840,8 +841,8 @@ export async function buildApp(
       [u.id],
     );
     const best = await pool.query(
-      `SELECT game,mode,max(CASE WHEN $3=4 THEN ${GEO_V4_UNITS_SQL} WHEN $3=3 THEN ${GEO_V3_UNITS_SQL} ELSE score_units END)/10.0 AS score FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL AND ((game='geo' AND (version=$3 OR ($3=3 AND version=2) OR ($3=4 AND version IN(2,3)))) OR (game<>'geo' AND version=$2)) GROUP BY game,mode`,
-      [u.id, SCORE_VERSION, geoViewerVersion(req)],
+      `SELECT game,mode,max(CASE WHEN $3=4 THEN ${GEO_V4_UNITS_SQL} WHEN $3=3 THEN ${GEO_V3_UNITS_SQL} ELSE score_units END)/10.0 AS score FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL AND ((game='geo' AND (version=$3 OR ($3=3 AND version=2) OR ($3=4 AND version IN(2,3)))) OR (game='colorfle' AND version=$4) OR (game NOT IN('geo','colorfle') AND version=$2)) GROUP BY game,mode`,
+      [u.id, SCORE_VERSION, geoViewerVersion(req), SHADE_SCORE_VERSION],
     );
     return {
       user: u,

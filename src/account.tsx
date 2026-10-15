@@ -5,6 +5,7 @@ import {
   type RankedState,
   type ServerRun,
 } from "./rankedQueue";
+import { SHADE_SCORE_VERSION } from "./colorfle";
 import {
   GEO_MAX_POINTS,
   GEO_SCORE_VERSION,
@@ -266,12 +267,16 @@ export function useRankedRun(game: GameId) {
     restoreAction.current = () => void resumeColor(id, targets, answers);
     const active = current.current;
     const known = active.key ? rankedQueue.get(active.key) : undefined;
-    if (known?.run && sameColorTargets(known.run.challenge.targets, targets))
+    if (
+      known?.run?.version === SHADE_SCORE_VERSION &&
+      sameColorTargets(known.run.challenge.targets, targets)
+    )
       return known.run;
     const key = id ? rankedQueue.find(id) : rankedQueue.findColor(targets);
     const cached = key ? rankedQueue.get(key) : undefined;
     if (
       cached?.run &&
+      cached.run.version === SHADE_SCORE_VERSION &&
       sameColorTargets(cached.run.challenge.targets, targets)
     ) {
       active.key = key;

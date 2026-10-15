@@ -167,6 +167,7 @@ export function createRankedQueue(
     const existing =
       run && [...records.values()].find((p) => p.run?.id === run!.id);
     if (existing && run) {
+      existing.run = { ...run, mode: mode ?? run.mode ?? run.challenge?.mode };
       for (const [index, answer] of (run.answers ?? []).entries())
         existing.results[index] = {
           answer,

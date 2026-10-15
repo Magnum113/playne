@@ -1,4 +1,6 @@
-export const SHADE_KEY = "playne:ottenok:v2";
+export const SHADE_KEY = "playne:ottenok:v3";
+export const LEGACY_SHADE_KEY = "playne:ottenok:v2";
+export const SHADE_SCORE_VERSION = 2;
 export const ROUND_COUNT = 5;
 export const SHADE_TIME_LIMIT_MS = 30_000;
 export type ShadeMode = "classic" | "timed";
@@ -16,6 +18,7 @@ export type ShadeAnswer = {
 export type ShadeStats = { played: number; best: number };
 export type ShadeSession = {
   version: 2;
+  scoringVersion?: number;
   rankedId?: string;
   mode?: ShadeMode;
   deadline?: number;
@@ -90,12 +93,35 @@ function oklab(color: HSV): [number, number, number] {
     0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
   ];
 }
-export function shadeScore(choice: HSV, target: HSV): number {
+function shadeDistance(choice: HSV, target: HSV): number {
   const a = oklab(choice),
     b = oklab(target);
-  const distance = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+// Kept only to validate and migrate saves from the previous scale.
+export function legacyShadeScore(choice: HSV, target: HSV): number {
   if (hsvToHex(choice) === hsvToHex(target)) return 100;
-  return clamp(Math.round(100 * (1 - distance / 0.6)), 0, 99);
+  return clamp(
+    Math.round(100 * (1 - shadeDistance(choice, target) / 0.6)),
+    0,
+    99,
+  );
+}
+export function shadeScore(choice: HSV, target: HSV): number {
+  const a = hsvToRgb(choice),
+    b = hsvToRgb(target);
+  const maxChannelDifference = Math.max(
+    ...a.map((channel, i) => Math.abs(channel - b[i])),
+  );
+  if (maxChannelDifference === 0) return 100;
+  // A smooth falloff preserves useful feedback even for distant colors.
+  // Reserve 95–99 for both perceptually close and nearly identical RGB colors.
+  const upperLimit = maxChannelDifference <= 5 ? 99 : 94;
+  return clamp(
+    Math.round(100 * Math.exp(-shadeDistance(choice, target) / 0.12)),
+    0,
+    upperLimit,
+  );
 }
 const initialDraft = (): HSV => ({ h: 180, s: 50, v: 75 });
 // Six different lightness/saturation families across the full hue wheel, plus neutrals.
@@ -141,6 +167,7 @@ export function newShadeSession(
   const stats = modeStats[mode] ?? { played: 0, best: 0 };
   return {
     version: 2,
+    scoringVersion: SHADE_SCORE_VERSION,
     mode,
     modeStats,
     previousBest: stats.best,
@@ -283,10 +310,13 @@ export function parseShadeSession(raw: string | null): ShadeSession | null {
         (answer: ShadeAnswer, i: number) =>
           validHSV(answer?.choice) &&
           Number.isInteger(answer.score) &&
-          answer.score ===
+          (answer.score ===
             (answer.noChoice && s.mode === "timed"
               ? 0
-              : shadeScore(answer.choice, s.targets[i])) &&
+              : shadeScore(answer.choice, s.targets[i])) ||
+            (s.scoringVersion === undefined &&
+              answer.score ===
+                legacyShadeScore(answer.choice, s.targets[i]))) &&
           (answer.noChoice === undefined ||
             typeof answer.noChoice === "boolean") &&
           (answer.timedOut === undefined ||
@@ -341,6 +371,31 @@ export function parseShadeSession(raw: string | null): ShadeSession | null {
       (typeof s.rankedId !== "string" || !/^[0-9a-f-]{36}$/i.test(s.rankedId))
     )
       return null;
+    if (
+      s.scoringVersion !== undefined &&
+      s.scoringVersion !== SHADE_SCORE_VERSION
+    )
+      return null;
+    if (s.scoringVersion === undefined) {
+      // Old party answers can be rescored exactly; an old best without its colors cannot.
+      // Keep those previous records separately rather than mixing the two scales.
+      s.answers = s.answers.map((answer: ShadeAnswer, i: number) => ({
+        ...answer,
+        score: answer.noChoice ? 0 : shadeScore(answer.choice, s.targets[i]),
+      }));
+      s.modeStats = Object.fromEntries(
+        Object.entries(s.modeStats ?? {}).map(([mode, stats]: any) => [
+          mode,
+          { played: stats.played, best: 0 },
+        ]),
+      );
+      s.stats = {
+        played: s.stats.played,
+        best: s.answers.length === ROUND_COUNT ? shadeTotal(s) : 0,
+      };
+      s.previousBest = 0;
+      s.scoringVersion = SHADE_SCORE_VERSION;
+    }
     return s as ShadeSession;
   } catch {
     return null;
@@ -349,7 +404,10 @@ export function parseShadeSession(raw: string | null): ShadeSession | null {
 export function loadShadeSession(): ShadeSession {
   try {
     return (
-      parseShadeSession(localStorage.getItem(SHADE_KEY)) ?? newShadeSession()
+      parseShadeSession(
+        localStorage.getItem(SHADE_KEY) ??
+          localStorage.getItem(LEGACY_SHADE_KEY),
+      ) ?? newShadeSession()
     );
   } catch {
     return newShadeSession();

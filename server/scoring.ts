@@ -1,7 +1,12 @@
 import { chooseRounds, objects, pairs } from "../src/data";
 import { score } from "../src/game";
 import { evaluateCircle } from "../src/circle";
-import { randomTargets, shadeScore, validHSV } from "../src/colorfle";
+import {
+  randomTargets,
+  shadeScore,
+  validHSV,
+  SHADE_SCORE_VERSION,
+} from "../src/colorfle";
 import {
   chooseGeoRounds,
   distanceKm,
@@ -25,7 +30,11 @@ export const isGame = (v: unknown): v is GameId =>
   typeof v === "string" && Object.hasOwn(GAME_NAMES, v);
 export const SCORE_VERSION = 1;
 export const scoreVersion = (game: GameId) =>
-  game === "geo" ? 4 : SCORE_VERSION;
+  game === "geo"
+    ? 4
+    : game === "colorfle"
+      ? SHADE_SCORE_VERSION
+      : SCORE_VERSION;
 // Convert old rounds into tenths before summing, so displayed rounds match the total.
 export const GEO_V3_UNITS_SQL = `CASE WHEN game='geo' AND version=2 THEN (SELECT coalesce(sum(CASE WHEN (a->>'score')::numeric >= 5000 THEN 1000 ELSE LEAST(999,round((a->>'score')::numeric/5)) END),0)::integer FROM jsonb_array_elements(answers) AS a) ELSE score_units END`;
 export const GEO_V4_UNITS_SQL = `CASE WHEN game='geo' AND version IN(2,3) THEN (SELECT coalesce(sum(CASE WHEN (a->>'score')::numeric >= CASE WHEN version=2 THEN 5000 ELSE 100 END THEN 1000 ELSE LEAST(99,round((a->>'score')::numeric/CASE WHEN version=2 THEN 50 ELSE 1 END))*10 END),0)::integer FROM jsonb_array_elements(answers) AS a) ELSE score_units END`;

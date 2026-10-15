@@ -3,6 +3,7 @@ import { Pool } from "pg";
 import { readFileSync } from "node:fs";
 import { pairs, objects } from "../src/data";
 import { buildApp } from "../server/app";
+import { migrateShadeScores } from "../server/shade-migration";
 const db = process.env.TEST_DATABASE_URL;
 const suite = db ? describe : describe.skip;
 suite("Playne database and OAuth integration", () => {
@@ -1137,6 +1138,81 @@ suite("Playne database and OAuth integration", () => {
       ).toBe(400);
     } finally {
       clock.mockRestore();
+    }
+  });
+  it("rescales old completed and unfinished color parties once, with a restorable backup", async () => {
+    const headers = { origin, cookie: logged };
+    const owner = (await app.inject({ url: "/api/me", headers })).json().user
+      .id;
+    const target = { h: 210, s: 30, v: 98 },
+      choice = { ...target, v: 93 };
+    const ids: string[] = [];
+    try {
+      for (const complete of [false, true]) {
+        const inserted = await pool.query(
+          "INSERT INTO playne_games(browser_hash,owner_id,game,mode,version,challenge,answers,score_units,completed_at,published_at) VALUES($1,$2,'colorfle','timed',1,$3,$4,$5,CASE WHEN $6 THEN now() ELSE NULL END,CASE WHEN $6 THEN now() ELSE NULL END) RETURNING id,completed_at,published_at",
+          [
+            "f".repeat(64),
+            owner,
+            JSON.stringify({
+              targets: Array(5).fill(target),
+              mode: "timed",
+              timers: {},
+            }),
+            JSON.stringify(Array(complete ? 5 : 1).fill({ choice, score: 95 })),
+            complete ? 4750 : null,
+            complete,
+          ],
+        );
+        ids.push(inserted.rows[0].id);
+      }
+      const first = await migrateShadeScores(pool);
+      expect(first.updated).toBe(2);
+      const second = await migrateShadeScores(pool);
+      expect(second.updated).toBe(0);
+      const rows = (
+        await pool.query(
+          "SELECT g.*,b.answers AS original_answers,b.score_units AS original_score FROM playne_games g JOIN playne_color_score_backups b ON b.game_id=g.id WHERE g.id=ANY($1::uuid[]) ORDER BY score_units NULLS FIRST",
+          [ids],
+        )
+      ).rows;
+      expect(rows[0].score_units).toBeNull();
+      expect(rows[0].answers[0].score).toBe(77);
+      expect(rows[1].score_units).toBe(3850);
+      expect(rows[1].original_score).toBe(4750);
+      expect(rows[1].original_answers[0].score).toBe(95);
+      expect(rows.every((r) => r.version === 2 && r.owner_id === owner)).toBe(
+        true,
+      );
+      const own = (
+        await app.inject({ url: `/api/games/${ids[1]}`, headers })
+      ).json();
+      expect(own.score).toBe(385);
+      expect(own.published).toBe(true);
+      const ranking = (
+        await app.inject("/api/leaderboard?game=colorfle&mode=timed")
+      ).json();
+      expect(ranking.entries[0].score).toBe(400);
+      const account = (
+        await app.inject({ url: "/api/account", headers })
+      ).json();
+      expect(
+        account.best.find(
+          (b: any) => b.game === "colorfle" && b.mode === "timed",
+        ).score,
+      ).toBe(400);
+    } finally {
+      await pool.query("DELETE FROM playne_games WHERE id=ANY($1::uuid[])", [
+        ids,
+      ]);
+      expect(
+        (
+          await pool.query(
+            "SELECT count(*)::int AS n FROM playne_color_score_backups WHERE game_id=ANY($1::uuid[])",
+            [ids],
+          )
+        ).rows[0].n,
+      ).toBe(0);
     }
   });
   it("revokes the authenticated session on logout", async () => {

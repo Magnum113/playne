@@ -230,3 +230,14 @@ describe("server-owned results", () => {
     ).toContain("?claim=");
   });
 });
+
+describe("strict shade scale on the server", () => {
+  it("does not accept a client's claimed high score for a visibly different color", () => {
+    const target = { h: 210, s: 30, v: 98 };
+    const answer = validateAnswer("colorfle", { targets: [target] }, 0, {
+      choice: { ...target, v: 93 },
+      score: 100,
+    });
+    expect(answer.score).toBe(77);
+  });
+});
