@@ -1,5 +1,5 @@
 import { makePressDeck, replayPressRun } from "../src/pressure";
-import { chooseRounds, objects, pairs } from "../src/data";
+import { chooseRounds, legacyPairIds, objects, pairs } from "../src/data";
 import { score } from "../src/game";
 import { evaluateCircle } from "../src/circle";
 import {
@@ -67,10 +67,11 @@ export function makeChallenge(
   game: GameId,
   recent: string[] = [],
   mode: GeoMode = "classic",
+  supportedPairIds: readonly string[] = legacyPairIds,
 ) {
   if (game === "pressure") return { levels: makePressDeck(Math.random, recent) };
   if (game === "naglaz")
-    return { pairIds: chooseRounds(recent).map((p) => p.id) };
+    return { pairIds: chooseRounds(recent, supportedPairIds).map((p) => p.id) };
   if (game === "colorfle")
     return { targets: randomTargets(Math.random, recent), mode, timers: {} };
   if (game === "geo")

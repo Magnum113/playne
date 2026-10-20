@@ -315,6 +315,14 @@ export async function buildApp(
     async (req, reply) => {
       const game = (req.body as any)?.game;
       if (!isGame(game)) failure("Неизвестная игра");
+      const supportedPairIds = (req.body as any)?.supportedPairIds;
+      if (
+        game === "naglaz" &&
+        supportedPairIds !== undefined &&
+        (!Array.isArray(supportedPairIds) ||
+          !supportedPairIds.every((id: unknown) => typeof id === "string"))
+      )
+        failure("Некорректный каталог сравнений");
       const b = browser(req, reply),
         u = await user(req);
       const recentRows = await pool.query(
@@ -357,11 +365,19 @@ export async function buildApp(
         version < 4
       )
         failure("Обнови страницу, чтобы играть в этом режиме");
-      const challenge = makeChallenge(
-        game,
-        recent,
-        game === "geo" && version === 1 ? "classic" : mode,
-      );
+      let challenge: ReturnType<typeof makeChallenge>;
+      try {
+        challenge = makeChallenge(
+          game,
+          recent,
+          game === "geo" && version === 1 ? "classic" : mode,
+          game === "naglaz" ? supportedPairIds : undefined,
+        );
+      } catch (e) {
+        if (game === "naglaz")
+          failure("Обнови страницу, чтобы загрузить доступные сравнения");
+        throw e;
+      }
       const { rows } = await pool.query(
         "INSERT INTO playne_games(browser_hash,owner_id,game,challenge,version,mode) VALUES($1,$2,$3,$4,$5,$6) RETURNING id",
         [

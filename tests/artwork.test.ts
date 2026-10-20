@@ -3,9 +3,10 @@ import { readFileSync } from "node:fs";
 import { objects } from "../src/data";
 
 describe("generated illustrations", () => {
-  it("ships seven PNG files with correct pixel metadata and no aspect distortion", () => {
+  it("ships thirty-seven distinct PNG files with correct pixel metadata and no aspect distortion", () => {
     const illustrated = Object.values(objects).filter((o) => o.illustration);
-    expect(illustrated).toHaveLength(7);
+    expect(illustrated).toHaveLength(37);
+    expect(new Set(illustrated.map((object) => object.illustration!.src)).size).toBe(37);
     for (const object of illustrated) {
       const art = object.illustration!;
       const bytes = readFileSync(

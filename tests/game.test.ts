@@ -10,7 +10,7 @@ import {
   readBest,
   saveBest,
 } from "../src/game";
-import { objects, pairs, chooseRounds } from "../src/data";
+import { objects, pairs, chooseRounds, legacyPairIds } from "../src/data";
 describe("scoring", () => {
   it("preserves meaningful centimetres for small objects", () => {
     expect(meters(3.05)).toBe("3,05 м");
@@ -45,8 +45,8 @@ describe("scoring", () => {
 });
 describe("catalogue", () => {
   it("has distinct, reachable comparisons", () => {
-    expect(Object.keys(objects)).toHaveLength(19);
-    expect(pairs).toHaveLength(34);
+    expect(Object.keys(objects)).toHaveLength(49);
+    expect(pairs).toHaveLength(94);
     expect(new Set(pairs.map((p) => p.id)).size).toBe(pairs.length);
     expect(new Set(pairs.map((p) => [p.reference, p.target].sort().join(":"))).size).toBe(pairs.length);
     for (const p of pairs) {
@@ -56,6 +56,29 @@ describe("catalogue", () => {
       expect(t.size / r.size).toBeGreaterThan(MIN_RATIO);
       expect(t.size / r.size).toBeLessThan(MAX_RATIO);
       expect(t.source.startsWith("https://")).toBe(true);
+    }
+  });
+  it("adds thirty illustrated objects that are all guessable and have varied comparisons", () => {
+    const legacyObjects = new Set(
+      pairs
+        .filter((pair) => legacyPairIds.includes(pair.id))
+        .flatMap((pair) => [pair.reference, pair.target]),
+    );
+    expect(legacyObjects.size).toBe(19);
+    const added = Object.values(objects).filter((object) => !legacyObjects.has(object.id));
+    expect(added).toHaveLength(30);
+    expect(added.filter((object) => object.axis === "x")).toHaveLength(15);
+    expect(added.filter((object) => object.axis === "y")).toHaveLength(15);
+    for (const object of added) {
+      expect(object.illustration).toBeDefined();
+      expect(Number.isFinite(object.size) && object.size > 0).toBe(true);
+      expect(object.label.length).toBeGreaterThan(0);
+      expect(object.note.length).toBeGreaterThan(0);
+      expect(object.source.startsWith("https://")).toBe(true);
+      expect(pairs.some((pair) => pair.target === object.id)).toBe(true);
+      expect(
+        pairs.filter((pair) => pair.reference === object.id || pair.target === object.id).length,
+      ).toBeGreaterThanOrEqual(2);
     }
   });
   it("shuffles without mutating or repeating", () => {
@@ -79,6 +102,30 @@ describe("catalogue", () => {
       ).toHaveLength(2);
     }
     expect(sessions.size).toBeGreaterThan(50);
+  });
+  it("keeps older clients inside the original comparison pool", () => {
+    expect(legacyPairIds).toHaveLength(34);
+    expect(Object.isFrozen(legacyPairIds)).toBe(true);
+    for (let i = 0; i < 50; i++) {
+      const rounds = chooseRounds([], legacyPairIds);
+      expect(rounds).toHaveLength(5);
+      expect(rounds.every((pair) => legacyPairIds.includes(pair.id))).toBe(true);
+    }
+  });
+  it("selects only comparisons supported by the client, including recent fallback", () => {
+    const supported = [
+      "paris-space",
+      "ny-london",
+      "giraffe-elephant",
+      "ship-plane",
+      "squid-trex",
+    ];
+    for (const recent of [[], supported]) {
+      const rounds = chooseRounds(recent, [...supported, "unknown-pair"]);
+      expect(rounds.map((pair) => pair.id).sort()).toEqual([...supported].sort());
+      expect(new Set(rounds.flatMap((pair) => [pair.reference, pair.target])).size).toBe(10);
+    }
+    expect(() => chooseRounds([], [])).toThrow("Недостаточно разных сравнений");
   });
   it("clamps gesture values", () => {
     expect(clamp(-1)).toBe(MIN_RATIO);

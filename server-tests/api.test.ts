@@ -1,7 +1,7 @@
 import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 import { Pool } from "pg";
 import { readFileSync } from "node:fs";
-import { pairs, objects } from "../src/data";
+import { pairs, objects, legacyPairIds } from "../src/data";
 import { buildApp } from "../server/app";
 import { migrateShadeScores } from "../server/shade-migration";
 const db = process.env.TEST_DATABASE_URL;
@@ -127,6 +127,34 @@ suite("Playne database and OAuth integration", () => {
       payload: {},
     });
     expect(before.statusCode).toBe(401);
+  });
+  it("completes a negotiated party from the expanded Naglaz catalogue", async () => {
+    const supportedPairIds = pairs
+      .filter((pair) => !legacyPairIds.includes(pair.id))
+      .map((pair) => pair.id);
+    const start = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { origin, cookie: guest },
+      payload: { game: "naglaz", supportedPairIds },
+    });
+    expect(start.statusCode).toBe(200);
+    const run = start.json();
+    for (let index = 0; index < 5; index++) {
+      const pairId = run.challenge.pairIds[index];
+      expect(legacyPairIds).not.toContain(pairId);
+      const pair = pairs.find((candidate) => candidate.id === pairId)!;
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/games/${run.id}/answers`,
+        headers: { origin, cookie: guest },
+        payload: { index, answer: { guess: objects[pair.target].size } },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().answer.score).toBe(100);
+      expect(response.json().completed).toBe(index === 4);
+      if (index === 4) expect(response.json().score).toBe(500);
+    }
   });
   it("checks OAuth state, retains the guest game after login and stores only hashed sessions", async () => {
     const start = await app.inject({
