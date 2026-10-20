@@ -613,6 +613,8 @@ export function replayEndlessPressRun(
     if (
       !trace ||
       !Array.isArray(trace.events) ||
+      !Number.isFinite(trace.elapsed) ||
+      trace.elapsed < 0 ||
       trace.elapsed > levels[i].duration + 2000
     )
       throw new Error("Некорректное время уровня");
@@ -711,6 +713,8 @@ export function replayPressRun(levels: PressLevel[], traces: PressTrace[]) {
     if (
       !trace ||
       !Array.isArray(trace.events) ||
+      !Number.isFinite(trace.elapsed) ||
+      trace.elapsed < 0 ||
       trace.elapsed > levels[i].duration + 2000
     )
       throw new Error("Некорректное время уровня");

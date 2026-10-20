@@ -304,5 +304,10 @@ describe("Pressure generated challenge and replay", () => {
         rounds: levels.slice(0, 30).map(solvePress),
       }),
     ).toThrow("ещё не закончена");
+    expect(() =>
+      validateAnswer("pressure", c, 0, {
+        rounds: [...rounds.slice(0, -1), { events: [], elapsed: -1e9 }],
+      }),
+    ).toThrow("время уровня");
   });
 });

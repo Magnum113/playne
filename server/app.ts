@@ -713,7 +713,7 @@ export async function buildApp(
         const rounds = input.answer?.rounds;
         if (
           !Array.isArray(rounds) ||
-          rounds.some((r: any) => !Number.isFinite(r?.elapsed))
+          rounds.some((r: any) => !Number.isFinite(r?.elapsed) || r.elapsed < 0)
         )
           failure("Некорректная попытка");
         const elapsed = rounds.reduce(
