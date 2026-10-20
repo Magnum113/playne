@@ -22,7 +22,8 @@ export default function GuidePage({
           <a href="/">Игры</a>
           <a href="/guides/">Правила</a>
           <DestroyWebsiteLink />
-          <AccountNav /><ThemeToggle />
+          <AccountNav />
+          <ThemeToggle />
         </nav>
       </header>
       <main id="guide-main" className="guide-main">
@@ -129,6 +130,23 @@ export default function GuidePage({
                   </span>
                 </a>
               ))}
+              <a
+                className="guide-card guide-purple"
+                href="/pressure/#pressure-about"
+              >
+                <span className="guide-number" aria-hidden="true">
+                  05
+                </span>
+                <span className="eyebrow">Жми</span>
+                <h2>«Жми»: правила игры с одной кнопкой</h2>
+                <p>
+                  Бесплатный аналог Press Under Pressure на русском: как считать
+                  нажатия, запоминать прошлые уровни и пройти все 30 заданий.
+                </p>
+                <span className="guide-card-link">
+                  Правила и игра <span aria-hidden="true">↗</span>
+                </span>
+              </a>
             </div>
           </>
         )}

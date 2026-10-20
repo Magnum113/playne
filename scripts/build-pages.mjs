@@ -44,7 +44,13 @@ try {
   for (const page of [...pages, notFound]) {
     const error = page.kind === "error";
     const canonical = SITE_URL + page.path;
-    const image = SITE_URL + "/art/playne-logo.png?v=2";
+    const social = page.image ?? {
+      path: "/art/playne-logo.png?v=2",
+      width: 1254,
+      height: 1254,
+      alt: "Логотип Playne",
+    };
+    const image = SITE_URL + social.path;
     const head = [
       `<meta name="robots" content="${error || page.noindex ? "noindex, follow" : "index, follow, max-image-preview:large"}" />`,
       `<meta property="og:site_name" content="Playne" />`,
@@ -54,13 +60,14 @@ try {
       `<meta property="og:description" content="${escape(page.description)}" />`,
       `<meta property="og:url" content="${canonical}" />`,
       `<meta property="og:image" content="${image}" />`,
-      `<meta property="og:image:width" content="1254" />`,
-      `<meta property="og:image:height" content="1254" />`,
-      `<meta property="og:image:alt" content="Логотип Playne" />`,
-      `<meta name="twitter:card" content="summary" />`,
+      `<meta property="og:image:width" content="${social.width}" />`,
+      `<meta property="og:image:height" content="${social.height}" />`,
+      `<meta property="og:image:alt" content="${escape(social.alt)}" />`,
+      `<meta name="twitter:card" content="${page.image ? "summary_large_image" : "summary"}" />`,
       `<meta name="twitter:title" content="${escape(page.title)}" />`,
       `<meta name="twitter:description" content="${escape(page.description)}" />`,
       `<meta name="twitter:image" content="${image}" />`,
+      `<meta name="twitter:image:alt" content="${escape(social.alt)}" />`,
       ...(!error
         ? [
             `<script type="application/ld+json">${JSON.stringify(structuredData(page)).replace(/</g, "\\u003c")}</script>`,
@@ -96,7 +103,10 @@ try {
   // No fabricated lastmod: optional dates should reflect actual content changes.
   await writeFile(
     new URL("sitemap.xml", dist),
-    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.filter(p => !p.noindex).map((p) => `  <url><loc>${SITE_URL}${p.path}</loc></url>`).join("\n")}\n</urlset>\n`,
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages
+      .filter((p) => !p.noindex)
+      .map((p) => `  <url><loc>${SITE_URL}${p.path}</loc></url>`)
+      .join("\n")}\n</urlset>\n`,
   );
   await writeFile(
     new URL("robots.txt", dist),

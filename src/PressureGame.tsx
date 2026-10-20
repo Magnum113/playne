@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { AccountNav, SaveResult, useRankedRun } from "./account";
 import { PlayneBrand, ThemeToggle } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
+import PressureAbout from "./PressureAbout";
 import { PRESSURE_GOALS, reachGoal } from "./analytics";
 import {
   PRESSURE_LEVELS,
@@ -421,7 +422,7 @@ export default function PressureGame() {
             <h1>
               Жми<span className="brand-dot">.</span>
             </h1>
-            <p>Сначала прочитай. Потом решай.</p>
+            <p>Бесплатная игра на русском. Сначала прочитай. Потом решай.</p>
           </div>
           <button
             className="help-button"
@@ -458,7 +459,9 @@ export default function PressureGame() {
                 {loading ? "Готовим задания…" : "Начать игру"}{" "}
                 <span aria-hidden="true">↗</span>
               </button>
-              <small>Бесплатно. Новая подборка в каждой попытке.</small>
+              <small>
+                Бесплатно. На русском. Без скачивания и регистрации.
+              </small>
             </div>
             <div className="pressure-welcome-art">
               <PressurePreview />
@@ -739,6 +742,7 @@ export default function PressureGame() {
             )}
           </section>
         )}
+        {state.phase === "welcome" && <PressureAbout />}
       </main>
       <footer className="color-footer">
         <span>Одна кнопка. Каждый раз новое правило.</span>

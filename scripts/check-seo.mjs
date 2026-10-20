@@ -8,6 +8,7 @@ const server = await createServer({
 });
 try {
   const { pages, SITE_URL } = await server.ssrLoadModule("/src/seo.ts");
+  const { pressureFaq } = await server.ssrLoadModule("/src/pressureContent.ts");
   const paths = new Set(pages.map((p) => p.path));
   const titles = new Set();
   const descriptions = new Set();
@@ -50,7 +51,10 @@ try {
       1,
       `${page.path}: exactly one H1`,
     );
-    assert(html.includes('lang="ru"') && (page.noindex || !html.includes('content="noindex')));
+    assert(
+      html.includes('lang="ru"') &&
+        (page.noindex || !html.includes('content="noindex')),
+    );
     assert(html.includes("og:image") && html.includes("twitter:card"));
     assert(html.includes('data-playne-mark="vector"'));
     assert(
@@ -72,7 +76,10 @@ try {
       /(?:href|src)="(\/[^"?#]*)(?:[?#][^"]*)?"/g,
     )) {
       const path = match[1];
-      if (path.startsWith("/api/")) { assert(path === "/api/auth/yandex/start"); continue; }
+      if (path.startsWith("/api/")) {
+        assert(path === "/api/auth/yandex/start");
+        continue;
+      }
       if (path.endsWith("/"))
         assert(paths.has(path), `${page.path}: broken route ${path}`);
       else await access(new URL(path.slice(1), dist));
@@ -88,6 +95,47 @@ try {
       .replace(/<style[\s\S]*?<\/style>/g, "")
       .replace(/<[^>]*>/g, " ")
       .replace(/\s+/g, " ");
+    if (page.path === "/pressure/") {
+      assert(
+        title.includes("Press Under Pressure") &&
+          title.includes("бесплатный") &&
+          title.includes("на русском"),
+      );
+      assert(description.includes("Pressing Under Pressure"));
+      assert(
+        text.includes("The Impossible Quiz") &&
+          text.includes("Без скачивания и регистрации"),
+      );
+      assert(
+        html.includes('id="pressure-rules"') &&
+          html.includes('id="pressure-about"'),
+      );
+      const game = data["@graph"].find((x) => x["@type"] === "VideoGame");
+      assert(game?.isAccessibleForFree && game.inLanguage === "ru");
+      assert.equal(game.offers.price, "0");
+      const faq = data["@graph"].find((x) => x["@type"] === "FAQPage");
+      assert.equal(faq?.mainEntity.length, pressureFaq.length);
+      pressureFaq.forEach(({ question, answer }, i) => {
+        assert(
+          text.includes(question) && text.includes(answer),
+          "FAQ must be readable in the static HTML",
+        );
+        assert.equal(faq.mainEntity[i].name, question);
+        assert.equal(faq.mainEntity[i].acceptedAnswer.text, answer);
+      });
+      assert(
+        html.includes(
+          `property="og:image" content="${SITE_URL}${page.image.path}"`,
+        ),
+      );
+      assert(
+        html.includes('name="twitter:card" content="summary_large_image"'),
+      );
+      const png = await readFile(new URL(page.image.path.slice(1), dist));
+      assert.equal(png.subarray(1, 4).toString(), "PNG");
+      assert.equal(png.readUInt32BE(16), page.image.width);
+      assert.equal(png.readUInt32BE(20), page.image.height);
+    }
     assert(
       text.length > (page.kind === "article" ? 2500 : 400),
       `${page.path}: missing prerendered copy`,
@@ -95,7 +143,13 @@ try {
   }
   const sitemap = await readFile(new URL("sitemap.xml", dist), "utf8");
   const listed = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]);
-  assert.deepEqual(listed.sort(), pages.filter(p=>!p.noindex).map((p) => SITE_URL + p.path).sort());
+  assert.deepEqual(
+    listed.sort(),
+    pages
+      .filter((p) => !p.noindex)
+      .map((p) => SITE_URL + p.path)
+      .sort(),
+  );
   const robots = await readFile(new URL("robots.txt", dist), "utf8");
   assert(robots.includes(`Sitemap: ${SITE_URL}/sitemap.xml`));
   assert(!robots.includes("Disallow: /"));

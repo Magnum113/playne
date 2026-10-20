@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <title>Жми — бесплатная игра на русском | Playne</title>
+  <desc>Одна кнопка, 30 случайных уровней на память, логику и реакцию. Игра по мотивам Pressing Under Pressure.</desc>
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d3bffa"/><stop offset="1" stop-color="#b49aee"/></linearGradient>
+    <linearGradient id="mint" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#61d6c1"/><stop offset="1" stop-color="#6adac2"/></linearGradient>
+    <linearGradient id="purple" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c7adfa"/><stop offset="1" stop-color="#bda1f6"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#f7f7f2"/>
+  <g transform="translate(68 38) scale(.039)">
+    <path fill="url(#purple)" fill-rule="evenodd" d="M334 97H545C850 97 1078 295 1078 578S850 1059 490 1059V558C490 349 435 160 334 97ZM551 365C524 348 496 368 496 400V777C496 809 524 826 551 809L849 623C877 605 877 567 849 548Z"/>
+    <path fill="url(#mint)" d="M232 97H334C435 160 490 349 490 558V1075C490 1176 411 1254 314 1254S137 1176 137 1075V194C137 138 174 97 232 97Z"/>
+    <rect x="881" y="1018" width="236" height="236" rx="82" fill="#ecaa71"/>
+  </g>
+  <g font-family="Arial, sans-serif" fill="#252a2d">
+    <text x="128" y="79" font-size="37" font-weight="700" letter-spacing="-2">playne.</text>
+    <text x="72" y="265" font-size="112" font-weight="700" letter-spacing="-6">Жми<tspan fill="#7953b4">.</tspan></text>
+    <text x="76" y="330" font-size="34" font-weight="600" letter-spacing="-.8">Одна кнопка. 30 уровней.</text>
+    <text x="76" y="390" font-size="23" fill="#697477">По мотивам Pressing Under Pressure</text>
+    <rect x="75" y="440" width="580" height="56" rx="16" fill="#e1f3ec"/>
+    <text x="95" y="476" font-size="23" fill="#147b69" font-weight="600">Бесплатно · На русском · Без регистрации</text>
+    <text x="76" y="570" font-size="22" fill="#697477">playne.ru/pressure</text>
+    <circle cx="930" cy="320" r="185" fill="none" stroke="#dedfd8" stroke-width="8"/>
+    <circle cx="930" cy="320" r="185" fill="none" stroke="#147b69" stroke-width="8" pathLength="100" stroke-dasharray="1.3 1.2" stroke-linecap="round"/>
+    <circle cx="930" cy="320" r="168" fill="#f0f1eb" stroke="#dedfd8"/>
+    <circle cx="930" cy="333" r="150" fill="#8a69b7"/>
+    <circle cx="930" cy="320" r="150" fill="url(#face)" stroke="#a991d4" stroke-width="2"/>
+    <circle cx="930" cy="318" r="147" fill="none" stroke="#ffffff" stroke-opacity=".35" stroke-width="3"/>
+    <text x="930" y="337" text-anchor="middle" font-size="44" font-weight="700" fill="#292133">ЖМИ</text>
+    <path d="m1040 425 44 36-24 5-13 24Z" fill="#fffefa" stroke="#147b69" stroke-width="3" stroke-linejoin="round"/>
+    <text x="930" y="570" text-anchor="middle" font-size="20" fill="#697477">Внимание · Память · Реакция</text>
+  </g>
+</svg>

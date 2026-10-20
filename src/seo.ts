@@ -1,4 +1,5 @@
 import { guides } from "./guides";
+import { pressureFaq } from "./pressureContent";
 
 export const SITE_URL = "https://playne.ru";
 export type PageMeta = {
@@ -8,21 +9,28 @@ export type PageMeta = {
   kind: "home" | "game" | "guides" | "article" | "info";
   noindex?: boolean;
   name: string;
+  image?: { path: string; width: number; height: number; alt: string };
 };
 export const pages: PageMeta[] = [
   {
     path: "/pressure/",
-    title: "Жми — игра на реакцию и внимательность | Playne",
+    title: "Жми — бесплатный аналог Press Under Pressure на русском | Playne",
     description:
-      "Игра по мотивам Pressing Under Pressure на русском: одна кнопка, 30 случайных уровней на логику, память и реакцию. Нажимай, удерживай или жди. Бесплатно, на телефоне и компьютере.",
+      "Играй в «Жми» — бесплатный аналог Pressing Under Pressure на русском. Одна кнопка, 30 случайных уровней на память и реакцию. Онлайн без скачивания и регистрации.",
     kind: "game",
     name: "Жми",
+    image: {
+      path: "/art/pressure-social.png",
+      width: 1200,
+      height: 630,
+      alt: "Жми — бесплатная игра с кнопкой на русском, 30 уровней",
+    },
   },
   {
     path: "/leaderboard/",
     title: "Рейтинг игроков — лучшие результаты игр | Playne",
     description:
-      "Рейтинги На глаз, Круг, Оттенок и Где я. Лучшие результаты недели и за всё время. Играй бесплатно и сохраняй результаты через Яндекс ID.",
+      "Рейтинги На глаз, Круг, Оттенок, Где я и Жми. Лучшие результаты недели и за всё время. Играй бесплатно и сохраняй результаты через Яндекс ID.",
     kind: "guides",
     name: "Рейтинг",
   },
@@ -55,7 +63,7 @@ export const pages: PageMeta[] = [
     path: "/",
     title: "Playne — игры онлайн для любопытных",
     description:
-      "Бесплатные игры в браузере: сравнивай размеры, рисуй круг, подбирай цвет и угадывай места по панорамам. Играй на телефоне и компьютере без регистрации.",
+      "Бесплатные игры в браузере: сравнивай размеры, рисуй круг, подбирай цвет, угадывай места по панорамам и решай задания с одной кнопкой. Играй на телефоне и компьютере без регистрации.",
     kind: "home",
     name: "Playne",
   },
@@ -87,7 +95,7 @@ export const pages: PageMeta[] = [
     path: "/guides/",
     title: "Правила и советы по играм Playne",
     description:
-      "Как сравнивать размеры, рисовать круг, подбирать цвет и угадывать страну по панораме. Правила четырёх игр Playne, советы и объяснение очков.",
+      "Как сравнивать размеры, рисовать круг, подбирать цвет и угадывать страну по панораме. Правила игр Playne, включая Жми по мотивам Press Under Pressure, советы и объяснение очков.",
     kind: "guides",
     name: "Правила и советы",
   },
@@ -142,6 +150,7 @@ export function structuredData(page: PageMeta) {
     inLanguage: "ru",
     isPartOf: { "@id": website["@id"] },
     ...(page.kind === "article" ? { mainEntityOfPage: url } : {}),
+    ...(page.kind === "game" ? { mainEntity: { "@id": url + "#game" } } : {}),
   };
   return {
     "@context": "https://schema.org",
@@ -161,6 +170,40 @@ export function structuredData(page: PageMeta) {
               playMode: "https://schema.org/SinglePlayer",
               isAccessibleForFree: true,
               mainEntityOfPage: { "@id": main["@id"] },
+              ...(page.path === "/pressure/"
+                ? {
+                    image: SITE_URL + page.image!.path,
+                    genre: ["Головоломка", "Логика", "Память", "Реакция"],
+                    operatingSystem: "Any",
+                    browserRequirements: "Requires JavaScript",
+                    offers: {
+                      "@type": "Offer",
+                      price: "0",
+                      priceCurrency: "RUB",
+                      url,
+                    },
+                    publisher: {
+                      "@type": "Organization",
+                      name: "Playne",
+                      url: SITE_URL + "/",
+                    },
+                  }
+                : {}),
+            },
+          ]
+        : []),
+      ...(page.path === "/pressure/"
+        ? [
+            {
+              "@type": "FAQPage",
+              "@id": url + "#pressure-faq",
+              isPartOf: { "@id": main["@id"] },
+              inLanguage: "ru",
+              mainEntity: pressureFaq.map(({ question, answer }) => ({
+                "@type": "Question",
+                name: question,
+                acceptedAnswer: { "@type": "Answer", text: answer },
+              })),
             },
           ]
         : []),

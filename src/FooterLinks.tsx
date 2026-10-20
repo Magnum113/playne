@@ -19,6 +19,7 @@ export default function FooterLinks() {
         <a href="/guides/perfect-circle/">Как нарисовать круг</a>
         <a href="/guides/colorfle/">Как подобрать оттенок</a>
         <a href="/guides/geoguessr/">Как угадывать места по панорамам</a>
+        <a href="/pressure/#pressure-rules">Как играть в «Жми»</a>
         <a href="/privacy/">Конфиденциальность</a>
         <a href="/terms/">Правила сайта</a>
       </div>

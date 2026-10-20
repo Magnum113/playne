@@ -734,3 +734,141 @@
   font-size: clamp(18px, 3.4vw, 26px);
   letter-spacing: 0;
 }
+
+.pressure-about {
+  margin-top: 64px;
+  padding-top: 48px;
+  border-top: 1px solid var(--line);
+}
+.pressure-about-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 56px;
+}
+.pressure-about .eyebrow {
+  font-size: 9px;
+  line-height: 1.8;
+}
+.pressure-about h2 {
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.25;
+  letter-spacing: -0.8px;
+  margin: 12px 0 22px;
+  text-wrap: balance;
+}
+.pressure-about p,
+.pressure-about li {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.pressure-about h3 {
+  font-size: 19px;
+  margin: 0 0 20px;
+}
+.pressure-about-rules {
+  padding: 28px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+}
+.pressure-about-rules ol {
+  padding-left: 20px;
+  margin: 0 0 20px;
+}
+.pressure-about-rules li {
+  padding-left: 4px;
+  margin-bottom: 14px;
+}
+.pressure-about-rules strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.pressure-about-rules a,
+.pressure-related a {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.pressure-faq {
+  max-width: 820px;
+  margin: 44px auto 0;
+}
+.pressure-faq h2 {
+  margin-bottom: 24px;
+}
+.pressure-faq details {
+  border-top: 1px solid var(--line);
+}
+.pressure-faq details:last-child {
+  border-bottom: 1px solid var(--line);
+}
+.pressure-faq summary {
+  padding: 20px 32px 20px 0;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  position: relative;
+}
+.pressure-faq summary::-webkit-details-marker {
+  display: none;
+}
+.pressure-faq summary::after {
+  content: "+";
+  position: absolute;
+  right: 4px;
+  top: 18px;
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--mint);
+}
+.pressure-faq details[open] summary::after {
+  content: "−";
+}
+.pressure-faq details p {
+  margin: 0;
+  padding: 0 28px 22px 0;
+}
+.pressure-related {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 44px;
+}
+.pressure-related h3 {
+  width: 100%;
+  margin-bottom: 4px;
+}
+#pressure-about,
+#pressure-rules {
+  scroll-margin-top: 24px;
+}
+@media (max-width: 700px) {
+  .pressure-about {
+    margin-top: 40px;
+    padding-top: 30px;
+  }
+  .pressure-about-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .pressure-about-rules {
+    padding: 22px;
+  }
+  .pressure-about h2 {
+    font-size: 26px;
+  }
+  .pressure-faq {
+    margin-top: 32px;
+  }
+  .pressure-faq summary {
+    font-size: 14px;
+    line-height: 1.6;
+    padding-top: 17px;
+    padding-bottom: 17px;
+  }
+  .pressure-related {
+    flex-direction: column;
+    gap: 14px;
+  }
+}

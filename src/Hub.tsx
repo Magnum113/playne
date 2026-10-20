@@ -333,7 +333,7 @@ export default function Hub() {
             <a
               className="game-card game-card-live"
               href="/pressure/"
-              aria-label="Играть в Жми"
+              aria-label="Играть в Жми — бесплатный аналог Press Under Pressure"
             >
               <div className="card-topline">
                 <span className="card-category">ВНИМАТЕЛЬНОСТЬ И РЕАКЦИЯ</span>
@@ -344,9 +344,9 @@ export default function Hub() {
                   Жми<span className="brand-dot">.</span>
                 </h2>
                 <p>
-                  Одна кнопка, тридцать разных правил.
+                  По мотивам Press Under Pressure, на русском.
                   <br />
-                  Нажать, удержать или ничего не делать?
+                  Одна кнопка, память, логика и реакция.
                 </p>
               </div>
               <div className="card-bottom">
