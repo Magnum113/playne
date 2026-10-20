@@ -1,3 +1,4 @@
+import { RoundDots } from "./ui";
 import {
   AccountNav,
   useRankedRun,
@@ -5,7 +6,7 @@ import {
   RankedSyncError,
 } from "./account";
 import { useEffect, useRef, useState } from "react";
-import { PlayneBrand, ThemeToggle } from "./SiteHeader";
+import { GameHeader } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 import GeoPreview from "./GeoPreview";
 import GeoAbout from "./GeoAbout";
@@ -623,30 +624,22 @@ export default function GeoGame() {
       <a className="skip-link" href="#geo-main">
         Перейти к игре
       </a>
-      <header className="header">
-        <PlayneBrand />
-        <nav className="game-header-actions" aria-label="Навигация">
-          <a className="back-to-hub" href="/">
-            ← Все игры
-          </a>
-          {active && (
-            <button
-              className="help-button geo-playing-help"
-              aria-label="Как играть"
-              onClick={() => {
-                rules.current?.showModal();
-                reachGoal(GEO_GOALS.rulesOpen);
-              }}
-            >
-              <span className="question" aria-hidden="true">
-                ?
-              </span>
-            </button>
-          )}
-          <AccountNav />
-          <ThemeToggle />
-        </nav>
-      </header>
+      <GameHeader>
+        {active && (
+          <button
+            className="help-button geo-playing-help"
+            aria-label="Как играть"
+            onClick={() => {
+              rules.current?.showModal();
+              reachGoal(GEO_GOALS.rulesOpen);
+            }}
+          >
+            <span className="question" aria-hidden="true">
+              ?
+            </span>
+          </button>
+        )}
+      </GameHeader>
       <main id="geo-main" className="geo-main">
         {active && <h1 className="sr-only">Где я?</h1>}
         <div className="geo-heading">
@@ -820,16 +813,11 @@ export default function GeoGame() {
           <div className="geo-status">
             <div className="geo-status-round">
               <span className="eyebrow">РАУНД {round + 1} ИЗ 5</span>
-              <div className="geo-dots" aria-hidden="true">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <i
-                    key={i}
-                    className={
-                      i < answers.length ? "done" : i === round ? "active" : ""
-                    }
-                  />
-                ))}
-              </div>
+              <RoundDots
+                current={round}
+                completed={answers.length}
+                className="geo-dots"
+              />
             </div>
             <div className="geo-status-meta">
               <span className="geo-mode-label">{geoModeName(mode)}</span>

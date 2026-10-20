@@ -1,57 +1,4 @@
-/* Light is the default; only an explicit saved choice enables dark mode. */
-:root {
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  font-synthesis: none;
-  font-weight: 400;
-  -webkit-font-smoothing: antialiased;
-  color-scheme: light;
-  --text: #252a2d;
-  --bg: #f7f7f2;
-  --panel: #fffefa;
-  --mint: #147b69;
-  --purple: #7953b4;
-  --orange: #a76029;
-  --mint-soft: #61d7c1;
-  --purple-soft: #bea5f7;
-  --mint-tint: #e1f3ec;
-  --purple-tint: #eee6fb;
-  --orange-tint: #f9e9d8;
-  --muted: #697477;
-  --line: #dedfd8;
-  --line-strong: #a8b4b2;
-  --grid: #e8e9e2;
-  --hover: #f0f1eb;
-  --actual: #6c7d8e;
-  --illustration-cutout: #fffefa;
-  --card-shadow: 0 3px 6px #242a2a03, 0 12px 30px #242a2a06;
-  color: var(--text);
-  background: var(--bg);
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --text: #f2f3ef;
-  --bg: #151719;
-  --panel: #1d2125;
-  --mint: #61d7c1;
-  --purple: #bea5f7;
-  --orange: #e9a36b;
-  --mint-tint: #233c35;
-  --purple-tint: #342c45;
-  --orange-tint: #3b3026;
-  --muted: #adb7bd;
-  --line: #343c42;
-  --line-strong: #65717a;
-  --grid: #2b3136;
-  --hover: #262c31;
-  --actual: #c4d0dc;
-  --illustration-cutout: #1d2125;
-  --card-shadow: 0 3px 6px #0001, 0 12px 30px #0002;
-}
+@import "./design-tokens.css";
 
 * {
   box-sizing: border-box;
@@ -1821,7 +1768,7 @@ footer { flex-wrap: wrap; }
   }
 }
 
-.landmark-card .card-copy h2 {
+.landmark-card .card-copy :is(h2, h3) {
   font-size: clamp(19px, 2.4vw, 26px);
   overflow-wrap: anywhere;
 }

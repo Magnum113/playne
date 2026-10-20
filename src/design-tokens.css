@@ -1,0 +1,89 @@
+/* Light is the default; only an explicit saved choice enables dark mode. */
+:root,
+[data-theme-scope="light"] {
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+  --text: #252a2d;
+  --bg: #f7f7f2;
+  --panel: #fffefa;
+  --mint: #137866;
+  --purple: #7953b4;
+  --orange: #995726;
+  --mint-soft: #61d7c1;
+  --purple-soft: #bea5f7;
+  --mint-tint: #e1f3ec;
+  --purple-tint: #eee6fb;
+  --orange-tint: #f9e9d8;
+  --muted: #5f6b6e;
+  --line: #dedfd8;
+  --line-strong: #a8b4b2;
+  --grid: #e8e9e2;
+  --hover: #f0f1eb;
+  --actual: #5b6d80;
+  --illustration-cutout: #fffefa;
+  --card-shadow: 0 3px 6px #242a2a03, 0 12px 30px #242a2a06;
+
+  --danger: #b03434;
+  --danger-tint: #fae7e4;
+  --focus: var(--mint);
+  --field-border: #7b8985;
+  --button-text: #17131e;
+  --button-hover: #cbb8fb;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --radius-control: 12px;
+  --radius-inner: 16px;
+  --radius-panel: 24px;
+  --radius-large: 28px;
+  --radius-pill: 999px;
+  --control-size: 44px;
+  --control-height: 52px;
+  --text-body: 16px;
+  --text-caption: 13px;
+  --motion-fast: 150ms;
+  --motion-medium: 240ms;
+  --motion-game: 700ms;
+  --dialog-shadow: 0 20px 80px #0005;
+  color: var(--text);
+  background: var(--bg);
+}
+:root[data-theme="dark"],
+[data-theme-scope="dark"] {
+  color-scheme: dark;
+  --danger: #ffaaa3;
+  --danger-tint: #452c2c;
+  --field-border: #73838d;
+  --dialog-shadow: 0 20px 80px #0008;
+  --text: #f2f3ef;
+  --bg: #151719;
+  --panel: #1d2125;
+  --mint: #61d7c1;
+  --purple: #bea5f7;
+  --orange: #e9a36b;
+  --mint-tint: #233c35;
+  --purple-tint: #342c45;
+  --orange-tint: #3b3026;
+  --muted: #adb7bd;
+  --line: #343c42;
+  --line-strong: #65717a;
+  --grid: #2b3136;
+  --hover: #262c31;
+  --actual: #c4d0dc;
+  --illustration-cutout: #1d2125;
+  --card-shadow: 0 3px 6px #0001, 0 12px 30px #0002;
+}

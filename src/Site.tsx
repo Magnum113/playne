@@ -1,3 +1,4 @@
+import DesignSystem from "./DesignSystem";
 import App from "./App";
 import PolicyPage from "./PolicyPage";
 import AccountPage from "./AccountPage";
@@ -12,6 +13,7 @@ import { guides } from "./guides";
 
 export default function Site({ path }: { path: string }) {
   const route = path.replace(/\/index\.html$/, "/").replace(/\/?$/, "/");
+  if (route === "/design-system/") return <DesignSystem />;
   if (route === "/privacy/") return <PolicyPage />;
   if (route === "/terms/") return <PolicyPage terms />;
   if (route === "/account/") return <AccountPage />;

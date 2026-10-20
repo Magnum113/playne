@@ -31,7 +31,9 @@ export default function Board({
   onRevealComplete: () => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [narrow, setNarrow] = useState(() => window.innerWidth < 600);
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 600,
+  );
   const [revealProgress, setRevealProgress] = useState(0);
   useEffect(() => {
     if (!revealed) return;

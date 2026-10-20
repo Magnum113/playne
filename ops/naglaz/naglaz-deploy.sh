@@ -310,7 +310,7 @@ with tarfile.open(archive, mode="r:") as bundle:
             raise SystemExit("archive contains platform metadata")
         if member.isdir() and member.type != tarfile.DIRTYPE:
             raise SystemExit("archive contains a non-standard directory")
-        if member.isdir() and normalized not in {"api", "naglaz/account", "naglaz/leaderboard", "naglaz/privacy", "naglaz/terms", "naglaz", "naglaz/assets", "naglaz/art", "naglaz/naglaz", "naglaz/circle", "naglaz/colorfle", "naglaz/geo", "naglaz/pressure", "naglaz/guides", "naglaz/guides/naglaz", "naglaz/guides/perfect-circle", "naglaz/guides/colorfle", "naglaz/guides/geoguessr"}:
+        if member.isdir() and normalized not in {"api", "naglaz/account", "naglaz/leaderboard", "naglaz/privacy", "naglaz/terms", "naglaz", "naglaz/assets", "naglaz/art", "naglaz/naglaz", "naglaz/circle", "naglaz/colorfle", "naglaz/geo", "naglaz/pressure", "naglaz/design-system", "naglaz/guides", "naglaz/guides/naglaz", "naglaz/guides/perfect-circle", "naglaz/guides/colorfle", "naglaz/guides/geoguessr"}:
             raise SystemExit("archive contains an unexpected directory")
         if member.isfile() and member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}:
             raise SystemExit("archive contains a sparse or non-standard regular file")
@@ -341,7 +341,7 @@ with tarfile.open(archive, mode="r:") as bundle:
     if len(artwork) > 64:
         raise SystemExit("archive contains too many artwork files")
     optional_pages = {
-        "naglaz/circle/index.html", "naglaz/colorfle/index.html", "naglaz/geo/index.html", "naglaz/pressure/index.html",
+        "naglaz/circle/index.html", "naglaz/colorfle/index.html", "naglaz/geo/index.html", "naglaz/pressure/index.html", "naglaz/design-system/index.html",
         "naglaz/guides/index.html", "naglaz/guides/naglaz/index.html",
         "naglaz/guides/perfect-circle/index.html", "naglaz/guides/colorfle/index.html", "naglaz/guides/geoguessr/index.html",
         "naglaz/robots.txt", "naglaz/sitemap.xml", "naglaz/404.html",
@@ -519,7 +519,7 @@ health_check() {
   fi
 
   # Optional for compatibility with releases built before the SEO pages existed.
-  for public_path in pressure/index.html account/index.html leaderboard/index.html privacy/index.html terms/index.html geo/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html guides/geoguessr/index.html; do
+  for public_path in design-system/index.html pressure/index.html account/index.html leaderboard/index.html privacy/index.html terms/index.html geo/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html guides/geoguessr/index.html; do
     if [[ -f "$release_dir/naglaz/$public_path" ]]; then
       request_path="${public_path%index.html}"
       curl "${curl_options[@]}" --fail "https://playne.ru/$request_path" --output "$index_file" || return 1

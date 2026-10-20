@@ -10,7 +10,7 @@ import {
   trackPublished,
   type GameId,
 } from "./account";
-import { PlayneBrand, ThemeToggle } from "./SiteHeader";
+import { GameHeader } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 export default function AccountPage() {
   const { user, loading, refresh } = useAuth();
@@ -106,13 +106,7 @@ export default function AccountPage() {
       <a className="skip-link" href="#account-main">
         Перейти к профилю
       </a>
-      <header className="header">
-        <PlayneBrand />
-        <nav className="game-header-actions">
-          <a href="/leaderboard/">Рейтинг</a>
-          <ThemeToggle />
-        </nav>
-      </header>
+      <GameHeader back={false} account={false} ranking />
       <main id="account-main" className="community-main">
         <p className="eyebrow">ТВОИ ИГРЫ</p>
         <h1>
@@ -156,7 +150,7 @@ export default function AccountPage() {
               Войти через Яндекс
             </a>
             {authError && authError !== "success" && (
-              <p role="status">
+              <p className="error" role="status">
                 {authError === "cancelled"
                   ? "Вход отменён. Можно попробовать ещё раз."
                   : "Не удалось завершить вход. Попробуй ещё раз."}
@@ -370,7 +364,11 @@ export default function AccountPage() {
             </div>
           </>
         )}
-        <div id="account-message" className="account-message" role="status">
+        <div
+          id="account-message"
+          className={`account-message${error ? " is-error" : ""}`}
+          role="status"
+        >
           {error || message}
         </div>
       </main>

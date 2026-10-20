@@ -31,7 +31,7 @@ function Arrow() {
   );
 }
 
-function SizePreview() {
+export function SizePreview() {
   return (
     <svg className="size-preview" viewBox="0 0 420 190" aria-hidden="true">
       <path d="M36 158H384" className="preview-ground" />
@@ -74,7 +74,7 @@ function SizePreview() {
   );
 }
 
-function CirclePreview() {
+export function CirclePreview() {
   return (
     <svg className="size-preview" viewBox="0 0 420 190" aria-hidden="true">
       <circle
@@ -101,7 +101,7 @@ function CirclePreview() {
   );
 }
 
-function ColorPreview() {
+export function ColorPreview() {
   return (
     <svg className="size-preview" viewBox="0 0 420 190" aria-hidden="true">
       <defs>

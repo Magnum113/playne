@@ -1,7 +1,8 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
+import { AccountNav } from "./account";
 import { useTheme } from "./theme";
 
-function PlayneMark() {
+export function PlayneMark() {
   const gradientId = useId().replaceAll(":", "");
   return (
     <svg
@@ -44,6 +45,39 @@ function PlayneMark() {
         fill={`url(#${gradientId}-peach)`}
       />
     </svg>
+  );
+}
+
+export function GameHeader({
+  back = true,
+  account = true,
+  ranking = false,
+  children,
+}: {
+  back?: boolean;
+  account?: boolean;
+  ranking?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <header className="header">
+      <PlayneBrand />
+      <nav className="game-header-actions" aria-label="Навигация">
+        {back && (
+          <a className="back-to-hub" href="/">
+            ← Все игры
+          </a>
+        )}
+        {ranking && (
+          <a className="header-ranking-link" href="/leaderboard/">
+            Рейтинг
+          </a>
+        )}
+        {children}
+        {account && <AccountNav />}
+        <ThemeToggle />
+      </nav>
+    </header>
   );
 }
 

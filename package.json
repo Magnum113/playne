@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build && node scripts/build-pages.mjs && node scripts/check-seo.mjs",
+    "build": "tsc -b && vite build && node scripts/build-pages.mjs && node scripts/check-seo.mjs && node scripts/check-design-system.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "check:google": "node scripts/google-check.mjs",

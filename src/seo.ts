@@ -13,6 +13,15 @@ export type PageMeta = {
 };
 export const pages: PageMeta[] = [
   {
+    path: "/design-system/",
+    title: "Дизайн-система Playne — компоненты, цвета и игровые интерфейсы",
+    description:
+      "Все компоненты Playne: цвета светлой и тёмной тем, типографика, кнопки, поля, игровые элементы, результаты и состояния интерфейса. Рабочие примеры на одной странице.",
+    kind: "info",
+    name: "Дизайн-система",
+    noindex: true,
+  },
+  {
     path: "/pressure/",
     title: "Жми — бесплатный аналог Press Under Pressure на русском | Playne",
     description:

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { AccountNav, SaveResult, useRankedRun } from "./account";
-import { PlayneBrand, ThemeToggle } from "./SiteHeader";
+import { SaveResult, useRankedRun } from "./account";
+import { GameHeader } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 import PressureAbout from "./PressureAbout";
 import { PRESSURE_GOALS, reachGoal } from "./analytics";
@@ -31,6 +31,27 @@ type BoardState = {
 };
 const RING_SEGMENTS = 40;
 const ringSegments = Array.from({ length: RING_SEGMENTS }, (_, i) => i);
+
+export function PressureTimer({ fraction }: { fraction: number }) {
+  return (
+    <svg className="pressure-ring" viewBox="0 0 360 360" aria-hidden="true">
+      <circle className="pressure-ring-track" cx="180" cy="180" r="166" />
+      {ringSegments.map((i) => (
+        <circle
+          key={i}
+          className={`pressure-ring-segment${i < Math.ceil(fraction * RING_SEGMENTS) ? " is-lit" : ""}`}
+          cx="180"
+          cy="180"
+          r="166"
+          pathLength="100"
+          strokeDasharray="1.3 98.7"
+          strokeDashoffset={(-i * 100) / RING_SEGMENTS}
+          style={{ "--segment": i } as CSSProperties}
+        />
+      ))}
+    </svg>
+  );
+}
 
 const initial: BoardState = {
   phase: "welcome",
@@ -421,16 +442,7 @@ export default function PressureGame() {
       <a className="skip-link" href="#pressure-main">
         Перейти к игре
       </a>
-      <header className="header">
-        <PlayneBrand />
-        <nav className="game-header-actions" aria-label="Навигация">
-          <a className="back-to-hub" href="/">
-            ← Все игры
-          </a>
-          <AccountNav />
-          <ThemeToggle />
-        </nav>
-      </header>
+      <GameHeader />
       <main id="pressure-main" className="pressure-main">
         <div className="pressure-heading">
           <div>
@@ -621,31 +633,7 @@ export default function PressureGame() {
                 <div
                   className={`pressure-button-wrap${playing && fraction < 0.25 ? " urgent" : ""}${succeeding ? " is-success" : ""}${failing ? " is-failure" : ""}`}
                 >
-                  <svg
-                    className="pressure-ring"
-                    viewBox="0 0 360 360"
-                    aria-hidden="true"
-                  >
-                    <circle
-                      className="pressure-ring-track"
-                      cx="180"
-                      cy="180"
-                      r="166"
-                    />
-                    {ringSegments.map((i) => (
-                      <circle
-                        key={i}
-                        className={`pressure-ring-segment${i < Math.ceil(fraction * RING_SEGMENTS) ? " is-lit" : ""}`}
-                        cx="180"
-                        cy="180"
-                        r="166"
-                        pathLength="100"
-                        strokeDasharray="1.3 98.7"
-                        strokeDashoffset={(-i * 100) / RING_SEGMENTS}
-                        style={{ "--segment": i } as CSSProperties}
-                      />
-                    ))}
-                  </svg>
+                  <PressureTimer fraction={fraction} />
                   <span className="pressure-housing" aria-hidden="true" />
                   <span className="pressure-button-base" aria-hidden="true" />
                   {pressSerial > 0 && (

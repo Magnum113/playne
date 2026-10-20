@@ -1,9 +1,9 @@
-import { AccountNav, useRankedRun, SaveResult } from "./account";
+import { useRankedRun, SaveResult } from "./account";
 import FooterLinks from "./FooterLinks";
 import { CIRCLE_GOALS, reachGoal } from "./analytics";
 import { createCircleTracker } from "./gameAnalytics";
 import { useRef, useState, type PointerEvent } from "react";
-import { PlayneBrand, ThemeToggle } from "./SiteHeader";
+import { GameHeader } from "./SiteHeader";
 import {
   circlePercent,
   evaluateCircle,
@@ -155,16 +155,7 @@ export default function CircleGame() {
       <a className="skip-link" href="#circle-main">
         Перейти к игре
       </a>
-      <header className="header">
-        <PlayneBrand />
-        <nav className="game-header-actions" aria-label="Навигация">
-          <a className="back-to-hub" href="/">
-            ← Все игры
-          </a>
-          <AccountNav />
-          <ThemeToggle />
-        </nav>
-      </header>
+      <GameHeader />
       <main id="circle-main" className="circle-main">
         <div className="circle-heading">
           <div>

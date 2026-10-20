@@ -1,6 +1,8 @@
-import { AccountNav, useRankedRun, SaveResult } from "./account";
+import { ModeChoice, RoundDots } from "./ui";
+import { useRankedRun, SaveResult } from "./account";
 import {
   useEffect,
+  useId,
   useReducer,
   useRef,
   useState,
@@ -10,7 +12,7 @@ import {
 import FooterLinks from "./FooterLinks";
 import { SHADE_GOALS, reachGoal } from "./analytics";
 import { shadeTransitionGoals } from "./gameAnalytics";
-import { PlayneBrand, ThemeToggle } from "./SiteHeader";
+import { GameHeader } from "./SiteHeader";
 import {
   hsvToHex,
   loadShadeSession,
@@ -29,7 +31,7 @@ import {
 import "./colorfle.css";
 
 const colorText = (color: HSV) => hsvToHex(color).toUpperCase();
-function Swatch({
+export function Swatch({
   label,
   color,
   hint,
@@ -66,13 +68,17 @@ function Swatch({
     </div>
   );
 }
-function Palette({
+export function Palette({
   value,
   onChange,
+  headingLevel = 2,
 }: {
   value: HSV;
   onChange: (c: HSV) => void;
+  headingLevel?: 2 | 3 | 4;
 }) {
+  const Heading = `h${headingLevel}` as "h2" | "h3" | "h4";
+  const hueId = useId();
   const square = useRef<HTMLDivElement>(null);
   const setPosition = (clientX: number, clientY: number) => {
     const box = square.current?.getBoundingClientRect();
@@ -110,7 +116,7 @@ function Palette({
   return (
     <div className="shade-picker">
       <div className="shade-picker-heading">
-        <h2>Подбери оттенок</h2>
+        <Heading className="shade-picker-title">Подбери оттенок</Heading>
         <span>Выбери цвет на поле</span>
       </div>
       <div
@@ -139,11 +145,11 @@ function Palette({
           }}
         />
       </div>
-      <label className="shade-hue-label" htmlFor="shade-hue">
+      <label className="shade-hue-label" htmlFor={hueId}>
         Цветовой тон
       </label>
       <input
-        id="shade-hue"
+        id={hueId}
         className="shade-hue"
         type="range"
         min="0"
@@ -346,16 +352,7 @@ export default function ColorfleGame() {
       <a className="skip-link" href="#color-main">
         Перейти к игре
       </a>
-      <header className="header">
-        <PlayneBrand />
-        <nav className="game-header-actions" aria-label="Навигация">
-          <a className="back-to-hub" href="/">
-            ← Все игры
-          </a>
-          <AccountNav />
-          <ThemeToggle />
-        </nav>
-      </header>
+      <GameHeader />
       <main id="color-main" className="color-main">
         <div className="color-heading">
           <div>
@@ -387,31 +384,23 @@ export default function ColorfleGame() {
                 Смотри на образец и выбирай такой же оттенок на палитре. Чем
                 ближе твой цвет, тем больше очков.
               </p>
-              <fieldset className="shade-mode-choice">
-                <legend>Режим игры</legend>
-                {(["classic", "timed"] as ShadeMode[]).map((option) => (
-                  <label
-                    key={option}
-                    className={mode === option ? "selected" : ""}
-                  >
-                    <input
-                      type="radio"
-                      name="shade-mode"
-                      checked={mode === option}
-                      disabled={ranked.state.status === "loading"}
-                      onChange={() => dispatch({ type: "mode", mode: option })}
-                    />
-                    <span>
-                      <strong>{shadeModeName(option)}</strong>
-                      <small>
-                        {option === "timed"
-                          ? "30 секунд на цвет"
-                          : "В своём темпе"}
-                      </small>
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
+              <ModeChoice
+                value={mode}
+                onChange={(mode) => dispatch({ type: "mode", mode })}
+                disabled={ranked.state.status === "loading"}
+                options={[
+                  {
+                    value: "classic",
+                    label: shadeModeName("classic"),
+                    description: "В своём темпе",
+                  },
+                  {
+                    value: "timed",
+                    label: shadeModeName("timed"),
+                    description: "30 секунд на цвет",
+                  },
+                ]}
+              />
               <button
                 className="primary"
                 disabled={ranked.state.status === "loading"}
@@ -439,20 +428,12 @@ export default function ColorfleGame() {
                     ? "ИГРА ЗАВЕРШЕНА"
                     : `РАУНД ${round + 1} ИЗ ${ROUND_COUNT}`}
                 </span>
-                <div className="shade-dots" aria-hidden="true">
-                  {Array.from({ length: ROUND_COUNT }, (_, i) => (
-                    <i
-                      key={i}
-                      className={
-                        i < state.answers.length
-                          ? "done"
-                          : i === round
-                            ? "active"
-                            : ""
-                      }
-                    />
-                  ))}
-                </div>
+                <RoundDots
+                  current={round}
+                  completed={state.answers.length}
+                  total={ROUND_COUNT}
+                  className="shade-dots"
+                />
               </div>
               <div className="shade-status-right">
                 {timed && phase === "picking" && (

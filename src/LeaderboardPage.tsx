@@ -10,7 +10,7 @@ import {
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useState } from "react";
 import { api, gameNames, resultText, AccountNav, type GameId } from "./account";
-import { PlayneBrand, ThemeToggle } from "./SiteHeader";
+import { GameHeader } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 import { shadeModeName, type ShadeMode } from "./colorfle";
 export default function LeaderboardPage() {
@@ -105,13 +105,7 @@ export default function LeaderboardPage() {
       <a className="skip-link" href="#leaderboard-main">
         Перейти к рейтингу
       </a>
-      <header className="header">
-        <PlayneBrand />
-        <nav className="game-header-actions">
-          <AccountNav />
-          <ThemeToggle />
-        </nav>
-      </header>
+      <GameHeader back={false} />
       <main id="leaderboard-main" className="community-main">
         <p className="eyebrow">ИГРОКИ PLAYNE</p>
         <h1>

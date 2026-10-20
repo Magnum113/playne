@@ -1,9 +1,10 @@
-import { AccountNav, useRankedRun, SaveResult } from "./account";
+import { RoundDots } from "./ui";
+import { useRankedRun, SaveResult } from "./account";
 import FooterLinks from "./FooterLinks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Board from "./Board";
 import Silhouette from "./Silhouette";
-import { PlayneBrand, ThemeToggle } from "./SiteHeader";
+import { GameHeader, PlayneBrand } from "./SiteHeader";
 import { METRIKA_GOALS, reachGoal } from "./analytics";
 import { objects, pairs } from "./data";
 import type { Pair } from "./data";
@@ -244,16 +245,7 @@ export default function App() {
       <a className="skip-link" href="#main-content">
         Перейти к игре
       </a>
-      <header className="header">
-        <PlayneBrand />
-        <nav className="game-header-actions" aria-label="Навигация">
-          <a href="/" className="back-to-hub">
-            ← Все игры
-          </a>
-          <AccountNav />
-          <ThemeToggle />
-        </nav>
-      </header>
+      <GameHeader />
       <main id="main-content">
         {screen === "start" && ranked.state.status === "error" && (
           <p role="status">{ranked.state.message}</p>
@@ -324,16 +316,11 @@ export default function App() {
             <div className="game-top">
               <div className="round-status">
                 <span className="eyebrow">РАУНД {index + 1} ИЗ 5</span>
-                <div className="progress-dots" aria-hidden="true">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <i
-                      key={i}
-                      className={
-                        i < index ? "done" : i === index ? "current" : ""
-                      }
-                    />
-                  ))}
-                </div>
+                <RoundDots
+                  current={index}
+                  completed={index}
+                  className="progress-dots"
+                />
               </div>
               <span className="score-total">
                 Очки <strong>{total}</strong>
