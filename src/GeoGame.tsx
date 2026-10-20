@@ -1,3 +1,4 @@
+import { GameIntro, GameStartAction } from "./GameIntro";
 import { RoundDots } from "./ui";
 import {
   AccountNav,
@@ -640,31 +641,53 @@ export default function GeoGame() {
           </button>
         )}
       </GameHeader>
-      <main id="geo-main" className="geo-main">
+      <main
+        id="geo-main"
+        className={`geo-main${phase === "welcome" ? " game-start-main" : ""}`}
+      >
         {active && <h1 className="sr-only">Где я?</h1>}
-        <div className="geo-heading">
-          <div>
-            <p className="eyebrow">УГАДАЙ МЕСТО</p>
-            <h1>
-              Где я<span className="brand-dot">?</span>
-            </h1>
-          </div>
-          <button
-            className="help-button"
-            onClick={() => {
+        {phase === "welcome" ? (
+          <GameIntro
+            title="Где я"
+            punctuation="?"
+            eyebrow={geoIsLandmarks(mode) ? "ЗНАМЕНИТЫЕ МЕСТА" : "УГАДАЙ МЕСТО"}
+            description="Найди место по панораме."
+            record={{
+              value: stats.best,
+              max: 500,
+              modeLabel: "В этом режиме",
+              hint: geoModeName(mode) + ". Рекорд в этом браузере.",
+            }}
+            onRules={() => {
               rules.current?.showModal();
               reachGoal(GEO_GOALS.rulesOpen);
             }}
-          >
-            Как играть{" "}
-            <span className="question" aria-hidden="true">
-              ?
-            </span>
-          </button>
-        </div>
+          />
+        ) : (
+          <div className="geo-heading">
+            <div>
+              <p className="eyebrow">УГАДАЙ МЕСТО</p>
+              <h1>
+                Где я<span className="brand-dot">?</span>
+              </h1>
+            </div>
+            <button
+              className="help-button"
+              onClick={() => {
+                rules.current?.showModal();
+                reachGoal(GEO_GOALS.rulesOpen);
+              }}
+            >
+              Как играть{" "}
+              <span className="question" aria-hidden="true">
+                ?
+              </span>
+            </button>
+          </div>
+        )}
         {phase === "welcome" && (
-          <section className="geo-welcome">
-            <div className="geo-welcome-copy">
+          <section className="geo-welcome game-welcome">
+            <div className="geo-welcome-copy game-welcome-copy">
               <p className="eyebrow">ПЯТЬ РАУНДОВ · 500 ОЧКОВ</p>
               <h2>
                 {geoIsLandmarks(mode)
@@ -674,13 +697,20 @@ export default function GeoGame() {
               <p>
                 {geoIsLandmarks(mode)
                   ? "Храмы, памятники и необычные места со всего мира. Найди на карте достопримечательность, которую видишь на панораме."
-                  : "Узнай страну и город по панораме Google Street View. Поставь точку на карте: чем ближе к месту, тем больше очков."}
+                  : "Осмотрись и отметь место на карте. Чем ближе точка, тем больше очков."}
               </p>
-              <ol>
-                <li>Вращай панораму и замечай детали.</li>
-                <li>Поставь точку на карте мира.</li>
-                <li>Проверь ответ и узнай, где оказался.</li>
-              </ol>
+            </div>
+            <div className="geo-welcome-art game-welcome-art">
+              <GeoPreview />
+              <span>
+                {geoIsLandmarks(mode)
+                  ? "Памятники, храмы и чудеса природы."
+                  : "Города, побережья, горы и дороги."}
+              </span>
+            </div>
+            <div
+              className={`geo-welcome-setup${geoIsLandmarks(mode) ? " geo-landmark-setup" : ""}`}
+            >
               <fieldset className="geo-mode-choice">
                 <legend>Места</legend>
                 {([false, true] as const).map((landmarks) => (
@@ -782,30 +812,12 @@ export default function GeoGame() {
                   </label>
                 ))}
               </fieldset>
-              <button
-                className="primary"
-                disabled={ranked.state.status === "loading"}
-                onClick={() => void start()}
-              >
-                Начать игру <span aria-hidden="true">↗</span>
-              </button>
-              {error && <p role="status">{error}</p>}
-              <small>
-                Бесплатно и без регистрации. У каждого режима свой рейтинг.
-              </small>
-              {stats.best > 0 && (
-                <p className="geo-best">
-                  Твой рекорд: <strong>{geoPoints(stats.best)} / 500</strong>
-                </p>
-              )}
-            </div>
-            <div className="geo-welcome-art">
-              <GeoPreview />
-              <span>
-                {geoIsLandmarks(mode)
-                  ? "Памятники, храмы и чудеса природы."
-                  : "Города, побережья, горы и дороги."}
-              </span>
+              <GameStartAction
+                onStart={() => void start()}
+                loading={ranked.state.status === "loading"}
+                error={error || undefined}
+                caption="Бесплатно. У каждого режима свой рейтинг."
+              />
             </div>
           </section>
         )}

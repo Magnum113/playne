@@ -1,3 +1,4 @@
+import { GameIntro, GameStartAction } from "./GameIntro";
 import { RoundDots } from "./ui";
 import { useRankedRun, SaveResult } from "./account";
 import FooterLinks from "./FooterLinks";
@@ -246,37 +247,44 @@ export default function App() {
         Перейти к игре
       </a>
       <GameHeader />
-      <main id="main-content">
+      <main
+        id="main-content"
+        className={screen === "start" ? "game-start-main" : undefined}
+      >
         {screen === "start" && ranked.state.status === "error" && (
           <p role="status">{ranked.state.message}</p>
         )}
         {screen === "start" && (
-          <section className="start-screen">
-            <div className="intro">
-              <div className="naglaz-intro-top">
-                <p className="eyebrow">
-                  <span /> ИГРА В РАЗМЕРЫ
+          <>
+            <GameIntro
+              title="На глаз"
+              eyebrow="ИГРА В РАЗМЕРЫ"
+              description="Подбери размер одного предмета рядом с другим."
+              record={{ value: best, max: 500 }}
+              onRules={openHelp}
+            />
+            <section className="game-welcome naglaz-welcome">
+              <div className="game-welcome-copy">
+                <p className="eyebrow">ПЯТЬ РАУНДОВ · 500 ОЧКОВ</p>
+                <h2>
+                  А насколько
+                  <br />
+                  <span>это большое?</span>
+                </h2>
+                <p>
+                  Сравни предметы. Размер ориентира уже известен — осталось
+                  подобрать второй.
                 </p>
-                <button className="help-button" onClick={openHelp}>
-                  Как играть{" "}
-                  <span className="question" aria-hidden="true">
-                    ?
-                  </span>
-                </button>
+                <GameStartAction
+                  onStart={() => start("initial")}
+                  loading={ranked.state.status === "loading"}
+                  caption="Без таймера. Пять сравнений за партию."
+                />
               </div>
-              <h1>
-                А насколько
-                <br />
-                <span>это большое?</span>
-              </h1>
-              <p className="lead">
-                Подбери размер одного предмета
-                <br className="desktop-break" /> рядом с другим.
-              </p>
-            </div>
-            <Hero />
-            <div className="start-bottom">
-              <ol className="steps">
+              <div className="game-welcome-art">
+                <Hero />
+              </div>
+              <ol className="steps game-welcome-steps">
                 <li>
                   <span>01</span>
                   <p>
@@ -297,19 +305,8 @@ export default function App() {
                   </p>
                 </li>
               </ol>
-              <div className="start-action">
-                <button className="primary" onClick={() => start("initial")}>
-                  Начать игру <Arrow />
-                </button>
-                <p>
-                  5 раундов <span>·</span> до 500 очков
-                </p>
-                {best > 0 && (
-                  <small>Рекорд на этом устройстве: {best} из 500</small>
-                )}
-              </div>
-            </div>
-          </section>
+            </section>
+          </>
         )}
         {screen === "game" && reference && target && (
           <section className="game-screen">

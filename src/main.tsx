@@ -5,6 +5,7 @@ import { AuthProvider } from "./account";
 import "./style.css";
 import "./community.css";
 import "./ui.css";
+import "./game-start.css";
 import { initTheme } from "./theme";
 import { initMetrika } from "./analytics";
 

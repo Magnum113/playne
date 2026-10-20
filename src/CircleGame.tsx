@@ -1,3 +1,4 @@
+import { GameIntro } from "./GameIntro";
 import { useRankedRun, SaveResult } from "./account";
 import FooterLinks from "./FooterLinks";
 import { CIRCLE_GOALS, reachGoal } from "./analytics";
@@ -25,6 +26,7 @@ export default function CircleGame() {
   const [record, setRecord] = useState(false);
   const stroke = useRef<Stroke | null>(null);
   const board = useRef<SVGSVGElement>(null);
+  const rules = useRef<HTMLDialogElement>(null);
   const [analytics] = useState(createCircleTracker);
 
   function clear() {
@@ -156,22 +158,18 @@ export default function CircleGame() {
         Перейти к игре
       </a>
       <GameHeader />
-      <main id="circle-main" className="circle-main">
-        <div className="circle-heading">
-          <div>
-            <p className="eyebrow">ОДНА ЛИНИЯ. ИДЕАЛЬНЫЙ КРУГ.</p>
-            <h1>
-              Круг<span className="brand-dot">.</span>
-            </h1>
-            <p id="circle-instructions">
-              Обведи точку одним движением. Насколько ровно получится?
-            </p>
-          </div>
-          <div className="circle-best">
-            <span>Твой рекорд</span>
-            <strong>{best > 0 ? circlePercent(best) : "—"}</strong>
-          </div>
-        </div>
+      <main id="circle-main" className="circle-main game-start-main">
+        <GameIntro
+          title="Круг"
+          eyebrow="ОДНА ЛИНИЯ. ИДЕАЛЬНЫЙ КРУГ."
+          description="Обведи точку одним движением. Насколько ровно получится?"
+          descriptionId="circle-instructions"
+          record={{ value: best, unit: "%" }}
+          onRules={() => {
+            rules.current?.showModal();
+            reachGoal(CIRCLE_GOALS.rulesOpen);
+          }}
+        />
         <section className="circle-play" aria-label="Нарисовать круг">
           <div
             className={`circle-surface${drawing ? " is-drawing" : ""}${success ? " has-result" : ""}`}
@@ -296,13 +294,21 @@ export default function CircleGame() {
             )}
           </div>
         </section>
-        <details
-          className="circle-rules"
-          onToggle={(event) => {
-            if (event.currentTarget.open) reachGoal(CIRCLE_GOALS.rulesOpen);
-          }}
+        <dialog
+          ref={rules}
+          className="color-rules-dialog"
+          aria-labelledby="circle-rules-title"
         >
-          <summary>Как считается точность?</summary>
+          <div className="dialog-top">
+            <h2 id="circle-rules-title">Как играть в «Круг»</h2>
+            <button
+              className="close-button"
+              aria-label="Закрыть правила"
+              onClick={() => rules.current?.close()}
+            >
+              ×
+            </button>
+          </div>
           <p>
             Чем ровнее расстояние от линии до точки, тем выше результат. Круг
             нужно замкнуть: обведи точку один раз и отпусти. Размер круга и
@@ -312,7 +318,10 @@ export default function CircleGame() {
             Пунктир после попытки показывает идеальный круг твоего размера.
             Рекорд хранится в этом браузере.
           </p>
-        </details>
+          <button className="primary" onClick={() => rules.current?.close()}>
+            Понятно
+          </button>
+        </dialog>
         {success && <SaveResult run={ranked} game="circle" />}
       </main>
       <footer className="circle-footer">

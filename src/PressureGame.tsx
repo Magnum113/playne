@@ -1,3 +1,4 @@
+import { GameIntro, GameStartAction } from "./GameIntro";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { SaveResult, useRankedRun } from "./account";
 import { GameHeader } from "./SiteHeader";
@@ -443,32 +444,48 @@ export default function PressureGame() {
         Перейти к игре
       </a>
       <GameHeader />
-      <main id="pressure-main" className="pressure-main">
-        <div className="pressure-heading">
-          <div>
-            <p className="eyebrow">ВНИМАТЕЛЬНОСТЬ ПОД ДАВЛЕНИЕМ</p>
-            <h1>
-              Жми<span className="brand-dot">.</span>
-            </h1>
-            <p>Бесплатная игра на русском. Сначала прочитай. Потом решай.</p>
-          </div>
-          <button
-            className="help-button"
-            onClick={() => {
-              pause();
+      <main
+        id="pressure-main"
+        className={`pressure-main${state.phase === "welcome" ? " game-start-main" : ""}`}
+      >
+        {state.phase === "welcome" ? (
+          <GameIntro
+            title="Жми"
+            eyebrow="ВНИМАТЕЛЬНОСТЬ ПОД ДАВЛЕНИЕМ"
+            description="Сначала прочитай. Потом решай."
+            record={{ value: stats.best, unit: pressScoreWord(stats.best) }}
+            onRules={() => {
               rules.current?.showModal();
               reachGoal(PRESSURE_GOALS.rulesOpen);
             }}
-          >
-            Как играть{" "}
-            <span className="question" aria-hidden="true">
-              ?
-            </span>
-          </button>
-        </div>
+          />
+        ) : (
+          <div className="pressure-heading">
+            <div>
+              <p className="eyebrow">ВНИМАТЕЛЬНОСТЬ ПОД ДАВЛЕНИЕМ</p>
+              <h1>
+                Жми<span className="brand-dot">.</span>
+              </h1>
+              <p>Бесплатная игра на русском. Сначала прочитай. Потом решай.</p>
+            </div>
+            <button
+              className="help-button"
+              onClick={() => {
+                pause();
+                rules.current?.showModal();
+                reachGoal(PRESSURE_GOALS.rulesOpen);
+              }}
+            >
+              Как играть{" "}
+              <span className="question" aria-hidden="true">
+                ?
+              </span>
+            </button>
+          </div>
+        )}
         {state.phase === "welcome" ? (
-          <section className="pressure-welcome">
-            <div className="pressure-welcome-copy">
+          <section className="pressure-welcome game-welcome">
+            <div className="pressure-welcome-copy game-welcome-copy">
               <p className="eyebrow">ОДНА КНОПКА · ДО ПЕРВОЙ ОШИБКИ</p>
               <h2>
                 Палец хочет нажать.
@@ -479,23 +496,24 @@ export default function PressureGame() {
                 Считай, запоминай, лови момент. Иногда лучший ход — вообще
                 ничего не делать. Одна ошибка, и начинаем сначала.
               </p>
-              <button
-                className="primary"
-                disabled={loading}
-                onClick={() => void begin()}
+              <GameStartAction
+                onStart={() => void begin()}
+                loading={loading}
+                loadingLabel="Готовим задания…"
+                caption="Без скачивания и регистрации. Игра — до первой ошибки."
+              />
+              <a
+                className="game-start-ranking"
+                href="/leaderboard/?game=pressure"
               >
-                {loading ? "Готовим задания…" : "Начать игру"}{" "}
-                <span aria-hidden="true">↗</span>
-              </button>
-              <small>
-                Бесплатно. На русском. Без скачивания и регистрации.
-              </small>
+                Рейтинг игры →
+              </a>
             </div>
-            <div className="pressure-welcome-art">
+            <div className="pressure-welcome-art game-welcome-art">
               <PressurePreview />
               <span className="pressure-art-label">НЕ СПЕШИ НАЖИМАТЬ</span>
             </div>
-            <ol className="pressure-steps">
+            <ol className="pressure-steps game-welcome-steps">
               <li>
                 <span>01</span>
                 <div>
@@ -516,10 +534,6 @@ export default function PressureGame() {
                 </div>
               </li>
             </ol>
-            <p className="pressure-best">
-              Твой рекорд: <strong>{formatPressScore(stats.best)}</strong> ·{" "}
-              <a href="/leaderboard/?game=pressure">Рейтинг →</a>
-            </p>
           </section>
         ) : state.phase === "finished" && resultVisible ? (
           <section className="pressure-result" ref={outcome} tabIndex={-1}>

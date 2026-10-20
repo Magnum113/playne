@@ -1,3 +1,4 @@
+import { GameIntro, GameStartAction } from "./GameIntro";
 import { ModeChoice, RoundDots } from "./ui";
 import { useRankedRun, SaveResult } from "./account";
 import {
@@ -366,31 +367,51 @@ export default function ColorfleGame() {
         Перейти к игре
       </a>
       <GameHeader />
-      <main id="color-main" className="color-main">
-        <div className="color-heading">
-          <div>
-            <p className="eyebrow">ПОПАДИ В ЦВЕТ</p>
-            <h1>
-              Оттенок<span className="brand-dot">.</span>
-            </h1>
-            <p>Подбери цвет как можно точнее.</p>
-          </div>
-          <button
-            className="help-button color-help"
-            onClick={() => {
+      <main
+        id="color-main"
+        className={`color-main${phase === "welcome" ? " game-start-main" : ""}`}
+      >
+        {phase === "welcome" ? (
+          <GameIntro
+            title="Оттенок"
+            eyebrow="ПОПАДИ В ЦВЕТ"
+            description="Подбери цвет как можно точнее."
+            record={{
+              value: state.stats.best,
+              max: 500,
+              modeLabel: shadeModeName(mode),
+            }}
+            onRules={() => {
               rules.current?.showModal();
               reachGoal(SHADE_GOALS.rulesOpen);
             }}
-          >
-            Как играть{" "}
-            <span className="question" aria-hidden="true">
-              ?
-            </span>
-          </button>
-        </div>
+          />
+        ) : (
+          <div className="color-heading">
+            <div>
+              <p className="eyebrow">ПОПАДИ В ЦВЕТ</p>
+              <h1>
+                Оттенок<span className="brand-dot">.</span>
+              </h1>
+              <p>Подбери цвет как можно точнее.</p>
+            </div>
+            <button
+              className="help-button color-help"
+              onClick={() => {
+                rules.current?.showModal();
+                reachGoal(SHADE_GOALS.rulesOpen);
+              }}
+            >
+              Как играть{" "}
+              <span className="question" aria-hidden="true">
+                ?
+              </span>
+            </button>
+          </div>
+        )}
         {phase === "welcome" ? (
-          <section className="shade-welcome">
-            <div className="shade-welcome-copy">
+          <section className="shade-welcome game-welcome">
+            <div className="shade-welcome-copy game-welcome-copy">
               <p className="eyebrow">ПЯТЬ РАУНДОВ · 500 ОЧКОВ</p>
               <h2>Сможешь попасть в цвет?</h2>
               <p>
@@ -414,19 +435,21 @@ export default function ColorfleGame() {
                   },
                 ]}
               />
-              <button
-                className="primary"
-                disabled={ranked.state.status === "loading"}
-                onClick={() => void beginOnline()}
-              >
-                Начать игру <span aria-hidden="true">→</span>
-              </button>
-              {ranked.state.status === "error" && (
-                <p role="status">{ranked.state.message}</p>
-              )}
-              <small>Без регистрации. 150 оттенков в случайном порядке.</small>
+              <GameStartAction
+                onStart={() => void beginOnline()}
+                loading={ranked.state.status === "loading"}
+                error={
+                  ranked.state.status === "error"
+                    ? ranked.state.message
+                    : undefined
+                }
+                caption="150 оттенков в случайном порядке."
+              />
             </div>
-            <div className="shade-welcome-art" aria-hidden="true">
+            <div
+              className="shade-welcome-art game-welcome-art"
+              aria-hidden="true"
+            >
               <span />
               <span />
               <span />

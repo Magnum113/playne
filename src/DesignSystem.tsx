@@ -1,3 +1,4 @@
+import { GameIntro, GameRecord, GameStartAction } from "./GameIntro";
 import {
   useCallback,
   useEffect,
@@ -1153,6 +1154,7 @@ function Artwork() {
 }
 
 export default function DesignSystem() {
+  const rules = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
   const inventory = componentInventory.filter((row) =>
     row
@@ -1428,6 +1430,45 @@ export default function DesignSystem() {
               </div>
             </Section>
             <Section id="gameplay">
+              <Sample
+                title="Старт игры и личный рекорд"
+                source="GameIntro.tsx · game-start.css"
+              >
+                <GameIntro
+                  title="Оттенок"
+                  eyebrow="ПОПАДИ В ЦВЕТ"
+                  description="Подбери цвет как можно точнее."
+                  headingLevel={4}
+                  record={{ value: 482, max: 500, modeLabel: "Без таймера" }}
+                  onRules={() => rules.current?.showModal()}
+                />
+                <div className="ds-inline">
+                  <GameRecord value={92.4} unit="%" />
+                  <GameRecord value={32} unit="очка" />
+                  <GameRecord value={0} max={500} />
+                </div>
+                <GameStartAction
+                  onStart={() => rules.current?.showModal()}
+                  caption="Одинаковая кнопка запуска на стартовых экранах."
+                />
+                <dialog
+                  ref={rules}
+                  className="color-rules-dialog"
+                  aria-labelledby="ds-start-rules"
+                >
+                  <h2 id="ds-start-rules">Начальный экран</h2>
+                  <p>
+                    Рекорд зависит от выбранного режима. Здесь показаны варианты
+                    его отображения.
+                  </p>
+                  <button
+                    className="primary"
+                    onClick={() => rules.current?.close()}
+                  >
+                    Понятно
+                  </button>
+                </dialog>
+              </Sample>
               <div className="ds-sample">
                 <div className="ds-sample-title">
                   <h3>Раунд, прогресс, счёт и таймер</h3>

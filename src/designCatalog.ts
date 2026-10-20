@@ -53,6 +53,11 @@ export const tokenGroups = [
 // The source paths identify the production components used by these examples.
 export const componentInventory = [
   [
+    "Старт игры, личный рекорд, запуск и загрузка",
+    "GameIntro.tsx · game-start.css",
+    "gameplay",
+  ],
+  [
     "Цвета обеих тем, семантика ошибок и фокуса",
     "design-tokens.css",
     "foundations",
