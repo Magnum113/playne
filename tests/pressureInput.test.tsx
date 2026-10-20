@@ -63,6 +63,8 @@ describe("Pressure input and completion lifecycle", () => {
       await act(async () => vi.advanceTimersByTime(450));
       if (i < 29) await act(async () => vi.advanceTimersByTime(750));
     }
+    expect(mocks.submit).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTime(600));
     expect(container.textContent).toContain("ВСЕ УРОВНИ ПРОЙДЕНЫ");
     expect(mocks.submit).toHaveBeenCalledTimes(1);
     expect(mocks.submit.mock.calls[0][1].rounds).toHaveLength(30);
@@ -93,7 +95,14 @@ describe("Pressure input and completion lifecycle", () => {
     expect(JSON.parse(localStorage.getItem("playne:pressure:v1")!).played).toBe(
       1,
     );
+    expect(container.querySelector(".is-failure")).not.toBeNull();
+    expect(container.querySelector(".pressure-result")).toBeNull();
+    await act(async () => vi.advanceTimersByTime(600));
     expect(container.textContent).toContain("Результат сохранён в рейтинг");
+    expect(mocks.submit).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(
+      container.querySelector(".pressure-result"),
+    );
   });
   it("does not mistake the finish countdown for a press on wait levels", async () => {
     const l = await begin("restraint");

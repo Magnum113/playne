@@ -193,53 +193,100 @@
   transform: rotate(-90deg);
   pointer-events: none;
 }
-.pressure-ring circle {
-  fill: none;
-  stroke-width: 6;
-}
 .pressure-ring-track {
+  fill: none;
   stroke: var(--line);
+  stroke-width: 11;
+  opacity: 0.45;
 }
-.pressure-ring-fill {
+.pressure-ring-segment {
+  fill: none;
   stroke: var(--mint);
+  stroke-width: 8;
   stroke-linecap: round;
+  opacity: 0.1;
+  transition:
+    opacity 80ms linear,
+    stroke 180ms ease-out;
 }
-.urgent .pressure-ring-fill {
+.pressure-ring-segment.is-lit {
+  opacity: 1;
+}
+.urgent .pressure-ring-segment {
   stroke: var(--orange);
 }
+.pressure-housing {
+  position: absolute;
+  inset: 8%;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow:
+    inset 0 3px 8px #25202e12,
+    0 1px 0 #ffffff60;
+  pointer-events: none;
+}
+.pressure-button-base {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: #8a69b7;
+  transform: translateY(10px);
+  box-shadow: 0 8px 16px #27202e25;
+  transition: background-color 180ms ease-out;
+  pointer-events: none;
+}
+/* The hit area stays still while the visible face travels into the housing. */
 .pressure-button {
   position: absolute;
-  inset: 8.5%;
-  border: 1px solid #a991d4;
+  inset: 12%;
+  border: 0;
   border-radius: 50%;
-  padding: 18px;
-  background: var(--purple-soft);
-  box-shadow:
-    0 9px 0 #9375bf,
-    0 14px 20px #27202e18;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
   color: #292133;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   cursor: pointer;
-  transition:
-    transform 0.08s ease-out,
-    box-shadow 0.08s ease-out,
-    background-color 0.15s ease-out;
-  display: grid;
-  place-items: center;
-  outline-offset: 14px !important;
+  outline-offset: 15px !important;
 }
 .pressure-button:disabled {
   opacity: 1;
 }
-.pressure-button.is-held,
 .pressure-button:active:not(:disabled) {
-  transform: translateY(6px) scale(0.96);
+  transform: none;
+}
+.pressure-button-face {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #a991d4;
+  border-radius: inherit;
+  padding: 18px;
+  background:
+    linear-gradient(155deg, #ffffff32, #ffffff00 55%, #7953b418),
+    var(--purple-soft);
   box-shadow:
-    0 3px 0 #9375bf,
-    0 5px 12px #27202e10;
+    inset 0 3px 2px #ffffff65,
+    inset 0 -4px 3px #7953b425,
+    0 8px 12px #27202e16;
+  display: grid;
+  place-items: center;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.25, 1),
+    box-shadow 120ms ease-out,
+    background-color 180ms ease-out;
+}
+.pressure-button.is-held .pressure-button-face,
+.pressure-button:active:not(:disabled) .pressure-button-face {
+  transform: translateY(8px) scale(0.96);
+  box-shadow:
+    inset 0 2px 4px #7953b420,
+    inset 0 1px 1px #ffffff45,
+    0 1px 3px #27202e10;
+  transition-duration: 55ms;
 }
 .pressure-button-content {
   font-size: clamp(22px, 4vw, 35px);
@@ -248,16 +295,137 @@
   letter-spacing: 0.5px;
   overflow-wrap: anywhere;
   max-width: 100%;
+  animation: pressure-label-in 160ms ease-out both;
 }
 .pressure-button-content.pressure-word {
   color: #915817;
 }
-.is-success .pressure-button {
-  background: var(--mint-soft);
+.pressure-feedback-symbol {
+  font-size: clamp(54px, 9vw, 76px);
+  font-weight: 500;
+}
+.pressure-countdown-beat {
+  animation: pressure-count-in 480ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+.is-success .pressure-button-face {
+  background-color: var(--mint-soft);
   border-color: #5db9a5;
-  box-shadow:
-    0 9px 0 #3f9a87,
-    0 14px 20px #27202e10;
+}
+.is-success .pressure-button-base {
+  background: #3f9a87;
+}
+.is-success .pressure-ring-segment {
+  stroke: var(--mint);
+  animation: pressure-segment-fill 160ms ease-out both;
+  animation-delay: calc(var(--segment) * 9ms);
+}
+.is-failure .pressure-button-face {
+  background-color: #e9aa79;
+  border-color: #c08757;
+}
+.is-failure .pressure-button-base {
+  background: #ac754c;
+}
+.is-failure .pressure-ring-segment {
+  stroke: var(--orange);
+  opacity: 0.25;
+}
+.pressure-press-wave,
+.pressure-clear-wave {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  border: 2px solid var(--purple);
+  pointer-events: none;
+  animation: pressure-wave 330ms ease-out both;
+}
+.pressure-clear-wave {
+  border-color: var(--mint);
+  animation-duration: 620ms;
+}
+.pressure-level-clear .pressure-button-wrap {
+  animation: pressure-rise 700ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.pressure-level-failed .pressure-button-wrap {
+  animation: pressure-shake 380ms ease-out both;
+}
+.pressure-instruction > * {
+  animation: pressure-label-in 180ms ease-out both;
+}
+.pressure-result {
+  animation: pressure-result-in 280ms ease-out both;
+}
+@keyframes pressure-label-in {
+  from {
+    opacity: 0.35;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pressure-count-in {
+  from {
+    opacity: 0.3;
+    transform: scale(0.82);
+  }
+  40%,
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes pressure-segment-fill {
+  from {
+    opacity: 0.15;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pressure-wave {
+  from {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.28);
+  }
+}
+@keyframes pressure-rise {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  42% {
+    transform: translateY(-8px);
+  }
+}
+@keyframes pressure-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  18%,
+  54% {
+    transform: translateX(-4px);
+  }
+  36%,
+  72% {
+    transform: translateX(4px);
+  }
+}
+@keyframes pressure-result-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .pressure-readout {
   display: flex;
@@ -505,13 +673,23 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pressure-button,
-  .pressure-progress span {
-    transition: none;
+  .pressure-app *,
+  .pressure-app *::before,
+  .pressure-app *::after {
+    animation: none !important;
+    transition: none !important;
   }
-  .pressure-button.is-held,
-  .pressure-button:active:not(:disabled) {
+  .pressure-button.is-held .pressure-button-face,
+  .pressure-button:active:not(:disabled) .pressure-button-face {
     transform: none;
+    background-color: #ad91e9;
+  }
+  .pressure-press-wave,
+  .pressure-clear-wave {
+    display: none;
+  }
+  .is-success .pressure-ring-segment {
+    opacity: 1;
   }
 }
 

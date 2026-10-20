@@ -26,6 +26,9 @@ type BoardState = {
   cleared: number;
   reason?: string;
 };
+const RING_SEGMENTS = 40;
+const ringSegments = Array.from({ length: RING_SEGMENTS }, (_, i) => i);
+
 const initial: BoardState = {
   phase: "welcome",
   deck: [],
@@ -57,7 +60,7 @@ export function PressurePreview() {
         fill="none"
         stroke="var(--mint)"
         strokeWidth="7"
-        strokeDasharray="330 460"
+        strokeDasharray="7.4 4.06"
         strokeLinecap="round"
         transform="rotate(-90 210 94)"
       />
@@ -125,7 +128,9 @@ export default function PressureGame() {
   const [loading, setLoading] = useState(false),
     [paused, setPaused] = useState(false),
     [countdown, setCountdown] = useState(3),
-    [online, setOnline] = useState(false);
+    [online, setOnline] = useState(false),
+    [resultVisible, setResultVisible] = useState(false),
+    [pressSerial, setPressSerial] = useState(0);
   const pausedRef = useRef(false),
     started = useRef(0),
     button = useRef<HTMLButtonElement>(null),
@@ -201,6 +206,7 @@ export default function PressureGame() {
     if (type === "down") {
       if (input.current !== null) return;
       input.current = source;
+      setPressSerial((n) => n + 1);
     } else {
       if (input.current !== source) return;
       input.current = null;
@@ -236,6 +242,8 @@ export default function PressureGame() {
       data?.challenge?.levels ??
       makePressDeck(Math.random, statsRef.current.recent);
     setCountdown(3);
+    setResultVisible(false);
+    setPressSerial(0);
     update({ ...initial, deck, phase: "countdown" });
     setLoading(false);
     if (previous) reachGoal(PRESSURE_GOALS.gameRestart);
@@ -253,6 +261,7 @@ export default function PressureGame() {
   useEffect(() => {
     if (state.phase !== "countdown") return;
     setCountdown(3);
+    window.scrollTo({ top: 0, behavior: "instant" });
     let n = 3;
     const t = setInterval(() => {
       n--;
@@ -303,10 +312,15 @@ export default function PressureGame() {
       document.removeEventListener("visibilitychange", hidden);
     };
   }, []);
+  // Submit in complete() immediately; this delay belongs only to visual feedback.
   useEffect(() => {
-    if (state.phase === "finished")
-      outcome.current?.focus({ preventScroll: true });
+    if (state.phase !== "finished") return;
+    const t = setTimeout(() => setResultVisible(true), 600);
+    return () => clearTimeout(t);
   }, [state.phase]);
+  useEffect(() => {
+    if (resultVisible) outcome.current?.focus({ preventScroll: true });
+  }, [resultVisible]);
   const held = state.events.at(-1)?.type === "down",
     heldFrom = held ? state.events.at(-1)!.at : 0;
   const holdingTime = held ? state.elapsed - heldFrom : 0;
@@ -331,10 +345,18 @@ export default function PressureGame() {
       : "ЗАЖМИ";
   const fraction = level ? Math.max(0, 1 - state.elapsed / level.duration) : 1;
   const taps = state.events.filter((e) => e.type === "up").length;
+  const failing = state.phase === "finished" && !!state.reason;
+  const succeeding =
+    state.phase === "between" || (state.phase === "finished" && !state.reason);
+  const active =
+    ["playing", "between", "countdown"].includes(state.phase) ||
+    (state.phase === "finished" && !resultVisible);
+  const contentKey =
+    state.phase === "countdown"
+      ? `count-${countdown}`
+      : `${state.phase}-${state.index}-${level?.signal || level?.kind === "release" ? display : ""}`;
   return (
-    <div
-      className={`app pressure-app${["playing", "between", "countdown"].includes(state.phase) ? " pressure-active" : ""}`}
-    >
+    <div className={`app pressure-app${active ? " pressure-active" : ""}`}>
       <a className="skip-link" href="#pressure-main">
         Перейти к игре
       </a>
@@ -423,7 +445,7 @@ export default function PressureGame() {
               <a href="/leaderboard/?game=pressure">Рейтинг →</a>
             </p>
           </section>
-        ) : state.phase === "finished" ? (
+        ) : state.phase === "finished" && resultVisible ? (
           <section className="pressure-result" ref={outcome} tabIndex={-1}>
             <p className="eyebrow">
               {state.cleared === 30
@@ -478,7 +500,10 @@ export default function PressureGame() {
             )}
           </section>
         ) : (
-          <section className="pressure-play" aria-label="Игровое поле">
+          <section
+            className={`pressure-play${succeeding ? " pressure-level-clear" : ""}${failing ? " pressure-level-failed" : ""}`}
+            aria-label="Игровое поле"
+          >
             <div className="pressure-topline">
               <span>
                 УРОВЕНЬ <strong>{state.index + 1}</strong> / 30
@@ -521,24 +546,32 @@ export default function PressureGame() {
             ) : (
               <>
                 <div className="pressure-instruction" aria-live="polite">
-                  <p className="eyebrow">
+                  <p
+                    className="eyebrow"
+                    key={`status-${state.phase}-${state.index}`}
+                  >
                     {state.phase === "countdown"
                       ? "ПРИГОТОВЬСЯ"
-                      : state.phase === "between"
-                        ? "ВЕРНО"
-                        : "СЛЕДУЙ ПРАВИЛУ"}
+                      : failing
+                        ? "ОШИБКА"
+                        : succeeding
+                          ? "ВЕРНО"
+                          : "СЛЕДУЙ ПРАВИЛУ"}
                   </p>
-                  <h2>
+                  <h2 key={`rule-${state.phase}-${state.index}`}>
                     {state.phase === "countdown"
                       ? "Сначала правило. Затем кнопка."
-                      : state.phase === "between"
-                        ? "Есть. Следующее правило…"
-                        : level.prompt}
+                      : failing
+                        ? state.reason
+                        : succeeding
+                          ? state.cleared === PRESSURE_LEVELS
+                            ? "Все 30. Ни одной ошибки."
+                            : "Есть. Следующее правило…"
+                          : level.prompt}
                   </h2>
                 </div>
                 <div
-                  className={`pressure-button-wrap${fraction < 0.25 ? " urgent" : ""}${state.phase === "between" ? " is-success" : ""}`}
-                  style={{ "--pressure-progress": fraction } as CSSProperties}
+                  className={`pressure-button-wrap${playing && fraction < 0.25 ? " urgent" : ""}${succeeding ? " is-success" : ""}${failing ? " is-failure" : ""}`}
                 >
                   <svg
                     className="pressure-ring"
@@ -549,21 +582,37 @@ export default function PressureGame() {
                       className="pressure-ring-track"
                       cx="180"
                       cy="180"
-                      r="168"
+                      r="166"
                     />
-                    <circle
-                      className="pressure-ring-fill"
-                      cx="180"
-                      cy="180"
-                      r="168"
-                      pathLength="100"
-                      strokeDasharray="100"
-                      strokeDashoffset={100 * (1 - fraction)}
-                    />
+                    {ringSegments.map((i) => (
+                      <circle
+                        key={i}
+                        className={`pressure-ring-segment${i < Math.ceil(fraction * RING_SEGMENTS) ? " is-lit" : ""}`}
+                        cx="180"
+                        cy="180"
+                        r="166"
+                        pathLength="100"
+                        strokeDasharray="1.3 98.7"
+                        strokeDashoffset={(-i * 100) / RING_SEGMENTS}
+                        style={{ "--segment": i } as CSSProperties}
+                      />
+                    ))}
                   </svg>
+                  <span className="pressure-housing" aria-hidden="true" />
+                  <span className="pressure-button-base" aria-hidden="true" />
+                  {pressSerial > 0 && (
+                    <span
+                      key={`press-${pressSerial}`}
+                      className="pressure-press-wave"
+                      aria-hidden="true"
+                    />
+                  )}
+                  {succeeding && (
+                    <span className="pressure-clear-wave" aria-hidden="true" />
+                  )}
                   <button
                     ref={button}
-                    className={`pressure-button${held ? " is-held" : ""}`}
+                    className={`pressure-button${playing && held ? " is-held" : ""}`}
                     disabled={!playing}
                     aria-label="Игровая кнопка"
                     onContextMenu={(e) => e.preventDefault()}
@@ -598,14 +647,19 @@ export default function PressureGame() {
                       }
                     }}
                   >
-                    <span
-                      className={`pressure-button-content ${level?.family === "word" ? "pressure-word" : ""}`}
-                    >
-                      {state.phase === "countdown"
-                        ? countdown
-                        : state.phase === "between"
-                          ? "✓"
-                          : display}
+                    <span className="pressure-button-face">
+                      <span
+                        key={contentKey}
+                        className={`pressure-button-content${state.phase === "countdown" ? " pressure-countdown-beat" : ""}${succeeding || failing ? " pressure-feedback-symbol" : ""} ${playing && level?.family === "word" ? "pressure-word" : ""}`}
+                      >
+                        {state.phase === "countdown"
+                          ? countdown
+                          : failing
+                            ? "×"
+                            : succeeding
+                              ? "✓"
+                              : display}
+                      </span>
                     </span>
                   </button>
                 </div>
