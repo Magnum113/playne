@@ -194,6 +194,7 @@ export const shadePhase = (
         : "picking";
 export type ShadeAction =
   | { type: "mode"; mode: ShadeMode }
+  | { type: "reopen" }
   | { type: "menu" }
   | { type: "deadline"; deadline: number }
   | {
@@ -212,6 +213,7 @@ export function shadeReducer(
   state: ShadeSession,
   action: ShadeAction,
 ): ShadeSession {
+  if (action.type === "reopen") return shadeWelcomeSession(state);
   if (action.type === "menu" && shadePhase(state) === "finished")
     return { ...newShadeSession(state), started: false };
   if (action.type === "mode" && !state.started)
@@ -401,16 +403,20 @@ export function parseShadeSession(raw: string | null): ShadeSession | null {
     return null;
   }
 }
+function shadeWelcomeSession(previous?: ShadeSession): ShadeSession {
+  // Records and the selected mode survive; a visit never resumes an old party.
+  return { ...newShadeSession(previous), started: false };
+}
 export function loadShadeSession(): ShadeSession {
   try {
-    return (
+    return shadeWelcomeSession(
       parseShadeSession(
         localStorage.getItem(SHADE_KEY) ??
           localStorage.getItem(LEGACY_SHADE_KEY),
-      ) ?? newShadeSession()
+      ) ?? undefined,
     );
   } catch {
-    return newShadeSession();
+    return shadeWelcomeSession();
   }
 }
 export function saveShadeSession(state: ShadeSession): void {

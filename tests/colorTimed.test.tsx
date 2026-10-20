@@ -20,7 +20,7 @@ afterEach(() => {
 });
 describe("timed shade lifecycle", () => {
   it.each([false, true])(
-    "uses the original deadline after reload and automatically submits exactly once (chosen: %s)",
+    "starts a fresh timed party and automatically submits exactly once (chosen: %s)",
     async (chosen) => {
       vi.useFakeTimers();
       vi.resetModules();
@@ -28,27 +28,30 @@ describe("timed shade lifecycle", () => {
       localStorage.clear();
       const id = "22222222-2222-4222-8222-222222222222";
       const deadline = Date.now() + 5000;
+      const selected = { h: 180, s: 51, v: 75 };
       let state: ShadeSession = {
         ...newShadeSession(undefined, Math.random, "timed"),
-        rankedId: id,
+        rankedId: "33333333-3333-4333-8333-333333333333",
+        deadline: Date.now() - 10000,
       };
       state = shadeReducer(state, { type: "start" });
       if (chosen)
         state = shadeReducer(state, { type: "pick", color: state.targets[0] });
       saveShadeSession(state);
+      const targets = [selected, ...state.targets.slice(1)];
       let accepted = 0;
       vi.stubGlobal(
         "fetch",
         vi.fn(async (url: string, init?: RequestInit) => {
           let data: any;
           if (url === "/api/me") data = { user: null };
-          else if (url === `/api/games/${id}`)
+          else if (url === "/api/games" || url === `/api/games/${id}`)
             data = {
               id,
               game: "colorfle",
               mode: "timed",
               challenge: {
-                targets: state.targets,
+                targets,
                 mode: "timed",
                 timers: { 0: { deadline } },
               },
@@ -61,7 +64,7 @@ describe("timed shade lifecycle", () => {
             accepted++;
             data = {
               answer: {
-                choice: chosen ? state.targets[0] : null,
+                choice: chosen ? selected : null,
                 score: chosen ? 100 : 0,
                 timedOut: true,
               },
@@ -86,6 +89,24 @@ describe("timed shade lifecycle", () => {
           </AuthProvider>,
         );
       });
+      expect(container.textContent).toContain("Сможешь попасть в цвет?");
+      expect(container.querySelector("[role=timer]")).toBeNull();
+      await act(async () => {
+        [...container.querySelectorAll("button")]
+          .find((b) => b.textContent?.startsWith("Начать игру"))!
+          .click();
+      });
+      if (chosen)
+        await act(async () => {
+          container
+            .querySelector("[role=slider]")!
+            .dispatchEvent(
+              new KeyboardEvent("keydown", {
+                key: "ArrowRight",
+                bubbles: true,
+              }),
+            );
+        });
       expect(container.querySelector("[role=timer]")?.textContent).toBe("0:05");
       await act(async () => {
         await vi.advanceTimersByTimeAsync(5000);

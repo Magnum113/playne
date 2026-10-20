@@ -203,6 +203,7 @@ export default function ColorfleGame() {
   const [remaining, setRemaining] = useState(SHADE_TIME_LIMIT_MS / 1000);
   const lastChoiceSent = useRef(0);
   const pendingChoice = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const entryGeneration = useRef(0);
   const [timerError, setTimerError] = useState("");
   const [timerRetry, setTimerRetry] = useState(0);
   const mode = state.mode ?? "classic";
@@ -262,8 +263,9 @@ export default function ColorfleGame() {
   }
   async function beginOnline(replay = false) {
     if (ranked.state.status === "loading") return;
+    const generation = entryGeneration.current;
     const online = await ranked.begin(mode);
-    if (!online) return;
+    if (!online || generation !== entryGeneration.current) return;
     if (replay)
       dispatch({ type: "new", session: newShadeSession(current.current) });
     if (online)
@@ -274,6 +276,17 @@ export default function ColorfleGame() {
       });
     if (!replay) dispatch({ type: "start" });
   }
+  useEffect(() => {
+    const reopen = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      entryGeneration.current += 1;
+      if (pendingChoice.current) clearTimeout(pendingChoice.current);
+      pendingChoice.current = null;
+      dispatch({ type: "reopen" });
+    };
+    window.addEventListener("pageshow", reopen);
+    return () => window.removeEventListener("pageshow", reopen);
+  }, []);
   useEffect(() => {
     if (state.started)
       void ranked.resumeColor(state.rankedId, state.targets, state.answers);
