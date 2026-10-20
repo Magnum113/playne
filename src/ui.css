@@ -287,6 +287,40 @@ dialog,
   display: block;
   color: var(--muted);
 }
+/* Choose columns from the available component width, including nested samples. */
+.geo-mode-choice {
+  min-inline-size: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+.shade-mode-choice {
+  min-inline-size: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+}
+.shade-mode-choice label > span,
+.geo-mode-choice label > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.shade-mode-choice strong,
+.geo-mode-choice strong {
+  line-height: 1.4;
+}
+.account-bests {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+}
+.account-history li,
+.my-rank {
+  flex-wrap: wrap;
+}
+.account-history li > div {
+  min-width: 0;
+  flex: 1 1 160px;
+  overflow-wrap: anywhere;
+}
+.save-result a.primary {
+  color: var(--button-text);
+}
 .game-header-actions {
   min-width: 0;
 }

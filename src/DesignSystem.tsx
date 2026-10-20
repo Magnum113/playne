@@ -34,7 +34,15 @@ import {
   tokenGroups,
 } from "./designCatalog";
 import "./design-system.css";
-import { geoModeFor, geoModeName } from "./geo";
+import {
+  GEO_MODES,
+  geoCanMove,
+  geoIsLandmarks,
+  geoIsTimed,
+  geoModeFor,
+  geoModeName,
+  type GeoMode,
+} from "./geo";
 
 function Section({
   id,
@@ -704,6 +712,7 @@ function PressureDemo() {
 }
 function ShadeDemo() {
   const [value, setValue] = useState<HSV>({ h: 172, s: 62, v: 78 });
+  const [empty, setEmpty] = useState(false);
   const target: HSV = { h: 165, s: 65, v: 82 };
   return (
     <>
@@ -712,10 +721,25 @@ function ShadeDemo() {
         <Swatch
           label="Твой ответ"
           color={value}
-          hint={`${shadeScore(value, target)} из 100`}
+          empty={empty}
+          hint={empty ? undefined : `${shadeScore(value, target)} из 100`}
         />
       </div>
-      <Palette value={value} onChange={setValue} headingLevel={4} />
+      <button
+        className="secondary-button ds-shade-empty"
+        aria-pressed={empty}
+        onClick={() => setEmpty((v) => !v)}
+      >
+        {empty ? "Вернуть выбранный цвет" : "Показать отсутствие ответа"}
+      </button>
+      <Palette
+        value={value}
+        onChange={(next) => {
+          setValue(next);
+          setEmpty(false);
+        }}
+        headingLevel={4}
+      />
       <p className="ds-note">
         Текущий цвет: {hsvToHex(value).toUpperCase()}. Палитра та же, что в
         игре.
@@ -765,34 +789,55 @@ function GeoDemo() {
   );
 }
 function GeoModes() {
-  const [move, setMove] = useState("no"),
-    [time, setTime] = useState("no"),
-    [places, setPlaces] = useState("world");
+  const [mode, setMode] = useState<GeoMode>("classic");
+  const moving = geoCanMove(mode),
+    timed = geoIsTimed(mode),
+    landmarks = geoIsLandmarks(mode);
   return (
     <div className="ds-grid">
       <ModeChoice
         className="geo-mode-choice"
-        legend="Перемещение"
-        value={move}
-        onChange={setMove}
+        legend="Места"
+        value={landmarks ? "landmarks" : "world"}
+        onChange={(value) =>
+          setMode(geoModeFor(moving, timed, value === "landmarks"))
+        }
         options={[
+          { value: "world", label: "Весь мир", description: "Города и дороги" },
           {
-            value: "no",
-            label: "Без перемещения",
-            description: "Осмотр одной точки",
-          },
-          {
-            value: "yes",
-            label: "С перемещением",
-            description: "Можно идти по улице",
+            value: "landmarks",
+            label: "Достопримечательности",
+            description: "Знаменитые места",
           },
         ]}
       />
+      {!landmarks && (
+        <ModeChoice
+          className="geo-mode-choice"
+          legend="Перемещение"
+          value={moving ? "yes" : "no"}
+          onChange={(value) => setMode(geoModeFor(value === "yes", timed))}
+          options={[
+            {
+              value: "no",
+              label: "Без перемещения",
+              description: "Осмотр одной точки",
+            },
+            {
+              value: "yes",
+              label: "С перемещением",
+              description: "Можно идти по улице",
+            },
+          ]}
+        />
+      )}
       <ModeChoice
         className="geo-mode-choice"
         legend="Время"
-        value={time}
-        onChange={setTime}
+        value={timed ? "yes" : "no"}
+        onChange={(value) =>
+          setMode(geoModeFor(moving, value === "yes", landmarks))
+        }
         options={[
           {
             value: "no",
@@ -806,30 +851,13 @@ function GeoModes() {
           },
         ]}
       />
-      <ModeChoice
-        className="geo-mode-choice"
-        legend="Места"
-        value={places}
-        onChange={setPlaces}
-        options={[
-          { value: "world", label: "Весь мир", description: "Города и дороги" },
-          {
-            value: "landmarks",
-            label: "Достопримечательности",
-            description: "Знаменитые места",
-          },
-        ]}
-      />
       <div className="ds-mode-summary">
         <span>Выбранный режим</span>
-        <strong>
-          {geoModeName(
-            geoModeFor(move === "yes", time === "yes", places === "landmarks"),
-          )}
-        </strong>
+        <strong>{geoModeName(mode)}</strong>
         <p>
-          У всех восьми сочетаний отдельные результаты. Это только пример выбора
-          — партия не запускается.
+          Всего режимов: {GEO_MODES.length}. У каждого свой рейтинг. В
+          достопримечательностях перемещение отключено. Это пример выбора —
+          партия не запускается.
         </p>
       </div>
     </div>
@@ -1382,7 +1410,9 @@ export default function DesignSystem() {
                       <div className="card-copy">
                         <h3>
                           {name}
-                          {!name.endsWith("?") && <span className="brand-dot">.</span>}
+                          {!name.endsWith("?") && (
+                            <span className="brand-dot">.</span>
+                          )}
                         </h3>
                         <p>{description}</p>
                       </div>
@@ -1638,6 +1668,15 @@ export default function DesignSystem() {
                     Выбор режима, точки раундов, поля, скругления, отступы и
                     модальные окна используют общие правила. Переключатели темы
                     на одной странице обновляются вместе.
+                  </p>
+                </li>
+                <li>
+                  <h3>Длинные подписи и узкие контейнеры</h3>
+                  <p>
+                    Варианты режима перестраиваются по доступной ширине блока.
+                    Длинные названия переносятся целиком или по словам; текст не
+                    скрывается за краем карточки. Рекорды на узком экране
+                    располагаются друг под другом.
                   </p>
                 </li>
                 <li>

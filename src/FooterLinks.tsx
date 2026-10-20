@@ -22,7 +22,6 @@ export default function FooterLinks() {
         <a href="/pressure/#pressure-rules">Как играть в «Жми»</a>
         <a href="/privacy/">Конфиденциальность</a>
         <a href="/terms/">Правила сайта</a>
-        <a href="/design-system/">Дизайн-система</a>
       </div>
     </nav>
   );
