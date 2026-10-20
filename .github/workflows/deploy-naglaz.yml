@@ -78,6 +78,7 @@ jobs:
           test -f dist/naglaz/index.html
           test -f dist/circle/index.html
           test -f dist/colorfle/index.html
+          test -f dist/pressure/index.html
           test -f dist/geo/index.html
           test -f dist/destroy.html
           test -f dist/art/playne-logo.png
@@ -90,12 +91,12 @@ jobs:
               printf 'Symbolic link in output: %s\n' "$relative" >&2
               exit 1
             elif [[ -d "$entry" ]]; then
-              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' || "$relative" = 'circle' || "$relative" = 'colorfle' || "$relative" = 'geo' || "$relative" = 'account' || "$relative" = 'leaderboard' || "$relative" = 'privacy' || "$relative" = 'terms' || "$relative" = 'guides' || "$relative" = 'guides/naglaz' || "$relative" = 'guides/perfect-circle' || "$relative" = 'guides/colorfle' || "$relative" = 'guides/geoguessr' ]] || {
+              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' || "$relative" = 'circle' || "$relative" = 'colorfle' || "$relative" = 'geo' || "$relative" = 'pressure' || "$relative" = 'account' || "$relative" = 'leaderboard' || "$relative" = 'privacy' || "$relative" = 'terms' || "$relative" = 'guides' || "$relative" = 'guides/naglaz' || "$relative" = 'guides/perfect-circle' || "$relative" = 'guides/colorfle' || "$relative" = 'guides/geoguessr' ]] || {
                 printf 'Unexpected output directory: %s\n' "$relative" >&2
                 exit 1
               }
             elif [[ -f "$entry" ]]; then
-              [[ "$relative" = 'destroy.html' || "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'circle/index.html' || "$relative" = 'colorfle/index.html' || "$relative" = 'account/index.html' || "$relative" = 'leaderboard/index.html' || "$relative" = 'privacy/index.html' || "$relative" = 'terms/index.html' || "$relative" = 'geo/index.html' || "$relative" = 'guides/index.html' || "$relative" = 'guides/naglaz/index.html' || "$relative" = 'guides/perfect-circle/index.html' || "$relative" = 'guides/colorfle/index.html' || "$relative" = 'guides/geoguessr/index.html' || "$relative" = 'robots.txt' || "$relative" = 'sitemap.xml' || "$relative" = '404.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
+              [[ "$relative" = 'destroy.html' || "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'circle/index.html' || "$relative" = 'colorfle/index.html' || "$relative" = 'account/index.html' || "$relative" = 'leaderboard/index.html' || "$relative" = 'privacy/index.html' || "$relative" = 'terms/index.html' || "$relative" = 'geo/index.html' || "$relative" = 'pressure/index.html' || "$relative" = 'guides/index.html' || "$relative" = 'guides/naglaz/index.html' || "$relative" = 'guides/perfect-circle/index.html' || "$relative" = 'guides/colorfle/index.html' || "$relative" = 'guides/geoguessr/index.html' || "$relative" = 'robots.txt' || "$relative" = 'sitemap.xml' || "$relative" = '404.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
                 "$relative" =~ ^assets/[A-Za-z0-9._-]+\.(js|css)$ ||
                 "$relative" =~ ^art/[A-Za-z0-9._-]+\.png$ ]] || {
                 printf 'Unexpected output file: %s\n' "$relative" >&2
