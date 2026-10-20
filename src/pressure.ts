@@ -1,5 +1,7 @@
 // Shared deterministic rules: the browser and API replay the same input trace.
 export const PRESSURE_LEVELS = 30;
+// Thirty is a generation batch, not an endless game's level limit.
+export const PRESSURE_RULES_VERSION = 2;
 export type PressKind =
   "count" | "wait" | "window" | "hold" | "release" | "double";
 export type PressEvent = { type: "down" | "up"; at: number };
@@ -72,20 +74,26 @@ export const PRESSURE_FAMILIES = [
   "sequence",
 ] as const;
 export type PressFamily = (typeof PRESSURE_FAMILIES)[number];
+export const ENDLESS_PRESSURE_FAMILIES = [
+  ...PRESSURE_FAMILIES,
+  "recall-add",
+  "recall-signal",
+  "previous-signal",
+] as const;
+type EndlessFamily = (typeof ENDLESS_PRESSURE_FAMILIES)[number];
 export function makePressLevel(
-  family: PressFamily,
+  family: EndlessFamily,
   index: number,
   r = Math.random,
   history: PressLevel[] = [],
 ): PressLevel {
-  const hard = index >= 12;
   let p: PressLevel = {
     id: "",
     family,
     kind: "count",
     prompt: "",
     explanation: "",
-    duration: hard ? 6500 : 8000,
+    duration: 8000 - Math.min(3, Math.floor(index / 12)) * 500,
     count: 1,
     from: 0,
     to: 0,
@@ -352,10 +360,13 @@ export function makePressLevel(
       p.duration = 5000;
       break;
     }
+    case "recall-add":
+    case "recall-signal":
     case "recall-number":
     case "recall-shapes": {
-      const sourceFamily =
-        family === "recall-number" ? "remember-number" : "remember-shapes";
+      const sourceFamily = ["recall-number", "recall-add"].includes(family)
+        ? "remember-number"
+        : "remember-shapes";
       const sourceIndex = history
         .map((l) => l.family)
         .lastIndexOf(sourceFamily);
@@ -374,22 +385,49 @@ export function makePressLevel(
           : `На уровне ${p.sourceLevel}: ${value} ${symbol}. Нужно ${num(value)}.`,
       );
       p.duration = 8500;
+      if (family === "recall-add") {
+        const extra = integer(1, 3, r);
+        count(
+          value + extra,
+          `Вспомни число с уровня ${p.sourceLevel}, прибавь ${extra}. Нажми столько раз.`,
+          `На уровне ${p.sourceLevel} было ${value}. ${value} + ${extra} = ${value + extra}. Нужно ${num(value + extra)}.`,
+        );
+      } else if (family === "recall-signal") {
+        p.kind = "window";
+        p.from = integer(2500, 4000, r);
+        p.to = p.from + 2400;
+        p.duration = p.to + 800;
+        p.signal = "СЕЙЧАС";
+        p.prompt = `Вспомни, сколько было ${symbol} на уровне ${p.sourceLevel}. После «СЕЙЧАС» нажми столько же раз.`;
+        p.explanation = `На уровне ${p.sourceLevel} было ${value} ${symbol}. Нужно ${num(value)}, только после сигнала.`;
+      }
       break;
     }
+    case "previous-signal":
     case "previous-count":
     case "previous-plus": {
       const previous = history.at(-1);
       if (!previous) throw new Error("Для повтора нужен предыдущий уровень.");
-      const n = previous.count + (family === "previous-plus" ? 1 : 0);
+      const delta = previous.count >= 9 ? -1 : 1;
+      const n = previous.count + (family === "previous-plus" ? delta : 0);
       p.sourceLevel = history.length;
       count(
         n,
         family === "previous-count"
           ? "Повтори число нажатий с прошлого уровня. Если их не было, не нажимай."
-          : "Нажми на один раз больше, чем требовалось на прошлом уровне.",
+          : family === "previous-plus"
+            ? `Нажми на один раз ${delta > 0 ? "больше" : "меньше"}, чем требовалось на прошлом уровне.`
+            : "После «СЕЙЧАС» повтори число нажатий с прошлого уровня. Если их не было, не нажимай.",
         `На прошлом уровне требовалось ${previous.count} нажатий. ${n ? `Сейчас нужно ${num(n)}.` : "Сейчас нажимать не нужно."}`,
       );
       if (n) p.duration = 8500;
+      if (family === "previous-signal") {
+        p.from = integer(2500, 4000, r);
+        p.to = p.from + Math.max(2400, n * 350 + 700);
+        p.duration = p.to + 800;
+        p.signal = "СЕЙЧАС";
+        if (n) p.kind = "window";
+      }
       break;
     }
     case "politeness": {
@@ -440,27 +478,50 @@ export function makePressLevel(
 export function makePressDeck(
   r = Math.random,
   recent: string[] = [],
+  history: PressLevel[] = [],
+  endless = false,
 ): PressLevel[] {
   const deck: PressLevel[] = [];
-  const append = (family: PressFamily) => {
-    let p = makePressLevel(family, deck.length, r, deck);
+  const append = (family: EndlessFamily) => {
+    const context = [...history, ...deck];
+    let p = makePressLevel(family, context.length, r, context);
     for (
       let i = 0;
       i < 30 && (recent.includes(p.id) || deck.some((x) => x.id === p.id));
       i++
     )
-      p = makePressLevel(family, deck.length, r, deck);
+      p = makePressLevel(family, context.length, r, context);
     deck.push(p);
   };
-  const warmup: PressFamily[] = ["tap", "sum", "restraint"];
-  for (const f of shuffled(warmup, r)) append(f);
+  const warmup: EndlessFamily[] = history.length
+    ? shuffled(
+        [...PRESSURE_FAMILIES].filter(
+          (f) =>
+            !f.startsWith("remember-") &&
+            !f.startsWith("recall-") &&
+            f !== history.at(-1)?.family,
+        ),
+        r,
+      ).slice(0, 3)
+    : ["tap", "sum", "restraint"];
+  for (const f of shuffled(warmup, r)) {
+    if (f === history.at(-1)?.family && !deck.length) continue;
+    append(f);
+  }
+  if (deck.length < 3) append("parity");
 
   // Schedule source/recall pairs together, separated by 2–6 other levels.
   // Their random positions cannot strand a recall before its source or beyond level 30.
-  const scheduled = new Map<number, PressFamily>();
+  const scheduled = new Map<number, EndlessFamily>();
   const source = integer(3, 6, r);
   scheduled.set(source, "remember-number");
-  scheduled.set(integer(source + 3, source + 7, r), "recall-number");
+  const numberRecall = integer(source + 3, source + 7, r);
+  scheduled.set(
+    numberRecall,
+    endless && history.length + numberRecall >= 12 && r() < 0.5
+      ? "recall-add"
+      : "recall-number",
+  );
   const shapeSource = pick(
     Array.from({ length: 10 }, (_, i) => i + 3).filter(
       (i) => !scheduled.has(i),
@@ -474,30 +535,97 @@ export function makePressDeck(
     ),
     r,
   );
-  scheduled.set(shapeRecall, "recall-shapes");
+  scheduled.set(
+    shapeRecall,
+    endless && history.length + shapeRecall >= 12 && r() < 0.5
+      ? "recall-signal"
+      : "recall-shapes",
+  );
   const paired = new Set(scheduled.values());
-  const pool: PressFamily[] = shuffled(
-    [...PRESSURE_FAMILIES].filter((f) => !warmup.includes(f) && !paired.has(f)),
+  const families = endless ? ENDLESS_PRESSURE_FAMILIES : PRESSURE_FAMILIES;
+  const pool: EndlessFamily[] = shuffled(
+    [...families].filter((f) => !warmup.includes(f) && !paired.has(f)),
     r,
   );
-  const extras = [...PRESSURE_FAMILIES].filter((f) => !paired.has(f));
+  const extras = [...families].filter((f) => !paired.has(f));
   while (deck.length < PRESSURE_LEVELS) {
     const fixed = scheduled.get(deck.length);
     if (fixed) {
       append(fixed);
       continue;
     }
-    const next = pool.findIndex((f) => f !== deck.at(-1)?.family);
+    const eligible = (f: EndlessFamily) => {
+      if (f === deck.at(-1)?.family) return false;
+      if (
+        ["recall-add", "recall-signal", "previous-signal"].includes(f) &&
+        history.length + deck.length < 12
+      )
+        return false;
+      if (!f.startsWith("recall-")) return true;
+      const context = [...history, ...deck];
+      const sourceFamily = ["recall-add", "recall-number"].includes(f)
+        ? "remember-number"
+        : "remember-shapes";
+      const distance =
+        context.length - context.map((l) => l.family).lastIndexOf(sourceFamily);
+      return distance >= 3 && distance <= 7;
+    };
+    const next = pool.findIndex(eligible);
     if (next >= 0) append(pool.splice(next, 1)[0]);
-    else
-      append(
-        pick(
-          extras.filter((f) => f !== deck.at(-1)?.family),
-          r,
-        ),
-      );
+    else append(pick(extras.filter(eligible), r));
   }
   return deck;
+}
+
+export function appendPressBatch(
+  seed: number,
+  history: PressLevel[],
+  recent: string[] = [],
+) {
+  // A fresh per-batch PRNG lets the browser and API continue the same run.
+  // The server keeps its own seed; a submitted deck/score is never trusted.
+  let state =
+    (seed + Math.imul(history.length / PRESSURE_LEVELS + 1, 0x9e3779b9)) >>> 0;
+  const random = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+  return makePressDeck(
+    random,
+    [...recent, ...history.slice(-90).map((l) => l.id)],
+    history,
+    true,
+  );
+}
+
+export function replayEndlessPressRun(
+  seed: number,
+  recent: string[],
+  traces: PressTrace[],
+) {
+  if (!Array.isArray(traces) || !traces.length)
+    throw new Error("Некорректная попытка");
+  const levels: PressLevel[] = [];
+  for (let i = 0; i < traces.length; i++) {
+    if (i === levels.length)
+      levels.push(...appendPressBatch(seed, levels, recent));
+    const trace = traces[i];
+    if (
+      !trace ||
+      !Array.isArray(trace.events) ||
+      trace.elapsed > levels[i].duration + 2000
+    )
+      throw new Error("Некорректное время уровня");
+    const verdict = judgePress(levels[i], trace.events, trace.elapsed);
+    if (verdict.status === "playing")
+      throw new Error("Уровень ещё не закончен");
+    if (verdict.status === "failure") {
+      if (i !== traces.length - 1)
+        throw new Error("Попытка продолжается после ошибки");
+      return { score: i, cleared: i, reason: verdict.reason };
+    }
+  }
+  throw new Error("Попытка ещё не закончена");
 }
 
 export function judgePress(
@@ -610,10 +738,7 @@ export function readPressStats(): PressStats {
   try {
     const s = JSON.parse(localStorage.getItem(PRESSURE_KEY) ?? "null");
     return {
-      best:
-        Number.isInteger(s?.best) && s.best >= 0 && s.best <= PRESSURE_LEVELS
-          ? s.best
-          : 0,
+      best: Number.isSafeInteger(s?.best) && s.best >= 0 ? s.best : 0,
       played: Number.isInteger(s?.played) && s.played >= 0 ? s.played : 0,
       recent: Array.isArray(s?.recent)
         ? s.recent.filter((x: unknown) => typeof x === "string").slice(0, 90)

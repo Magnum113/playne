@@ -1,4 +1,10 @@
-import { makePressDeck, replayPressRun } from "../src/pressure";
+import {
+  makePressDeck,
+  replayPressRun,
+  appendPressBatch,
+  replayEndlessPressRun,
+  PRESSURE_RULES_VERSION,
+} from "../src/pressure";
 import { chooseRounds, legacyPairIds, objects, pairs } from "../src/data";
 import { score } from "../src/game";
 import { evaluateCircle } from "../src/circle";
@@ -68,8 +74,22 @@ export function makeChallenge(
   recent: string[] = [],
   mode: GeoMode = "classic",
   supportedPairIds: readonly string[] = legacyPairIds,
+  pressureRulesVersion = 1,
 ) {
-  if (game === "pressure") return { levels: makePressDeck(Math.random, recent) };
+  if (game === "pressure") {
+    if (pressureRulesVersion === PRESSURE_RULES_VERSION) {
+      const seed = Math.floor(Math.random() * 4294967296);
+      const avoid = recent.slice(0, 90);
+      return {
+        seed,
+        recent: avoid,
+        rulesVersion: PRESSURE_RULES_VERSION,
+        levels: appendPressBatch(seed, [], avoid),
+      };
+    }
+    // Already open older clients may finish their original thirty-level run.
+    return { levels: makePressDeck(Math.random, recent) };
+  }
   if (game === "naglaz")
     return { pairIds: chooseRounds(recent, supportedPairIds).map((p) => p.id) };
   if (game === "colorfle")
@@ -100,6 +120,12 @@ export function validateAnswer(
 ) {
   if (game === "pressure") {
     if (index !== 0) throw new Error("Некорректная попытка");
+    if (challenge.rulesVersion === PRESSURE_RULES_VERSION)
+      return replayEndlessPressRun(
+        challenge.seed,
+        challenge.recent,
+        input?.rounds,
+      );
     return replayPressRun(challenge.levels, input?.rounds);
   }
   if (game === "naglaz") {

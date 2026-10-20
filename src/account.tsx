@@ -6,6 +6,7 @@ import {
   type ServerRun,
 } from "./rankedQueue";
 import { SHADE_SCORE_VERSION } from "./colorfle";
+import { PRESSURE_RULES_VERSION } from "./pressure";
 import { pairs } from "./data";
 import {
   GEO_MAX_POINTS,
@@ -240,7 +241,10 @@ export function useRankedRun(game: GameId) {
       game,
       mode,
       geoRulesVersion: game === "geo" ? GEO_SCORE_VERSION : undefined,
-      supportedPairIds: game === "naglaz" ? pairs.map((pair) => pair.id) : undefined,
+      pressureRulesVersion:
+        game === "pressure" ? PRESSURE_RULES_VERSION : undefined,
+      supportedPairIds:
+        game === "naglaz" ? pairs.map((pair) => pair.id) : undefined,
     })
       .then((data) => activate(data, generation))
       .catch((e) => {
@@ -501,7 +505,7 @@ export const resultText = (
   version = GEO_SCORE_VERSION,
 ) =>
   game === "pressure"
-    ? `${Math.round(score)} / 30`
+    ? `${Math.round(score)} очк.`
     : game === "circle"
       ? `${score.toFixed(1).replace(".", ",")}%`
       : `${geoPoints(score)} / ${game === "geo" && version !== 1 ? geoPoints(GEO_MAX_POINTS) : "500"}`;

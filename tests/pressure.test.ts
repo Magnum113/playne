@@ -9,6 +9,9 @@ import {
   type PressLevel,
   type PressTrace,
   type PressEvent,
+  appendPressBatch,
+  replayEndlessPressRun,
+  ENDLESS_PRESSURE_FAMILIES,
 } from "../src/pressure";
 import {
   makeChallenge,
@@ -93,7 +96,12 @@ describe("Pressure generated challenge and replay", () => {
         if (["previous-count", "previous-plus"].includes(l.family)) {
           expect(i).toBeGreaterThan(0);
           expect(l.count).toBe(
-            deck[i - 1].count + (l.family === "previous-plus" ? 1 : 0),
+            deck[i - 1].count +
+              (l.family === "previous-plus"
+                ? deck[i - 1].count >= 9
+                  ? -1
+                  : 1
+                : 0),
           );
         }
       }
@@ -234,5 +242,67 @@ describe("Pressure generated challenge and replay", () => {
         (x) => !["restraint", "double", "negation", "word"].includes(x.family),
       ).length,
     ).toBeLessThan(4);
+  });
+  it("continues beyond 30, 300 and 1200 levels deterministically with bounded, solvable difficulty", () => {
+    const levels: PressLevel[] = [],
+      copy: PressLevel[] = [];
+    const seen = new Set<string>();
+    for (let batch = 0; batch < 41; batch++) {
+      const next = appendPressBatch(773, levels);
+      expect(next).toEqual(appendPressBatch(773, copy));
+      for (const [i, level] of next.entries()) {
+        const previous = i ? next[i - 1] : levels.at(-1);
+        expect(level.family).not.toBe(previous?.family);
+        expect(level.count).toBeLessThanOrEqual(9);
+        expect(level.duration).toBeGreaterThanOrEqual(2500);
+        const trace = solvePress(level);
+        expect(
+          judgePress(level, trace.events, trace.elapsed),
+          level.prompt,
+        ).toEqual({ status: "success" });
+        seen.add(level.family);
+      }
+      copy.push(...next);
+      levels.push(...next);
+    }
+    expect(seen.size).toBe(ENDLESS_PRESSURE_FAMILIES.length);
+    const rounds = levels.slice(0, 1201).map(solvePress);
+    expect(() => replayEndlessPressRun(773, [], rounds)).toThrow(
+      "ещё не закончена",
+    );
+    const last = levels[1201];
+    const fail =
+      last.kind === "wait"
+        ? { events: [{ type: "down" as const, at: 10 }], elapsed: 10 }
+        : { events: [], elapsed: last.duration };
+    expect(replayEndlessPressRun(773, [], [...rounds, fail]).score).toBe(1201);
+    expect(() =>
+      replayEndlessPressRun(773, [], [...rounds, fail, fail]),
+    ).toThrow("после ошибки");
+    expect(makePressLevel("tap", 36, random(1)).duration).toBe(
+      makePressLevel("tap", 1200, random(1)).duration,
+    );
+  });
+  it("uses the server seed to verify endless runs and keeps the legacy scoring version", () => {
+    const c = makeChallenge("pressure", [], "classic", undefined, 2);
+    const levels = [...c.levels!];
+    levels.push(...appendPressBatch(c.seed!, levels, c.recent));
+    const stop = 45;
+    const last = levels[stop];
+    const rounds = [
+      ...levels.slice(0, stop).map(solvePress),
+      last.kind === "wait"
+        ? { events: [{ type: "down" as const, at: 1 }], elapsed: 1 }
+        : { events: [], elapsed: last.duration },
+    ];
+    expect(
+      validateAnswer("pressure", c, 0, { rounds, score: 9000, levels: [] })
+        .score,
+    ).toBe(stop);
+    expect(() =>
+      validateAnswer("pressure", c, 0, {
+        rounds: levels.slice(0, 30).map(solvePress),
+      }),
+    ).toThrow("ещё не закончена");
   });
 });

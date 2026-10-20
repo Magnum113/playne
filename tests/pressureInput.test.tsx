@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { makePressLevel } from "../src/pressure";
+import { makePressLevel, appendPressBatch } from "../src/pressure";
 const mocks = vi.hoisted(() => ({ begin: vi.fn(), submit: vi.fn() }));
 vi.mock("../src/account", () => ({
   AccountNav: () => null,
@@ -37,7 +37,14 @@ afterEach(() => {
 });
 async function begin(family: Parameters<typeof makePressLevel>[0]) {
   const l = makePressLevel(family, 0, () => 0);
-  mocks.begin.mockResolvedValue({ challenge: { levels: Array(30).fill(l) } });
+  mocks.begin.mockResolvedValue({
+    challenge: {
+      rulesVersion: 2,
+      seed: 17,
+      recent: [],
+      levels: Array(30).fill(l),
+    },
+  });
   await act(async () => root.render(<PressureGame />));
   const start = [...container.querySelectorAll("button")].find((b) =>
     b.textContent?.includes("Начать игру"),
@@ -54,23 +61,55 @@ function key(type: "keydown" | "keyup", repeat = false) {
     );
 }
 describe("Pressure input and completion lifecycle", () => {
-  it("finishes all 30 levels, saves once, and preserves the winning best", async () => {
-    await begin("tap");
+  it("continues after level 30, improves an old record and saves immediately on the first later mistake", async () => {
+    localStorage.setItem(
+      "playne:pressure:v1",
+      JSON.stringify({ best: 30, played: 1, recent: [] }),
+    );
+    const tap = await begin("tap");
     for (let i = 0; i < 30; i++) {
       act(() => {
         key("keydown");
         key("keyup");
       });
       await act(async () => vi.advanceTimersByTime(450));
-      if (i < 29) await act(async () => vi.advanceTimersByTime(750));
+      await act(async () => vi.advanceTimersByTime(750));
     }
+    expect(mocks.submit).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("УРОВЕНЬ 31");
+    const continuation = appendPressBatch(17, Array(30).fill(tap));
+    const l = continuation[0];
+    if (l.kind === "wait")
+      await act(async () => vi.advanceTimersByTime(l.duration));
+    else if (["hold", "release"].includes(l.kind)) {
+      act(() => key("keydown"));
+      await act(async () => vi.advanceTimersByTime((l.from + l.to) / 2));
+      act(() => key("keyup"));
+    } else {
+      await act(async () => vi.advanceTimersByTime(l.from + 100));
+      for (let i = 0; i < l.count; i++) {
+        act(() => {
+          key("keydown");
+          key("keyup");
+        });
+        await act(async () => vi.advanceTimersByTime(170));
+      }
+    }
+    await act(async () => vi.advanceTimersByTime(450));
+    await act(async () => vi.advanceTimersByTime(750));
+    expect(container.textContent).toContain("УРОВЕНЬ 32");
+    if (continuation[1].kind === "wait") act(() => key("keydown"));
+    else
+      await act(async () =>
+        vi.advanceTimersByTime(continuation[1].duration + 50),
+      );
     expect(mocks.submit).toHaveBeenCalledTimes(1);
     await act(async () => vi.advanceTimersByTime(600));
-    expect(container.textContent).toContain("ВСЕ УРОВНИ ПРОЙДЕНЫ");
+    expect(container.textContent).toContain("ПОПЫТКА ЗАВЕРШЕНА");
     expect(mocks.submit).toHaveBeenCalledTimes(1);
-    expect(mocks.submit.mock.calls[0][1].rounds).toHaveLength(30);
+    expect(mocks.submit.mock.calls[0][1].rounds).toHaveLength(32);
     expect(JSON.parse(localStorage.getItem("playne:pressure:v1")!).best).toBe(
-      30,
+      31,
     );
   });
 

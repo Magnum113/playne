@@ -372,6 +372,7 @@ export async function buildApp(
           recent,
           game === "geo" && version === 1 ? "classic" : mode,
           game === "naglaz" ? supportedPairIds : undefined,
+          (req.body as any)?.pressureRulesVersion,
         );
       } catch (e) {
         if (game === "naglaz")

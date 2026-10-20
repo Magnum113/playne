@@ -5,8 +5,8 @@ import FooterLinks from "./FooterLinks";
 import PressureAbout from "./PressureAbout";
 import { PRESSURE_GOALS, reachGoal } from "./analytics";
 import {
-  PRESSURE_LEVELS,
-  makePressDeck,
+  appendPressBatch,
+  PRESSURE_RULES_VERSION,
   judgePress,
   readPressStats,
   savePressStats,
@@ -105,7 +105,7 @@ function Rules() {
         </li>
         <li>
           Одна ошибка заканчивает попытку. Твой результат — число пройденных
-          уровней из 30.
+          уровней. Ограничения нет: каждый пройденный уровень — одно очко.
         </li>
       </ol>
       <p>
@@ -145,6 +145,8 @@ export default function PressureGame() {
     input = useRef<string | null>(null),
     latestAct = useRef<(type: "down" | "up", source: string) => void>(() => {}),
     generation = useRef(0);
+  const runSeed = useRef(0),
+    recentVariants = useRef<string[]>([]);
   const level = state.deck[state.index],
     playing = state.phase === "playing";
   function update(next: BoardState) {
@@ -158,7 +160,9 @@ export default function PressureGame() {
     const saved = {
       best: Math.max(old.best, next.cleared),
       played: old.played + 1,
-      recent: next.deck.map((x) => x.id),
+      recent: next.deck
+        .slice(Math.max(0, next.index - 89), next.index + 1)
+        .map((x) => x.id),
     };
     statsRef.current = saved;
     setStats(saved);
@@ -166,8 +170,8 @@ export default function PressureGame() {
     if (online) ranked.submit(0, { rounds: next.traces });
     reachGoal(PRESSURE_GOALS.gameComplete, {
       score: next.cleared,
-      level_count: PRESSURE_LEVELS,
-      won: next.cleared === PRESSURE_LEVELS,
+      level_count: next.cleared + 1,
+      mode: "endless",
       reason: next.reason ?? "complete",
     });
   }
@@ -204,9 +208,12 @@ export default function PressureGame() {
       phase: "between" as Phase,
     };
     input.current = null;
-    if (next.cleared === PRESSURE_LEVELS)
-      complete({ ...next, phase: "finished" });
-    else update(next);
+    if (next.index + 1 === next.deck.length)
+      next.deck = [
+        ...next.deck,
+        ...appendPressBatch(runSeed.current, next.deck, recentVariants.current),
+      ];
+    update(next);
   }
   function act(type: "down" | "up", source: string) {
     if (live.current.phase !== "playing" || pausedRef.current) return;
@@ -245,10 +252,17 @@ export default function PressureGame() {
     const previous = live.current.phase === "finished";
     const data = await ranked.begin();
     if (gen !== generation.current) return;
-    setOnline(!!data);
-    const deck =
-      data?.challenge?.levels ??
-      makePressDeck(Math.random, statsRef.current.recent);
+    const compatible = data?.challenge?.rulesVersion === PRESSURE_RULES_VERSION;
+    setOnline(!!data && compatible);
+    runSeed.current = compatible
+      ? data.challenge.seed
+      : Math.floor(Math.random() * 4294967296);
+    recentVariants.current = compatible
+      ? data.challenge.recent
+      : statsRef.current.recent;
+    const deck = compatible
+      ? data.challenge.levels
+      : appendPressBatch(runSeed.current, [], recentVariants.current);
     setCountdown(3);
     setResultVisible(false);
     setPressSerial(0);
@@ -256,8 +270,8 @@ export default function PressureGame() {
     setLoading(false);
     if (previous) reachGoal(PRESSURE_GOALS.gameRestart);
     reachGoal(PRESSURE_GOALS.gameStart, {
-      level_count: PRESSURE_LEVELS,
-      online: !!data,
+      mode: "endless",
+      online: !!data && compatible,
     });
   }
   useEffect(
@@ -376,7 +390,7 @@ export default function PressureGame() {
       state.elapsed < level.from
         ? "ЖДИ"
         : state.elapsed < level.to
-          ? "ЖМИ"
+          ? level.signal
           : "ПОЗДНО";
   if (level?.kind === "release")
     display = held
@@ -441,7 +455,7 @@ export default function PressureGame() {
         {state.phase === "welcome" ? (
           <section className="pressure-welcome">
             <div className="pressure-welcome-copy">
-              <p className="eyebrow">ОДНА КНОПКА · 30 УРОВНЕЙ</p>
+              <p className="eyebrow">ОДНА КНОПКА · ДО ПЕРВОЙ ОШИБКИ</p>
               <h2>
                 Палец хочет нажать.
                 <br />
@@ -483,31 +497,24 @@ export default function PressureGame() {
               <li>
                 <span>03</span>
                 <div>
-                  Пройди все 30<small>Сколько выдержишь без ошибки?</small>
+                  Побей рекорд
+                  <small>Уровни не заканчиваются. За каждый — очко.</small>
                 </div>
               </li>
             </ol>
             <p className="pressure-best">
-              Твой рекорд: <strong>{stats.best} из 30</strong> ·{" "}
+              Твой рекорд: <strong>{stats.best} очк.</strong> ·{" "}
               <a href="/leaderboard/?game=pressure">Рейтинг →</a>
             </p>
           </section>
         ) : state.phase === "finished" && resultVisible ? (
           <section className="pressure-result" ref={outcome} tabIndex={-1}>
-            <p className="eyebrow">
-              {state.cleared === 30
-                ? "ВСЕ УРОВНИ ПРОЙДЕНЫ"
-                : "ПОПЫТКА ЗАВЕРШЕНА"}
-            </p>
+            <p className="eyebrow">ПОПЫТКА ЗАВЕРШЕНА</p>
             <h2>
               {state.cleared}
-              <span> / 30</span>
+              <span> очк.</span>
             </h2>
-            <p className="pressure-result-lead">
-              {state.cleared === 30
-                ? "Стальные нервы. Ни одной ошибки."
-                : state.reason}
-            </p>
+            <p className="pressure-result-lead">{state.reason}</p>
             {state.reason && (
               <div className="pressure-explanation">
                 <span>УРОВЕНЬ {state.index + 1}</span>
@@ -520,7 +527,7 @@ export default function PressureGame() {
             )}
             <div className="pressure-result-stats">
               <span>
-                Лучший результат <strong>{stats.best} / 30</strong>
+                Лучший результат <strong>{stats.best} очк.</strong>
               </span>
               <span>
                 Попыток <strong>{stats.played}</strong>
@@ -553,10 +560,11 @@ export default function PressureGame() {
           >
             <div className="pressure-topline">
               <span>
-                УРОВЕНЬ <strong>{state.index + 1}</strong> / 30
+                УРОВЕНЬ <strong>{state.index + 1}</strong>
               </span>
               <span>
-                Рекорд <strong>{stats.best}</strong>
+                Очки <strong>{state.cleared}</strong> · Рекорд{" "}
+                <strong>{stats.best}</strong>
               </span>
               <button
                 className="pressure-pause"
@@ -567,15 +575,8 @@ export default function PressureGame() {
                 Ⅱ
               </button>
             </div>
-            <div
-              className="pressure-progress"
-              role="progressbar"
-              aria-label="Пройдено уровней"
-              aria-valuenow={state.cleared}
-              aria-valuemin={0}
-              aria-valuemax={30}
-            >
-              <span style={{ width: `${(state.cleared / 30) * 100}%` }} />
+            <div className="pressure-progress" aria-hidden="true">
+              <span style={{ width: "100%" }} />
             </div>
             {paused ? (
               <div className="pressure-pause-screen">
@@ -611,9 +612,7 @@ export default function PressureGame() {
                       : failing
                         ? state.reason
                         : succeeding
-                          ? state.cleared === PRESSURE_LEVELS
-                            ? "Все 30. Ни одной ошибки."
-                            : "Есть. Следующее правило…"
+                          ? "Есть. Следующее правило…"
                           : level.prompt}
                   </h2>
                 </div>

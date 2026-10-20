@@ -4,6 +4,11 @@ import { readFileSync } from "node:fs";
 import { pairs, objects, legacyPairIds } from "../src/data";
 import { buildApp } from "../server/app";
 import { migrateShadeScores } from "../server/shade-migration";
+import {
+  appendPressBatch,
+  type PressLevel,
+  type PressTrace,
+} from "../src/pressure";
 const db = process.env.TEST_DATABASE_URL;
 const suite = db ? describe : describe.skip;
 suite("Playne database and OAuth integration", () => {
@@ -1075,6 +1080,96 @@ suite("Playne database and OAuth integration", () => {
     expect(stored.rows[0].score_units).toBe(10);
     expect(stored.rows[0].answers).toHaveLength(1);
     expect(stored.rows[0].published_at).not.toBeNull();
+  });
+
+  it("keeps old Pressure records and replaces their best with an endless score in the same ranking", async () => {
+    const headers = { origin, cookie: logged };
+    const solve = (l: PressLevel): PressTrace => {
+      if (l.kind === "wait") return { events: [], elapsed: l.duration };
+      if (["hold", "release"].includes(l.kind)) {
+        const at = 300 + (l.from + l.to) / 2;
+        return {
+          events: [
+            { type: "down", at: 300 },
+            { type: "up", at },
+          ],
+          elapsed: at + 420,
+        };
+      }
+      const events: PressTrace["events"] = [];
+      for (let i = 0; i < l.count; i++) {
+        const at = Math.max(300, l.from + 100) + i * 170;
+        events.push({ type: "down", at }, { type: "up", at: at + 50 });
+      }
+      return { events, elapsed: events.at(-1)!.at + 420 };
+    };
+    const start = async (endless = false) =>
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/games",
+          headers,
+          payload: {
+            game: "pressure",
+            ...(endless ? { pressureRulesVersion: 2 } : {}),
+          },
+        })
+      ).json();
+    const send = async (run: any, rounds: PressTrace[]) => {
+      await pool.query(
+        "UPDATE playne_games SET created_at=now()-interval '2 hours' WHERE id=$1",
+        [run.id],
+      );
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/games/${run.id}/answers`,
+        headers,
+        payload: { index: 0, answer: { rounds, score: 999999 } },
+      });
+      expect(res.statusCode, res.body).toBe(200);
+      expect(res.json().published).toBe(true);
+      return res.json();
+    };
+    const old = await start();
+    expect((await send(old, old.challenge.levels.map(solve))).score).toBe(30);
+    const before = (
+      await app.inject({ url: "/api/leaderboard?game=pressure", headers })
+    ).json();
+    expect(before.mine.score).toBe(30);
+    const run = await start(true);
+    expect(run.challenge.rulesVersion).toBe(2);
+    expect(run.version).toBe(old.version);
+    expect(run.mode).toBe(old.mode);
+    const levels: PressLevel[] = [...run.challenge.levels];
+    while (levels.length < 68)
+      levels.push(
+        ...appendPressBatch(run.challenge.seed, levels, run.challenge.recent),
+      );
+    const last = levels[67];
+    const rounds = [
+      ...levels.slice(0, 67).map(solve),
+      last.kind === "wait"
+        ? { events: [{ type: "down" as const, at: 10 }], elapsed: 10 }
+        : { events: [], elapsed: last.duration },
+    ];
+    const result = await send(run, rounds);
+    expect(result.score).toBe(67);
+    expect(result.answer.cleared).toBe(67);
+    for (const period of ["all", "week"]) {
+      const after = (
+        await app.inject({
+          url: `/api/leaderboard?game=pressure&period=${period}`,
+          headers,
+        })
+      ).json();
+      expect(after.mine.score).toBe(67);
+      expect(after.entries).toHaveLength(1);
+    }
+    const stored = await pool.query(
+      "SELECT score_units FROM playne_games WHERE id=$1",
+      [old.id],
+    );
+    expect(stored.rows[0].score_units).toBe(300);
   });
 
   it("automatically publishes each authenticated game on its final answer exactly once", async () => {

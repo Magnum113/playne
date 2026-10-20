@@ -352,8 +352,8 @@ export default function Hub() {
               <div className="card-bottom">
                 <span>
                   {pressureBest > 0
-                    ? `Твой рекорд: ${pressureBest} / 30`
-                    : "30 уровней · одна попытка"}
+                    ? `Твой рекорд: ${pressureBest} очк.`
+                    : "До первой ошибки · без ограничения уровней"}
                 </span>
                 <span className="card-play">
                   Играть <Arrow />
