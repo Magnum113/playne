@@ -729,3 +729,8 @@
     min-height: 390px;
   }
 }
+
+.pressure-button-content.pressure-request {
+  font-size: clamp(18px, 3.4vw, 26px);
+  letter-spacing: 0;
+}

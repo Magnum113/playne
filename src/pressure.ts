@@ -16,6 +16,11 @@ export type PressLevel = {
   display?: string;
   revealAt?: number;
   signal?: string;
+  memoryCue?: { value: number; symbol?: string };
+  sourceLevel?: number;
+  frames?: string[];
+  frameStart?: number;
+  frameMs?: number;
 };
 export type PressTrace = { events: PressEvent[]; elapsed: number };
 export type PressVerdict = {
@@ -23,7 +28,7 @@ export type PressVerdict = {
   reason?: string;
 };
 const num = (n: number) =>
-  n === 1 ? "1 раз" : n < 5 ? `${n} раза` : `${n} раз`;
+  n === 1 ? "1 раз" : n >= 2 && n <= 4 ? `${n} раза` : `${n} раз`;
 const pick = <T>(a: T[], r: () => number) =>
   a[Math.floor(r() * a.length) % a.length];
 const integer = (a: number, b: number, r: () => number) =>
@@ -57,12 +62,21 @@ export const PRESSURE_FAMILIES = [
   "negation",
   "digits",
   "word",
+  "remember-number",
+  "recall-number",
+  "remember-shapes",
+  "recall-shapes",
+  "previous-count",
+  "previous-plus",
+  "politeness",
+  "sequence",
 ] as const;
 export type PressFamily = (typeof PRESSURE_FAMILIES)[number];
 export function makePressLevel(
   family: PressFamily,
   index: number,
   r = Math.random,
+  history: PressLevel[] = [],
 ): PressLevel {
   const hard = index >= 12;
   let p: PressLevel = {
@@ -306,6 +320,109 @@ export function makePressLevel(
       p.display = String(n);
       break;
     }
+    case "remember-number": {
+      const value = integer(2, 5, r);
+      count(
+        0,
+        "Запомни число на кнопке. Сейчас не нажимай.",
+        `Нужно было запомнить число ${value} и не нажимать.`,
+      );
+      p.display = String(value);
+      p.memoryCue = { value };
+      p.duration = 4500;
+      break;
+    }
+    case "remember-shapes": {
+      const symbol = pick(["●", "▲", "■"], r),
+        value = integer(2, 4, r);
+      const other = pick(
+        ["●", "▲", "■"].filter((x) => x !== symbol),
+        r,
+      );
+      count(
+        0,
+        `Запомни, сколько здесь ${symbol}. Сейчас не нажимай.`,
+        `Знаков ${symbol} было ${value}. Здесь нужно только запомнить их количество.`,
+      );
+      p.display = shuffled(
+        [...Array(value).fill(symbol), ...Array(integer(1, 3, r)).fill(other)],
+        r,
+      ).join(" ");
+      p.memoryCue = { value, symbol };
+      p.duration = 5000;
+      break;
+    }
+    case "recall-number":
+    case "recall-shapes": {
+      const sourceFamily =
+        family === "recall-number" ? "remember-number" : "remember-shapes";
+      const sourceIndex = history
+        .map((l) => l.family)
+        .lastIndexOf(sourceFamily);
+      const source = history[sourceIndex];
+      if (!source?.memoryCue)
+        throw new Error("Для задания на память нужен предыдущий показ.");
+      const { value, symbol } = source.memoryCue;
+      p.sourceLevel = sourceIndex + 1;
+      count(
+        value,
+        family === "recall-number"
+          ? `Вспомни число с уровня ${p.sourceLevel}. Нажми столько же раз.`
+          : `Сколько было ${symbol} на уровне ${p.sourceLevel}? Нажми столько же раз.`,
+        family === "recall-number"
+          ? `На уровне ${p.sourceLevel} было число ${value}. Нужно ${num(value)}.`
+          : `На уровне ${p.sourceLevel}: ${value} ${symbol}. Нужно ${num(value)}.`,
+      );
+      p.duration = 8500;
+      break;
+    }
+    case "previous-count":
+    case "previous-plus": {
+      const previous = history.at(-1);
+      if (!previous) throw new Error("Для повтора нужен предыдущий уровень.");
+      const n = previous.count + (family === "previous-plus" ? 1 : 0);
+      p.sourceLevel = history.length;
+      count(
+        n,
+        family === "previous-count"
+          ? "Повтори число нажатий с прошлого уровня. Если их не было, не нажимай."
+          : "Нажми на один раз больше, чем требовалось на прошлом уровне.",
+        `На прошлом уровне требовалось ${previous.count} нажатий. ${n ? `Сейчас нужно ${num(n)}.` : "Сейчас нажимать не нужно."}`,
+      );
+      if (n) p.duration = 8500;
+      break;
+    }
+    case "politeness": {
+      const yes = r() < 0.5;
+      count(
+        yes ? 1 : 0,
+        "Нажми один раз, только если просьба начинается с «Пожалуйста».",
+        yes
+          ? "Просьба начиналась с «Пожалуйста»: нужно одно нажатие."
+          : "Слова «Пожалуйста» не было. Нажимать не нужно.",
+      );
+      p.display = yes
+        ? "Пожалуйста, нажми"
+        : pick(["Скорее, нажми", "Просто нажми", "Немедленно нажми"], r);
+      break;
+    }
+    case "sequence": {
+      const values = shuffled([1, 2, 3, 4, 5], r).slice(0, 3);
+      const position = integer(0, 2, r);
+      const label = ["первое", "второе", "третье"][position];
+      count(
+        values[position],
+        `Запомни ${label} число. После трёх чисел нажми столько же раз.`,
+        `Последовательность: ${values.join(" → ")}. ${label[0].toUpperCase() + label.slice(1)} число — ${values[position]}. Нужно ${num(values[position])}.`,
+      );
+      p.frames = values.map(String);
+      p.frameStart = 1400;
+      p.frameMs = 1000;
+      p.from = p.revealAt = p.frameStart + p.frameMs * p.frames.length;
+      p.duration = 11000;
+      p.display = values.join(" → ");
+      break;
+    }
     case "word": {
       const yes = r() < 0.5;
       p.display = yes ? "ЖМИ" : "ЖДИ";
@@ -326,35 +443,63 @@ export function makePressDeck(
 ): PressLevel[] {
   const deck: PressLevel[] = [];
   const append = (family: PressFamily) => {
-    let p = makePressLevel(family, deck.length, r);
+    let p = makePressLevel(family, deck.length, r, deck);
     for (
       let i = 0;
       i < 30 && (recent.includes(p.id) || deck.some((x) => x.id === p.id));
       i++
     )
-      p = makePressLevel(family, deck.length, r);
+      p = makePressLevel(family, deck.length, r, deck);
     deck.push(p);
   };
-  // The warm-up changes too; it teaches the input without a fixed sequence.
-  for (const f of shuffled<PressFamily>(["tap", "sum", "restraint"], r))
-    append(f);
-  const pool = shuffled([...PRESSURE_FAMILIES], r);
-  for (const f of pool)
-    if (f !== deck.at(-1)?.family) append(f);
-    else {
-      const other = pool.find((x) => x !== f)!;
-      append(other);
-      append(f);
-    }
+  const warmup: PressFamily[] = ["tap", "sum", "restraint"];
+  for (const f of shuffled(warmup, r)) append(f);
+
+  // Schedule source/recall pairs together, separated by 2–6 other levels.
+  // Their random positions cannot strand a recall before its source or beyond level 30.
+  const scheduled = new Map<number, PressFamily>();
+  const source = integer(3, 6, r);
+  scheduled.set(source, "remember-number");
+  scheduled.set(integer(source + 3, source + 7, r), "recall-number");
+  const shapeSource = pick(
+    Array.from({ length: 10 }, (_, i) => i + 3).filter(
+      (i) => !scheduled.has(i),
+    ),
+    r,
+  );
+  scheduled.set(shapeSource, "remember-shapes");
+  const shapeRecall = pick(
+    Array.from({ length: 5 }, (_, i) => shapeSource + 3 + i).filter(
+      (i) => !scheduled.has(i),
+    ),
+    r,
+  );
+  scheduled.set(shapeRecall, "recall-shapes");
+  const paired = new Set(scheduled.values());
+  const pool: PressFamily[] = shuffled(
+    [...PRESSURE_FAMILIES].filter((f) => !warmup.includes(f) && !paired.has(f)),
+    r,
+  );
+  const extras = [...PRESSURE_FAMILIES].filter((f) => !paired.has(f));
   while (deck.length < PRESSURE_LEVELS) {
-    const f = pick(
-      [...PRESSURE_FAMILIES].filter((x) => x !== deck.at(-1)?.family),
-      r,
-    );
-    append(f);
+    const fixed = scheduled.get(deck.length);
+    if (fixed) {
+      append(fixed);
+      continue;
+    }
+    const next = pool.findIndex((f) => f !== deck.at(-1)?.family);
+    if (next >= 0) append(pool.splice(next, 1)[0]);
+    else
+      append(
+        pick(
+          extras.filter((f) => f !== deck.at(-1)?.family),
+          r,
+        ),
+      );
   }
-  return deck.slice(0, PRESSURE_LEVELS);
+  return deck;
 }
+
 export function judgePress(
   level: PressLevel,
   events: PressEvent[],

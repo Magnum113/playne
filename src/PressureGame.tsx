@@ -108,6 +108,11 @@ function Rules() {
         </li>
       </ol>
       <p>
+        Запоминай числа и фигуры, если правило об этом просит: вопрос может
+        вернуться через несколько уровней. Иногда нужно вспомнить и число
+        нажатий на прошлом уровне.
+      </p>
+      <p>
         Счёт, память, логика и реакция чередуются случайно. При новой игре
         меняются задания, числа и порядок. На компьютере можно нажимать мышью,
         пробелом или Enter, на телефоне — пальцем.
@@ -137,6 +142,7 @@ export default function PressureGame() {
     rules = useRef<HTMLDialogElement>(null),
     outcome = useRef<HTMLElement>(null),
     input = useRef<string | null>(null),
+    latestAct = useRef<(type: "down" | "up", source: string) => void>(() => {}),
     generation = useRef(0);
   const level = state.deck[state.index],
     playing = state.phase === "playing";
@@ -214,6 +220,7 @@ export default function PressureGame() {
     const elapsed = Math.max(0, performance.now() - started.current);
     evaluate([...live.current.events, { type, at: elapsed }], elapsed);
   }
+  latestAct.current = act;
   function pause() {
     if (live.current.phase !== "playing" || pausedRef.current) return;
     pausedRef.current = true;
@@ -305,10 +312,39 @@ export default function PressureGame() {
     const hidden = () => {
       if (document.hidden) pause();
     };
-    window.addEventListener("blur", pause);
+    let blurTimer: ReturnType<typeof setTimeout> | undefined;
+    const blur = () => {
+      clearTimeout(blurTimer);
+      // Ignore transient/element focus changes caused by the animated control.
+      blurTimer = setTimeout(() => {
+        if (!document.hasFocus()) pause();
+      }, 80);
+    };
+    const focus = () => clearTimeout(blurTimer);
+    const up = (e: PointerEvent) => {
+      latestAct.current("up", `pointer:${e.pointerId}`);
+    };
+    const keyup = (e: KeyboardEvent) => {
+      if ([" ", "Enter"].includes(e.key))
+        latestAct.current("up", `key:${e.key}`);
+    };
+    const cancel = (e: PointerEvent) => {
+      if (input.current === `pointer:${e.pointerId}`) pause();
+    };
+    // Capture phase also receives release outside the button or after capture loss.
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", cancel, true);
+    window.addEventListener("keyup", keyup, true);
+    window.addEventListener("blur", blur);
+    window.addEventListener("focus", focus);
     document.addEventListener("visibilitychange", hidden);
     return () => {
-      window.removeEventListener("blur", pause);
+      clearTimeout(blurTimer);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", cancel, true);
+      window.removeEventListener("keyup", keyup, true);
+      window.removeEventListener("blur", blur);
+      window.removeEventListener("focus", focus);
       document.removeEventListener("visibilitychange", hidden);
     };
   }, []);
@@ -326,6 +362,14 @@ export default function PressureGame() {
   const holdingTime = held ? state.elapsed - heldFrom : 0;
   let display = level?.display ?? "·";
   if (level?.revealAt && state.elapsed >= level.revealAt) display = "?";
+  if (level?.frames && state.elapsed < (level.revealAt ?? 0)) {
+    const frameTime = state.elapsed - (level.frameStart ?? 0);
+    display =
+      frameTime < 0
+        ? "СМОТРИ"
+        : (level.frames[Math.floor(frameTime / (level.frameMs ?? 1000))] ??
+          "?");
+  }
   if (level?.signal)
     display =
       state.elapsed < level.from
@@ -354,7 +398,7 @@ export default function PressureGame() {
   const contentKey =
     state.phase === "countdown"
       ? `count-${countdown}`
-      : `${state.phase}-${state.index}-${level?.signal || level?.kind === "release" ? display : ""}`;
+      : `${state.phase}-${state.index}-${level?.signal || level?.frames || level?.kind === "release" ? display : ""}`;
   return (
     <div className={`app pressure-app${active ? " pressure-active" : ""}`}>
       <a className="skip-link" href="#pressure-main">
@@ -619,16 +663,18 @@ export default function PressureGame() {
                     onPointerDown={(e) => {
                       if (!e.isPrimary || e.button !== 0) return;
                       e.preventDefault();
-                      e.currentTarget.setPointerCapture(e.pointerId);
+                      if (input.current !== null) return;
                       act("down", `pointer:${e.pointerId}`);
+                      // Capture is an enhancement; global pointerup remains the fallback.
+                      try {
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                      } catch {
+                        /* Pointer already ended. */
+                      }
                     }}
                     onPointerUp={(e) => {
                       e.preventDefault();
                       act("up", `pointer:${e.pointerId}`);
-                    }}
-                    onPointerCancel={pause}
-                    onLostPointerCapture={() => {
-                      if (input.current?.startsWith("pointer:")) pause();
                     }}
                     onKeyDown={(e) => {
                       if (![" ", "Enter"].includes(e.key)) return;
@@ -650,7 +696,7 @@ export default function PressureGame() {
                     <span className="pressure-button-face">
                       <span
                         key={contentKey}
-                        className={`pressure-button-content${state.phase === "countdown" ? " pressure-countdown-beat" : ""}${succeeding || failing ? " pressure-feedback-symbol" : ""} ${playing && level?.family === "word" ? "pressure-word" : ""}`}
+                        className={`pressure-button-content${state.phase === "countdown" ? " pressure-countdown-beat" : ""}${succeeding || failing ? " pressure-feedback-symbol" : ""} ${playing && level?.family === "word" ? "pressure-word" : ""}${playing && level?.family === "politeness" ? " pressure-request" : ""}`}
                       >
                         {state.phase === "countdown"
                           ? countdown

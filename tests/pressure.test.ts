@@ -52,7 +52,13 @@ describe("Pressure generated challenge and replay", () => {
   it("all families and their generated variations are solvable, both locally and on API replay", () => {
     for (const f of PRESSURE_FAMILIES)
       for (let seed = 1; seed <= 30; seed++) {
-        const l = makePressLevel(f, 20, random(seed));
+        const r = random(seed);
+        const history = [
+          makePressLevel("remember-number", 0, r),
+          makePressLevel("remember-shapes", 1, r),
+          makePressLevel("tap", 2, r),
+        ];
+        const l = makePressLevel(f, 20, r, history);
         const t = solvePress(l);
         expect(judgePress(l, t.events, t.elapsed), `${f}: ${l.prompt}`).toEqual(
           { status: "success" },
@@ -60,6 +66,55 @@ describe("Pressure generated challenge and replay", () => {
       }
     const d = makePressDeck(random(42));
     expect(replayPressRun(d, d.map(solvePress)).score).toBe(30);
+    expect(
+      validateAnswer("pressure", { levels: d }, 0, {
+        rounds: d.map(solvePress),
+        score: 999,
+      }),
+    ).toMatchObject({ score: 30, cleared: 30 });
+  });
+  it("links recalls to earlier cues with a gap and computes previous-level rules from real requirements", () => {
+    for (let seed = 1; seed <= 150; seed++) {
+      const deck = makePressDeck(random(seed));
+      for (const [i, l] of deck.entries()) {
+        if (l.family.startsWith("recall-")) {
+          const sourceIndex = l.sourceLevel! - 1;
+          const source = deck[sourceIndex];
+          expect(i - sourceIndex).toBeGreaterThanOrEqual(3);
+          expect(i - sourceIndex).toBeLessThanOrEqual(7);
+          expect(source.memoryCue?.value).toBe(l.count);
+          expect(source.family).toBe(
+            l.family === "recall-number"
+              ? "remember-number"
+              : "remember-shapes",
+          );
+          expect(l.display).toBeUndefined();
+        }
+        if (["previous-count", "previous-plus"].includes(l.family)) {
+          expect(i).toBeGreaterThan(0);
+          expect(l.count).toBe(
+            deck[i - 1].count + (l.family === "previous-plus" ? 1 : 0),
+          );
+        }
+      }
+    }
+    const wait = makePressLevel("restraint", 0, () => 0);
+    const repeat = makePressLevel("previous-count", 1, () => 0, [wait]);
+    expect(repeat.kind).toBe("wait");
+    expect(judgePress(repeat, [], repeat.duration).status).toBe("success");
+    expect(makePressLevel("previous-plus", 1, () => 0, [wait]).count).toBe(1);
+    expect(() => makePressLevel("recall-number", 0)).toThrow();
+  });
+  it("does not accept sequence answers before all three numbers have disappeared", () => {
+    const l = makePressLevel("sequence", 0, random(12));
+    expect(l.frames).toHaveLength(3);
+    expect(new Set(l.frames).size).toBe(3);
+    expect(l.revealAt).toBe(l.frameStart! + l.frameMs! * 3);
+    expect(
+      judgePress(l, [{ type: "down", at: l.from - 1 }], l.from - 1).reason,
+    ).toBe("Слишком рано.");
+    const trace = solvePress(l);
+    expect(judgePress(l, trace.events, trace.elapsed).status).toBe("success");
   });
   it("rejects early signals, late holds, extra taps, and actions on do-not-press levels", () => {
     const tap = makePressLevel("tap", 0, () => 0);

@@ -33,6 +33,7 @@ afterEach(() => {
   container.remove();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 async function begin(family: Parameters<typeof makePressLevel>[0]) {
   const l = makePressLevel(family, 0, () => 0);
@@ -109,11 +110,104 @@ describe("Pressure input and completion lifecycle", () => {
     await act(async () => vi.advanceTimersByTime(l.duration + 50));
     expect(container.textContent).toContain("Есть. Следующее правило");
   });
+  it("keeps playing after lost capture and another pointer's cancel, and receives release outside the button", async () => {
+    await begin("tap");
+    const button = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Игровая кнопка"]',
+    )!;
+    button.setPointerCapture = vi.fn();
+    act(() =>
+      button.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          pointerId: 7,
+          isPrimary: true,
+          button: 0,
+        }),
+      ),
+    );
+    act(() => {
+      button.dispatchEvent(
+        new PointerEvent("lostpointercapture", { bubbles: true, pointerId: 7 }),
+      );
+      button.dispatchEvent(
+        new PointerEvent("pointercancel", { bubbles: true, pointerId: 99 }),
+      );
+    });
+    expect(container.textContent).not.toContain("Продолжим?");
+    act(() =>
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 7 })),
+    );
+    await act(async () => vi.advanceTimersByTime(450));
+    expect(container.textContent).toContain("Есть. Следующее правило");
+    await act(async () => vi.advanceTimersByTime(750));
+    expect(container.textContent).toContain("УРОВЕНЬ 2");
+  });
+  it("receives keyboard release after focus moves outside the game button", async () => {
+    await begin("hold");
+    act(() => key("keydown"));
+    await act(async () => vi.advanceTimersByTime(1000));
+    act(() => window.dispatchEvent(new KeyboardEvent("keyup", { key: " " })));
+    await act(async () => vi.advanceTimersByTime(450));
+    expect(container.textContent).toContain("Есть. Следующее правило");
+  });
+  it("pauses only for cancellation of the active gesture or real window focus loss", async () => {
+    await begin("hold");
+    const button = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Игровая кнопка"]',
+    )!;
+    button.setPointerCapture = vi.fn();
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    act(() => window.dispatchEvent(new FocusEvent("blur")));
+    await act(async () => vi.advanceTimersByTime(100));
+    expect(container.textContent).not.toContain("Продолжим?");
+    act(() =>
+      button.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          pointerId: 7,
+          isPrimary: true,
+          button: 0,
+        }),
+      ),
+    );
+    act(() =>
+      window.dispatchEvent(new PointerEvent("pointercancel", { pointerId: 7 })),
+    );
+    expect(container.textContent).toContain("Продолжим?");
+    expect(mocks.submit).not.toHaveBeenCalled();
+  });
+  it("shows sequence numbers in order before revealing the answer phase", async () => {
+    await begin("sequence");
+    expect(
+      container.querySelector(".pressure-button-content")!.textContent,
+    ).toBe("СМОТРИ");
+    // This seeded level has known timed frames; sample the visible control at each boundary.
+    const level = makePressLevel("sequence", 0, () => 0);
+    await act(async () => vi.advanceTimersByTime(1450));
+    expect(
+      container.querySelector(".pressure-button-content")!.textContent,
+    ).toBe(level.frames![0]);
+    await act(async () => vi.advanceTimersByTime(1000));
+    expect(
+      container.querySelector(".pressure-button-content")!.textContent,
+    ).toBe(level.frames![1]);
+    await act(async () => vi.advanceTimersByTime(1000));
+    expect(
+      container.querySelector(".pressure-button-content")!.textContent,
+    ).toBe(level.frames![2]);
+    await act(async () => vi.advanceTimersByTime(1000));
+    expect(
+      container.querySelector(".pressure-button-content")!.textContent,
+    ).toBe("?");
+  });
   it("pauses on blur, resets current-level input on resume, and keeps completed levels", async () => {
     await begin("hold");
     act(() => key("keydown"));
     await act(async () => vi.advanceTimersByTime(500));
-    act(() => window.dispatchEvent(new Event("blur")));
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    act(() => window.dispatchEvent(new FocusEvent("blur")));
+    await act(async () => vi.advanceTimersByTime(100));
     expect(container.textContent).toContain("Продолжим?");
     await act(async () => vi.advanceTimersByTime(20000));
     expect(mocks.submit).not.toHaveBeenCalled();
