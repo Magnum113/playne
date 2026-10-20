@@ -2,6 +2,13 @@
 export const PRESSURE_LEVELS = 30;
 // Thirty is a generation batch, not an endless game's level limit.
 export const PRESSURE_RULES_VERSION = 2;
+export function pressScoreWord(score: number) {
+  const n = Math.abs(Math.round(score)) % 100;
+  if (n >= 11 && n <= 14) return "очков";
+  return n % 10 === 1 ? "очко" : n % 10 >= 2 && n % 10 <= 4 ? "очка" : "очков";
+}
+export const formatPressScore = (score: number) =>
+  `${Math.round(score)} ${pressScoreWord(score)}`;
 export type PressKind =
   "count" | "wait" | "window" | "hold" | "release" | "double";
 export type PressEvent = { type: "down" | "up"; at: number };

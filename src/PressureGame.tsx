@@ -6,6 +6,8 @@ import PressureAbout from "./PressureAbout";
 import { PRESSURE_GOALS, reachGoal } from "./analytics";
 import {
   appendPressBatch,
+  formatPressScore,
+  pressScoreWord,
   PRESSURE_RULES_VERSION,
   judgePress,
   readPressStats,
@@ -503,7 +505,7 @@ export default function PressureGame() {
               </li>
             </ol>
             <p className="pressure-best">
-              Твой рекорд: <strong>{stats.best} очк.</strong> ·{" "}
+              Твой рекорд: <strong>{formatPressScore(stats.best)}</strong> ·{" "}
               <a href="/leaderboard/?game=pressure">Рейтинг →</a>
             </p>
           </section>
@@ -512,7 +514,7 @@ export default function PressureGame() {
             <p className="eyebrow">ПОПЫТКА ЗАВЕРШЕНА</p>
             <h2>
               {state.cleared}
-              <span> очк.</span>
+              <span> {pressScoreWord(state.cleared)}</span>
             </h2>
             <p className="pressure-result-lead">{state.reason}</p>
             {state.reason && (
@@ -527,7 +529,7 @@ export default function PressureGame() {
             )}
             <div className="pressure-result-stats">
               <span>
-                Лучший результат <strong>{stats.best} очк.</strong>
+                Лучший результат <strong>{formatPressScore(stats.best)}</strong>
               </span>
               <span>
                 Попыток <strong>{stats.played}</strong>

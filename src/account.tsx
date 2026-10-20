@@ -6,7 +6,7 @@ import {
   type ServerRun,
 } from "./rankedQueue";
 import { SHADE_SCORE_VERSION } from "./colorfle";
-import { PRESSURE_RULES_VERSION } from "./pressure";
+import { PRESSURE_RULES_VERSION, formatPressScore } from "./pressure";
 import { pairs } from "./data";
 import {
   GEO_MAX_POINTS,
@@ -505,7 +505,7 @@ export const resultText = (
   version = GEO_SCORE_VERSION,
 ) =>
   game === "pressure"
-    ? `${Math.round(score)} очк.`
+    ? formatPressScore(score)
     : game === "circle"
       ? `${score.toFixed(1).replace(".", ",")}%`
       : `${geoPoints(score)} / ${game === "geo" && version !== 1 ? geoPoints(GEO_MAX_POINTS) : "500"}`;

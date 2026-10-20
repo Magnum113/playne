@@ -1,5 +1,5 @@
 import { PressurePreview } from "./PressureGame";
-import { readPressStats } from "./pressure";
+import { readPressStats, formatPressScore } from "./pressure";
 import { AccountNav } from "./account";
 import FooterLinks from "./FooterLinks";
 import { DestroyWebsiteLink, PlayneBrand, ThemeToggle } from "./SiteHeader";
@@ -352,7 +352,7 @@ export default function Hub() {
               <div className="card-bottom">
                 <span>
                   {pressureBest > 0
-                    ? `Твой рекорд: ${pressureBest} очк.`
+                    ? `Твой рекорд: ${formatPressScore(pressureBest)}`
                     : "До первой ошибки · без ограничения уровней"}
                 </span>
                 <span className="card-play">
