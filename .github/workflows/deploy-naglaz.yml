@@ -319,7 +319,7 @@ jobs:
           curl --fail --silent --show-error https://playne.ru/api/health --output "$RUNNER_TEMP/playne-api-health.json"
           grep -Fq "$GITHUB_SHA" "$RUNNER_TEMP/playne-api-health.json"
 
-          for public_path in account/index.html leaderboard/index.html privacy/index.html terms/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html guides/geoguessr/index.html; do
+          for public_path in pressure/index.html account/index.html leaderboard/index.html privacy/index.html terms/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html guides/geoguessr/index.html; do
             request_path="${public_path%index.html}"
             curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 "https://playne.ru/$request_path" --output "$RUNNER_TEMP/seo-response"
             cmp "dist/$public_path" "$RUNNER_TEMP/seo-response"

@@ -11,6 +11,14 @@ export type PageMeta = {
 };
 export const pages: PageMeta[] = [
   {
+    path: "/pressure/",
+    title: "Жми — игра на реакцию и внимательность | Playne",
+    description:
+      "Игра по мотивам Pressing Under Pressure на русском: одна кнопка, 30 случайных уровней на логику, память и реакцию. Нажимай, удерживай или жди. Бесплатно, на телефоне и компьютере.",
+    kind: "game",
+    name: "Жми",
+  },
+  {
     path: "/leaderboard/",
     title: "Рейтинг игроков — лучшие результаты игр | Playne",
     description:

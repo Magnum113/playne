@@ -19,13 +19,15 @@ CREATE TABLE IF NOT EXISTS playne_oauth_states (
 CREATE TABLE IF NOT EXISTS playne_games (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), browser_hash char(64) NOT NULL,
  owner_id uuid REFERENCES playne_users(id) ON DELETE CASCADE,
- game text NOT NULL CHECK(game IN('naglaz','circle','colorfle','geo')),
+ game text NOT NULL CHECK(game IN('naglaz','circle','colorfle','geo','pressure')),
  version integer NOT NULL DEFAULT 1, challenge jsonb NOT NULL, answers jsonb NOT NULL DEFAULT '[]',
  score_units integer, completed_at timestamptz, published_at timestamptz,
  expires_at timestamptz NOT NULL DEFAULT now()+interval '24 hours', created_at timestamptz NOT NULL DEFAULT now(),
  CHECK(score_units IS NULL OR score_units BETWEEN 0 AND 5000),
  CHECK(published_at IS NULL OR (completed_at IS NOT NULL AND owner_id IS NOT NULL AND score_units IS NOT NULL))
 );
+ALTER TABLE playne_games DROP CONSTRAINT IF EXISTS playne_games_game_check;
+ALTER TABLE playne_games ADD CONSTRAINT playne_games_game_check CHECK(game IN('naglaz','circle','colorfle','geo','pressure'));
 ALTER TABLE playne_games ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'classic';
 ALTER TABLE playne_games DROP CONSTRAINT IF EXISTS playne_games_score_units_check;
 ALTER TABLE playne_games ADD CONSTRAINT playne_games_score_units_check CHECK(score_units IS NULL OR score_units BETWEEN 0 AND 250000);

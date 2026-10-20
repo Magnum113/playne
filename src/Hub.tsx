@@ -1,3 +1,5 @@
+import { PressurePreview } from "./PressureGame";
+import { readPressStats } from "./pressure";
 import { AccountNav } from "./account";
 import FooterLinks from "./FooterLinks";
 import { DestroyWebsiteLink, PlayneBrand, ThemeToggle } from "./SiteHeader";
@@ -151,6 +153,7 @@ function ColorPreview() {
 
 export default function Hub() {
   const best = readBest();
+  const pressureBest = readPressStats().best;
   const circleBest = readCircleBest();
   const geoBest = readGeoStats().best;
   const landmarkBest = readGeoStats("landmarks").best;
@@ -180,7 +183,7 @@ export default function Hub() {
               <h1 id="games-title">Во что сыграем?</h1>
             </div>
             <p>
-              Проверь глазомер, точность и знание мира.
+              Проверь глазомер, реакцию и знание мира.
               <br /> Без скачивания и регистрации.
             </p>
           </div>
@@ -321,6 +324,36 @@ export default function Hub() {
                   {landmarkBest > 0
                     ? `Твой рекорд: ${landmarkBest.toLocaleString("ru-RU")} / 500`
                     : "5 мест · 500 очков"}
+                </span>
+                <span className="card-play">
+                  Играть <Arrow />
+                </span>
+              </div>
+            </a>
+            <a
+              className="game-card game-card-live"
+              href="/pressure/"
+              aria-label="Играть в Жми"
+            >
+              <div className="card-topline">
+                <span className="card-category">ВНИМАТЕЛЬНОСТЬ И РЕАКЦИЯ</span>
+              </div>
+              <PressurePreview />
+              <div className="card-copy">
+                <h2>
+                  Жми<span className="brand-dot">.</span>
+                </h2>
+                <p>
+                  Одна кнопка, тридцать разных правил.
+                  <br />
+                  Нажать, удержать или ничего не делать?
+                </p>
+              </div>
+              <div className="card-bottom">
+                <span>
+                  {pressureBest > 0
+                    ? `Твой рекорд: ${pressureBest} / 30`
+                    : "30 уровней · одна попытка"}
                 </span>
                 <span className="card-play">
                   Играть <Arrow />

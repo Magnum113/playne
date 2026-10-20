@@ -1,3 +1,4 @@
+import { makePressDeck, replayPressRun } from "../src/pressure";
 import { chooseRounds, objects, pairs } from "../src/data";
 import { score } from "../src/game";
 import { evaluateCircle } from "../src/circle";
@@ -24,6 +25,7 @@ export const GAME_NAMES = {
   circle: "Круг",
   colorfle: "Оттенок",
   geo: "Где я?",
+  pressure: "Жми",
 } as const;
 export type GameId = keyof typeof GAME_NAMES;
 export const isGame = (v: unknown): v is GameId =>
@@ -66,6 +68,7 @@ export function makeChallenge(
   recent: string[] = [],
   mode: GeoMode = "classic",
 ) {
+  if (game === "pressure") return { levels: makePressDeck(Math.random, recent) };
   if (game === "naglaz")
     return { pairIds: chooseRounds(recent).map((p) => p.id) };
   if (game === "colorfle")
@@ -94,6 +97,10 @@ export function validateAnswer(
   now = Date.now(),
   version = 4,
 ) {
+  if (game === "pressure") {
+    if (index !== 0) throw new Error("Некорректная попытка");
+    return replayPressRun(challenge.levels, input?.rounds);
+  }
   if (game === "naglaz") {
     const pair = pairs.find((p) => p.id === challenge.pairIds[index]);
     if (
@@ -230,7 +237,7 @@ export function initialNickname(profile: any) {
 }
 export function safeReturn(value: unknown) {
   return typeof value === "string" &&
-    /^\/(?:account|naglaz|circle|colorfle|geo|leaderboard)\/(?:\?claim=[0-9a-f-]{36})?$/.test(
+    /^\/(?:account|naglaz|circle|colorfle|geo|pressure|leaderboard)\/(?:\?claim=[0-9a-f-]{36})?$/.test(
       value,
     )
     ? value

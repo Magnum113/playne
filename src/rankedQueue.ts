@@ -108,7 +108,7 @@ export function createRankedQueue(
         if (
           !p ||
           !uuid(p.key) ||
-          !["naglaz", "circle", "colorfle", "geo"].includes(p.game) ||
+          !["naglaz", "circle", "colorfle", "geo", "pressure"].includes(p.game) ||
           !Array.isArray(p.tasks) ||
           p.tasks.length > 5 ||
           !Number.isFinite(p.updated) ||

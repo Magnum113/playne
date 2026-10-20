@@ -1,0 +1,670 @@
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { AccountNav, SaveResult, useRankedRun } from "./account";
+import { PlayneBrand, ThemeToggle } from "./SiteHeader";
+import FooterLinks from "./FooterLinks";
+import { PRESSURE_GOALS, reachGoal } from "./analytics";
+import {
+  PRESSURE_LEVELS,
+  makePressDeck,
+  judgePress,
+  readPressStats,
+  savePressStats,
+  type PressEvent,
+  type PressLevel,
+  type PressStats,
+  type PressTrace,
+} from "./pressure";
+import "./pressure.css";
+type Phase = "welcome" | "countdown" | "playing" | "between" | "finished";
+type BoardState = {
+  phase: Phase;
+  deck: PressLevel[];
+  index: number;
+  events: PressEvent[];
+  elapsed: number;
+  traces: PressTrace[];
+  cleared: number;
+  reason?: string;
+};
+const initial: BoardState = {
+  phase: "welcome",
+  deck: [],
+  index: 0,
+  events: [],
+  elapsed: 0,
+  traces: [],
+  cleared: 0,
+};
+export function PressurePreview() {
+  return (
+    <svg
+      className="size-preview pressure-preview"
+      viewBox="0 0 420 190"
+      aria-hidden="true"
+    >
+      <circle
+        cx="210"
+        cy="94"
+        r="73"
+        fill="none"
+        stroke="var(--line)"
+        strokeWidth="7"
+      />
+      <circle
+        cx="210"
+        cy="94"
+        r="73"
+        fill="none"
+        stroke="var(--mint)"
+        strokeWidth="7"
+        strokeDasharray="330 460"
+        strokeLinecap="round"
+        transform="rotate(-90 210 94)"
+      />
+      <circle cx="210" cy="101" r="57" fill="var(--purple)" opacity=".2" />
+      <circle cx="210" cy="93" r="57" fill="var(--purple-soft)" />
+      <text
+        x="210"
+        y="100"
+        textAnchor="middle"
+        fill="#292133"
+        fontSize="21"
+        fontWeight="650"
+      >
+        ЖМИ
+      </text>
+      <path
+        d="m285 133 23 18-13 3-6 13Z"
+        fill="var(--panel)"
+        stroke="var(--mint)"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function Rules() {
+  return (
+    <div className="pressure-rules-copy">
+      <p>Одна большая кнопка, но новое правило на каждом уровне.</p>
+      <ol>
+        <li>
+          Прочитай задание. Иногда нужно нажать, иногда — ничего не делать.
+        </li>
+        <li>
+          Для удержания зажми кнопку и отпусти в нужный момент. Для обычных
+          нажатий каждый раз отпускай её.
+        </li>
+        <li>
+          Следи за таймером. «Прошло» считает время от начала уровня, кольцо
+          показывает оставшееся.
+        </li>
+        <li>
+          Одна ошибка заканчивает попытку. Твой результат — число пройденных
+          уровней из 30.
+        </li>
+      </ol>
+      <p>
+        Счёт, память, логика и реакция чередуются случайно. При новой игре
+        меняются задания, числа и порядок. На компьютере можно нажимать мышью,
+        пробелом или Enter, на телефоне — пальцем.
+      </p>
+      <p>
+        При уходе из вкладки игра приостанавливается. После возвращения текущий
+        уровень начнётся заново.
+      </p>
+    </div>
+  );
+}
+export default function PressureGame() {
+  const ranked = useRankedRun("pressure");
+  const [state, setState] = useState<BoardState>(initial),
+    live = useRef(state);
+  const [stats, setStats] = useState<PressStats>(readPressStats),
+    statsRef = useRef(stats);
+  const [loading, setLoading] = useState(false),
+    [paused, setPaused] = useState(false),
+    [countdown, setCountdown] = useState(3),
+    [online, setOnline] = useState(false);
+  const pausedRef = useRef(false),
+    started = useRef(0),
+    button = useRef<HTMLButtonElement>(null),
+    rules = useRef<HTMLDialogElement>(null),
+    outcome = useRef<HTMLElement>(null),
+    input = useRef<string | null>(null),
+    generation = useRef(0);
+  const level = state.deck[state.index],
+    playing = state.phase === "playing";
+  function update(next: BoardState) {
+    live.current = next;
+    setState(next);
+  }
+  function complete(next: BoardState) {
+    input.current = null;
+    update(next);
+    const old = statsRef.current;
+    const saved = {
+      best: Math.max(old.best, next.cleared),
+      played: old.played + 1,
+      recent: next.deck.map((x) => x.id),
+    };
+    statsRef.current = saved;
+    setStats(saved);
+    savePressStats(saved);
+    if (online) ranked.submit(0, { rounds: next.traces });
+    reachGoal(PRESSURE_GOALS.gameComplete, {
+      score: next.cleared,
+      level_count: PRESSURE_LEVELS,
+      won: next.cleared === PRESSURE_LEVELS,
+      reason: next.reason ?? "complete",
+    });
+  }
+  function evaluate(events: PressEvent[], elapsed: number) {
+    const s = live.current;
+    if (s.phase !== "playing" || pausedRef.current) return;
+    const verdict = judgePress(s.deck[s.index], events, elapsed);
+    if (verdict.status === "playing") {
+      update({ ...s, events, elapsed });
+      return;
+    }
+    const traces = [...s.traces, { events, elapsed }];
+    if (verdict.status === "failure") {
+      complete({
+        ...s,
+        events,
+        elapsed,
+        traces,
+        phase: "finished",
+        reason: verdict.reason,
+      });
+      return;
+    }
+    reachGoal(PRESSURE_GOALS.levelComplete, {
+      level: s.index + 1,
+      family: s.deck[s.index].family,
+    });
+    const next = {
+      ...s,
+      events,
+      elapsed,
+      traces,
+      cleared: s.cleared + 1,
+      phase: "between" as Phase,
+    };
+    input.current = null;
+    if (next.cleared === PRESSURE_LEVELS)
+      complete({ ...next, phase: "finished" });
+    else update(next);
+  }
+  function act(type: "down" | "up", source: string) {
+    if (live.current.phase !== "playing" || pausedRef.current) return;
+    if (type === "down") {
+      if (input.current !== null) return;
+      input.current = source;
+    } else {
+      if (input.current !== source) return;
+      input.current = null;
+    }
+    const elapsed = Math.max(0, performance.now() - started.current);
+    evaluate([...live.current.events, { type, at: elapsed }], elapsed);
+  }
+  function pause() {
+    if (live.current.phase !== "playing" || pausedRef.current) return;
+    pausedRef.current = true;
+    input.current = null;
+    setPaused(true);
+  }
+  function resume() {
+    input.current = null;
+    started.current = performance.now();
+    update({ ...live.current, events: [], elapsed: 0 });
+    pausedRef.current = false;
+    setPaused(false);
+    button.current?.focus({ preventScroll: true });
+  }
+  async function begin() {
+    if (loading) return;
+    const gen = ++generation.current;
+    setLoading(true);
+    pausedRef.current = false;
+    setPaused(false);
+    const previous = live.current.phase === "finished";
+    const data = await ranked.begin();
+    if (gen !== generation.current) return;
+    setOnline(!!data);
+    const deck =
+      data?.challenge?.levels ??
+      makePressDeck(Math.random, statsRef.current.recent);
+    setCountdown(3);
+    update({ ...initial, deck, phase: "countdown" });
+    setLoading(false);
+    if (previous) reachGoal(PRESSURE_GOALS.gameRestart);
+    reachGoal(PRESSURE_GOALS.gameStart, {
+      level_count: PRESSURE_LEVELS,
+      online: !!data,
+    });
+  }
+  useEffect(
+    () => () => {
+      generation.current++;
+    },
+    [],
+  );
+  useEffect(() => {
+    if (state.phase !== "countdown") return;
+    setCountdown(3);
+    let n = 3;
+    const t = setInterval(() => {
+      n--;
+      setCountdown(n);
+      if (!n) {
+        clearInterval(t);
+        started.current = performance.now();
+        update({ ...live.current, phase: "playing" });
+      }
+    }, 650);
+    return () => clearInterval(t);
+  }, [state.phase]);
+  useEffect(() => {
+    if (state.phase !== "between") return;
+    const t = setTimeout(() => {
+      started.current = performance.now();
+      update({
+        ...live.current,
+        index: live.current.index + 1,
+        events: [],
+        elapsed: 0,
+        phase: "playing",
+      });
+    }, 700);
+    return () => clearTimeout(t);
+  }, [state.phase]);
+  useEffect(() => {
+    if (!playing || paused) return;
+    button.current?.focus({ preventScroll: true });
+    const t = setInterval(
+      () =>
+        evaluate(
+          live.current.events,
+          Math.max(0, performance.now() - started.current),
+        ),
+      32,
+    );
+    return () => clearInterval(t);
+  }, [playing, paused, state.index]);
+  useEffect(() => {
+    const hidden = () => {
+      if (document.hidden) pause();
+    };
+    window.addEventListener("blur", pause);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      window.removeEventListener("blur", pause);
+      document.removeEventListener("visibilitychange", hidden);
+    };
+  }, []);
+  useEffect(() => {
+    if (state.phase === "finished")
+      outcome.current?.focus({ preventScroll: true });
+  }, [state.phase]);
+  const held = state.events.at(-1)?.type === "down",
+    heldFrom = held ? state.events.at(-1)!.at : 0;
+  const holdingTime = held ? state.elapsed - heldFrom : 0;
+  let display = level?.display ?? "·";
+  if (level?.revealAt && state.elapsed >= level.revealAt) display = "?";
+  if (level?.signal)
+    display =
+      state.elapsed < level.from
+        ? "ЖДИ"
+        : state.elapsed < level.to
+          ? "ЖМИ"
+          : "ПОЗДНО";
+  if (level?.kind === "release")
+    display = held
+      ? holdingTime >= level.from
+        ? "ОТПУСТИ"
+        : "ДЕРЖИ"
+      : "ЗАЖМИ";
+  if (level?.kind === "hold")
+    display = held
+      ? `${(holdingTime / 1000).toFixed(1).replace(".", ",")} с`
+      : "ЗАЖМИ";
+  const fraction = level ? Math.max(0, 1 - state.elapsed / level.duration) : 1;
+  const taps = state.events.filter((e) => e.type === "up").length;
+  return (
+    <div
+      className={`app pressure-app${["playing", "between", "countdown"].includes(state.phase) ? " pressure-active" : ""}`}
+    >
+      <a className="skip-link" href="#pressure-main">
+        Перейти к игре
+      </a>
+      <header className="header">
+        <PlayneBrand />
+        <nav className="game-header-actions" aria-label="Навигация">
+          <a className="back-to-hub" href="/">
+            ← Все игры
+          </a>
+          <AccountNav />
+          <ThemeToggle />
+        </nav>
+      </header>
+      <main id="pressure-main" className="pressure-main">
+        <div className="pressure-heading">
+          <div>
+            <p className="eyebrow">ВНИМАТЕЛЬНОСТЬ ПОД ДАВЛЕНИЕМ</p>
+            <h1>
+              Жми<span className="brand-dot">.</span>
+            </h1>
+            <p>Сначала прочитай. Потом решай.</p>
+          </div>
+          <button
+            className="help-button"
+            onClick={() => {
+              pause();
+              rules.current?.showModal();
+              reachGoal(PRESSURE_GOALS.rulesOpen);
+            }}
+          >
+            Как играть{" "}
+            <span className="question" aria-hidden="true">
+              ?
+            </span>
+          </button>
+        </div>
+        {state.phase === "welcome" ? (
+          <section className="pressure-welcome">
+            <div className="pressure-welcome-copy">
+              <p className="eyebrow">ОДНА КНОПКА · 30 УРОВНЕЙ</p>
+              <h2>
+                Палец хочет нажать.
+                <br />
+                <span>А правило разрешает?</span>
+              </h2>
+              <p>
+                Считай, запоминай, лови момент. Иногда лучший ход — вообще
+                ничего не делать. Одна ошибка, и начинаем сначала.
+              </p>
+              <button
+                className="primary"
+                disabled={loading}
+                onClick={() => void begin()}
+              >
+                {loading ? "Готовим задания…" : "Начать игру"}{" "}
+                <span aria-hidden="true">↗</span>
+              </button>
+              <small>Бесплатно. Новая подборка в каждой попытке.</small>
+            </div>
+            <div className="pressure-welcome-art">
+              <PressurePreview />
+              <span className="pressure-art-label">НЕ СПЕШИ НАЖИМАТЬ</span>
+            </div>
+            <ol className="pressure-steps">
+              <li>
+                <span>01</span>
+                <div>
+                  Читай правило<small>Оно меняется на каждом уровне.</small>
+                </div>
+              </li>
+              <li>
+                <span>02</span>
+                <div>
+                  Следи за временем<small>Нажми, удерживай или жди.</small>
+                </div>
+              </li>
+              <li>
+                <span>03</span>
+                <div>
+                  Пройди все 30<small>Сколько выдержишь без ошибки?</small>
+                </div>
+              </li>
+            </ol>
+            <p className="pressure-best">
+              Твой рекорд: <strong>{stats.best} из 30</strong> ·{" "}
+              <a href="/leaderboard/?game=pressure">Рейтинг →</a>
+            </p>
+          </section>
+        ) : state.phase === "finished" ? (
+          <section className="pressure-result" ref={outcome} tabIndex={-1}>
+            <p className="eyebrow">
+              {state.cleared === 30
+                ? "ВСЕ УРОВНИ ПРОЙДЕНЫ"
+                : "ПОПЫТКА ЗАВЕРШЕНА"}
+            </p>
+            <h2>
+              {state.cleared}
+              <span> / 30</span>
+            </h2>
+            <p className="pressure-result-lead">
+              {state.cleared === 30
+                ? "Стальные нервы. Ни одной ошибки."
+                : state.reason}
+            </p>
+            {state.reason && (
+              <div className="pressure-explanation">
+                <span>УРОВЕНЬ {state.index + 1}</span>
+                <h3>{level.prompt}</h3>
+                {level.display && (
+                  <p className="pressure-result-display">{level.display}</p>
+                )}
+                <p>{level.explanation}</p>
+              </div>
+            )}
+            <div className="pressure-result-stats">
+              <span>
+                Лучший результат <strong>{stats.best} / 30</strong>
+              </span>
+              <span>
+                Попыток <strong>{stats.played}</strong>
+              </span>
+            </div>
+            <button
+              className="primary"
+              disabled={loading}
+              onClick={() => void begin()}
+            >
+              {loading ? "Готовим задания…" : "Попробовать ещё"}{" "}
+              <span aria-hidden="true">↗</span>
+            </button>
+            <p className="pressure-new-deck">
+              Следующая попытка — новые задания и порядок.
+            </p>
+            {online ? (
+              <SaveResult run={ranked} game="pressure" />
+            ) : (
+              <p className="pressure-offline">
+                Рекорд сохранён на этом устройстве. Для общего рейтинга начни
+                игру при подключении к серверу.
+              </p>
+            )}
+          </section>
+        ) : (
+          <section className="pressure-play" aria-label="Игровое поле">
+            <div className="pressure-topline">
+              <span>
+                УРОВЕНЬ <strong>{state.index + 1}</strong> / 30
+              </span>
+              <span>
+                Рекорд <strong>{stats.best}</strong>
+              </span>
+              <button
+                className="pressure-pause"
+                onClick={pause}
+                disabled={!playing || paused}
+                aria-label="Пауза"
+              >
+                Ⅱ
+              </button>
+            </div>
+            <div
+              className="pressure-progress"
+              role="progressbar"
+              aria-label="Пройдено уровней"
+              aria-valuenow={state.cleared}
+              aria-valuemin={0}
+              aria-valuemax={30}
+            >
+              <span style={{ width: `${(state.cleared / 30) * 100}%` }} />
+            </div>
+            {paused ? (
+              <div className="pressure-pause-screen">
+                <p className="eyebrow">ПАУЗА</p>
+                <h2>Продолжим?</h2>
+                <p>
+                  Этот уровень начнётся заново.
+                  <br />
+                  Пройденные уровни остаются.
+                </p>
+                <button className="primary" onClick={resume}>
+                  Продолжить →
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="pressure-instruction" aria-live="polite">
+                  <p className="eyebrow">
+                    {state.phase === "countdown"
+                      ? "ПРИГОТОВЬСЯ"
+                      : state.phase === "between"
+                        ? "ВЕРНО"
+                        : "СЛЕДУЙ ПРАВИЛУ"}
+                  </p>
+                  <h2>
+                    {state.phase === "countdown"
+                      ? "Сначала правило. Затем кнопка."
+                      : state.phase === "between"
+                        ? "Есть. Следующее правило…"
+                        : level.prompt}
+                  </h2>
+                </div>
+                <div
+                  className={`pressure-button-wrap${fraction < 0.25 ? " urgent" : ""}${state.phase === "between" ? " is-success" : ""}`}
+                  style={{ "--pressure-progress": fraction } as CSSProperties}
+                >
+                  <svg
+                    className="pressure-ring"
+                    viewBox="0 0 360 360"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      className="pressure-ring-track"
+                      cx="180"
+                      cy="180"
+                      r="168"
+                    />
+                    <circle
+                      className="pressure-ring-fill"
+                      cx="180"
+                      cy="180"
+                      r="168"
+                      pathLength="100"
+                      strokeDasharray="100"
+                      strokeDashoffset={100 * (1 - fraction)}
+                    />
+                  </svg>
+                  <button
+                    ref={button}
+                    className={`pressure-button${held ? " is-held" : ""}`}
+                    disabled={!playing}
+                    aria-label="Игровая кнопка"
+                    onContextMenu={(e) => e.preventDefault()}
+                    onPointerDown={(e) => {
+                      if (!e.isPrimary || e.button !== 0) return;
+                      e.preventDefault();
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      act("down", `pointer:${e.pointerId}`);
+                    }}
+                    onPointerUp={(e) => {
+                      e.preventDefault();
+                      act("up", `pointer:${e.pointerId}`);
+                    }}
+                    onPointerCancel={pause}
+                    onLostPointerCapture={() => {
+                      if (input.current?.startsWith("pointer:")) pause();
+                    }}
+                    onKeyDown={(e) => {
+                      if (![" ", "Enter"].includes(e.key)) return;
+                      e.preventDefault();
+                      if (!e.repeat) act("down", `key:${e.key}`);
+                    }}
+                    onKeyUp={(e) => {
+                      if (![" ", "Enter"].includes(e.key)) return;
+                      e.preventDefault();
+                      act("up", `key:${e.key}`);
+                    }}
+                    onClick={(e) => {
+                      if (e.detail === 0 && !input.current) {
+                        act("down", "assistive");
+                        act("up", "assistive");
+                      }
+                    }}
+                  >
+                    <span
+                      className={`pressure-button-content ${level?.family === "word" ? "pressure-word" : ""}`}
+                    >
+                      {state.phase === "countdown"
+                        ? countdown
+                        : state.phase === "between"
+                          ? "✓"
+                          : display}
+                    </span>
+                  </button>
+                </div>
+                <div className="pressure-readout">
+                  <span>
+                    Прошло{" "}
+                    <strong>
+                      {(state.elapsed / 1000).toFixed(1).replace(".", ",")} с
+                    </strong>
+                  </span>
+                  <span>
+                    Нажатий <strong>{taps}</strong>
+                  </span>
+                  <span>
+                    Осталось{" "}
+                    <strong>
+                      {Math.max(
+                        0,
+                        ((level?.duration ?? 0) - state.elapsed) / 1000,
+                      )
+                        .toFixed(1)
+                        .replace(".", ",")}{" "}
+                      с
+                    </strong>
+                  </span>
+                </div>
+                <p className="pressure-input-tip">
+                  Палец, мышь или пробел. Удерживать — значит не отпускать.
+                </p>
+              </>
+            )}
+          </section>
+        )}
+      </main>
+      <footer className="color-footer">
+        <span>Одна кнопка. Каждый раз новое правило.</span>
+        <a href="/">Все игры Playne ↗</a>
+        <FooterLinks />
+      </footer>
+      <dialog
+        ref={rules}
+        className="color-rules-dialog"
+        aria-labelledby="pressure-rules-title"
+      >
+        <div className="dialog-top">
+          <h2 id="pressure-rules-title">Как играть в «Жми»</h2>
+          <button
+            className="color-dialog-close"
+            aria-label="Закрыть правила"
+            onClick={() => rules.current?.close()}
+          >
+            ×
+          </button>
+        </div>
+        <Rules />
+        <button className="primary" onClick={() => rules.current?.close()}>
+          Понятно
+        </button>
+      </dialog>
+    </div>
+  );
+}

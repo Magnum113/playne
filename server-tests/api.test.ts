@@ -971,6 +971,77 @@ suite("Playne database and OAuth integration", () => {
     expect(complete.published).toBe(false);
     expect(complete.answers).toHaveLength(5);
   });
+  it("replays Pressure, publishes immediately and retries idempotently", async () => {
+    const start = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { origin, cookie: logged },
+      payload: { game: "pressure" },
+    });
+    expect(start.statusCode).toBe(200);
+    const run = start.json();
+    expect(run.challenge.levels).toHaveLength(30);
+    const first = run.challenge.levels[0],
+      second = run.challenge.levels[1];
+    const events: { type: string; at: number }[] = [];
+    if (first.kind !== "wait")
+      for (let i = 0; i < first.count; i++)
+        events.push(
+          { type: "down", at: 300 + i * 170 },
+          { type: "up", at: 350 + i * 170 },
+        );
+    const rounds = [
+      {
+        events,
+        elapsed:
+          first.kind === "wait" ? first.duration : events.at(-1)!.at + 420,
+      },
+      second.kind === "wait"
+        ? { events: [{ type: "down", at: 10 }], elapsed: 10 }
+        : { events: [], elapsed: second.duration },
+    ];
+    const payload = { index: 0, answer: { rounds, score: 9999 } };
+    const fast = await app.inject({
+      method: "POST",
+      url: `/api/games/${run.id}/answers`,
+      headers: { origin, cookie: logged },
+      payload,
+    });
+    expect(fast.statusCode).toBe(400);
+    await pool.query(
+      "UPDATE playne_games SET created_at=now()-interval '30 seconds' WHERE id=$1",
+      [run.id],
+    );
+    for (let retry = 0; retry < 2; retry++) {
+      const result = await app.inject({
+        method: "POST",
+        url: `/api/games/${run.id}/answers`,
+        headers: { origin, cookie: logged },
+        payload,
+      });
+      expect(result.statusCode).toBe(200);
+      expect(result.json()).toMatchObject({
+        completed: true,
+        published: true,
+        score: 1,
+        answer: { cleared: 1, total: 30 },
+      });
+    }
+    const rank = await app.inject({
+      url: "/api/leaderboard?game=pressure",
+      headers: { cookie: logged },
+    });
+    expect(rank.json().mine.score).toBe(1);
+    expect(rank.json().entries).toHaveLength(1);
+    const stored = await pool.query(
+      "SELECT score_units,answers,published_at FROM playne_games WHERE id=$1",
+      [run.id],
+    );
+    expect(stored.rows[0].score_units).toBe(10);
+    expect(stored.rows[0].answers).toHaveLength(1);
+    expect(stored.rows[0].published_at).not.toBeNull();
+  });
+
   it("automatically publishes each authenticated game on its final answer exactly once", async () => {
     const headers = { origin, cookie: logged, "x-playne-geo-version": "4" };
     for (const game of ["naglaz", "circle", "colorfle", "geo"]) {

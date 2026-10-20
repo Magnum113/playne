@@ -22,12 +22,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-export type GameId = "naglaz" | "circle" | "colorfle" | "geo";
+export type GameId = "naglaz" | "circle" | "colorfle" | "geo" | "pressure";
 export const gameNames: Record<GameId, string> = {
   naglaz: "На глаз",
   circle: "Круг",
   colorfle: "Оттенок",
   geo: "Где я?",
+  pressure: "Жми",
 };
 export type User = {
   id: string;
@@ -497,6 +498,8 @@ export const resultText = (
   score: number,
   version = GEO_SCORE_VERSION,
 ) =>
-  game === "circle"
-    ? `${score.toFixed(1).replace(".", ",")}%`
-    : `${geoPoints(score)} / ${game === "geo" && version !== 1 ? geoPoints(GEO_MAX_POINTS) : "500"}`;
+  game === "pressure"
+    ? `${Math.round(score)} / 30`
+    : game === "circle"
+      ? `${score.toFixed(1).replace(".", ",")}%`
+      : `${geoPoints(score)} / ${game === "geo" && version !== 1 ? geoPoints(GEO_MAX_POINTS) : "500"}`;

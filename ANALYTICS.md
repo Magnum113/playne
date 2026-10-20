@@ -121,3 +121,17 @@ JavaScript-события того же счётчика 112711950:
 Для событий «Где я?» с версии правил 2 передаётся `mode=classic|timed|moving|moving-timed|landmarks|landmarks-timed`; `geo_round_complete` также содержит `timed_out=true|false`. С версии правил 4 очки — до 100 за раунд и 500 за партию, только целые числа. Идентификаторы существующих целей не меняются.
 
 Для целей `ottenok_game_start`, `ottenok_game_restart`, `ottenok_round_complete`, `ottenok_game_complete` передаётся параметр `mode`: `classic` или `timed`. В `ottenok_round_complete` также есть `timed_out`. Новые цели не нужны: режимы доступны через параметры существующих событий.
+
+## Жми
+
+События новой игры (JS-идентификаторы для добавления целей в Метрике):
+
+| Событие | Идентификатор | Параметры |
+|---|---|---|
+| Открыты правила | `pressure_rules_open` | — |
+| Начата попытка | `pressure_game_start` | level_count, online |
+| Пройден уровень | `pressure_level_complete` | level, family |
+| Завершена попытка | `pressure_game_complete` | score, level_count, won, reason |
+| Повторная попытка | `pressure_game_restart` | — |
+
+Отправка добавлена в код; числовые цели для новой игры в кабинете Метрики в этой задаче не создавались. Сохранение в рейтинг использует существующее событие `leaderboard_result_saved` с `game=pressure`.

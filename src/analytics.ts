@@ -35,6 +35,14 @@ export const GEO_GOALS = {
   loadError: "geo_load_error",
 } as const;
 
+export const PRESSURE_GOALS = {
+  rulesOpen: "pressure_rules_open",
+  gameStart: "pressure_game_start",
+  levelComplete: "pressure_level_complete",
+  gameComplete: "pressure_game_complete",
+  gameRestart: "pressure_game_restart",
+} as const;
+
 export const ACCOUNT_GOALS = {
   loginStart: "account_yandex_login_start",
   loginSuccess: "account_yandex_login_success",
@@ -50,7 +58,8 @@ export type MetrikaGoal =
   | Values<typeof CIRCLE_GOALS>
   | Values<typeof SHADE_GOALS>
   | Values<typeof GEO_GOALS>
-  | Values<typeof ACCOUNT_GOALS>;
+  | Values<typeof ACCOUNT_GOALS>
+  | Values<typeof PRESSURE_GOALS>;
 export type MetrikaParams = Record<string, string | number | boolean>;
 
 type MetrikaFunction = {

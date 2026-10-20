@@ -330,7 +330,9 @@ export async function buildApp(
             ? (r.challenge.places ?? []).map((p: any) => p.id)
             : game === "colorfle"
               ? (r.challenge.targets ?? []).filter(validHSV).map(hsvToHex)
-              : [],
+              : game === "pressure"
+                ? (r.challenge.levels ?? []).map((l: any) => l.id)
+                : [],
       );
       const mode =
         game === "geo" || game === "colorfle"
@@ -690,6 +692,20 @@ export async function buildApp(
       }
       if (run.completed_at || input.index !== run.answers.length)
         failure("Ответь на раунды по порядку", 409);
+      if (run.game === "pressure") {
+        const rounds = input.answer?.rounds;
+        if (
+          !Array.isArray(rounds) ||
+          rounds.some((r: any) => !Number.isFinite(r?.elapsed))
+        )
+          failure("Некорректная попытка");
+        const elapsed = rounds.reduce(
+          (sum: number, r: any) => sum + r.elapsed,
+          0,
+        );
+        if (elapsed > Date.now() - new Date(run.created_at).getTime() + 2000)
+          failure("Время попытки не совпадает с серверным");
+      }
       let answer: any;
       try {
         answer = validateAnswer(
@@ -704,7 +720,9 @@ export async function buildApp(
         failure((e as Error).message);
       }
       const answers = [...run.answers, answer],
-        complete = answers.length === (run.game === "circle" ? 1 : 5),
+        complete =
+          answers.length ===
+          (["circle", "pressure"].includes(run.game) ? 1 : 5),
         units = complete ? scoreUnits(answers) : null;
       const viewer = complete ? await user(req, c) : null;
       const publish = !!viewer && (!run.owner_id || run.owner_id === viewer.id);
