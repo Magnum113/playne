@@ -1005,7 +1005,14 @@ suite("Playne database and OAuth integration", () => {
       method: "POST",
       url: `/api/games/${run.id}/answers`,
       headers: { origin, cookie: logged },
-      payload,
+      payload: {
+        index: 0,
+        answer: {
+          rounds: rounds.map((r, i) =>
+            i === 0 ? { ...r, elapsed: first.duration } : r,
+          ),
+        },
+      },
     });
     expect(fast.statusCode).toBe(400);
     await pool.query(
