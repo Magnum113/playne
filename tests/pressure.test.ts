@@ -283,6 +283,28 @@ describe("Pressure generated challenge and replay", () => {
       makePressLevel("tap", 1200, random(1)).duration,
     );
   });
+  it("never asks a memory question before its cue, across randomized endless starts and continuations", () => {
+    for (let seed = 0; seed < 500; seed++) {
+      const levels: PressLevel[] = [];
+      for (let batch = 0; batch < 3; batch++) {
+        const next = appendPressBatch(seed, levels);
+        for (const [i, l] of next.entries()) {
+          if (l.family.startsWith("recall-")) {
+            const sourceIndex = l.sourceLevel! - 1;
+            const context = [...levels, ...next];
+            expect(sourceIndex).toBeLessThan(levels.length + i);
+            expect(context[sourceIndex].memoryCue).toBeDefined();
+          }
+          const t = solvePress(l);
+          expect(
+            judgePress(l, t.events, t.elapsed),
+            `seed=${seed}: ${l.prompt}`,
+          ).toEqual({ status: "success" });
+        }
+        levels.push(...next);
+      }
+    }
+  });
   it("uses the server seed to verify endless runs and keeps the legacy scoring version", () => {
     const c = makeChallenge("pressure", [], "classic", undefined, 2);
     const levels = [...c.levels!];

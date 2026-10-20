@@ -566,9 +566,11 @@ export function makePressDeck(
       const sourceFamily = ["recall-add", "recall-number"].includes(f)
         ? "remember-number"
         : "remember-shapes";
-      const distance =
-        context.length - context.map((l) => l.family).lastIndexOf(sourceFamily);
-      return distance >= 3 && distance <= 7;
+      const sourceIndex = context
+        .map((l) => l.family)
+        .lastIndexOf(sourceFamily);
+      const distance = context.length - sourceIndex;
+      return sourceIndex >= 0 && distance >= 3 && distance <= 7;
     };
     const next = pool.findIndex(eligible);
     if (next >= 0) append(pool.splice(next, 1)[0]);
