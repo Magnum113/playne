@@ -27,11 +27,14 @@ export default function CircleGame() {
   const [best, setBest] = useState(readCircleBest);
   const [record, setRecord] = useState(false);
   const stroke = useRef<Stroke | null>(null);
+  const scoredAttempt = useRef(false);
   const board = useRef<SVGSVGElement>(null);
   const rules = useRef<HTMLDialogElement>(null);
   const [analytics] = useState(createCircleTracker);
 
   function clear() {
+    if (!access.user && scoredAttempt.current) return;
+    scoredAttempt.current = false;
     analytics.finish({ valid: false, message: "" }, 0, "reset");
     stroke.current = null;
     setPath("");
@@ -65,7 +68,7 @@ export default function CircleGame() {
       access.loading ||
       !access.ready ||
       access.blocked ||
-      (!access.user && result?.valid)
+      (!access.user && scoredAttempt.current)
     )
       return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -145,6 +148,7 @@ export default function CircleGame() {
     const previous = Math.max(best, readCircleBest());
     analytics.finish(next, previous);
     if (next.valid) {
+      scoredAttempt.current = true;
       ranked.submit(0, { points: normalized });
       setRecord(next.score > previous);
       setBest(Math.max(previous, saveCircleBest(next.score)));
@@ -160,7 +164,9 @@ export default function CircleGame() {
           ? "Новый рекорд!"
           : success.score >= 95
             ? "Отличный круг."
-            : "Ещё один круг?"
+            : access.user
+              ? "Ещё один круг?"
+              : "Круг готов."
         : "Зажми мышь или веди пальцем по полю.";
 
   return (
@@ -203,7 +209,9 @@ export default function CircleGame() {
         {access.loading ? (
           <p role="status">Проверяем доступ…</p>
         ) : !access.ready ? null : access.blocked && !success ? (
-          <GuestTrialPrompt game="circle" />
+          <section className="circle-guest-access" aria-label="Продолжить игру">
+            <GuestTrialPrompt game="circle" />
+          </section>
         ) : (
           <section className="circle-play" aria-label="Нарисовать круг">
             <div

@@ -107,6 +107,12 @@ export function publicChallenge(game: GameId, challenge: any) {
     return {
       places: challenge.places,
       mode: validGeoMode(challenge.mode) ? challenge.mode : "classic",
+      panoramaIds: Object.fromEntries(
+        Object.entries(challenge.panoramas ?? {}).map(([index, value]) => [
+          index,
+          (value as { pano: string }).pano,
+        ]),
+      ),
     };
   return challenge;
 }
@@ -263,10 +269,34 @@ export function initialNickname(profile: any) {
   }
 }
 export function safeReturn(value: unknown) {
-  return typeof value === "string" &&
-    /^\/(?:account|naglaz|circle|colorfle|geo|pressure|leaderboard)\/(?:\?(?:claim|saved)=[0-9a-f-]{36})?$/.test(
+  if (
+    typeof value !== "string" ||
+    !/^\/(?:account|naglaz|circle|colorfle|geo|pressure|leaderboard)\/(?:\?[^#]*)?$/.test(
       value,
     )
-    ? value
-    : "/account/";
+  )
+    return "/account/";
+  const url = new URL(value, "https://playne.invalid");
+  const keys = new Set<string>();
+  for (const [key, item] of url.searchParams) {
+    if (keys.has(key)) return "/account/";
+    keys.add(key);
+    if (key === "claim" || key === "saved") {
+      if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          item,
+        )
+      )
+        return "/account/";
+    } else if (key === "mode") {
+      if (
+        url.pathname === "/geo/"
+          ? !validGeoMode(item)
+          : url.pathname !== "/colorfle/" ||
+            !["classic", "timed"].includes(item)
+      )
+        return "/account/";
+    } else return "/account/";
+  }
+  return value;
 }

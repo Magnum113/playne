@@ -338,7 +338,7 @@
   border-top: 1px solid var(--line);
   margin-top: 24px;
 }
-.guest-trial-prompt h3 {
+.guest-trial-prompt h2 {
   margin: 0 0 12px;
   font-size: 24px;
   letter-spacing: -0.6px;
@@ -375,4 +375,28 @@
   font-size: 14px;
   line-height: 1.6;
   margin: 16px 0;
+}
+.guest-auth-notice {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 16px 0;
+}
+.circle-guest-access {
+  max-width: 570px;
+  margin: 24px auto 40px;
+  padding: 32px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-large);
+}
+.circle-guest-access .guest-trial-prompt {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+@media (max-width: 600px) {
+  .circle-guest-access {
+    padding: 24px;
+  }
 }

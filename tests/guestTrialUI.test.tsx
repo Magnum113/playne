@@ -2,13 +2,18 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthProvider, GuestTrialPrompt } from "../src/account";
+import {
+  AuthProvider,
+  GuestTrialPrompt,
+  guestLoginReturn,
+} from "../src/account";
 import { GameStartAction } from "../src/GameIntro";
 let root: Root, box: HTMLDivElement;
 const id = "11111111-1111-4111-8111-111111111111";
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
+  window.history.replaceState(null, "", "/colorfle/");
   box = document.createElement("div");
   document.body.append(box);
   root = createRoot(box);
@@ -87,8 +92,128 @@ describe("guest party entry", () => {
         </AuthProvider>,
       ),
     );
-    expect(box.querySelector("button")!.disabled).toBe(true);
-    expect(box.textContent).toContain("Попробовать ещё раз");
+    expect(box.querySelector("button")!.disabled).toBe(false);
+    expect(box.querySelector("button")!.textContent).toContain(
+      "Повторить проверку",
+    );
+    expect(box.querySelector("button")!.getAttribute("aria-busy")).toBe(
+      "false",
+    );
+  });
+  it("shows the pending state while retrying a failed access check and recovers", async () => {
+    let resolve: (value: Response) => void;
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((done) => {
+            resolve = done;
+          }),
+      );
+    vi.stubGlobal("fetch", fetch);
+    await act(async () =>
+      root.render(
+        <AuthProvider>
+          <GameStartAction game="naglaz" onStart={vi.fn()} />
+        </AuthProvider>,
+      ),
+    );
+    act(() =>
+      [...box.querySelectorAll("button")]
+        .find((b) => b.textContent?.includes("Повторить проверку"))!
+        .click(),
+    );
+    expect(box.textContent).toContain("Проверяем доступ");
+    expect(box.textContent).not.toContain("Повторить проверку");
+    await act(async () =>
+      resolve!(new Response(JSON.stringify({ user: null, trials: {} }))),
+    );
+    expect(box.querySelector("button")!.disabled).toBe(false);
+  });
+  it("refreshes the consumed trial when another tab updates the result queue", async () => {
+    await render({ user: null, trials: {} });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              user: null,
+              trials: { colorfle: { id, completed: true } },
+            }),
+          ),
+      ),
+    );
+    await act(async () =>
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: "playne:ranked-pending:v1",
+          oldValue: JSON.stringify([{ key: id, completed: false }]),
+          newValue: JSON.stringify([{ key: id, completed: true }]),
+        }),
+      ),
+    );
+    expect(box.querySelector("button")!.textContent).toContain(
+      "Войти и продолжить",
+    );
+  });
+  it("does not recheck access for every pointer or answer update in another tab", async () => {
+    await render({ user: null, trials: {} });
+    const request = vi.fn(
+      async () => new Response(JSON.stringify({ user: null, trials: {} })),
+    );
+    vi.stubGlobal("fetch", request);
+    await act(async () => {
+      for (let i = 0; i < 10; i++)
+        window.dispatchEvent(
+          new StorageEvent("storage", {
+            key: "playne:ranked-pending:v1",
+            oldValue: JSON.stringify([{ key: id, completed: false }]),
+            newValue: JSON.stringify([
+              {
+                key: id,
+                completed: false,
+                pins: { 0: { h: i, s: 50, v: 75 } },
+              },
+            ]),
+          }),
+        );
+    });
+    expect(request).not.toHaveBeenCalled();
+  });
+  it("explains a cancelled login without losing the result or offering a new trial", async () => {
+    window.history.replaceState(null, "", "/colorfle/?auth=cancelled");
+    await render({ user: null, trials: { colorfle: { id, completed: true } } });
+    expect(box.textContent).toContain("Вход отменён. Результат сохранён");
+    expect(box.querySelector("button")!.textContent).toContain(
+      "Войти и продолжить",
+    );
+  });
+  it("confirms the saved result after returning from Yandex", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      `/colorfle/?saved=${id}&auth=success`,
+    );
+    await render({
+      user: { id: "user", nickname: "Игрок" },
+      trials: { colorfle: { id, completed: true, published: true } },
+    });
+    expect(box.textContent).toContain("Результат сохранён в рейтинг");
+    expect(box.querySelector("button")!.textContent).toContain("Начать игру");
+    expect(window.location.search).not.toContain("auth=success");
+  });
+  it("keeps the selected game mode when returning from login", () => {
+    expect(guestLoginReturn("geo", id, "landmarks-timed")).toBe(
+      `/geo/?saved=${id}&mode=landmarks-timed`,
+    );
+    expect(guestLoginReturn("colorfle", id, "timed")).toBe(
+      `/colorfle/?saved=${id}&mode=timed`,
+    );
+    expect(guestLoginReturn("circle", id, "timed")).toBe(
+      `/circle/?saved=${id}`,
+    );
   });
   it("shows a complete-party prompt with a clear save promise", async () => {
     vi.stubGlobal(

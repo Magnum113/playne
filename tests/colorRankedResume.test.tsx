@@ -35,6 +35,7 @@ function setup() {
   vi.resetModules();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
+  window.history.replaceState(null, "", "/colorfle/");
 }
 function startButton() {
   return [...container.querySelectorAll("button")].find((b) =>
@@ -55,6 +56,27 @@ afterEach(() => {
   root = undefined;
 });
 describe("color game entry", () => {
+  it("restores the selected mode after OAuth even without a saved browser preference", async () => {
+    setup();
+    window.history.replaceState(
+      null,
+      "",
+      `/colorfle/?saved=${id}&mode=timed&auth=success`,
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json({ user: { id: "signed-player", nickname: "Игрок" }, trials: {} }),
+      ),
+    );
+    await mount();
+    expect(
+      container.querySelector<HTMLInputElement>('input[value="timed"]')
+        ?.checked,
+    ).toBe(true);
+    expect(container.querySelector("[role=timer]")).toBeNull();
+    expect(startButton()).toBeDefined();
+  });
   it.each(
     (["classic", "timed"] as ShadeMode[]).flatMap((mode) =>
       ["picking", "reveal", "finished"].map((phase) => ({ mode, phase })),

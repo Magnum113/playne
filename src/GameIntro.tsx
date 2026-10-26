@@ -107,28 +107,35 @@ export function GameStartAction({
   error?: string;
 }) {
   const access = useGuestTrial(game);
-  const unavailable =
-    !!game && !access.user && (!access.ready || access.loading);
+  const checking = !!game && !access.user && access.loading;
+  const checkFailed =
+    !!game && !access.user && !access.ready && !access.loading;
   const blocked = !!game && access.blocked;
   return (
     <div className="game-start-action">
       <button
         className="primary"
-        disabled={loading || unavailable}
-        aria-busy={loading || unavailable}
+        disabled={loading || checking}
+        aria-busy={loading || checking}
         onClick={
-          blocked && game ? () => loginToPlay(game, access.trial?.id) : onStart
+          checkFailed
+            ? () => void access.refresh()
+            : blocked && game
+              ? () => loginToPlay(game, access.trial?.id, access.trial?.mode)
+              : onStart
         }
       >
         {loading
           ? loadingLabel
-          : unavailable
+          : checking
             ? "Проверяем доступ…"
-            : blocked
-              ? "Войти и продолжить"
-              : game && access.resume
-                ? "Продолжить партию"
-                : "Начать игру"}
+            : checkFailed
+              ? "Повторить проверку"
+              : blocked
+                ? "Войти и продолжить"
+                : game && access.resume
+                  ? "Продолжить партию"
+                  : "Начать игру"}
         <span aria-hidden="true">→</span>
       </button>
       {error && (
@@ -148,10 +155,7 @@ export function GameStartAction({
       )}
       {game && !access.ready && !access.loading && (
         <p role="status">
-          Не удалось проверить доступ.{" "}
-          <button className="text-button" onClick={() => void access.refresh()}>
-            Попробовать ещё раз
-          </button>
+          Не удалось проверить доступ. Проверь соединение и повтори.
         </p>
       )}
       {caption && <p className="game-start-caption">{caption}</p>}

@@ -22,7 +22,7 @@ import {
   readGeoStats,
   saveGeoStats,
 } from "../src/geo";
-import { hasStreetViewLinks } from "../src/googleMaps";
+import { findPanorama, hasStreetViewLinks } from "../src/googleMaps";
 import { geoLocations } from "../src/geoLocations";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -76,6 +76,21 @@ describe("geographical answers", () => {
   });
 });
 describe("geographical sessions", () => {
+  it("loads an already registered panorama by its ID instead of searching for another nearby view", async () => {
+    const getPanorama = vi.fn(async () => ({
+      data: { location: { pano: "original" } },
+    }));
+    vi.stubGlobal("google", {
+      maps: {
+        StreetViewService: class {
+          getPanorama = getPanorama;
+        },
+      },
+    });
+    const response = await findPanorama({ lat: 20, lng: 30 }, "original");
+    expect(getPanorama).toHaveBeenCalledExactlyOnceWith({ pano: "original" });
+    expect(response.data.location?.pano).toBe("original");
+  });
   it("combines movement and time independently and keeps six separate browser records", () => {
     const store = new Map<string, string>();
     vi.stubGlobal("localStorage", {

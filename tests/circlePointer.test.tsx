@@ -102,6 +102,21 @@ describe("circle pointer endings", () => {
     event("pointerup", 470, 300);
     expect(ranked.submit).toHaveBeenCalledTimes(1);
   });
+  it("keeps a scored guest circle when Escape is pressed before the server acknowledgement", () => {
+    access.user = null;
+    act(() => root.render(<CircleGame />));
+    arc();
+    event("pointerup", 470, 300);
+    act(() =>
+      board.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      ),
+    );
+    expect(status()).toContain("Точность 100,0%");
+    arc();
+    event("pointerup", 470, 300);
+    expect(ranked.submit).toHaveBeenCalledTimes(1);
+  });
   it("scores a mouse stroke on ordinary release", () => {
     pointerType = "mouse";
     arc();

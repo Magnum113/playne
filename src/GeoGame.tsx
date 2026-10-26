@@ -120,6 +120,7 @@ export default function GeoGame() {
   const statsRef = useRef(stats);
   const [round, setRound] = useState(0);
   const rounds = useRef<GeoLocation[]>([]);
+  const registeredPanoramas = useRef<Record<number, string>>({});
   const [answers, setAnswers] = useState<GeoAnswer[]>([]);
   const answersRef = useRef<GeoAnswer[]>([]);
   const [guess, setGuess] = useState<GeoPoint | null>(null);
@@ -434,7 +435,10 @@ export default function GeoGame() {
       let place = rounds.current[index];
       for (let attempt = 0; attempt < 4; attempt++) {
         try {
-          const response = await findPanorama(place);
+          const response = await findPanorama(
+            place,
+            registeredPanoramas.current[index],
+          );
           if (token !== operation.current) return;
           const data = response.data;
           if (!data.location?.latLng || !data.location.pano)
@@ -450,6 +454,7 @@ export default function GeoGame() {
             index,
             data.location.pano,
           );
+          registeredPanoramas.current[index] = data.location.pano;
           const heading =
             place.heading ??
             (geoIsLandmarks(modeRef.current)
@@ -485,6 +490,7 @@ export default function GeoGame() {
         } catch (e) {
           if (token !== operation.current) return;
           if (e instanceof RankedSyncError) throw e;
+          if (registeredPanoramas.current[index]) throw e;
           badPlaces.current.add(place.id);
           const onlineReplacement = await ranked.replaceGeo(index);
           if (onlineReplacement) {
@@ -526,6 +532,7 @@ export default function GeoGame() {
     chooseMode(resumedMode);
     modeRef.current = resumedMode;
     rounds.current = online.challenge.places;
+    registeredPanoramas.current = online.challenge.panoramaIds ?? {};
     const recovered: GeoAnswer[] = (online.answers ?? []).map((a, i) => ({
       ...a,
       location: rounds.current[i],
@@ -632,6 +639,15 @@ export default function GeoGame() {
     else void loadRound(round + 1);
   }
   const active = phase !== "welcome" && phase !== "finished";
+  const welcomeAction = (
+    <GameStartAction
+      game="geo"
+      onStart={() => void start()}
+      loading={ranked.state.status === "loading"}
+      error={error || undefined}
+      caption="Бесплатно. У каждого режима свой рейтинг."
+    />
+  );
   return (
     <div className={`app geo-app ${active ? "geo-playing" : ""}`}>
       <a className="skip-link" href="#geo-main">
@@ -711,6 +727,7 @@ export default function GeoGame() {
                   ? "Храмы, памятники и необычные места со всего мира. Найди на карте достопримечательность, которую видишь на панораме."
                   : "Осмотрись и отметь место на карте. Чем ближе точка, тем больше очков."}
               </p>
+              {access.blocked && welcomeAction}
             </div>
             <div className="geo-welcome-art game-welcome-art">
               <GeoPreview />
@@ -720,136 +737,136 @@ export default function GeoGame() {
                   : "Города, побережья, горы и дороги."}
               </span>
             </div>
-            <div
-              className={`geo-welcome-setup${geoIsLandmarks(mode) ? " geo-landmark-setup" : ""}`}
-            >
-              {!access.blocked && (
-                <>
-                  <fieldset className="geo-mode-choice">
-                    <legend>Места</legend>
-                    {([false, true] as const).map((landmarks) => (
-                      <label
-                        key={String(landmarks)}
-                        className={
-                          geoIsLandmarks(mode) === landmarks ? "selected" : ""
-                        }
-                      >
-                        <input
-                          type="radio"
-                          name="geo-collection"
-                          checked={geoIsLandmarks(mode) === landmarks}
-                          disabled={
-                            ranked.state.status === "loading" ||
-                            access.resume ||
-                            access.blocked
-                          }
-                          onChange={() =>
-                            chooseMode(
-                              geoModeFor(
-                                geoCanMove(mode),
-                                geoIsTimed(mode),
-                                landmarks,
-                              ),
-                            )
-                          }
-                        />
-                        <span>
-                          <strong>
-                            {landmarks ? "Достопримечательности" : "Весь мир"}
-                          </strong>
-                          <small>
-                            {landmarks
-                              ? "Узнай памятники, храмы и чудеса природы"
-                              : "Города, дороги и пейзажи"}
-                          </small>
-                        </span>
-                      </label>
-                    ))}
-                  </fieldset>
-                  {!geoIsLandmarks(mode) && (
+            {!access.blocked && (
+              <div
+                className={`geo-welcome-setup${geoIsLandmarks(mode) ? " geo-landmark-setup" : ""}`}
+              >
+                {!access.blocked && (
+                  <>
                     <fieldset className="geo-mode-choice">
-                      <legend>Перемещение</legend>
-                      {([false, true] as const).map((moving) => (
+                      <legend>Места</legend>
+                      {([false, true] as const).map((landmarks) => (
                         <label
-                          key={String(moving)}
+                          key={String(landmarks)}
                           className={
-                            geoCanMove(mode) === moving ? "selected" : ""
+                            geoIsLandmarks(mode) === landmarks ? "selected" : ""
                           }
                         >
                           <input
                             type="radio"
-                            name="geo-movement"
-                            checked={geoCanMove(mode) === moving}
+                            name="geo-collection"
+                            checked={geoIsLandmarks(mode) === landmarks}
                             disabled={
                               ranked.state.status === "loading" ||
                               access.resume ||
                               access.blocked
                             }
                             onChange={() =>
-                              chooseMode(geoModeFor(moving, geoIsTimed(mode)))
+                              chooseMode(
+                                geoModeFor(
+                                  geoCanMove(mode),
+                                  geoIsTimed(mode),
+                                  landmarks,
+                                ),
+                              )
                             }
                           />
                           <span>
                             <strong>
-                              {moving ? "С перемещением" : "Без перемещения"}
+                              {landmarks ? "Достопримечательности" : "Весь мир"}
                             </strong>
                             <small>
-                              {moving
-                                ? "Пройди по улице и найди подсказки"
-                                : "Осмотрись из одной точки"}
+                              {landmarks
+                                ? "Узнай памятники, храмы и чудеса природы"
+                                : "Города, дороги и пейзажи"}
                             </small>
                           </span>
                         </label>
                       ))}
                     </fieldset>
-                  )}
-                  <fieldset className="geo-mode-choice">
-                    <legend>Время</legend>
-                    {([false, true] as const).map((timed) => (
-                      <label
-                        key={String(timed)}
-                        className={geoIsTimed(mode) === timed ? "selected" : ""}
-                      >
-                        <input
-                          type="radio"
-                          name="geo-time"
-                          checked={geoIsTimed(mode) === timed}
-                          disabled={
-                            ranked.state.status === "loading" ||
-                            access.resume ||
-                            access.blocked
+                    {!geoIsLandmarks(mode) && (
+                      <fieldset className="geo-mode-choice">
+                        <legend>Перемещение</legend>
+                        {([false, true] as const).map((moving) => (
+                          <label
+                            key={String(moving)}
+                            className={
+                              geoCanMove(mode) === moving ? "selected" : ""
+                            }
+                          >
+                            <input
+                              type="radio"
+                              name="geo-movement"
+                              checked={geoCanMove(mode) === moving}
+                              disabled={
+                                ranked.state.status === "loading" ||
+                                access.resume ||
+                                access.blocked
+                              }
+                              onChange={() =>
+                                chooseMode(geoModeFor(moving, geoIsTimed(mode)))
+                              }
+                            />
+                            <span>
+                              <strong>
+                                {moving ? "С перемещением" : "Без перемещения"}
+                              </strong>
+                              <small>
+                                {moving
+                                  ? "Пройди по улице и найди подсказки"
+                                  : "Осмотрись из одной точки"}
+                              </small>
+                            </span>
+                          </label>
+                        ))}
+                      </fieldset>
+                    )}
+                    <fieldset className="geo-mode-choice">
+                      <legend>Время</legend>
+                      {([false, true] as const).map((timed) => (
+                        <label
+                          key={String(timed)}
+                          className={
+                            geoIsTimed(mode) === timed ? "selected" : ""
                           }
-                          onChange={() =>
-                            chooseMode(
-                              geoModeFor(
-                                geoCanMove(mode),
-                                timed,
-                                geoIsLandmarks(mode),
-                              ),
-                            )
-                          }
-                        />
-                        <span>
-                          <strong>{timed ? "На время" : "Без таймера"}</strong>
-                          <small>
-                            {timed
-                              ? "3 минуты на каждый раунд"
-                              : "Осматривайся в своём темпе"}
-                          </small>
-                        </span>
-                      </label>
-                    ))}
-                  </fieldset>
-                </>
-              )}
-              <GameStartAction
-                game="geo"
-                onStart={() => void start()}
-                loading={ranked.state.status === "loading"}
-                error={error || undefined}
-                caption="Бесплатно. У каждого режима свой рейтинг."
-              />
-            </div>
+                        >
+                          <input
+                            type="radio"
+                            name="geo-time"
+                            checked={geoIsTimed(mode) === timed}
+                            disabled={
+                              ranked.state.status === "loading" ||
+                              access.resume ||
+                              access.blocked
+                            }
+                            onChange={() =>
+                              chooseMode(
+                                geoModeFor(
+                                  geoCanMove(mode),
+                                  timed,
+                                  geoIsLandmarks(mode),
+                                ),
+                              )
+                            }
+                          />
+                          <span>
+                            <strong>
+                              {timed ? "На время" : "Без таймера"}
+                            </strong>
+                            <small>
+                              {timed
+                                ? "3 минуты на каждый раунд"
+                                : "Осматривайся в своём темпе"}
+                            </small>
+                          </span>
+                        </label>
+                      ))}
+                    </fieldset>
+                  </>
+                )}
+                {welcomeAction}
+              </div>
+            )}
           </section>
         )}
         {active && (

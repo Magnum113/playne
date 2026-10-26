@@ -114,7 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loading, setLoading] = useState(true);
   const [trials, setTrials] = useState<Partial<Record<GameId, GuestTrial>>>({});
   const [ready, setReady] = useState(false);
+  const verified = useRef(false);
   async function refresh() {
+    if (!verified.current) setLoading(true);
     try {
       meRequest ??= api("/me").finally(() => {
         meRequest = undefined;
@@ -123,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user);
       setTrials(data.trials ?? {});
       setReady(true);
+      verified.current = true;
       if (
         data.user &&
         new URLSearchParams(window.location.search).get("auth") === "success"
@@ -159,7 +162,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("online", recover);
     window.addEventListener("focus", recover);
     const stored = (e: StorageEvent) => {
-      if (e.key === "playne:ranked-pending:v1") rankedQueue.recover();
+      if (e.key === "playne:ranked-pending:v1") {
+        rankedQueue.recover();
+        try {
+          const before = JSON.parse(e.oldValue ?? "[]");
+          const after = JSON.parse(e.newValue ?? "[]");
+          if (
+            Array.isArray(before) &&
+            Array.isArray(after) &&
+            after.some(
+              (p: any) =>
+                p?.completed &&
+                !before.some((old: any) => old?.key === p.key && old.completed),
+            )
+          )
+            void refresh();
+        } catch {
+          /* Ignore malformed storage; focus and online also refresh access. */
+        }
+      }
     };
     document.addEventListener("visibilitychange", visible);
     window.addEventListener("storage", stored);
@@ -187,9 +208,15 @@ export function useGuestTrial(game?: GameId) {
     resume: !auth.user && !!trial && !trial.completed,
   };
 }
-export function loginToPlay(game: GameId, id?: string) {
+export function guestLoginReturn(game: GameId, id?: string, mode?: GeoMode) {
+  const params = new URLSearchParams();
+  if (id) params.set("saved", id);
+  if (mode && (game === "geo" || game === "colorfle")) params.set("mode", mode);
+  return `/${game}/` + (params.size ? `?${params}` : "");
+}
+export function loginToPlay(game: GameId, id?: string, mode?: GeoMode) {
   reachGoal(ACCOUNT_GOALS.loginStart, { source: "guest_party", game });
-  const path = `/${game}/` + (id ? `?saved=${encodeURIComponent(id)}` : "");
+  const path = guestLoginReturn(game, id, mode);
   window.location.assign(
     "/api/auth/yandex/start?return=" + encodeURIComponent(path),
   );
@@ -200,6 +227,18 @@ export function GuestSavedNotice({ game }: { game: GameId }) {
     typeof window === "undefined"
       ? null
       : new URLSearchParams(window.location.search).get("saved");
+  const auth =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("auth");
+  if (!user && ["cancelled", "failed", "expired"].includes(auth ?? ""))
+    return (
+      <p className="guest-auth-notice" role="status">
+        {auth === "cancelled"
+          ? "Вход отменён. Результат сохранён — войти можно ещё раз."
+          : "Не удалось завершить вход. Результат сохранён — попробуй ещё раз."}
+      </p>
+    );
   return user && trial?.published && saved === trial.id ? (
     <p className="guest-saved-notice" role="status">
       Результат сохранён в рейтинг. Можно играть дальше.
@@ -211,14 +250,14 @@ export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
   if (user) return null;
   return (
     <div className="guest-trial-prompt">
-      <h3>Сыграем ещё?</h3>
+      <h2>Сыграем ещё?</h2>
       <p>
         Войди через Яндекс, чтобы играть дальше и сохранить результат в рейтинг.
       </p>
       <button
         className="primary"
         disabled={loading}
-        onClick={() => loginToPlay(game, id ?? trial?.id)}
+        onClick={() => loginToPlay(game, id ?? trial?.id, trial?.mode)}
       >
         Войти и продолжить <span aria-hidden="true">→</span>
       </button>

@@ -639,6 +639,10 @@ export async function buildApp(
         const existing = locked.challenge.panoramas[body.index];
         if (existing && existing.pano !== body.pano)
           failure("Панорама уже выбрана", 409);
+        if (existing) {
+          await c.query("COMMIT");
+          return { verified: true, actual: existing.actual };
+        }
         locked.challenge.panoramas[body.index] = {
           pano: body.pano,
           actual: metadata.location,

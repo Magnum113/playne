@@ -25,6 +25,7 @@ import {
   shadeReducer,
   shadeTotal,
   shadeModeName,
+  validShadeMode,
   SHADE_TIME_LIMIT_MS,
   type ShadeMode,
   type HSV,
@@ -199,7 +200,16 @@ function Rules() {
 export default function ColorfleGame() {
   const access = useGuestTrial("colorfle");
   const ranked = useRankedRun("colorfle");
-  const [state, update] = useReducer(shadeReducer, undefined, loadShadeSession);
+  const [state, update] = useReducer(shadeReducer, undefined, () => {
+    const initial = loadShadeSession();
+    const mode =
+      typeof window === "undefined"
+        ? null
+        : new URLSearchParams(window.location.search).get("mode");
+    return validShadeMode(mode)
+      ? shadeReducer(initial, { type: "mode", mode })
+      : initial;
+  });
   const current = useRef(state);
   const rules = useRef<HTMLDialogElement>(null);
   const result = useRef<HTMLElement>(null);

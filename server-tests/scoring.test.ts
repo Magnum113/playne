@@ -223,11 +223,23 @@ describe("server-owned results", () => {
       "//evil.test",
       "/account/?return=https://evil.test",
       "/api/auth/yandex/callback",
+      "/geo/?mode=unknown",
+      "/geo/?mode=classic&mode=timed",
+      "/colorfle/?mode=landmarks",
+      "/circle/?mode=timed",
+      "/geo/?saved=------------------------------------",
+      "/geo/?mode=classic&return=https://evil.test",
     ])
       expect(safeReturn(p)).toBe("/account/");
     expect(
       safeReturn("/account/?claim=12345678-1234-1234-1234-123456789abc"),
     ).toContain("?claim=");
+    expect(
+      safeReturn(
+        "/geo/?saved=12345678-1234-1234-1234-123456789abc&mode=landmarks-timed",
+      ),
+    ).toContain("mode=landmarks-timed");
+    expect(safeReturn("/colorfle/?mode=timed")).toBe("/colorfle/?mode=timed");
   });
 });
 

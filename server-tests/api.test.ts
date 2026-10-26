@@ -26,6 +26,7 @@ suite("Playne database and OAuth integration", () => {
     return [...m].map(([k, v]) => k + "=" + v).join("; ");
   };
   let metadataLocation = { lat: 0, lng: 0 };
+  let delayMetadata: (() => Promise<void>) | undefined;
   let guest = "",
     logged = "",
     id = "";
@@ -51,6 +52,9 @@ suite("Playne database and OAuth integration", () => {
             last_name: "Тестовый",
           }),
         );
+      const pause = delayMetadata;
+      delayMetadata = undefined;
+      await pause?.();
       return new Response(
         JSON.stringify({ status: "OK", location: metadataLocation }),
       );
@@ -1418,6 +1422,88 @@ suite("Playne database and OAuth integration", () => {
       ).toBe(0);
     }
   });
+  it("resumes the original guest panorama and preserves its timer and pin during concurrent registration", async () => {
+    const cookie = jar(await app.inject("/api/me"));
+    const headers = { origin, cookie, "x-playne-geo-version": "4" };
+    const start = () =>
+      app.inject({
+        method: "POST",
+        url: "/api/games",
+        headers,
+        payload: { game: "geo", mode: "timed", geoRulesVersion: 4 },
+      });
+    const run = (await start()).json();
+    const place = run.challenge.places[0];
+    metadataLocation = place.view ?? { lat: place.lat, lng: place.lng };
+    let release!: () => void, entered!: () => void;
+    const held = new Promise<void>((done) => {
+      release = done;
+    });
+    const requested = new Promise<void>((done) => {
+      entered = done;
+    });
+    delayMetadata = async () => {
+      entered();
+      await held;
+    };
+    const register = () =>
+      app.inject({
+        method: "POST",
+        url: `/api/games/${run.id}/panorama`,
+        headers,
+        payload: { index: 0, pano: "original-guest-panorama" },
+      });
+    const late = register().then((r) => r);
+    await requested;
+    try {
+      expect((await register()).statusCode).toBe(200);
+      const ready = (
+        await app.inject({
+          method: "POST",
+          url: `/api/games/${run.id}/ready`,
+          headers,
+          payload: { index: 0 },
+        })
+      ).json();
+      const point = { lat: 20, lng: 30 };
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: `/api/games/${run.id}/pin`,
+            headers,
+            payload: { index: 0, guess: point },
+          })
+        ).statusCode,
+      ).toBe(200);
+      release();
+      expect((await late).statusCode).toBe(200);
+      const resumed = (await start()).json();
+      expect(resumed.id).toBe(run.id);
+      expect(resumed.challenge.panoramaIds).toEqual({
+        0: "original-guest-panorama",
+      });
+      expect(resumed.challenge).not.toHaveProperty("panoramas");
+      const again = (
+        await app.inject({
+          method: "POST",
+          url: `/api/games/${run.id}/ready`,
+          headers,
+          payload: { index: 0 },
+        })
+      ).json();
+      expect(again.deadline).toBe(ready.deadline);
+      const stored = (
+        await pool.query("SELECT challenge FROM playne_games WHERE id=$1", [
+          run.id,
+        ])
+      ).rows[0];
+      expect(stored.challenge.panoramas[0].pin).toEqual(point);
+    } finally {
+      release();
+      await late;
+    }
+  });
   it.each(["naglaz", "colorfle", "geo", "circle", "pressure"] as const)(
     "allows one full guest %s party, resumes it, and saves it on Yandex login",
     async (game) => {
@@ -1426,6 +1512,10 @@ suite("Playne database and OAuth integration", () => {
         origin,
         cookie: trialCookie,
         "x-playne-geo-version": "4",
+        "x-forwarded-for":
+          "198.51.100." +
+          (20 +
+            ["naglaz", "colorfle", "geo", "circle", "pressure"].indexOf(game)),
       };
       const start = () =>
         app.inject({
@@ -1560,7 +1650,14 @@ suite("Playne database and OAuth integration", () => {
       const login = await app.inject({
         url:
           "/api/auth/yandex/start?return=" +
-          encodeURIComponent(`/${game}/?saved=${issued.id}`),
+          encodeURIComponent(
+            `/${game}/?saved=${issued.id}` +
+              (game === "geo"
+                ? "&mode=landmarks-timed"
+                : game === "colorfle"
+                  ? "&mode=timed"
+                  : ""),
+          ),
         headers,
       });
       const state = new URL(login.headers.location!).searchParams.get("state");
@@ -1570,7 +1667,13 @@ suite("Playne database and OAuth integration", () => {
       });
       expect(callback.statusCode).toBe(302);
       expect(callback.headers.location).toContain(
-        `/${game}/?saved=${issued.id}&auth=success`,
+        `/${game}/?saved=${issued.id}` +
+          (game === "geo"
+            ? "&mode=landmarks-timed"
+            : game === "colorfle"
+              ? "&mode=timed"
+              : "") +
+          "&auth=success",
       );
       const signed = { ...headers, cookie: merge(trialCookie, jar(callback)) };
       const saved = (

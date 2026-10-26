@@ -52,22 +52,29 @@ export function loadGoogleMaps() {
   return loading;
 }
 
-export async function findPanorama(point: {
-  lat: number;
-  lng: number;
-  radius?: number;
-  view?: { lat: number; lng: number };
-}) {
+export async function findPanorama(
+  point: {
+    lat: number;
+    lng: number;
+    radius?: number;
+    view?: { lat: number; lng: number };
+  },
+  pano?: string,
+) {
   const response = new google.maps.StreetViewService().getPanorama({
-    location: point.view ?? point,
-    ...(point.view
-      ? { preference: google.maps.StreetViewPreference.NEAREST }
-      : {}),
-    radius: point.radius ?? 500,
-    sources: [
-      google.maps.StreetViewSource.GOOGLE,
-      google.maps.StreetViewSource.OUTDOOR,
-    ],
+    ...(pano
+      ? { pano }
+      : {
+          location: point.view ?? point,
+          ...(point.view
+            ? { preference: google.maps.StreetViewPreference.NEAREST }
+            : {}),
+          radius: point.radius ?? 500,
+          sources: [
+            google.maps.StreetViewSource.GOOGLE,
+            google.maps.StreetViewSource.OUTDOOR,
+          ],
+        }),
   });
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
