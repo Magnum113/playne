@@ -6,6 +6,7 @@ import { buildApp } from "../server/app";
 import { migrateShadeScores } from "../server/shade-migration";
 import {
   appendPressBatch,
+  judgePress,
   type PressLevel,
   type PressTrace,
 } from "../src/pressure";
@@ -270,12 +271,12 @@ suite("Playne database and OAuth integration", () => {
     });
     expect(incomplete.statusCode).toBe(409);
     const rank = await app.inject("/api/leaderboard?game=naglaz");
-    expect(rank.json().total).toBe(0);
+    expect(rank.json().total).toBe(1);
     const history = await app.inject({
       url: "/api/account",
       headers: { cookie: logged },
     });
-    expect(history.json().history).toHaveLength(1);
+    expect(history.json().history).toHaveLength(2);
   });
   it("replaces unavailable geo locations, locks a verified panorama and strips coordinates after publication", async () => {
     const headers = { origin, cookie: logged };
@@ -944,7 +945,8 @@ suite("Playne database and OAuth integration", () => {
     ]);
   });
   it("recovers only previously issued color challenges owned by this browser", async () => {
-    const headers = { origin, cookie: guest };
+    const fresh = jar(await app.inject("/api/me"));
+    const headers = { origin, cookie: fresh };
     const start = await app.inject({
       method: "POST",
       url: "/api/games",
@@ -1416,6 +1418,199 @@ suite("Playne database and OAuth integration", () => {
       ).toBe(0);
     }
   });
+  it.each(["naglaz", "colorfle", "geo", "circle", "pressure"] as const)(
+    "allows one full guest %s party, resumes it, and saves it on Yandex login",
+    async (game) => {
+      const trialCookie = jar(await app.inject("/api/me"));
+      const headers = {
+        origin,
+        cookie: trialCookie,
+        "x-playne-geo-version": "4",
+      };
+      const start = () =>
+        app.inject({
+          method: "POST",
+          url: "/api/games",
+          headers,
+          payload: {
+            game,
+            mode: "classic",
+            geoRulesVersion: 4,
+            pressureRulesVersion: 2,
+          },
+        });
+      const concurrent = await Promise.all([start(), start(), start()]);
+      concurrent.forEach((r) => expect(r.statusCode).toBe(200));
+      const issued = concurrent[0].json();
+      expect(new Set(concurrent.map((r) => r.json().id)).size).toBe(1);
+      const count = ["circle", "pressure"].includes(game) ? 1 : 5;
+      if (game === "circle") {
+        const invalid = await app.inject({
+          method: "POST",
+          url: `/api/games/${issued.id}/answers`,
+          headers,
+          payload: { index: 0, answer: { points: [{ x: 300, y: 300 }] } },
+        });
+        expect(invalid.statusCode).toBe(400);
+        expect((await start()).statusCode).toBe(200);
+      }
+      let lastAnswer: any;
+      for (let index = 0; index < count; index++) {
+        if (game === "naglaz") {
+          const pair = pairs.find(
+            (p) => p.id === issued.challenge.pairIds[index],
+          )!;
+          lastAnswer = { guess: objects[pair.reference].size * 0.7 };
+        } else if (game === "colorfle")
+          lastAnswer = { choice: issued.challenge.targets[index] };
+        else if (game === "circle")
+          lastAnswer = {
+            points: Array.from({ length: 181 }, (_, i) => ({
+              x: 300 + 150 * Math.cos((i / 180) * 2 * Math.PI),
+              y: 300 + 145 * Math.sin((i / 180) * 2 * Math.PI),
+            })),
+          };
+        else if (game === "pressure")
+          lastAnswer = {
+            rounds: [
+              {
+                events: [
+                  { type: "down", at: 0 },
+                  { type: "up", at: 1 },
+                ],
+                elapsed: 1,
+              },
+            ],
+          };
+        else {
+          const place = issued.challenge.places[index];
+          metadataLocation = place.view ?? { lat: place.lat, lng: place.lng };
+          expect(
+            (
+              await app.inject({
+                method: "POST",
+                url: `/api/games/${issued.id}/panorama`,
+                headers,
+                payload: { index, pano: "guest-panorama-" + index },
+              })
+            ).statusCode,
+          ).toBe(200);
+          lastAnswer = { guess: { lat: 20, lng: 0 }, expired: false };
+        }
+        // A timeout is a valid end of a Pressure attempt; allow enough elapsed server time.
+        if (game === "pressure") {
+          const first = issued.challenge.levels[0];
+          await pool.query(
+            "UPDATE playne_games SET created_at=now()-interval '1 hour' WHERE id=$1",
+            [issued.id],
+          );
+          const events =
+            judgePress(first, [], first.duration).status === "failure"
+              ? []
+              : [
+                  { type: "down", at: 0 },
+                  { type: "up", at: 1 },
+                ];
+          lastAnswer = { rounds: [{ events, elapsed: first.duration }] };
+        }
+        const answer = await app.inject({
+          method: "POST",
+          url: `/api/games/${issued.id}/answers`,
+          headers,
+          payload: { index, answer: lastAnswer },
+        });
+        expect(answer.statusCode, answer.body).toBe(200);
+        expect(answer.json().completed).toBe(index === count - 1);
+        expect(answer.json().published).toBe(false);
+        if (index === 0 && count === 5) {
+          const resumed = await start();
+          expect(resumed.json().id).toBe(issued.id);
+          expect(resumed.json().answers).toHaveLength(1);
+        }
+      }
+      expect((await start()).statusCode).toBe(403);
+      if (["geo", "colorfle"].includes(game)) {
+        expect(
+          (
+            await app.inject({
+              method: "POST",
+              url: "/api/games",
+              headers,
+              payload: {
+                game,
+                mode: game === "geo" ? "landmarks-timed" : "timed",
+                geoRulesVersion: 4,
+              },
+            })
+          ).statusCode,
+        ).toBe(403);
+      }
+      const summary = (await app.inject({ url: "/api/me", headers })).json()
+        .trials[game];
+      expect(summary.id).toBe(issued.id);
+      expect(summary.completed).toBe(true);
+      expect(typeof summary.score).toBe("number");
+      const retry = await app.inject({
+        method: "POST",
+        url: `/api/games/${issued.id}/answers`,
+        headers,
+        payload: { index: count - 1, answer: lastAnswer },
+      });
+      expect(retry.json().score).toBe(summary.score);
+      const login = await app.inject({
+        url:
+          "/api/auth/yandex/start?return=" +
+          encodeURIComponent(`/${game}/?saved=${issued.id}`),
+        headers,
+      });
+      const state = new URL(login.headers.location!).searchParams.get("state");
+      const callback = await app.inject({
+        url: `/api/auth/yandex/callback?code=test&state=${state}`,
+        headers,
+      });
+      expect(callback.statusCode).toBe(302);
+      expect(callback.headers.location).toContain(
+        `/${game}/?saved=${issued.id}&auth=success`,
+      );
+      const signed = { ...headers, cookie: merge(trialCookie, jar(callback)) };
+      const saved = (
+        await app.inject({ url: `/api/games/${issued.id}`, headers: signed })
+      ).json();
+      expect(saved.published).toBe(true);
+      expect(saved.score).toBe(summary.score);
+      if (game === "geo") expect(saved.answers[0].actual).toBeUndefined();
+      const again = await app.inject({
+        method: "POST",
+        url: "/api/games",
+        headers: signed,
+        payload: { game, geoRulesVersion: 4, pressureRulesVersion: 2 },
+      });
+      expect(again.statusCode).toBe(200);
+      expect(again.json().id).not.toBe(issued.id);
+      expect((await start()).statusCode).toBe(403);
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: "/api/auth/logout",
+            headers: signed,
+            payload: {},
+          })
+        ).statusCode,
+      ).toBe(200);
+      const otherGame = game === "circle" ? "naglaz" : "circle";
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: "/api/games",
+            headers,
+            payload: { game: otherGame },
+          })
+        ).statusCode,
+      ).toBe(200);
+    },
+  );
   it("revokes the authenticated session on logout", async () => {
     const out = await app.inject({
       method: "POST",

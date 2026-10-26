@@ -8,21 +8,36 @@ describe("Naglaz catalogue compatibility", () => {
   let app: Awaited<ReturnType<typeof buildApp>>;
   const origin = "https://test.playne.invalid";
   const query = vi.fn(async (sql: string) => {
+    if (
+      ["BEGIN", "COMMIT", "ROLLBACK"].includes(sql) ||
+      sql.startsWith("SELECT pg_advisory") ||
+      sql.startsWith("SELECT t.*") ||
+      sql.startsWith("INSERT INTO playne_guest_trials") ||
+      sql.startsWith("UPDATE playne_games")
+    )
+      return { rows: [] };
     if (sql.startsWith("DELETE FROM playne_")) return { rows: [] };
-    if (sql.startsWith("SELECT challenge FROM playne_games")) return { rows: [] };
+    if (sql.startsWith("SELECT challenge FROM playne_games"))
+      return { rows: [] };
     if (sql.startsWith("INSERT INTO playne_games"))
       return { rows: [{ id: "11111111-1111-4111-8111-111111111111" }] };
     throw new Error("Unexpected database request: " + sql);
   });
   beforeAll(async () => {
-    app = await buildApp({ query } as unknown as Pool, {
-      origin,
-      yandexId: "test-client",
-      yandexSecret: "test-secret",
-      redirect: origin + "/api/auth/yandex/callback",
-      secure: true,
-      revision: "test",
-    });
+    app = await buildApp(
+      {
+        query,
+        connect: async () => ({ query, release: () => {} }),
+      } as unknown as Pool,
+      {
+        origin,
+        yandexId: "test-client",
+        yandexSecret: "test-secret",
+        redirect: origin + "/api/auth/yandex/callback",
+        secure: true,
+        revision: "test",
+      },
+    );
   });
   afterAll(async () => app?.close());
 
@@ -50,7 +65,9 @@ describe("Naglaz catalogue compatibility", () => {
       payload: { game: "naglaz", supportedPairIds: [...supported, "unknown"] },
     });
     expect(response.statusCode).toBe(200);
-    expect(new Set(response.json().challenge.pairIds)).toEqual(new Set(supported));
+    expect(new Set(response.json().challenge.pairIds)).toEqual(
+      new Set(supported),
+    );
     expect(
       new Set(makeChallenge("naglaz", supported, "classic", supported).pairIds),
     ).toEqual(new Set(supported));

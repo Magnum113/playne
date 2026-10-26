@@ -1,3 +1,9 @@
+import {
+  GuestSavedNotice,
+  useGuestTrial,
+  loginToPlay,
+  type GameId,
+} from "./account";
 import type { ReactNode } from "react";
 
 export type GameRecordData = {
@@ -87,31 +93,65 @@ export function GameIntro({
 }
 export function GameStartAction({
   onStart,
+  game,
   loading = false,
   loadingLabel = "Загружаем…",
   caption,
   error,
 }: {
   onStart: () => void;
+  game?: GameId;
   loading?: boolean;
   loadingLabel?: string;
   caption?: string;
   error?: string;
 }) {
+  const access = useGuestTrial(game);
+  const unavailable =
+    !!game && !access.user && (!access.ready || access.loading);
+  const blocked = !!game && access.blocked;
   return (
     <div className="game-start-action">
       <button
         className="primary"
-        disabled={loading}
-        aria-busy={loading}
-        onClick={onStart}
+        disabled={loading || unavailable}
+        aria-busy={loading || unavailable}
+        onClick={
+          blocked && game ? () => loginToPlay(game, access.trial?.id) : onStart
+        }
       >
-        {loading ? loadingLabel : "Начать игру"}
+        {loading
+          ? loadingLabel
+          : unavailable
+            ? "Проверяем доступ…"
+            : blocked
+              ? "Войти и продолжить"
+              : game && access.resume
+                ? "Продолжить партию"
+                : "Начать игру"}
         <span aria-hidden="true">→</span>
       </button>
       {error && (
         <p className="error" role="status">
           {error}
+        </p>
+      )}
+      {game && <GuestSavedNotice game={game} />}
+      {game && !access.user && (
+        <p className="game-start-caption">
+          {blocked
+            ? "Первая партия уже сыграна. Дальше — бесплатно через Яндекс."
+            : access.resume
+              ? "Продолжишь незавершённую партию. Режим сохранён."
+              : "Первая партия — без входа. Дальше — бесплатно через Яндекс."}
+        </p>
+      )}
+      {game && !access.ready && !access.loading && (
+        <p role="status">
+          Не удалось проверить доступ.{" "}
+          <button className="text-button" onClick={() => void access.refresh()}>
+            Попробовать ещё раз
+          </button>
         </p>
       )}
       {caption && <p className="game-start-caption">{caption}</p>}

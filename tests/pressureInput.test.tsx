@@ -3,8 +3,18 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { makePressLevel, appendPressBatch } from "../src/pressure";
+const access = vi.hoisted(() => ({
+  user: { id: "test" } as { id: string } | null,
+  ready: true,
+  loading: false,
+  blocked: false,
+  resume: false,
+}));
 const mocks = vi.hoisted(() => ({ begin: vi.fn(), submit: vi.fn() }));
 vi.mock("../src/account", () => ({
+  useGuestTrial: () => access,
+  GuestTrialPrompt: () => null,
+  GuestSavedNotice: () => null,
   AccountNav: () => null,
   useRankedRun: () => ({ ...mocks, state: { status: "complete" } }),
   SaveResult: () => <p>Результат сохранён в рейтинг.</p>,
@@ -23,6 +33,8 @@ beforeEach(() => {
   });
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
+  access.user = { id: "test" };
+  access.resume = false;
   mocks.submit.mockReset();
   container = document.createElement("div");
   document.body.append(container);
@@ -38,6 +50,7 @@ afterEach(() => {
 async function begin(family: Parameters<typeof makePressLevel>[0]) {
   const l = makePressLevel(family, 0, () => 0);
   mocks.begin.mockResolvedValue({
+    id: "11111111-1111-4111-8111-111111111111",
     challenge: {
       rulesVersion: 2,
       seed: 17,
@@ -113,6 +126,31 @@ describe("Pressure input and completion lifecycle", () => {
     );
   });
 
+  it("resumes a guest at the next level even when leaving during success feedback", async () => {
+    access.user = null;
+    await begin("tap");
+    act(() => {
+      key("keydown");
+      key("keyup");
+    });
+    await act(async () => vi.advanceTimersByTime(450));
+    const saved = JSON.parse(
+      localStorage.getItem("playne:pressure-active:v1")!,
+    );
+    expect(saved.state.index).toBe(1);
+    expect(saved.state.traces).toHaveLength(1);
+    act(() => root.unmount());
+    root = createRoot(container);
+    access.resume = true;
+    await act(async () => root.render(<PressureGame />));
+    const resume = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("Продолжить партию"),
+    )!;
+    await act(async () => resume.click());
+    await act(async () => vi.advanceTimersByTime(1950));
+    expect(container.textContent).toContain("УРОВЕНЬ 2");
+    expect(mocks.submit).not.toHaveBeenCalled();
+  });
   it("counts a keyboard press once, ignores auto-repeat, and advances after feedback", async () => {
     await begin("tap");
     act(() => {

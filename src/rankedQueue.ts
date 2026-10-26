@@ -108,7 +108,9 @@ export function createRankedQueue(
         if (
           !p ||
           !uuid(p.key) ||
-          !["naglaz", "circle", "colorfle", "geo", "pressure"].includes(p.game) ||
+          !["naglaz", "circle", "colorfle", "geo", "pressure"].includes(
+            p.game,
+          ) ||
           !Array.isArray(p.tasks) ||
           p.tasks.length > 5 ||
           !Number.isFinite(p.updated) ||
@@ -384,6 +386,17 @@ export function createRankedQueue(
   }
   return {
     add,
+    flushGame: async (game: GameId) => {
+      load();
+      await Promise.all(
+        [...records.values()]
+          .filter(
+            (p) =>
+              p.game === game && (p.tasks.length || Object.keys(p.pins).length),
+          )
+          .map((p) => drain(p.key)),
+      );
+    },
     enqueue,
     enqueueMany,
     drain,

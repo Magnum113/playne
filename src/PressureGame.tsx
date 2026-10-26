@@ -1,3 +1,4 @@
+import { useGuestTrial } from "./account";
 import { GameIntro, GameStartAction } from "./GameIntro";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { SaveResult, useRankedRun } from "./account";
@@ -150,6 +151,8 @@ function Rules() {
   );
 }
 export default function PressureGame() {
+  const access = useGuestTrial("pressure");
+  const onlineId = useRef<string | null>(null);
   const ranked = useRankedRun("pressure");
   const [state, setState] = useState<BoardState>(initial),
     live = useRef(state);
@@ -174,6 +177,26 @@ export default function PressureGame() {
   const level = state.deck[state.index],
     playing = state.phase === "playing";
   function update(next: BoardState) {
+    if (
+      onlineId.current &&
+      (next.phase !== live.current.phase || next.index !== live.current.index)
+    ) {
+      try {
+        localStorage.setItem(
+          "playne:pressure-active:v1",
+          JSON.stringify({
+            id: onlineId.current,
+            seed: runSeed.current,
+            state:
+              next.phase === "between"
+                ? { ...next, index: next.index + 1 }
+                : next,
+          }),
+        );
+      } catch {
+        /* Play continues in memory. */
+      }
+    }
     live.current = next;
     setState(next);
   }
@@ -276,7 +299,16 @@ export default function PressureGame() {
     const previous = live.current.phase === "finished";
     const data = await ranked.begin();
     if (gen !== generation.current) return;
-    const compatible = data?.challenge?.rulesVersion === PRESSURE_RULES_VERSION;
+    if (!data) {
+      setLoading(false);
+      return;
+    }
+    onlineId.current = data.id;
+    const compatible = data.challenge?.rulesVersion === PRESSURE_RULES_VERSION;
+    if (!compatible) {
+      setLoading(false);
+      return;
+    }
     setOnline(!!data && compatible);
     runSeed.current = compatible
       ? data.challenge.seed
@@ -290,7 +322,30 @@ export default function PressureGame() {
     setCountdown(3);
     setResultVisible(false);
     setPressSerial(0);
-    update({ ...initial, deck, phase: "countdown" });
+    let resumed: Partial<BoardState> = {};
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem("playne:pressure-active:v1") ?? "null",
+      );
+      if (
+        access.resume &&
+        saved?.id === data.id &&
+        saved.seed === runSeed.current &&
+        saved.state?.phase !== "finished" &&
+        Array.isArray(saved.state?.traces) &&
+        saved.state.traces.length === saved.state.index &&
+        Array.isArray(saved.state.deck)
+      )
+        resumed = {
+          deck: saved.state.deck,
+          traces: saved.state.traces,
+          index: saved.state.index,
+          cleared: saved.state.cleared,
+        };
+    } catch {
+      /* The server still reserves this same trial. */
+    }
+    update({ ...initial, deck, ...resumed, phase: "countdown" });
     setLoading(false);
     if (previous) reachGoal(PRESSURE_GOALS.gameRestart);
     reachGoal(PRESSURE_GOALS.gameStart, {
@@ -497,11 +552,15 @@ export default function PressureGame() {
                 ничего не делать. Одна ошибка, и начинаем сначала.
               </p>
               <GameStartAction
+                game="pressure"
                 onStart={() => void begin()}
                 loading={loading}
                 loadingLabel="Готовим задания…"
-                caption="Без скачивания и регистрации. Игра — до первой ошибки."
+                caption="Без скачивания. Игра — до первой ошибки."
               />
+              {ranked.state.status === "error" && (
+                <p role="status">{ranked.state.message}</p>
+              )}
               <a
                 className="game-start-ranking"
                 href="/leaderboard/?game=pressure"
@@ -561,17 +620,21 @@ export default function PressureGame() {
                 Попыток <strong>{stats.played}</strong>
               </span>
             </div>
-            <button
-              className="primary"
-              disabled={loading}
-              onClick={() => void begin()}
-            >
-              {loading ? "Готовим задания…" : "Попробовать ещё"}{" "}
-              <span aria-hidden="true">↗</span>
-            </button>
-            <p className="pressure-new-deck">
-              Следующая попытка — новые задания и порядок.
-            </p>
+            {access.user && (
+              <button
+                className="primary"
+                disabled={loading}
+                onClick={() => void begin()}
+              >
+                {loading ? "Готовим задания…" : "Попробовать ещё"}{" "}
+                <span aria-hidden="true">↗</span>
+              </button>
+            )}
+            {access.user && (
+              <p className="pressure-new-deck">
+                Следующая попытка — новые задания и порядок.
+              </p>
+            )}
             {online ? (
               <SaveResult run={ranked} game="pressure" />
             ) : (

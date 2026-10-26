@@ -41,4 +41,11 @@ CREATE TABLE IF NOT EXISTS playne_color_score_backups (
  version integer NOT NULL, answers jsonb NOT NULL, score_units integer,
  created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS playne_guest_trials (
+ browser_hash char(64) NOT NULL, game text NOT NULL CHECK(game IN('naglaz','circle','colorfle','geo','pressure')),
+ run_id uuid REFERENCES playne_games(id) ON DELETE SET NULL,
+ consumed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(browser_hash,game)
+);
+CREATE INDEX IF NOT EXISTS playne_guest_trials_run ON playne_guest_trials(run_id);
 COMMIT;

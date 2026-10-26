@@ -89,14 +89,31 @@ const rankedQueue = createRankedQueue(api, {
       mode: run.mode ?? "classic",
     }),
 });
+export type GuestTrial = {
+  id?: string;
+  mode?: GeoMode;
+  completed: boolean;
+  published?: boolean;
+  score?: number | null;
+};
 const AuthContext = createContext<{
   user: User | null;
+  trials: Partial<Record<GameId, GuestTrial>>;
+  ready: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
-}>({ user: null, loading: false, refresh: async () => {} });
+}>({
+  user: null,
+  trials: {},
+  ready: true,
+  loading: false,
+  refresh: async () => {},
+});
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null),
     [loading, setLoading] = useState(true);
+  const [trials, setTrials] = useState<Partial<Record<GameId, GuestTrial>>>({});
+  const [ready, setReady] = useState(false);
   async function refresh() {
     try {
       meRequest ??= api("/me").finally(() => {
@@ -104,6 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const data = await meRequest;
       setUser(data.user);
+      setTrials(data.trials ?? {});
+      setReady(true);
       if (
         data.user &&
         new URLSearchParams(window.location.search).get("auth") === "success"
@@ -152,12 +171,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
   return (
-    <AuthContext.Provider value={{ user, loading, refresh }}>
+    <AuthContext.Provider value={{ user, loading, refresh, trials, ready }}>
       {children}
     </AuthContext.Provider>
   );
 }
 export const useAuth = () => useContext(AuthContext);
+export function useGuestTrial(game?: GameId) {
+  const auth = useAuth();
+  const trial = game ? auth.trials[game] : undefined;
+  return {
+    ...auth,
+    trial,
+    blocked: !auth.user && !!trial?.completed,
+    resume: !auth.user && !!trial && !trial.completed,
+  };
+}
+export function loginToPlay(game: GameId, id?: string) {
+  reachGoal(ACCOUNT_GOALS.loginStart, { source: "guest_party", game });
+  const path = `/${game}/` + (id ? `?saved=${encodeURIComponent(id)}` : "");
+  window.location.assign(
+    "/api/auth/yandex/start?return=" + encodeURIComponent(path),
+  );
+}
+export function GuestSavedNotice({ game }: { game: GameId }) {
+  const { user, trial } = useGuestTrial(game);
+  const saved =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("saved");
+  return user && trial?.published && saved === trial.id ? (
+    <p className="guest-saved-notice" role="status">
+      Результат сохранён в рейтинг. Можно играть дальше.
+    </p>
+  ) : null;
+}
+export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
+  const { user, trial, ready, loading, refresh } = useGuestTrial(game);
+  if (user) return null;
+  return (
+    <div className="guest-trial-prompt">
+      <h3>Сыграем ещё?</h3>
+      <p>
+        Войди через Яндекс, чтобы играть дальше и сохранить результат в рейтинг.
+      </p>
+      <button
+        className="primary"
+        disabled={loading}
+        onClick={() => loginToPlay(game, id ?? trial?.id)}
+      >
+        Войти и продолжить <span aria-hidden="true">→</span>
+      </button>
+      {!ready && (
+        <button className="text-button" onClick={() => void refresh()}>
+          Проверить соединение
+        </button>
+      )}
+    </div>
+  );
+}
 export function AccountNav() {
   const { user } = useAuth();
   return (
@@ -185,6 +257,7 @@ export function AccountNav() {
 }
 export class RankedSyncError extends Error {}
 export function useRankedRun(game: GameId) {
+  const auth = useGuestTrial(game);
   const [state, setState] = useState<RankedState>({ status: "idle" });
   const current = useRef<{
     generation: number;
@@ -209,6 +282,9 @@ export function useRankedRun(game: GameId) {
       if (restoreTimer.current) clearTimeout(restoreTimer.current);
     };
   }, []);
+  useEffect(() => {
+    if (["complete", "saved"].includes(state.status)) void auth.refresh();
+  }, [state.status]);
   function activate(data: ServerRun | null, generation: number) {
     const key = rankedQueue.add(data, game, current.current.mode);
     if (current.current.generation === generation) {
@@ -237,22 +313,29 @@ export function useRankedRun(game: GameId) {
       return active.run;
     }
     setState({ status: "loading" });
-    active.run = api<ServerRun>("/games", "POST", {
-      game,
-      mode,
-      geoRulesVersion: game === "geo" ? GEO_SCORE_VERSION : undefined,
-      pressureRulesVersion:
-        game === "pressure" ? PRESSURE_RULES_VERSION : undefined,
-      supportedPairIds:
-        game === "naglaz" ? pairs.map((pair) => pair.id) : undefined,
-    })
+    active.run = rankedQueue
+      .flushGame(game)
+      .then(() =>
+        api<ServerRun>("/games", "POST", {
+          game,
+          mode,
+          geoRulesVersion: game === "geo" ? GEO_SCORE_VERSION : undefined,
+          pressureRulesVersion:
+            game === "pressure" ? PRESSURE_RULES_VERSION : undefined,
+          supportedPairIds:
+            game === "naglaz" ? pairs.map((pair) => pair.id) : undefined,
+        }),
+      )
       .then((data) => activate(data, generation))
       .catch((e) => {
+        if (e instanceof ApiError && e.status === 403) void auth.refresh();
         if (alive.current && current.current === active)
           setState({
             status: "error",
             message:
-              "Не удалось загрузить партию. Проверь соединение и попробуй ещё раз.",
+              e instanceof ApiError && e.status === 403
+                ? e.message
+                : "Не удалось загрузить партию. Проверь соединение и попробуй ещё раз.",
           });
         return null;
       });
@@ -468,6 +551,8 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
         </button>
       </div>
     );
+  if (!loading && !user && ["complete", "save-error"].includes(s.status))
+    return <GuestTrialPrompt game={game} id={s.id} />;
   const waiting =
     loading || s.status === "saving" || (s.status === "complete" && !!user);
   return (

@@ -5,8 +5,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CircleGame from "../src/CircleGame";
 import { CIRCLE_BEST_KEY } from "../src/circle";
 
+const access = vi.hoisted(() => ({
+  user: { id: "test" } as { id: string } | null,
+  ready: true,
+  loading: false,
+  blocked: false,
+  resume: false,
+}));
 const ranked = vi.hoisted(() => ({ begin: vi.fn(), submit: vi.fn() }));
 vi.mock("../src/account", () => ({
+  useGuestTrial: () => access,
+  GuestTrialPrompt: () => null,
+  GuestSavedNotice: () => null,
   useRankedRun: () => ranked,
   AccountNav: () => null,
   SaveResult: () => null,
@@ -52,6 +62,7 @@ function status() {
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
+  access.user = { id: "test" };
   ranked.begin.mockReset();
   ranked.submit.mockReset();
   container = document.createElement("div");
@@ -73,6 +84,24 @@ afterEach(() => {
 });
 
 describe("circle pointer endings", () => {
+  it("lets a guest retry an invalid stroke but blocks a second scored circle", () => {
+    access.user = null;
+    act(() => root.render(<CircleGame />));
+    arc(0.5);
+    event("pointerup", 130, 300);
+    expect(ranked.submit).not.toHaveBeenCalled();
+    arc();
+    event("pointerup", 470, 300);
+    expect(ranked.submit).toHaveBeenCalledTimes(1);
+    expect(
+      [...container.querySelectorAll("button")].some((b) =>
+        b.textContent?.includes("Ещё раз"),
+      ),
+    ).toBe(false);
+    arc();
+    event("pointerup", 470, 300);
+    expect(ranked.submit).toHaveBeenCalledTimes(1);
+  });
   it("scores a mouse stroke on ordinary release", () => {
     pointerType = "mouse";
     arc();

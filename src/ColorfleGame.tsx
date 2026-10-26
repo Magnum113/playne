@@ -1,3 +1,4 @@
+import { useGuestTrial } from "./account";
 import { GameIntro, GameStartAction } from "./GameIntro";
 import { ModeChoice, RoundDots } from "./ui";
 import { useRankedRun, SaveResult } from "./account";
@@ -196,6 +197,7 @@ function Rules() {
   );
 }
 export default function ColorfleGame() {
+  const access = useGuestTrial("colorfle");
   const ranked = useRankedRun("colorfle");
   const [state, update] = useReducer(shadeReducer, undefined, loadShadeSession);
   const current = useRef(state);
@@ -207,6 +209,13 @@ export default function ColorfleGame() {
   const entryGeneration = useRef(0);
   const [timerError, setTimerError] = useState("");
   const [timerRetry, setTimerRetry] = useState(0);
+  useEffect(() => {
+    if (
+      access.resume &&
+      (access.trial?.mode === "classic" || access.trial?.mode === "timed")
+    )
+      dispatch({ type: "mode", mode: access.trial.mode });
+  }, [access.resume, access.trial?.mode]);
   const mode = state.mode ?? "classic";
   const timed = mode === "timed";
   const phase = shadePhase(state);
@@ -267,6 +276,30 @@ export default function ColorfleGame() {
     const generation = entryGeneration.current;
     const online = await ranked.begin(mode);
     if (!online || generation !== entryGeneration.current) return;
+    if (online.answers?.length || (access.resume && online.mode !== mode)) {
+      const session = newShadeSession(
+        current.current,
+        Math.random,
+        online.mode === "timed" ? "timed" : "classic",
+      );
+      dispatch({
+        type: "restore",
+        session: {
+          ...session,
+          targets: online.challenge.targets,
+          rankedId: online.id,
+          started: true,
+          answers: (online.answers ?? []).map((a) => ({
+            choice: a.choice ?? { h: 180, s: 50, v: 75 },
+            score: a.score,
+            timedOut: !!a.timedOut,
+            noChoice: a.choice === null,
+          })),
+          round: online.answers?.length ?? 0,
+        },
+      });
+      return;
+    }
     if (replay)
       dispatch({ type: "new", session: newShadeSession(current.current) });
     if (online)
@@ -418,24 +451,31 @@ export default function ColorfleGame() {
                 Смотри на образец и выбирай такой же оттенок на палитре. Чем
                 ближе твой цвет, тем больше очков.
               </p>
-              <ModeChoice
-                value={mode}
-                onChange={(mode) => dispatch({ type: "mode", mode })}
-                disabled={ranked.state.status === "loading"}
-                options={[
-                  {
-                    value: "classic",
-                    label: shadeModeName("classic"),
-                    description: "В своём темпе",
-                  },
-                  {
-                    value: "timed",
-                    label: shadeModeName("timed"),
-                    description: "30 секунд на цвет",
-                  },
-                ]}
-              />
+              {!access.blocked && (
+                <ModeChoice
+                  value={mode}
+                  onChange={(mode) => dispatch({ type: "mode", mode })}
+                  disabled={
+                    ranked.state.status === "loading" ||
+                    access.resume ||
+                    access.blocked
+                  }
+                  options={[
+                    {
+                      value: "classic",
+                      label: shadeModeName("classic"),
+                      description: "В своём темпе",
+                    },
+                    {
+                      value: "timed",
+                      label: shadeModeName("timed"),
+                      description: "30 секунд на цвет",
+                    },
+                  ]}
+                />
+              )}
               <GameStartAction
+                game="colorfle"
                 onStart={() => void beginOnline()}
                 loading={ranked.state.status === "loading"}
                 error={
@@ -585,7 +625,7 @@ export default function ColorfleGame() {
                   </h2>
                   <p>
                     {phase === "finished"
-                      ? "Все пять цветов пройдены. Сыграешь ещё?"
+                      ? "Все пять цветов пройдены."
                       : "Сравни образец со своим ответом. Чем ближе цвета, тем больше очков."}
                   </p>
                   {answer?.timedOut && (
@@ -615,20 +655,24 @@ export default function ColorfleGame() {
                           </span>
                         ))}
                       </div>
-                      <button
-                        className="primary"
-                        onClick={() => {
-                          void beginOnline(true);
-                        }}
-                      >
-                        Играть ещё →
-                      </button>
-                      <button
-                        className="text-button shade-other-mode"
-                        onClick={() => dispatch({ type: "menu" })}
-                      >
-                        Выбрать другой режим
-                      </button>
+                      {access.user && (
+                        <button
+                          className="primary"
+                          onClick={() => {
+                            void beginOnline(true);
+                          }}
+                        >
+                          Играть ещё →
+                        </button>
+                      )}
+                      {access.user && (
+                        <button
+                          className="text-button shade-other-mode"
+                          onClick={() => dispatch({ type: "menu" })}
+                        >
+                          Выбрать другой режим
+                        </button>
+                      )}
                       <SaveResult run={ranked} game="colorfle" />
                     </>
                   ) : (

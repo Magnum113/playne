@@ -1,3 +1,4 @@
+import { GuestTrialPrompt } from "./account";
 import { GameIntro, GameRecord, GameStartAction } from "./GameIntro";
 import {
   useCallback,
@@ -1539,6 +1540,17 @@ export default function DesignSystem() {
               </Sample>
             </Section>
             <Section id="results">
+              <Sample
+                title="Вход после гостевой партии"
+                source="account.tsx · GuestTrialPrompt"
+              >
+                <p className="ds-note">
+                  Гостю доступна полная партия каждой игры. После неё следующая
+                  попытка требует входа через Яндекс. Завершённый результат
+                  сохраняется автоматически после входа.
+                </p>
+                <GuestTrialPrompt game="naglaz" />
+              </Sample>
               <Results />
               <Sample
                 title="Сохранение результата: все состояния"

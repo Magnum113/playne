@@ -264,7 +264,7 @@ export function initialNickname(profile: any) {
 }
 export function safeReturn(value: unknown) {
   return typeof value === "string" &&
-    /^\/(?:account|naglaz|circle|colorfle|geo|pressure|leaderboard)\/(?:\?claim=[0-9a-f-]{36})?$/.test(
+    /^\/(?:account|naglaz|circle|colorfle|geo|pressure|leaderboard)\/(?:\?(?:claim|saved)=[0-9a-f-]{36})?$/.test(
       value,
     )
     ? value

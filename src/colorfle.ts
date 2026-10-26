@@ -204,6 +204,7 @@ export type ShadeAction =
       id: string;
     }
   | { type: "ranked"; targets: HSV[]; id: string }
+  | { type: "restore"; session: ShadeSession }
   | { type: "start" }
   | { type: "pick"; color: HSV }
   | { type: "submit"; expired?: boolean }
@@ -213,6 +214,7 @@ export function shadeReducer(
   state: ShadeSession,
   action: ShadeAction,
 ): ShadeSession {
+  if (action.type === "restore") return action.session;
   if (action.type === "reopen") return shadeWelcomeSession(state);
   if (action.type === "menu" && shadePhase(state) === "finished")
     return { ...newShadeSession(state), started: false };

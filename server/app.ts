@@ -116,8 +116,8 @@ export async function buildApp(
     let value = req.cookies.playne_guest;
     if (!value || !/^[\w-]{43}$/.test(value)) {
       value = token();
-      reply.setCookie("playne_guest", value, options);
     }
+    reply.setCookie("playne_guest", value, { ...options, maxAge: 365 * 86400 });
     return hash(value);
   }
   async function user(req: FastifyRequest, client: any = pool) {
@@ -162,8 +162,27 @@ export async function buildApp(
     return { ok: true, revision: config.revision };
   });
   app.get("/api/me", async (req, reply) => {
-    browser(req, reply);
-    return { user: await user(req) };
+    const b = browser(req, reply);
+    const signed = await user(req);
+    const trials = await pool.query(
+      "SELECT t.game,t.run_id AS id,t.consumed_at,g.mode,g.score_units,g.completed_at,g.published_at,g.owner_id FROM playne_guest_trials t LEFT JOIN playne_games g ON g.id=t.run_id WHERE t.browser_hash=$1",
+      [b],
+    );
+    return {
+      user: signed,
+      trials: Object.fromEntries(
+        trials.rows.map((r) => [
+          r.game,
+          {
+            id: r.id,
+            mode: r.mode,
+            completed: !!r.consumed_at || !!r.completed_at || !r.id,
+            published: !!r.published_at && r.owner_id === signed?.id,
+            score: r.score_units === null ? null : r.score_units / 10,
+          },
+        ]),
+      ),
+    };
   });
   app.patch("/api/me", async (req) => {
     const u = await requireUser(req);
@@ -292,6 +311,13 @@ export async function buildApp(
           "INSERT INTO playne_auth_sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '30 days')",
           [hash(sid), userId],
         );
+        await client.query(
+          `UPDATE playne_games g SET owner_id=$1,published_at=coalesce(g.published_at,now()),
+          answers=CASE WHEN g.game='geo' THEN (SELECT jsonb_agg(a - 'actual' - 'guess') FROM jsonb_array_elements(g.answers) a) ELSE g.answers END,
+          challenge=CASE WHEN g.game='geo' THEN jsonb_build_object('places',g.challenge->'places','mode',g.mode) ELSE g.challenge END
+          FROM playne_guest_trials t WHERE t.run_id=g.id AND t.browser_hash=$2 AND g.completed_at IS NOT NULL AND (g.owner_id IS NULL OR g.owner_id=$1)`,
+          [userId, flow.browser_hash],
+        );
         await client.query("COMMIT");
         reply.setCookie("playne_session", sid, options);
       } catch (e) {
@@ -325,77 +351,130 @@ export async function buildApp(
         failure("Некорректный каталог сравнений");
       const b = browser(req, reply),
         u = await user(req);
-      const recentRows = await pool.query(
-        "SELECT challenge FROM playne_games WHERE game=$1 AND browser_hash=$2 ORDER BY created_at DESC LIMIT $3",
-        [game, b, game === "colorfle" ? 30 : 6],
-      );
-      const recent = (
-        game === "geo" ? [...recentRows.rows].reverse() : recentRows.rows
-      ).flatMap((r) =>
-        game === "naglaz"
-          ? (r.challenge.pairIds ?? [])
-          : game === "geo"
-            ? (r.challenge.places ?? []).map((p: any) => p.id)
-            : game === "colorfle"
-              ? (r.challenge.targets ?? []).filter(validHSV).map(hsvToHex)
-              : game === "pressure"
-                ? (r.challenge.levels ?? []).map((l: any) => l.id)
-                : [],
-      );
-      const mode =
-        game === "geo" || game === "colorfle"
-          ? ((req.body as any)?.mode ?? "classic")
-          : "classic";
-      if (!validGeoMode(mode) || (game === "colorfle" && !validShadeMode(mode)))
-        failure("Неизвестный режим");
-      const geoVersion = (req.body as any)?.geoRulesVersion;
-      const version =
-        game === "geo"
-          ? geoVersion === 4
-            ? 4
-            : geoVersion === 3
-              ? 3
-              : geoVersion === 2
-                ? 2
-                : 1
-          : scoreVersion(game);
-      if (
-        game === "geo" &&
-        (geoCanMove(mode) || geoIsLandmarks(mode)) &&
-        version < 4
-      )
-        failure("Обнови страницу, чтобы играть в этом режиме");
-      let challenge: ReturnType<typeof makeChallenge>;
+      const client = await pool.connect();
       try {
-        challenge = makeChallenge(
-          game,
-          recent,
-          game === "geo" && version === 1 ? "classic" : mode,
-          game === "naglaz" ? supportedPairIds : undefined,
-          (req.body as any)?.pressureRulesVersion,
+        await client.query("BEGIN");
+        if (!u) {
+          await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+            "trial:" + b + ":" + game,
+          ]);
+          const trial = await client.query(
+            "SELECT t.*,g.completed_at FROM playne_guest_trials t LEFT JOIN playne_games g ON g.id=t.run_id WHERE t.browser_hash=$1 AND t.game=$2",
+            [b, game],
+          );
+          if (trial.rows[0]) {
+            const t = trial.rows[0];
+            if (t.consumed_at || t.completed_at || !t.run_id)
+              failure(
+                "Первая партия уже сыграна. Войди через Яндекс, чтобы играть дальше.",
+                403,
+              );
+            const existing = await owned(req, reply, t.run_id, client);
+            await client.query("COMMIT");
+            return {
+              id: existing.id,
+              game,
+              version: existing.version,
+              mode: existing.mode,
+              challenge: publicChallenge(game, existing.challenge),
+              answers: existing.answers,
+              completed: false,
+            };
+          }
+        }
+        const recentRows = await client.query(
+          "SELECT challenge FROM playne_games WHERE game=$1 AND browser_hash=$2 ORDER BY created_at DESC LIMIT $3",
+          [game, b, game === "colorfle" ? 30 : 6],
         );
-      } catch (e) {
-        if (game === "naglaz")
-          failure("Обнови страницу, чтобы загрузить доступные сравнения");
-        throw e;
-      }
-      const { rows } = await pool.query(
-        "INSERT INTO playne_games(browser_hash,owner_id,game,challenge,version,mode) VALUES($1,$2,$3,$4,$5,$6) RETURNING id",
-        [
-          b,
-          u?.id ?? null,
+        const recent = (
+          game === "geo" ? [...recentRows.rows].reverse() : recentRows.rows
+        ).flatMap((r) =>
+          game === "naglaz"
+            ? (r.challenge.pairIds ?? [])
+            : game === "geo"
+              ? (r.challenge.places ?? []).map((p: any) => p.id)
+              : game === "colorfle"
+                ? (r.challenge.targets ?? []).filter(validHSV).map(hsvToHex)
+                : game === "pressure"
+                  ? (r.challenge.levels ?? []).map((l: any) => l.id)
+                  : [],
+        );
+        const mode =
+          game === "geo" || game === "colorfle"
+            ? ((req.body as any)?.mode ?? "classic")
+            : "classic";
+        if (
+          !validGeoMode(mode) ||
+          (game === "colorfle" && !validShadeMode(mode))
+        )
+          failure("Неизвестный режим");
+        const geoVersion = (req.body as any)?.geoRulesVersion;
+        const version =
+          game === "geo"
+            ? geoVersion === 4
+              ? 4
+              : geoVersion === 3
+                ? 3
+                : geoVersion === 2
+                  ? 2
+                  : 1
+            : scoreVersion(game);
+        if (
+          game === "geo" &&
+          (geoCanMove(mode) || geoIsLandmarks(mode)) &&
+          version < 4
+        )
+          failure("Обнови страницу, чтобы играть в этом режиме");
+        let challenge: ReturnType<typeof makeChallenge>;
+        try {
+          challenge = makeChallenge(
+            game,
+            recent,
+            game === "geo" && version === 1 ? "classic" : mode,
+            game === "naglaz" ? supportedPairIds : undefined,
+            (req.body as any)?.pressureRulesVersion,
+          );
+        } catch (e) {
+          if (game === "naglaz")
+            failure("Обнови страницу, чтобы загрузить доступные сравнения");
+          throw e;
+        }
+        const { rows } = await client.query(
+          "INSERT INTO playne_games(browser_hash,owner_id,game,challenge,version,mode) VALUES($1,$2,$3,$4,$5,$6) RETURNING id",
+          [
+            b,
+            u?.id ?? null,
+            game,
+            JSON.stringify(challenge),
+            version,
+            game === "geo" && version === 1 ? "classic" : mode,
+          ],
+        );
+        if (!u) {
+          await client.query(
+            "INSERT INTO playne_guest_trials(browser_hash,game,run_id) VALUES($1,$2,$3)",
+            [b, game, rows[0].id],
+          );
+          await client.query(
+            "UPDATE playne_games SET expires_at=now()+interval '365 days' WHERE id=$1",
+            [rows[0].id],
+          );
+        }
+        await client.query("COMMIT");
+        return {
+          id: rows[0].id,
           game,
-          JSON.stringify(challenge),
           version,
-          game === "geo" && version === 1 ? "classic" : mode,
-        ],
-      );
-      return {
-        id: rows[0].id,
-        game,
-        version,
-        challenge: publicChallenge(game, challenge),
-      };
+          mode: game === "geo" && version === 1 ? "classic" : mode,
+          challenge: publicChallenge(game, challenge),
+          answers: [],
+        };
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      } finally {
+        client.release();
+      }
     },
   );
   // Recover only a challenge previously issued to this browser or account.
@@ -763,6 +842,11 @@ export async function buildApp(
           JSON.stringify(savedChallenge),
         ],
       );
+      if (complete)
+        await c.query(
+          "UPDATE playne_guest_trials SET consumed_at=coalesce(consumed_at,now()) WHERE run_id=$1",
+          [run.id],
+        );
       await c.query("COMMIT");
       return {
         answer,
@@ -904,6 +988,9 @@ export async function buildApp(
     await pool.query("DELETE FROM playne_oauth_states WHERE expires_at<now()");
     await pool.query(
       "DELETE FROM playne_games WHERE published_at IS NULL AND expires_at<now()",
+    );
+    await pool.query(
+      "DELETE FROM playne_guest_trials WHERE created_at<now()-interval '365 days'",
     );
   }
   const timer = setInterval(

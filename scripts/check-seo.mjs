@@ -104,7 +104,7 @@ try {
       assert(description.includes("Pressing Under Pressure"));
       assert(
         text.includes("The Impossible Quiz") &&
-          text.includes("Без скачивания и регистрации"),
+          text.includes("Первая попытка до ошибки доступна без входа"),
       );
       assert(
         html.includes('id="pressure-rules"') &&

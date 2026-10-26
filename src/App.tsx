@@ -1,3 +1,4 @@
+import { useGuestTrial } from "./account";
 import { GameIntro, GameStartAction } from "./GameIntro";
 import { RoundDots } from "./ui";
 import { useRankedRun, SaveResult } from "./account";
@@ -112,6 +113,7 @@ function Hero() {
   );
 }
 export default function App() {
+  const access = useGuestTrial("naglaz");
   const ranked = useRankedRun("naglaz");
   const [screen, setScreen] = useState<"start" | "game" | "summary">("start");
   const [rounds, setRounds] = useState<Pair[]>([]);
@@ -170,8 +172,13 @@ export default function App() {
       pairs.find((p) => p.id === id)!,
     );
     setRounds(nextRounds);
-    setIndex(0);
-    setResults([]);
+    const recovered: Result[] = (online.answers ?? []).map((a, i) => ({
+      pairId: nextRounds[i].id,
+      guess: a.guess,
+      points: a.score,
+    }));
+    setIndex(recovered.length);
+    setResults(recovered);
     setRatio(0.45 + Math.random() * 0.55);
     setRevealed(false);
     setRevealReady(false);
@@ -276,6 +283,7 @@ export default function App() {
                   подобрать второй.
                 </p>
                 <GameStartAction
+                  game="naglaz"
                   onStart={() => start("initial")}
                   loading={ranked.state.status === "loading"}
                   caption="Без таймера. Пять сравнений за партию."
@@ -491,9 +499,11 @@ export default function App() {
                 );
               })}
             </div>
-            <button className="primary" onClick={() => start("restart")}>
-              Играть ещё <Arrow />
-            </button>
+            {access.user && (
+              <button className="primary" onClick={() => start("restart")}>
+                Играть ещё <Arrow />
+              </button>
+            )}
             <button
               className="text-button"
               onClick={() => {
