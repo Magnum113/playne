@@ -199,11 +199,9 @@ export default function CircleGame() {
             </button>
           </p>
         )}
-        {access.ready && !access.user && !success && (
+        {access.ready && access.blocked && !success && (
           <p className="guest-trial-caption">
-            {access.blocked
-              ? "Первая попытка уже сыграна."
-              : "Первая попытка — без входа. Дальше — бесплатно через Яндекс."}
+            Первая попытка уже сыграна.
           </p>
         )}
         {access.loading ? (

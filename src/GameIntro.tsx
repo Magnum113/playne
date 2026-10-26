@@ -144,13 +144,11 @@ export function GameStartAction({
         </p>
       )}
       {game && <GuestSavedNotice game={game} />}
-      {game && !access.user && (
+      {game && !access.user && (blocked || access.resume) && (
         <p className="game-start-caption">
           {blocked
-            ? "Первая партия уже сыграна. Дальше — бесплатно через Яндекс."
-            : access.resume
-              ? "Продолжишь незавершённую партию. Режим сохранён."
-              : "Первая партия — без входа. Дальше — бесплатно через Яндекс."}
+            ? "Первая партия уже сыграна."
+            : "Продолжишь незавершённую партию. Режим сохранён."}
         </p>
       )}
       {game && !access.ready && !access.loading && (

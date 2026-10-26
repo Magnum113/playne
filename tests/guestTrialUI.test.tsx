@@ -43,9 +43,9 @@ async function render(data: any, onStart = vi.fn()) {
   return onStart;
 }
 describe("guest party entry", () => {
-  it("explains the free party and starts it without login", async () => {
+  it("starts the free party without a login caption on the welcome screen", async () => {
     const start = await render({ user: null, trials: {} });
-    expect(box.textContent).toContain("Первая партия — без входа");
+    expect(box.textContent).not.toContain("Первая партия — без входа");
     act(() => box.querySelector("button")!.click());
     expect(start).toHaveBeenCalledTimes(1);
   });
