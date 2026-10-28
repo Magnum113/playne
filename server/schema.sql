@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS playne_identities (
  user_id uuid NOT NULL REFERENCES playne_users(id) ON DELETE CASCADE,
  PRIMARY KEY(provider,subject)
 );
+ALTER TABLE playne_identities ADD COLUMN IF NOT EXISTS provider_email text;
+ALTER TABLE playne_identities ADD COLUMN IF NOT EXISTS email_received_at timestamptz;
 CREATE TABLE IF NOT EXISTS playne_auth_sessions (
  token_hash char(64) PRIMARY KEY, user_id uuid NOT NULL REFERENCES playne_users(id) ON DELETE CASCADE,
  expires_at timestamptz NOT NULL, created_at timestamptz NOT NULL DEFAULT now()

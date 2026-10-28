@@ -18,6 +18,7 @@ import {
   queueDisplacements,
   requestEmailSubscription,
   mailConfigured,
+  normalizeEmail,
   type EmailConfig,
 } from "./email-core";
 import {
@@ -273,12 +274,11 @@ export async function buildApp(
       response_type: "code",
       client_id: config.yandexId,
       redirect_uri: config.redirect,
-      scope: "login:info",
+      scope: "login:info login:email",
       state,
       code_challenge: hashChallenge(verifier),
       code_challenge_method: "S256",
     });
-    if (optIn) query.set("optional_scope", "login:email");
     return "https://oauth.yandex.ru/authorize?" + query;
   }
   app.post(
@@ -378,6 +378,18 @@ export async function buildApp(
             [profile.id, userId],
           );
         }
+        // Store the provider's address independently of newsletter consent.
+        // A malformed/missing optional profile field must not break sign-in.
+        let providerEmail: string | null = null;
+        try {
+          providerEmail = normalizeEmail(profile.default_email);
+        } catch {
+          // Some Yandex profiles do not have an email address.
+        }
+        await client.query(
+          "UPDATE playne_identities SET provider_email=$1,email_received_at=CASE WHEN $1::text IS NULL THEN NULL ELSE now() END WHERE provider='yandex' AND subject=$2 AND user_id=$3",
+          [providerEmail, profile.id, userId],
+        );
         if (req.cookies.playne_session)
           await client.query(
             "DELETE FROM playne_auth_sessions WHERE token_hash=$1",

@@ -104,6 +104,42 @@ describe("Email entry safety", () => {
         ?.getAttribute("aria-pressed"),
     ).toBe("false");
   });
+  it("shows immediate success for a Yandex address without asking for an email confirmation", async () => {
+    const remote = vi.fn(
+      async (_: any, options: any) =>
+        new Response(
+          JSON.stringify({
+            available: true,
+            email: "qa@example.com",
+            yandexEmail: "qa@example.com",
+            enabled: options?.method === "POST",
+            pending: false,
+            verified: options?.method === "POST",
+          }),
+        ),
+    );
+    vi.stubGlobal("fetch", remote);
+    await act(async () => root.render(<EmailPreferences />));
+    expect(box.textContent).toContain(
+      "Адрес из Яндекса. Подтверждать не нужно.",
+    );
+    act(() =>
+      box.querySelector<HTMLInputElement>("input[type=checkbox]")!.click(),
+    );
+    act(() =>
+      box.querySelectorAll<HTMLInputElement>("input[type=checkbox]")[1].click(),
+    );
+    await act(async () =>
+      box
+        .querySelector("form")!
+        .dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        ),
+    );
+    expect(box.textContent).toContain("Письма подключены.");
+    expect(box.textContent).toContain("Подписка включена.");
+    expect(box.textContent).not.toContain("Отправим письмо с подтверждением");
+  });
   it("allows opt-out even while the mail service is unavailable", async () => {
     const remote = vi.fn(
       async (_: any, options: any) =>

@@ -19,6 +19,7 @@ import {
   emailExperimentReport,
   refreshEmailReadiness,
   mailConfigured,
+  emailSettings,
   type EmailConfig,
 } from "../server/email-core";
 import {
@@ -146,6 +147,33 @@ describe("Email capabilities and templates", () => {
 });
 (db ? describe : describe.skip)("Email PostgreSQL integration", () => {
   let pool: Pool, admin: Pool, app: Awaited<ReturnType<typeof buildApp>>;
+  let oauthEmail: unknown = "oauth@example.com";
+  async function login(optIn = false) {
+    const start = await app.inject(
+      optIn
+        ? {
+            method: "POST",
+            url: "/api/auth/yandex/start",
+            headers: { origin: config.origin },
+            payload: {
+              emailOptIn: true,
+              consentVersion: EMAIL_CONSENT_VERSION,
+              dataConsent: true,
+              return: "/account/",
+            },
+          }
+        : { method: "GET", url: "/api/auth/yandex/start" },
+    );
+    const url = new URL(optIn ? start.json().url : start.headers.location!);
+    const cookie = start.cookies.map((c) => c.name + "=" + c.value).join("; ");
+    return app.inject({
+      url:
+        "/api/auth/yandex/callback?state=" +
+        url.searchParams.get("state") +
+        "&code=test",
+      headers: { cookie },
+    });
+  }
   const tx = async <T>(fn: (c: any) => Promise<T>) => {
     const c = await pool.connect();
     try {
@@ -242,13 +270,15 @@ describe("Email capabilities and templates", () => {
                   id: "email-test",
                   client_id: "test",
                   first_name: "Тест",
-                  default_email: "oauth@example.com",
+                  default_email: oauthEmail,
                 },
           ),
         )) as typeof fetch,
     );
   });
   beforeEach(async () => {
+    oauthEmail = "oauth@example.com";
+    config.enabled = true;
     await pool.query(
       "TRUNCATE playne_users,playne_email_suppressions,playne_email_callbacks CASCADE",
     );
@@ -259,7 +289,7 @@ describe("Email capabilities and templates", () => {
     await admin?.query("DROP SCHEMA playne_email_test CASCADE");
     await admin?.end();
   });
-  it("requires explicit email and data consent, rejects CSRF and uses optional email scope", async () => {
+  it("requires notification consent, rejects CSRF and requests email on every OAuth entry", async () => {
     const no = await app.inject({
       method: "POST",
       url: "/api/auth/yandex/start",
@@ -289,13 +319,16 @@ describe("Email capabilities and templates", () => {
       },
     });
     expect(yes.statusCode).toBe(200);
-    expect(new URL(yes.json().url).searchParams.get("optional_scope")).toBe(
-      "login:email",
+    expect(new URL(yes.json().url).searchParams.get("scope")).toBe(
+      "login:info login:email",
     );
     const normal = await app.inject("/api/auth/yandex/start");
     expect(
       new URL(normal.headers.location!).searchParams.has("optional_scope"),
     ).toBe(false);
+    expect(new URL(normal.headers.location!).searchParams.get("scope")).toBe(
+      "login:info login:email",
+    );
   });
   it("confirms idempotently; old token cannot reenable after unsubscribe", async () => {
     const id = await user();
@@ -717,44 +750,207 @@ describe("Email capabilities and templates", () => {
       ).rowCount,
     ).toBe(0);
   });
-  it("saves Yandex email only on the opted-in flow and does not activate until confirmation", async () => {
-    async function login(optIn: boolean) {
-      const start = await app.inject(
-        optIn
-          ? {
-              method: "POST",
-              url: "/api/auth/yandex/start",
-              headers: { origin: config.origin },
-              payload: {
-                emailOptIn: true,
-                consentVersion: EMAIL_CONSENT_VERSION,
-                dataConsent: true,
-                return: "/account/",
-              },
-            }
-          : { method: "GET", url: "/api/auth/yandex/start" },
-      );
-      const url = new URL(optIn ? start.json().url : start.headers.location!);
-      const cookie = start.cookies
-        .map((c) => c.name + "=" + c.value)
-        .join("; ");
-      return app.inject({
-        url:
-          "/api/auth/yandex/callback?state=" +
-          url.searchParams.get("state") +
-          "&code=test",
-        headers: { cookie },
-      });
-    }
-    expect((await login(false)).headers.location).toContain("auth=success");
+  it("stores Yandex email on normal login without creating a newsletter subscription", async () => {
+    expect((await login()).headers.location).toContain("auth=success");
+    const identity = (await pool.query("SELECT * FROM playne_identities"))
+      .rows[0];
+    expect(identity.provider_email).toBe("oauth@example.com");
+    expect(identity.email_received_at).toBeTruthy();
     expect(
       (await pool.query("SELECT * FROM playne_email_contacts")).rowCount,
     ).toBe(0);
-    expect((await login(true)).headers.location).toContain("auth=success");
     expect(
-      (await pool.query("SELECT email,enabled FROM playne_email_contacts"))
-        .rows[0],
-    ).toMatchObject({ email: "oauth@example.com", enabled: false });
+      (await pool.query("SELECT * FROM playne_email_outbox")).rowCount,
+    ).toBe(0);
+    const settings = await emailSettings(pool, config, identity.user_id);
+    expect(settings).toMatchObject({
+      email: "oauth@example.com",
+      yandexEmail: "oauth@example.com",
+      enabled: false,
+      pending: false,
+    });
+  });
+  it("activates opted-in Yandex email immediately without sending any confirmation", async () => {
+    expect((await login(true)).headers.location).toContain("auth=success");
+    const contact = (await pool.query("SELECT * FROM playne_email_contacts"))
+      .rows[0];
+    expect(contact).toMatchObject({
+      email: "oauth@example.com",
+      enabled: true,
+    });
+    expect(contact.verified_at).toBeTruthy();
+    expect(
+      (await pool.query("SELECT * FROM playne_email_outbox")).rowCount,
+    ).toBe(0);
+    expect(
+      (
+        await pool.query(
+          "SELECT source FROM playne_email_consents WHERE action='confirmed'",
+        )
+      ).rows[0].source,
+    ).toBe("yandex_profile");
+  });
+  it("still saves provider email when newsletters are unavailable", async () => {
+    config.enabled = false;
+    try {
+      expect((await login()).headers.location).toContain("auth=success");
+      expect(
+        (await pool.query("SELECT provider_email FROM playne_identities"))
+          .rows[0].provider_email,
+      ).toBe("oauth@example.com");
+      expect(
+        (await pool.query("SELECT * FROM playne_email_contacts")).rowCount,
+      ).toBe(0);
+    } finally {
+      config.enabled = true;
+    }
+  });
+  it("updates provider email on repeat login and never reenables an unsubscribed contact", async () => {
+    await login(true);
+    const id = (await pool.query("SELECT user_id FROM playne_identities"))
+      .rows[0].user_id;
+    await tx((c) => stopEmails(c, config, id));
+    oauthEmail = "changed@example.com";
+    expect((await login()).headers.location).toContain("auth=success");
+    expect(
+      (await pool.query("SELECT count(*)::int n FROM playne_users")).rows[0].n,
+    ).toBe(1);
+    expect(
+      (await pool.query("SELECT provider_email FROM playne_identities")).rows[0]
+        .provider_email,
+    ).toBe("changed@example.com");
+    expect(await emailSettings(pool, config, id)).toMatchObject({
+      email: "changed@example.com",
+      verified: true,
+      enabled: false,
+    });
+    expect(
+      (await pool.query("SELECT enabled FROM playne_email_contacts")).rows[0]
+        .enabled,
+    ).toBe(false);
+    expect(
+      (
+        await pool.query(
+          "SELECT * FROM playne_email_outbox WHERE status='pending'",
+        )
+      ).rowCount,
+    ).toBe(0);
+  });
+  it("keeps sign-in working when Yandex returns no valid email", async () => {
+    for (const value of [
+      undefined,
+      "bad-address",
+      { email: "bad@example.com" },
+    ]) {
+      oauthEmail = value;
+      expect((await login()).headers.location).toContain("auth=success");
+      expect(
+        (await pool.query("SELECT provider_email FROM playne_identities"))
+          .rows[0].provider_email,
+      ).toBeNull();
+    }
+    expect(
+      (await pool.query("SELECT * FROM playne_email_contacts")).rowCount,
+    ).toBe(0);
+  });
+  it("uses the saved Yandex address for instant account signup but never trusts arbitrary addresses", async () => {
+    const signed = await login();
+    const cookie = signed.cookies.map((c) => c.name + "=" + c.value).join("; ");
+    const save = (email: string) =>
+      app.inject({
+        method: "POST",
+        url: "/api/email/settings",
+        headers: { origin: config.origin, cookie },
+        payload: {
+          enabled: true,
+          email,
+          consentVersion: EMAIL_CONSENT_VERSION,
+          dataConsent: true,
+        },
+      });
+    const result = await save("OAUTH@example.com");
+    expect(result.statusCode).toBe(200);
+    expect(result.json()).toMatchObject({
+      enabled: true,
+      pending: false,
+      verified: true,
+    });
+    expect(
+      (await pool.query("SELECT * FROM playne_email_outbox")).rowCount,
+    ).toBe(0);
+    const manual = await save("someone-else@example.com");
+    expect(manual.json()).toMatchObject({
+      enabled: false,
+      pending: true,
+      verified: false,
+    });
+    expect(
+      (
+        await pool.query(
+          "SELECT * FROM playne_email_outbox WHERE kind='verify' AND status='pending'",
+        )
+      ).rowCount,
+    ).toBe(1);
+  });
+  it("cannot skip manual verification by labelling an address as Yandex", async () => {
+    const id = await user();
+    await tx((c) =>
+      requestEmailSubscription(
+        c,
+        config,
+        id,
+        "untrusted@example.com",
+        "yandex",
+      ),
+    );
+    expect(
+      (
+        await pool.query(
+          "SELECT enabled,verified_at FROM playne_email_contacts",
+        )
+      ).rows[0],
+    ).toMatchObject({ enabled: false, verified_at: null });
+  });
+  it("retains provider opt-outs even for a Yandex address", async () => {
+    await login(true);
+    const id = (await pool.query("SELECT user_id FROM playne_identities"))
+      .rows[0].user_id;
+    await tx((c) => stopEmails(c, config, id));
+    await pool.query(
+      "UPDATE playne_email_contacts SET provider_unsubscribed=true WHERE user_id=$1",
+      [id],
+    );
+    await expect(
+      tx((c) =>
+        requestEmailSubscription(c, config, id, "oauth@example.com", "account"),
+      ),
+    ).rejects.toThrow("отписан");
+    expect(
+      (await pool.query("SELECT enabled FROM playne_email_contacts")).rows[0]
+        .enabled,
+    ).toBe(false);
+    expect(
+      (
+        await pool.query(
+          "SELECT * FROM playne_email_outbox WHERE kind='verify'",
+        )
+      ).rowCount,
+    ).toBe(0);
+  });
+  it("never bypasses a complaint or hard bounce with a Yandex profile address", async () => {
+    await login(true);
+    const id = (await pool.query("SELECT user_id FROM playne_identities"))
+      .rows[0].user_id;
+    await tx((c) => stopEmails(c, config, id, "spam"));
+    await expect(
+      tx((c) =>
+        requestEmailSubscription(c, config, id, "oauth@example.com", "account"),
+      ),
+    ).rejects.toThrow("не доставляются");
+    expect(
+      (await pool.query("SELECT enabled FROM playne_email_contacts")).rows[0]
+        .enabled,
+    ).toBe(false);
   });
 
   it("confirms without a login session and keeps GET non-mutating", async () => {

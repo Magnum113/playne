@@ -214,6 +214,7 @@ type Settings = {
   reportAvailable?: boolean;
   available: boolean;
   yandexAvailable: boolean;
+  yandexEmail?: string;
   email: string;
   enabled: boolean;
   pending: boolean;
@@ -267,7 +268,9 @@ export function EmailPreferences() {
       setData(false);
       setMessage(
         enabled
-          ? "Отправим письмо с подтверждением. Проверь почту."
+          ? s.enabled
+            ? "Письма подключены."
+            : "Отправим письмо с подтверждением. Проверь почту."
           : "Письма отключены.",
       );
     } catch (e) {
@@ -320,6 +323,10 @@ export function EmailPreferences() {
               required
               maxLength={254}
             />
+            {settings.yandexEmail &&
+              address.trim().toLowerCase() === settings.yandexEmail && (
+                <p>Адрес из Яндекса. Подтверждать не нужно.</p>
+              )}
             {(!settings.enabled ||
               address.trim().toLowerCase() !== settings.email) && (
               <>
@@ -335,7 +342,8 @@ export function EmailPreferences() {
                 >
                   {busy
                     ? "Сохраняем…"
-                    : settings.pending
+                    : settings.pending &&
+                        address.trim().toLowerCase() !== settings.yandexEmail
                       ? "Отправить подтверждение ещё раз"
                       : "Подключить письма"}
                 </button>

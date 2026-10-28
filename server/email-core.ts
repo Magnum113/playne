@@ -285,7 +285,25 @@ export async function requestEmailSubscription(
     )
   ).rows[0];
   const email = address ? normalizeEmail(address) : null;
+  // Only an address actually returned by Yandex for this account is trusted.
+  // Neither a request body nor a caller-provided source label can verify it.
+  const yandexAddress = email
+    ? !!(
+        await c.query(
+          "SELECT 1 FROM playne_identities WHERE user_id=$1 AND provider='yandex' AND provider_email=$2 AND email_received_at IS NOT NULL",
+          [userId, email],
+        )
+      ).rowCount
+    : false;
   if (existing?.enabled && existing.email === email) return;
+  if (
+    yandexAddress &&
+    existing?.provider_unsubscribed &&
+    existing.email === email
+  )
+    throw emailError(
+      "Этот адрес отписан у почтового сервиса. Укажи другую почту.",
+    );
   if (email) {
     const suppression = (
       await c.query(
@@ -304,11 +322,13 @@ export async function requestEmailSubscription(
     if (other.rowCount)
       throw emailError("Не удалось подключить этот адрес. Укажи другую почту.");
   }
-  const count = await c.query(
-    `SELECT count(*)::int AS n FROM playne_email_outbox WHERE user_id=$1 AND kind='verify' AND created_at>$2::timestamptz-interval '1 hour'`,
-    [userId, new Date(now)],
-  );
-  if (count.rows[0].n >= 3)
+  const count =
+    !yandexAddress &&
+    (await c.query(
+      `SELECT count(*)::int AS n FROM playne_email_outbox WHERE user_id=$1 AND kind='verify' AND created_at>$2::timestamptz-interval '1 hour'`,
+      [userId, new Date(now)],
+    ));
+  if (count && count.rows[0].n >= 3)
     throw emailError("Подожди час перед повторной отправкой.", 429);
   await c.query(
     `UPDATE playne_email_outbox SET status='cancelled',updated_at=now() WHERE user_id=$1 AND status IN('pending','sending','uncertain')`,
@@ -335,7 +355,20 @@ export async function requestEmailSubscription(
     "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,$2,$3,$4)",
     [userId, "email_processing", "email-processing-2026-10-28-v1", source],
   );
-  if (email)
+  if (yandexAddress) {
+    await c.query(
+      "DELETE FROM playne_email_suppressions WHERE address_hash=$1 AND reason='unsubscribe'",
+      [hashAddress(config, email!)],
+    );
+    await c.query(
+      "UPDATE playne_email_contacts SET enabled=true,verified_at=$1,updated_at=$1 WHERE user_id=$2",
+      [new Date(now), userId],
+    );
+    await c.query(
+      "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,'confirmed',$2,'yandex_profile')",
+      [userId, EMAIL_CONSENT_VERSION],
+    );
+  } else if (email)
     await c.query(
       `INSERT INTO playne_email_outbox(user_id,generation,kind,variant,experiment,payload) VALUES($1,$2,'verify',$3,$4,$5)`,
       [
@@ -414,14 +447,30 @@ export async function emailSettings(
       [userId],
     )
   ).rows[0];
+  const identity = (
+    await c.query(
+      "SELECT provider_email FROM playne_identities WHERE user_id=$1 AND provider='yandex'",
+      [userId],
+    )
+  ).rows[0];
+  const email =
+    (contact?.enabled || contact?.requested_at
+      ? contact?.email
+      : (identity?.provider_email ?? contact?.email)) ??
+    identity?.provider_email ??
+    "";
+  const verified =
+    (!!email && email === identity?.provider_email) ||
+    (email === contact?.email && !!contact?.verified_at);
   return {
     reportAvailable: !!config.adminId && config.adminId === userId,
     available: mailConfigured(config),
     yandexAvailable: !!config.yandexEmail,
-    email: contact?.email ?? "",
-    verified: !!contact?.verified_at,
+    email,
+    yandexEmail: identity?.provider_email ?? "",
+    verified,
     enabled: !!contact?.enabled,
-    pending: !!contact?.requested_at && !contact?.verified_at,
+    pending: !!contact?.requested_at && !verified,
     consentVersion: EMAIL_CONSENT_VERSION,
   };
 }
