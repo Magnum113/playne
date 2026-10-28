@@ -29,7 +29,9 @@ export default function LeaderboardPage() {
       ? (query!.get("mode") as GeoMode)
       : "classic",
   );
-  const [period, setPeriod] = useState<"all" | "week">("week"),
+  const [period, setPeriod] = useState<"all" | "week">(
+      query?.get("period") === "all" ? "all" : "week",
+    ),
     [page, setPage] = useState(1),
     [data, setData] = useState<any>(null),
     [error, setError] = useState(""),
@@ -69,7 +71,10 @@ export default function LeaderboardPage() {
     window.history.replaceState(
       null,
       "",
-      "/leaderboard/?game=" + next + (next === "geo" ? `&mode=${mode}` : ""),
+      "/leaderboard/?game=" +
+        next +
+        (next === "geo" ? `&mode=${mode}` : "") +
+        `&period=${period}`,
     );
   }
   function chooseMode(next: GeoMode) {
@@ -78,7 +83,7 @@ export default function LeaderboardPage() {
     window.history.replaceState(
       null,
       "",
-      `/leaderboard/?game=${game}&mode=${next}`,
+      `/leaderboard/?game=${game}&mode=${next}&period=${period}`,
     );
   }
   const entry = (e: any, key: string) => (
