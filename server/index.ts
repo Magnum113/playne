@@ -4,6 +4,13 @@ import { Pool } from "pg";
 import { readFileSync } from "node:fs";
 import { buildApp } from "./app";
 import { migrateShadeScores } from "./shade-migration";
+import {
+  deliverEmails,
+  prepareRankEmails,
+  emailExperimentReport,
+  cleanupEmailData,
+  type EmailConfig,
+} from "./email-core";
 const env = process.env;
 for (const key of [
   "DATABASE_URL",
@@ -13,6 +20,17 @@ for (const key of [
 ])
   if (!env[key]) throw new Error("Missing server setting: " + key);
 const origin = env.PLAYNE_ORIGIN ?? "https://playne.ru";
+const email: EmailConfig = {
+  origin,
+  secret: env.PLAYNE_EMAIL_SECRET ?? "",
+  apiKey: env.UNISENDER_PLAYNE_API_KEY,
+  projectId: env.UNISENDER_PLAYNE_PROJECT_ID,
+  from: env.PLAYNE_EMAIL_FROM,
+  replyTo: env.PLAYNE_EMAIL_REPLY_TO,
+  enabled: env.PLAYNE_EMAIL_ENABLED === "1",
+  yandexEmail: env.PLAYNE_YANDEX_EMAIL === "1",
+  adminId: env.PLAYNE_EMAIL_ADMIN_ID,
+};
 if (new URL(env.YANDEX_REDIRECT_URI!).origin !== origin)
   throw new Error("Invalid callback origin");
 const pool = new Pool({
@@ -21,6 +39,11 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000,
 });
 async function main() {
+  if (process.argv.includes("--email-report")) {
+    console.log(JSON.stringify(await emailExperimentReport(pool), null, 2));
+    await pool.end();
+    return;
+  }
   await pool.query(
     readFileSync(
       env.PLAYNE_SCHEMA ?? "/srv/playne/current/api/schema.sql",
@@ -40,8 +63,36 @@ async function main() {
     revision:
       env.PLAYNE_REVISION ??
       readFileSync("/srv/playne/current/REVISION", "utf8").trim(),
+    email,
+  });
+  let emailJob: Promise<void> | undefined;
+  let lastEmailCleanup = 0;
+  const emailShutdown = new AbortController();
+  let emailTimer: ReturnType<typeof setInterval> | undefined;
+  const pump = () => {
+    if (emailJob || emailShutdown.signal.aborted) return;
+    emailJob = (async () => {
+      if (Date.now() - lastEmailCleanup > 3600000) {
+        await cleanupEmailData(pool);
+        lastEmailCleanup = Date.now();
+      }
+      await prepareRankEmails(pool, email);
+      await deliverEmails(pool, email, fetch, Date.now(), emailShutdown.signal);
+    })()
+      .catch(() => console.error("Playne email worker failed"))
+      .finally(() => {
+        emailJob = undefined;
+      });
+  };
+  app.addHook("onClose", async () => {
+    if (emailTimer) clearInterval(emailTimer);
+    emailShutdown.abort();
+    await emailJob;
   });
   await app.listen({ host: "127.0.0.1", port: Number(env.PORT ?? 3035) });
+  emailTimer = setInterval(pump, 60_000);
+  emailTimer.unref();
+  pump();
   console.log("Playne API listening on loopback");
   for (const signal of ["SIGINT", "SIGTERM"])
     process.on(signal, () => {

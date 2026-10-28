@@ -1,3 +1,4 @@
+import { YandexLogin, EmailAction, EmailPreferences } from "./EmailPreferences";
 import { GEO_MODES, geoModeName, type GeoMode } from "./geo";
 import { shadeModeName } from "./colorfle";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
@@ -100,6 +101,11 @@ export default function AccountPage() {
       setSavingClaim(false);
     }
   }
+  const mailAction =
+    typeof window !== "undefined" &&
+    ["confirm", "unsubscribe"].includes(
+      new URLSearchParams(window.location.search).get("mail") ?? "",
+    );
   const returnPath = validClaim ? `/account/?claim=${validClaim}` : "/account/";
   return (
     <div className="app community-app">
@@ -110,9 +116,13 @@ export default function AccountPage() {
       <main id="account-main" className="community-main">
         <p className="eyebrow">ТВОИ ИГРЫ</p>
         <h1>
-          Личный кабинет<span className="brand-dot">.</span>
+          {mailAction ? "Письма Playne" : "Личный кабинет"}
+          <span className="brand-dot">.</span>
         </h1>
-        {loading ? (
+        <EmailAction />
+        {mailAction ? (
+          <a href="/account/">Личный кабинет →</a>
+        ) : loading ? (
           <p role="status">Открываем профиль…</p>
         ) : !user ? (
           <section className="community-panel login-panel">
@@ -135,21 +145,7 @@ export default function AccountPage() {
                 </strong>
               </p>
             )}
-            <a
-              className="primary yandex-login"
-              onClick={() =>
-                reachGoal(ACCOUNT_GOALS.loginStart, { source: "account" })
-              }
-              href={
-                "/api/auth/yandex/start?return=" +
-                encodeURIComponent(returnPath)
-              }
-            >
-              <span className="yandex-letter" aria-hidden="true">
-                Я
-              </span>{" "}
-              Войти через Яндекс
-            </a>
+            <YandexLogin returnPath={returnPath} />
             {authError && authError !== "success" && (
               <p className="error" role="status">
                 {authError === "cancelled"
@@ -192,6 +188,7 @@ export default function AccountPage() {
                 </button>
               </form>
             </section>
+            <EmailPreferences key={user.id} />
             {pending?.completed && (
               <section className="community-panel">
                 <p className="eyebrow">ТВОЙ РЕЗУЛЬТАТ</p>

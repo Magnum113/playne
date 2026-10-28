@@ -48,4 +48,61 @@ CREATE TABLE IF NOT EXISTS playne_guest_trials (
  PRIMARY KEY(browser_hash,game)
 );
 CREATE INDEX IF NOT EXISTS playne_guest_trials_run ON playne_guest_trials(run_id);
+ALTER TABLE playne_oauth_states ADD COLUMN IF NOT EXISTS email_opt_in boolean NOT NULL DEFAULT false;
+ALTER TABLE playne_oauth_states ADD COLUMN IF NOT EXISTS email_consent_version text;
+CREATE TABLE IF NOT EXISTS playne_email_contacts (
+ user_id uuid PRIMARY KEY REFERENCES playne_users(id) ON DELETE CASCADE,
+ email text, verified_at timestamptz, enabled boolean NOT NULL DEFAULT false,
+ consent_at timestamptz, consent_version text, consent_source text,
+ generation uuid NOT NULL DEFAULT gen_random_uuid(), requested_at timestamptz,
+ variant text NOT NULL CHECK(variant IN('A','B','C')),
+ experiment text NOT NULL DEFAULT 'rank-email-design-v1',
+ created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+ CHECK(NOT enabled OR (email IS NOT NULL AND verified_at IS NOT NULL AND consent_at IS NOT NULL))
+);
+ALTER TABLE playne_email_contacts ADD COLUMN IF NOT EXISTS provider_unsubscribed boolean NOT NULL DEFAULT false;
+CREATE UNIQUE INDEX IF NOT EXISTS playne_email_one_address ON playne_email_contacts(lower(email)) WHERE email IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS playne_email_generation ON playne_email_contacts(generation);
+CREATE TABLE IF NOT EXISTS playne_email_consents (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ user_id uuid NOT NULL REFERENCES playne_users(id) ON DELETE CASCADE,
+ action text NOT NULL, version text NOT NULL, source text NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS playne_email_suppressions (
+ address_hash char(64) PRIMARY KEY, reason text NOT NULL,
+ expires_at timestamptz NOT NULL DEFAULT now()+interval '180 days'
+);
+CREATE TABLE IF NOT EXISTS playne_email_events (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ user_id uuid NOT NULL REFERENCES playne_users(id) ON DELETE CASCADE,
+ cause_id uuid NOT NULL REFERENCES playne_games(id) ON DELETE CASCADE,
+ game text NOT NULL, mode text NOT NULL, version integer NOT NULL,
+ old_place integer NOT NULL, new_place integer NOT NULL,
+ score_units integer NOT NULL, opponent_units integer NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now(), handled_at timestamptz,
+ UNIQUE(user_id,cause_id,game,mode,version)
+);
+CREATE INDEX IF NOT EXISTS playne_email_event_queue ON playne_email_events(user_id,created_at) WHERE handled_at IS NULL;
+CREATE TABLE IF NOT EXISTS playne_email_outbox (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ user_id uuid NOT NULL REFERENCES playne_users(id) ON DELETE CASCADE,
+ generation uuid NOT NULL, kind text NOT NULL CHECK(kind IN('verify','rank')),
+ variant text NOT NULL CHECK(variant IN('A','B','C')), experiment text NOT NULL,
+ event_ids uuid[] NOT NULL DEFAULT '{}', payload jsonb NOT NULL,
+ status text NOT NULL DEFAULT 'pending' CHECK(status IN('pending','sending','accepted','uncertain','cancelled','failed')),
+ attempts integer NOT NULL DEFAULT 0, available_at timestamptz NOT NULL DEFAULT now(),
+ created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+ submitted_at timestamptz, provider_job text, delivered_at timestamptz,
+ raw_click_at timestamptz, visited_at timestamptz, game_started_at timestamptz,
+ game_completed_at timestamptz, unsubscribed_at timestamptz, complaint_at timestamptz,
+ failure_code text
+);
+CREATE UNIQUE INDEX IF NOT EXISTS playne_email_one_pending ON playne_email_outbox(user_id,kind) WHERE status IN('pending','sending','uncertain');
+CREATE INDEX IF NOT EXISTS playne_email_pending ON playne_email_outbox(available_at) WHERE status='pending';
+CREATE INDEX IF NOT EXISTS playne_email_frequency ON playne_email_outbox(user_id,submitted_at) WHERE kind='rank' AND submitted_at IS NOT NULL;
+CREATE TABLE IF NOT EXISTS playne_email_callbacks (
+ digest char(64) PRIMARY KEY, created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE playne_games ADD COLUMN IF NOT EXISTS email_origin uuid REFERENCES playne_email_outbox(id) ON DELETE SET NULL;
 COMMIT;

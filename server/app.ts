@@ -10,6 +10,21 @@ import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import { randomBytes, createHash } from "node:crypto";
 import { Pool } from "pg";
+import { LEADERBOARD_SQL } from "./leaderboard";
+import { EMAIL_CONSENT_VERSION } from "./email-templates";
+import {
+  lockPublications,
+  notificationSnapshot,
+  queueDisplacements,
+  requestEmailSubscription,
+  mailConfigured,
+  type EmailConfig,
+} from "./email-core";
+import {
+  registerEmailRoutes,
+  recordEmailGameStart,
+  recordEmailGameCompletion,
+} from "./email-routes";
 import {
   GAME_NAMES,
   isGame,
@@ -59,6 +74,7 @@ export type Config = {
   googleKey?: string;
   secure: boolean;
   revision: string;
+  email?: EmailConfig;
 };
 export async function buildApp(
   pool: Pool,
@@ -69,9 +85,32 @@ export async function buildApp(
     logger: false,
     trustProxy: "127.0.0.1",
     bodyLimit: 600_000,
+    routerOptions: { maxParamLength: 1800 },
   });
   await app.register(cookie);
   await app.register(rateLimit, { max: 180, timeWindow: "1 minute" });
+  const emailConfig: EmailConfig = config.email ?? {
+    origin: config.origin,
+    secret: "",
+  };
+  const jsonParser = app.getDefaultJsonParser("error", "error");
+  app.removeContentTypeParser("application/json");
+  app.addContentTypeParser(
+    "application/json",
+    { parseAs: "string" },
+    (req, body, done) => {
+      const text = typeof body === "string" ? body : body.toString("utf8");
+      if (req.url.split("?")[0] === "/api/email/provider")
+        (req as any).emailRawBody = text;
+      jsonParser(req, text, done);
+    },
+  );
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (_req, body, done) =>
+      done(null, Object.fromEntries(new URLSearchParams(body as string))),
+  );
   const options = {
     path: "/",
     httpOnly: true,
@@ -86,7 +125,12 @@ export async function buildApp(
       .header("Referrer-Policy", "no-referrer");
     if (
       ["POST", "PATCH", "DELETE"].includes(req.method) &&
-      req.headers.origin !== config.origin
+      req.headers.origin !== config.origin &&
+      !(
+        req.headers.origin === undefined &&
+        (req.routeOptions.url === "/api/email/provider" ||
+          req.routeOptions.url === "/api/email/unsubscribe/:token")
+      )
     )
       return reply.code(403).send({ error: "Недопустимый источник запроса" });
   });
@@ -157,6 +201,7 @@ export async function buildApp(
       failure("Срок сохранения этой партии истёк.", 410);
     return game;
   }
+  await registerEmailRoutes(app, pool, emailConfig, requireUser);
   app.get("/api/health", async () => {
     await pool.query("SELECT 1");
     return { ok: true, revision: config.revision };
@@ -170,6 +215,8 @@ export async function buildApp(
     );
     return {
       user: signed,
+      emailSignupAvailable:
+        !!emailConfig.yandexEmail && mailConfigured(emailConfig),
       trials: Object.fromEntries(
         trials.rows.map((r) => [
           r.game,
@@ -206,27 +253,56 @@ export async function buildApp(
     reply.clearCookie("playne_session", options);
     return { ok: true };
   });
+  async function startYandex(req: FastifyRequest, reply: any, optIn = false) {
+    const state = token(),
+      verifier = token();
+    const input = (req.method === "POST" ? req.body : req.query) as any;
+    const returnPath = safeReturn(input?.return);
+    await pool.query(
+      "INSERT INTO playne_oauth_states(state_hash,browser_hash,verifier,return_path,expires_at,email_opt_in,email_consent_version) VALUES($1,$2,$3,$4,now()+interval '10 minutes',$5,$6)",
+      [
+        hash(state),
+        browser(req, reply),
+        verifier,
+        returnPath,
+        optIn,
+        optIn ? EMAIL_CONSENT_VERSION : null,
+      ],
+    );
+    const query = new URLSearchParams({
+      response_type: "code",
+      client_id: config.yandexId,
+      redirect_uri: config.redirect,
+      scope: "login:info",
+      state,
+      code_challenge: hashChallenge(verifier),
+      code_challenge_method: "S256",
+    });
+    if (optIn) query.set("optional_scope", "login:email");
+    return "https://oauth.yandex.ru/authorize?" + query;
+  }
+  app.post(
+    "/api/auth/yandex/start",
+    { config: { rateLimit: { max: 12, timeWindow: "1 minute" } } },
+    async (req, reply) => {
+      const body = req.body as any;
+      const optIn = body?.emailOptIn === true;
+      if (
+        optIn &&
+        (body.consentVersion !== EMAIL_CONSENT_VERSION ||
+          body.dataConsent !== true)
+      )
+        failure("Подтверди согласие на письма и обработку адреса.");
+      if (optIn && (!emailConfig.yandexEmail || !mailConfigured(emailConfig)))
+        failure("Подписка пока недоступна. Можно войти без неё.", 503);
+      return { url: await startYandex(req, reply, optIn) };
+    },
+  );
   app.get(
     "/api/auth/yandex/start",
     { config: { rateLimit: { max: 12, timeWindow: "1 minute" } } },
     async (req, reply) => {
-      const state = token(),
-        verifier = token(),
-        returnPath = safeReturn((req.query as any).return);
-      await pool.query(
-        "INSERT INTO playne_oauth_states(state_hash,browser_hash,verifier,return_path,expires_at) VALUES($1,$2,$3,$4,now()+interval '10 minutes')",
-        [hash(state), browser(req, reply), verifier, returnPath],
-      );
-      const query = new URLSearchParams({
-        response_type: "code",
-        client_id: config.yandexId,
-        redirect_uri: config.redirect,
-        scope: "login:info",
-        state,
-        code_challenge: hashChallenge(verifier),
-        code_challenge_method: "S256",
-      });
-      return reply.redirect("https://oauth.yandex.ru/authorize?" + query);
+      return reply.redirect(await startYandex(req, reply));
     },
   );
   app.get("/api/auth/yandex/callback", async (req, reply) => {
@@ -282,6 +358,7 @@ export async function buildApp(
       let userId: string;
       try {
         await client.query("BEGIN");
+        await lockPublications(client);
         await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
           "yandex:" + profile.id,
         ]);
@@ -311,6 +388,31 @@ export async function buildApp(
           "INSERT INTO playne_auth_sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '30 days')",
           [hash(sid), userId],
         );
+        // A guest can finish several games before signing in. Snapshot each board once.
+        const claims = (
+          await client.query(
+            `SELECT g.id,g.game,g.mode FROM playne_games g JOIN playne_guest_trials t ON t.run_id=g.id WHERE t.browser_hash=$1 AND g.completed_at IS NOT NULL AND g.published_at IS NULL AND (g.owner_id IS NULL OR g.owner_id=$2) ORDER BY g.game,g.mode,g.id`,
+            [flow.browser_hash, userId],
+          )
+        ).rows;
+        const boards = new Map<
+          string,
+          { game: any; mode: string; before: any[]; cause: string }
+        >();
+        for (const claim of claims) {
+          const key = claim.game + ":" + claim.mode;
+          if (!boards.has(key))
+            boards.set(key, {
+              game: claim.game,
+              mode: claim.mode,
+              before: await notificationSnapshot(
+                client,
+                claim.game,
+                claim.mode,
+              ),
+              cause: claim.id,
+            });
+        }
         await client.query(
           `UPDATE playne_games g SET owner_id=$1,published_at=coalesce(g.published_at,now()),
           answers=CASE WHEN g.game='geo' THEN (SELECT jsonb_agg(a - 'actual' - 'guess') FROM jsonb_array_elements(g.answers) a) ELSE g.answers END,
@@ -318,6 +420,37 @@ export async function buildApp(
           FROM playne_guest_trials t WHERE t.run_id=g.id AND t.browser_hash=$2 AND g.completed_at IS NOT NULL AND (g.owner_id IS NULL OR g.owner_id=$1)`,
           [userId, flow.browser_hash],
         );
+        for (const board of boards.values())
+          await queueDisplacements(
+            client,
+            board.before,
+            userId,
+            board.cause,
+            board.game,
+            board.mode,
+          );
+        for (const claim of claims)
+          await recordEmailGameCompletion(client, claim.id);
+        if (
+          flow.email_opt_in &&
+          flow.email_consent_version === EMAIL_CONSENT_VERSION
+        ) {
+          // Mail setup must never roll back a successful sign-in or saved game.
+          await client.query("SAVEPOINT email_signup");
+          try {
+            await requestEmailSubscription(
+              client,
+              emailConfig,
+              userId,
+              profile.default_email ?? null,
+              "yandex",
+            );
+            await client.query("RELEASE SAVEPOINT email_signup");
+          } catch {
+            await client.query("ROLLBACK TO SAVEPOINT email_signup");
+            await client.query("RELEASE SAVEPOINT email_signup");
+          }
+        }
         await client.query("COMMIT");
         reply.setCookie("playne_session", sid, options);
       } catch (e) {
@@ -460,6 +593,7 @@ export async function buildApp(
             [rows[0].id],
           );
         }
+        await recordEmailGameStart(client, emailConfig, req, rows[0].id);
         await client.query("COMMIT");
         return {
           id: rows[0].id,
@@ -779,6 +913,7 @@ export async function buildApp(
     const c = await pool.connect();
     try {
       await c.query("BEGIN");
+      await lockPublications(c);
       const run = await owned(req, reply, (req.params as any).id, c, true);
       // Idempotent retry returns the originally accepted answer, never changes it.
       if (input.index < run.answers.length) {
@@ -826,6 +961,10 @@ export async function buildApp(
         units = complete ? scoreUnits(answers) : null;
       const viewer = complete ? await user(req, c) : null;
       const publish = !!viewer && (!run.owner_id || run.owner_id === viewer.id);
+      const before =
+        publish && !run.published_at
+          ? await notificationSnapshot(c, run.game, run.mode)
+          : [];
       const savedAnswers =
         publish && run.game === "geo"
           ? answers.map(({ actual, guess, ...answer }: any) => answer)
@@ -851,6 +990,17 @@ export async function buildApp(
           "UPDATE playne_guest_trials SET consumed_at=coalesce(consumed_at,now()) WHERE run_id=$1",
           [run.id],
         );
+      if (publish) {
+        await queueDisplacements(
+          c,
+          before,
+          viewer.id,
+          run.id,
+          run.game,
+          run.mode,
+        );
+        await recordEmailGameCompletion(c, run.id);
+      }
       await c.query("COMMIT");
       return {
         answer,
@@ -870,10 +1020,14 @@ export async function buildApp(
     const c = await pool.connect();
     try {
       await c.query("BEGIN");
+      await lockPublications(c);
       const run = await owned(req, reply, (req.params as any).id, c, true);
       if (!run.completed_at) failure("Сначала закончи партию", 409);
       if (run.owner_id && run.owner_id !== u.id)
         failure("Эта партия принадлежит другому аккаунту", 403);
+      const before = !run.published_at
+        ? await notificationSnapshot(c, run.game, run.mode)
+        : [];
       const answers =
         run.game === "geo"
           ? run.answers.map(({ actual, guess, ...a }: any) => a)
@@ -886,6 +1040,8 @@ export async function buildApp(
         "UPDATE playne_games SET owner_id=$1,published_at=coalesce(published_at,now()),answers=$2,challenge=$3 WHERE id=$4",
         [u.id, JSON.stringify(answers), JSON.stringify(challenge), run.id],
       );
+      await queueDisplacements(c, before, u.id, run.id, run.game, run.mode);
+      await recordEmailGameCompletion(c, run.id);
       await c.query("COMMIT");
       return {
         ok: true,
@@ -913,7 +1069,7 @@ export async function buildApp(
         : "classic";
     if (!validGeoMode(mode) || (q.game === "colorfle" && !validShadeMode(mode)))
       failure("Неизвестный режим");
-    const base = `WITH eligible AS (SELECT owner_id,version,answers,completed_at,CASE WHEN $2=4 THEN ${GEO_V4_UNITS_SQL} WHEN $2=3 THEN ${GEO_V3_UNITS_SQL} ELSE score_units END AS score_units FROM playne_games WHERE game=$1 AND (version=$2 OR ($1='geo' AND $2=3 AND version=2) OR ($1='geo' AND $2=4 AND version IN(2,3))) AND mode=$4 AND published_at IS NOT NULL AND ($3='all' OR completed_at >= date_trunc('week',now() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow')), best AS (SELECT DISTINCT ON(owner_id) owner_id,version,score_units,answers,completed_at FROM eligible ORDER BY owner_id,score_units DESC,completed_at ASC), ranked AS (SELECT u.id,u.nickname,b.version,b.score_units/10.0 AS score,b.answers,b.completed_at,rank() OVER(ORDER BY b.score_units DESC) AS place FROM best b JOIN playne_users u ON u.id=b.owner_id)`;
+    const base = LEADERBOARD_SQL;
     const requestedVersion =
       q.game === "geo" ? geoViewerVersion(req, q) : scoreVersion(q.game);
     const params = [q.game, requestedVersion, period, mode];

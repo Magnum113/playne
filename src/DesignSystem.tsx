@@ -1,3 +1,4 @@
+import { EmailConsent } from "./EmailPreferences";
 import { GuestTrialPrompt } from "./account";
 import { GameIntro, GameRecord, GameStartAction } from "./GameIntro";
 import {
@@ -1154,6 +1155,18 @@ function Artwork() {
   );
 }
 
+function EmailConsentDemo() {
+  const [checked, setChecked] = useState(false),
+    [data, setData] = useState(false);
+  return (
+    <EmailConsent
+      checked={checked}
+      onChange={setChecked}
+      dataConsent={data}
+      onDataChange={setData}
+    />
+  );
+}
 export default function DesignSystem() {
   const rules = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
@@ -1550,6 +1563,16 @@ export default function DesignSystem() {
                   сохраняется автоматически после входа.
                 </p>
                 <GuestTrialPrompt game="naglaz" />
+              </Sample>
+              <Sample
+                title="Добровольные письма"
+                source="EmailPreferences.tsx · EmailConsent"
+              >
+                <p className="ds-note">
+                  Обе галочки выключены по умолчанию. Выбор не влияет на доступ
+                  к входу и рейтингу.
+                </p>
+                <EmailConsentDemo />
               </Sample>
               <Results />
               <Sample

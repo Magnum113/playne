@@ -5,6 +5,7 @@ import {
   type RankedState,
   type ServerRun,
 } from "./rankedQueue";
+import { YandexLogin, TopTenEmailOffer } from "./EmailPreferences";
 import { SHADE_SCORE_VERSION } from "./colorfle";
 import { PRESSURE_RULES_VERSION, formatPressScore } from "./pressure";
 import { pairs } from "./data";
@@ -100,12 +101,14 @@ const AuthContext = createContext<{
   user: User | null;
   trials: Partial<Record<GameId, GuestTrial>>;
   ready: boolean;
+  emailSignupAvailable: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
 }>({
   user: null,
   trials: {},
   ready: true,
+  emailSignupAvailable: false,
   loading: false,
   refresh: async () => {},
 });
@@ -114,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loading, setLoading] = useState(true);
   const [trials, setTrials] = useState<Partial<Record<GameId, GuestTrial>>>({});
   const [ready, setReady] = useState(false);
+  const [emailSignupAvailable, setEmailSignupAvailable] = useState(false);
   const verified = useRef(false);
   const loginReported = useRef(false);
   async function refresh() {
@@ -124,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const data = await meRequest;
       setUser(data.user);
+      setEmailSignupAvailable(!!data.emailSignupAvailable);
       setTrials(data.trials ?? {});
       setReady(true);
       verified.current = true;
@@ -199,7 +204,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
   return (
-    <AuthContext.Provider value={{ user, loading, refresh, trials, ready }}>
+    <AuthContext.Provider
+      value={{ user, loading, refresh, trials, ready, emailSignupAvailable }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -261,13 +268,14 @@ export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
       <p>
         Войди через Яндекс, чтобы играть дальше и сохранить результат в рейтинг.
       </p>
-      <button
-        className="primary"
+      <YandexLogin
         disabled={loading}
-        onClick={() => loginToPlay(game, id ?? trial?.id, trial?.mode)}
+        source="guest_party"
+        game={game}
+        returnPath={guestLoginReturn(game, id ?? trial?.id, trial?.mode)}
       >
         Войти и продолжить <span aria-hidden="true">→</span>
-      </button>
+      </YandexLogin>
       {!ready && (
         <button className="text-button" onClick={() => void refresh()}>
           Проверить соединение
@@ -627,6 +635,9 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
           ))}
         <a href={ranking}>Рейтинг игры →</a>
       </div>
+      {s.status === "saved" && user && (
+        <TopTenEmailOffer game={game} mode={run.mode} />
+      )}
     </div>
   );
 }

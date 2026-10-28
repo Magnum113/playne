@@ -9,12 +9,19 @@ import "./game-start.css";
 import { initTheme } from "./theme";
 import { initMetrika } from "./analytics";
 
+import {
+  captureEmailNavigation,
+  initEmailReturnTracking,
+} from "./emailNavigation";
+
+captureEmailNavigation();
 const root = document.getElementById("root")!;
 // Sprite Fusion marks its copied document and rewrites image URLs to its proxy.
 // Keep that static markup: rerendering would replace the rewritten image URLs
 // with /art/... on the service's own domain. The copy is only a game backdrop.
 if (!document.querySelector('meta[name="daw-status"]')) {
   initMetrika();
+  initEmailReturnTracking();
   initTheme();
   createRoot(root).render(
     <React.StrictMode>
