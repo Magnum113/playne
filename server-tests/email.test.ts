@@ -845,4 +845,46 @@ describe("Email capabilities and templates", () => {
       expect(events).toEqual([{ game: g, mode, old_place: 1, new_place: 2 }]);
     }
   });
+  it("stops email attribution immediately after consent withdrawal", async () => {
+    const { owner } = await displaced();
+    await prepareRankEmails(pool, config, noon());
+    await deliverEmails(
+      pool,
+      config,
+      (async () =>
+        new Response(
+          JSON.stringify({ status: "success", job_id: "withdrawal" }),
+        )) as typeof fetch,
+      noon() + 1000,
+    );
+    const row = (
+      await pool.query("SELECT * FROM playne_email_outbox WHERE kind='rank'")
+    ).rows[0];
+    const token = signEmailToken(config, "click", {
+      o: row.id,
+      exp: Date.now() + 3600000,
+    });
+    const link = await app.inject("/api/email/click/" + token + "?target=play");
+    const cookie = link.cookies.map((c) => c.name + "=" + c.value).join("; ");
+    await tx((c) => stopEmails(c, config, owner));
+    await app.inject({
+      method: "POST",
+      url: "/api/email/visit",
+      headers: { origin: config.origin, cookie },
+      payload: { interacted: true },
+    });
+    expect(
+      (
+        await pool.query(
+          "SELECT visited_at FROM playne_email_outbox WHERE id=$1",
+          [row.id],
+        )
+      ).rows[0].visited_at,
+    ).toBeNull();
+    expect(
+      (
+        await app.inject("/api/email/click/" + token + "?target=play")
+      ).cookies.some((c) => c.name === "playne_email_visit" && c.value),
+    ).toBe(false);
+  });
 });

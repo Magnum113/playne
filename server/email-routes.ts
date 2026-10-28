@@ -20,6 +20,8 @@ import {
   type RankEmailItem,
 } from "./email-templates";
 
+const activeEmailConsentSQL =
+  "EXISTS(SELECT 1 FROM playne_email_contacts contact WHERE contact.user_id=o.user_id AND contact.generation=o.generation AND contact.enabled AND contact.verified_at IS NOT NULL)";
 const validUuid = (v: unknown): v is string =>
   typeof v === "string" &&
   /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(v);
@@ -55,7 +57,7 @@ export async function registerEmailRoutes(
   app.post(
     "/api/email/settings",
     { config: { rateLimit: { max: 10, timeWindow: "1 hour" } } },
-    async (req) => {
+    async (req, reply) => {
       const user = await requireUser(req),
         body = req.body as any;
       if (body?.enabled === false) {
@@ -65,6 +67,7 @@ export async function registerEmailRoutes(
           ]);
           await stopEmails(c, config, user.id);
         });
+        reply.clearCookie("playne_email_visit", { path: "/" });
       } else {
         if (
           body?.enabled !== true ||
@@ -133,18 +136,22 @@ export async function registerEmailRoutes(
     });
     return { ok: true };
   };
-  app.post("/api/email/unsubscribe", async (req) =>
-    unsubscribe((req.body as any)?.token),
-  );
+  app.post("/api/email/unsubscribe", async (req, reply) => {
+    const result = await unsubscribe((req.body as any)?.token);
+    reply.clearCookie("playne_email_visit", { path: "/" });
+    return result;
+  });
   // Header URL supports RFC 8058 without cookies or Origin; possession of the signed capability is required.
-  app.post("/api/email/unsubscribe/:token", async (req) => {
+  app.post("/api/email/unsubscribe/:token", async (req, reply) => {
     const body = req.body as any;
     if (
       body?.["List-Unsubscribe"] !== "One-Click" &&
       body?.confirm !== "unsubscribe"
     )
       throw emailError("Подтверди отключение писем.");
-    return unsubscribe((req.params as any).token);
+    const result = await unsubscribe((req.params as any).token);
+    reply.clearCookie("playne_email_visit", { path: "/" });
+    return result;
   });
   app.get("/api/email/unsubscribe/:token", async (req, reply) => {
     if (!readEmailToken(config, (req.params as any).token, "unsubscribe"))
@@ -163,28 +170,30 @@ export async function registerEmailRoutes(
       throw emailError("Ссылка устарела. Выбери игру на главной.", 410);
     const row = (
       await pool.query(
-        `SELECT payload,variant FROM playne_email_outbox WHERE id=$1 AND kind='rank' AND submitted_at IS NOT NULL`,
+        `SELECT payload,variant,${activeEmailConsentSQL} AS consent FROM playne_email_outbox o WHERE id=$1 AND kind='rank' AND submitted_at IS NOT NULL`,
         [data.o],
       )
     ).rows[0];
     const item = row?.payload?.items?.[0] as RankEmailItem | undefined;
     if (!item)
       throw emailError("Ссылка устарела. Выбери игру на главной.", 410);
-    await pool.query(
-      "UPDATE playne_email_outbox SET raw_click_at=coalesce(raw_click_at,now()) WHERE id=$1",
-      [data.o],
-    );
-    reply.setCookie(
-      "playne_email_visit",
-      signEmailToken(config, "attribution", { o: data.o, exp: data.exp }),
-      {
-        path: "/",
-        httpOnly: true,
-        secure: config.origin.startsWith("https:"),
-        sameSite: "lax",
-        maxAge: Math.max(0, Math.floor((data.exp - Date.now()) / 1000)),
-      },
-    );
+    if (row.consent)
+      await pool.query(
+        `UPDATE playne_email_outbox o SET raw_click_at=coalesce(raw_click_at,now()) WHERE id=$1 AND ${activeEmailConsentSQL}`,
+        [data.o],
+      );
+    if (row.consent)
+      reply.setCookie(
+        "playne_email_visit",
+        signEmailToken(config, "attribution", { o: data.o, exp: data.exp }),
+        {
+          path: "/",
+          httpOnly: true,
+          secure: config.origin.startsWith("https:"),
+          sameSite: "lax",
+          maxAge: Math.max(0, Math.floor((data.exp - Date.now()) / 1000)),
+        },
+      );
     const path =
       target === "play"
         ? emailGamePath(item.game, item.mode)
@@ -204,7 +213,7 @@ export async function registerEmailRoutes(
     );
     if (data && validUuid(data.o))
       await pool.query(
-        `UPDATE playne_email_outbox SET visited_at=coalesce(visited_at,now()) WHERE id=$1 AND kind='rank' AND submitted_at>now()-interval '7 days'`,
+        `UPDATE playne_email_outbox o SET visited_at=coalesce(visited_at,now()) WHERE id=$1 AND kind='rank' AND submitted_at>now()-interval '7 days' AND ${activeEmailConsentSQL}`,
         [data.o],
       );
     return { ok: true };
@@ -363,18 +372,18 @@ export async function recordEmailGameStart(
   );
   if (!data || !validUuid(data.o)) return;
   await c.query(
-    `UPDATE playne_games g SET email_origin=o.id FROM playne_email_outbox o WHERE g.id=$1 AND o.id=$2 AND o.kind='rank' AND o.submitted_at>now()-interval '7 days'`,
+    `UPDATE playne_games g SET email_origin=o.id FROM playne_email_outbox o WHERE g.id=$1 AND o.id=$2 AND o.kind='rank' AND o.submitted_at>now()-interval '7 days' AND ${activeEmailConsentSQL}`,
     [runId, data.o],
   );
   // Only an authenticated matching owner counts as a game start; guest runs are linked when claimed.
   await c.query(
-    `UPDATE playne_email_outbox o SET game_started_at=coalesce(o.game_started_at,now()) FROM playne_games g WHERE g.id=$1 AND g.email_origin=o.id AND g.owner_id=o.user_id`,
+    `UPDATE playne_email_outbox o SET game_started_at=coalesce(o.game_started_at,now()) FROM playne_games g WHERE g.id=$1 AND g.email_origin=o.id AND g.owner_id=o.user_id AND ${activeEmailConsentSQL}`,
     [runId],
   );
 }
 export async function recordEmailGameCompletion(c: any, runId: string) {
   await c.query(
-    `UPDATE playne_email_outbox o SET game_started_at=coalesce(o.game_started_at,now()),game_completed_at=coalesce(o.game_completed_at,now()) FROM playne_games g WHERE g.id=$1 AND g.email_origin=o.id AND g.owner_id=o.user_id AND g.published_at IS NOT NULL AND o.submitted_at>now()-interval '7 days'`,
+    `UPDATE playne_email_outbox o SET game_started_at=coalesce(o.game_started_at,now()),game_completed_at=coalesce(o.game_completed_at,now()) FROM playne_games g WHERE g.id=$1 AND g.email_origin=o.id AND g.owner_id=o.user_id AND g.published_at IS NOT NULL AND o.submitted_at>now()-interval '7 days' AND ${activeEmailConsentSQL}`,
     [runId],
   );
 }

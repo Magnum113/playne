@@ -114,7 +114,7 @@ export default function AccountPage() {
       </a>
       <GameHeader back={false} account={false} ranking />
       <main id="account-main" className="community-main">
-        <p className="eyebrow">ТВОИ ИГРЫ</p>
+        <p className="eyebrow">{mailAction ? "PLAYNE" : "ТВОИ ИГРЫ"}</p>
         <h1>
           {mailAction ? "Письма Playne" : "Личный кабинет"}
           <span className="brand-dot">.</span>

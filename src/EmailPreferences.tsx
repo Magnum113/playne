@@ -229,6 +229,10 @@ export function EmailPreferences() {
     [message, setMessage] = useState("");
   const id = useId();
   useEffect(() => {
+    if (window.location.hash === "#email-settings")
+      document
+        .getElementById("email-settings")
+        ?.scrollIntoView({ block: "start" });
     void api("/email/settings")
       .then((s) => {
         setSettings(s);
