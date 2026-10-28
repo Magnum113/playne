@@ -104,4 +104,29 @@ describe("Email entry safety", () => {
         ?.getAttribute("aria-pressed"),
     ).toBe("false");
   });
+  it("allows opt-out even while the mail service is unavailable", async () => {
+    const remote = vi.fn(
+      async (_: any, options: any) =>
+        new Response(
+          JSON.stringify({
+            available: false,
+            email: "qa@example.com",
+            enabled: options?.method === "POST" ? false : true,
+            pending: false,
+            verified: true,
+          }),
+        ),
+    );
+    vi.stubGlobal("fetch", remote);
+    await act(async () => root.render(<EmailPreferences />));
+    const off = Array.from(box.querySelectorAll("button")).find(
+      (b) => b.textContent === "Отключить письма",
+    )!;
+    expect(off).toBeTruthy();
+    await act(async () => off.click());
+    expect(remote.mock.calls[1][1].body).toBe(
+      JSON.stringify({ enabled: false }),
+    );
+    expect(box.textContent).toContain("Письма отключены.");
+  });
 });

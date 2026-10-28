@@ -27,6 +27,7 @@ export type EmailConfig = {
   enabled?: boolean;
   yandexEmail?: boolean;
   adminId?: string;
+  deliveryReady?: boolean;
 };
 type DB = Pick<PoolClient, "query">;
 export const EMAIL_PUBLICATION_LOCK = "playne-email-publication-v1";
@@ -53,7 +54,7 @@ export function normalizeEmail(value: unknown) {
     throw emailError("Проверь адрес почты.");
   return `${local}@${domain}`;
 }
-export const mailConfigured = (config: EmailConfig) =>
+const emailCredentialsConfigured = (config: EmailConfig) =>
   !!(
     config.enabled &&
     config.secret.length >= 32 &&
@@ -62,6 +63,57 @@ export const mailConfigured = (config: EmailConfig) =>
     config.from &&
     config.replyTo
   );
+export const mailConfigured = (config: EmailConfig) =>
+  emailCredentialsConfigured(config) && config.deliveryReady !== false;
+// Domain readiness is operational state, separate from each person's consent.
+// Pending DNS never sends unsigned mail or requires a later manual deployment.
+export async function refreshEmailReadiness(
+  config: EmailConfig,
+  remoteFetch: typeof fetch = fetch,
+  shutdownSignal?: AbortSignal,
+) {
+  if (!emailCredentialsConfigured(config)) {
+    config.deliveryReady = false;
+    return false;
+  }
+  const request = async (method: string, body: object) => {
+    const r = await remoteFetch(
+      "https://goapi.unisender.ru/ru/transactional/api/v1/" + method + ".json",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": config.apiKey!,
+        },
+        body: JSON.stringify(body),
+        signal: shutdownSignal
+          ? AbortSignal.any([AbortSignal.timeout(10000), shutdownSignal])
+          : AbortSignal.timeout(10000),
+      },
+    );
+    const result = (await r.json()) as any;
+    return { ok: r.ok && result?.status === "success", result };
+  };
+  try {
+    const domain = config.from!.split("@")[1].toLowerCase();
+    const listing = await request("domain/list", {});
+    if (!listing.ok) return !!config.deliveryReady;
+    const entry = listing.result.domains?.find((d: any) => d.domain === domain);
+    if (entry?.["verification-record"]?.status !== "confirmed") {
+      config.deliveryReady = false;
+      return false;
+    }
+    if (entry.dkim?.status === "active") {
+      config.deliveryReady = true;
+      return true;
+    }
+    const check = await request("domain/validate-dkim", { domain });
+    config.deliveryReady = check.ok;
+    return check.ok;
+  } catch {
+    return !!config.deliveryReady;
+  }
+}
 export function signEmailToken(
   config: EmailConfig,
   kind: string,

@@ -17,6 +17,8 @@ import {
   deliverEmails,
   stopEmails,
   emailExperimentReport,
+  refreshEmailReadiness,
+  mailConfigured,
   type EmailConfig,
 } from "../server/email-core";
 import {
@@ -42,6 +44,47 @@ const noon = () => {
   return d.getTime();
 };
 describe("Email capabilities and templates", () => {
+  it("keeps subscriptions closed until the exact project sender has verified DKIM", async () => {
+    const settings = { ...config, deliveryReady: false };
+    let ready = false;
+    const remote = (async (url: any) =>
+      new Response(
+        JSON.stringify(
+          String(url).endsWith("domain/list.json")
+            ? {
+                status: "success",
+                domains: [
+                  {
+                    domain: "playne.invalid",
+                    dkim: { status: "active" },
+                    "verification-record": { status: "confirmed" },
+                  },
+                  {
+                    domain: "playne.ru",
+                    dkim: { status: ready ? "active" : "inactive" },
+                    "verification-record": { status: "confirmed" },
+                  },
+                ],
+              }
+            : { status: "error" },
+        ),
+        { status: String(url).endsWith("domain/list.json") ? 200 : 400 },
+      )) as typeof fetch;
+    expect(await refreshEmailReadiness(settings, remote)).toBe(false);
+    expect(mailConfigured(settings)).toBe(false);
+    ready = true;
+    expect(await refreshEmailReadiness(settings, remote)).toBe(true);
+    expect(mailConfigured(settings)).toBe(true);
+  });
+  it("never opens pending subscriptions on a provider timeout", async () => {
+    const settings = { ...config, deliveryReady: false };
+    expect(
+      await refreshEmailReadiness(settings, (async () => {
+        throw Error("timeout");
+      }) as typeof fetch),
+    ).toBe(false);
+    expect(mailConfigured(settings)).toBe(false);
+  });
   it("normalizes addresses and rejects malformed input", () => {
     expect(normalizeEmail(" A+B@Example.COM ")).toBe("a+b@example.com");
     for (const s of ["a@", "a..b@example.com", "x\n@y.ru", "<script>@x.ru"])

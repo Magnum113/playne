@@ -342,23 +342,23 @@ export function EmailPreferences() {
               </>
             )}
           </form>
-          {(settings.enabled || settings.pending) && (
-            <button
-              className="text-button"
-              disabled={busy}
-              onClick={() => void save(false)}
-            >
-              Отключить письма
-            </button>
-          )}
-          {settings.reportAvailable && <EmailExperimentReport />}
-          {message && <p role="status">{message}</p>}
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
         </>
+      )}
+      {settings && (settings.enabled || settings.pending) && (
+        <button
+          className="text-button"
+          disabled={busy}
+          onClick={() => void save(false)}
+        >
+          Отключить письма
+        </button>
+      )}
+      {settings?.reportAvailable && <EmailExperimentReport />}
+      {message && <p role="status">{message}</p>}
+      {settings && error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
       )}
     </section>
   );

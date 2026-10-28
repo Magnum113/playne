@@ -9,6 +9,7 @@ import {
   prepareRankEmails,
   emailExperimentReport,
   cleanupEmailData,
+  refreshEmailReadiness,
   type EmailConfig,
 } from "./email-core";
 const env = process.env;
@@ -30,6 +31,7 @@ const email: EmailConfig = {
   enabled: env.PLAYNE_EMAIL_ENABLED === "1",
   yandexEmail: env.PLAYNE_YANDEX_EMAIL === "1",
   adminId: env.PLAYNE_EMAIL_ADMIN_ID,
+  deliveryReady: false,
 };
 if (new URL(env.YANDEX_REDIRECT_URI!).origin !== origin)
   throw new Error("Invalid callback origin");
@@ -67,11 +69,20 @@ async function main() {
   });
   let emailJob: Promise<void> | undefined;
   let lastEmailCleanup = 0;
+  let lastDomainCheck = 0;
   const emailShutdown = new AbortController();
   let emailTimer: ReturnType<typeof setInterval> | undefined;
   const pump = () => {
     if (emailJob || emailShutdown.signal.aborted) return;
     emailJob = (async () => {
+      if (email.enabled && Date.now() - lastDomainCheck > 300000) {
+        const wasReady = email.deliveryReady;
+        await refreshEmailReadiness(email, fetch, emailShutdown.signal);
+        lastDomainCheck = Date.now();
+        if (!wasReady && email.deliveryReady)
+          console.log("Playne email domain verified; subscriptions enabled");
+      }
+      if (emailShutdown.signal.aborted) return;
       if (Date.now() - lastEmailCleanup > 3600000) {
         await cleanupEmailData(pool);
         lastEmailCleanup = Date.now();
