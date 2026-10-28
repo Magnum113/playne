@@ -115,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [trials, setTrials] = useState<Partial<Record<GameId, GuestTrial>>>({});
   const [ready, setReady] = useState(false);
   const verified = useRef(false);
+  const loginReported = useRef(false);
   async function refresh() {
     if (!verified.current) setLoading(true);
     try {
@@ -128,12 +129,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verified.current = true;
       if (
         data.user &&
+        !loginReported.current &&
         new URLSearchParams(window.location.search).get("auth") === "success"
       ) {
+        loginReported.current = true;
         reachGoal(ACCOUNT_GOALS.loginSuccess, { provider: "yandex" });
         const url = new URL(window.location.href);
         url.searchParams.delete("auth");
-        window.history.replaceState(null, "", url.pathname + url.search);
+        window.history.replaceState(
+          null,
+          "",
+          url.pathname + url.search + url.hash,
+        );
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) setUser(null);
