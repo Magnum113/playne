@@ -887,4 +887,81 @@ describe("Email capabilities and templates", () => {
       ).cookies.some((c) => c.name === "playne_email_visit" && c.value),
     ).toBe(false);
   });
+  it("honors provider unsubscribe from an older email after reconfirming the same address", async () => {
+    const { owner } = await displaced();
+    await prepareRankEmails(pool, config, noon());
+    await deliverEmails(
+      pool,
+      config,
+      (async () =>
+        new Response(
+          JSON.stringify({ status: "success", job_id: "older-message" }),
+        )) as typeof fetch,
+      noon() + 1000,
+    );
+    const row = (
+      await pool.query("SELECT * FROM playne_email_outbox WHERE kind='rank'")
+    ).rows[0];
+    await tx((c) => stopEmails(c, config, owner));
+    await tx((c) =>
+      requestEmailSubscription(c, config, owner, "owner@example.com", "test"),
+    );
+    const contact = (
+      await pool.query("SELECT * FROM playne_email_contacts WHERE user_id=$1", [
+        owner,
+      ])
+    ).rows[0];
+    await tx((c) =>
+      confirmEmailSubscription(
+        c,
+        config,
+        signEmailToken(config, "confirm", {
+          g: contact.generation,
+          exp: Date.now() + 3600000,
+        }),
+      ),
+    );
+    const body = {
+      auth: config.apiKey,
+      events_by_user: [
+        {
+          project_id: config.projectId,
+          events: [
+            {
+              event_name: "transactional_email_status",
+              event_data: {
+                metadata: { outbox_id: row.id },
+                job_id: "older-message",
+                email: "owner@example.com",
+                status: "unsubscribed",
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const raw = JSON.stringify(body);
+    const signed = raw.replace(
+      '"auth":"' + config.apiKey + '"',
+      '"auth":"' + createHash("md5").update(raw).digest("hex") + '"',
+    );
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/email/provider",
+          headers: { "content-type": "application/json" },
+          payload: signed,
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await pool.query(
+          "SELECT enabled FROM playne_email_contacts WHERE user_id=$1",
+          [owner],
+        )
+      ).rows[0].enabled,
+    ).toBe(false);
+  });
 });

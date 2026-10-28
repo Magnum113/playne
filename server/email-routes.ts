@@ -325,11 +325,14 @@ export async function registerEmailRoutes(
           // An old-address bounce must not suppress a newly verified different address.
           const contact = (
             await c.query(
-              "SELECT generation FROM playne_email_contacts WHERE user_id=$1",
+              "SELECT generation,email FROM playne_email_contacts WHERE user_id=$1",
               [row.user_id],
             )
           ).rows[0];
-          if (contact?.generation === row.generation) {
+          if (
+            contact?.generation === row.generation ||
+            contact?.email === row.payload.email
+          ) {
             await stopEmails(
               c,
               config,
