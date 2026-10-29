@@ -3,9 +3,19 @@ import { beforeEach, describe, it, expect, vi } from "vitest";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { TopFiveCard, OverallContributions } from "../src/OverallLeaderboard";
+import {
+  TopFiveCard,
+  OverallContributions,
+  OverallRules,
+  OverallStandings,
+} from "../src/OverallLeaderboard";
 import LeaderboardPage from "../src/LeaderboardPage";
-import type { OverallBoard, OverallEntry } from "../src/overall";
+import {
+  OVERALL_GAMES,
+  OVERALL_MAX_POINTS,
+  type OverallBoard,
+  type OverallEntry,
+} from "../src/overall";
 const entry: OverallEntry = {
   nickname: "<img src=x onerror=alert(1)>",
   score: 3509,
@@ -20,7 +30,7 @@ const entry: OverallEntry = {
 const board: OverallBoard = {
   game: "overall",
   period: "all",
-  version: 1,
+  version: 2,
   page: 1,
   limit: 5,
   total: 1,
@@ -311,6 +321,125 @@ describe("Overall leaderboard UI", () => {
       ),
     ).toBeTruthy();
     expect(box.querySelector('a[href="/circle/"]')).toBeTruthy();
+    expect(box.querySelector('a[href="/one-line/"]')).toBeTruthy();
+    expect(box.querySelectorAll(".overall-contributions > li")).toHaveLength(6);
     expect(box.textContent).toContain("Не сыграно");
+  });
+  it("shows six equal game contributions with classic-only line rules", () => {
+    expect(OVERALL_GAMES).toHaveLength(6);
+    expect(OVERALL_MAX_POINTS).toBe(6000);
+    const box = document.createElement("div");
+    box.innerHTML = renderToStaticMarkup(
+      <>
+        <OverallRules />
+        <OverallStandings entries={[{ ...entry, gamesPlayed: 6 }]} />
+      </>,
+    );
+    expect(box.textContent).toContain("6 из 6 игр");
+    expect(box.textContent).toContain("«Практика» не учитывается");
+  });
+  it.each([
+    ["line", "practice", "practice", "/one-line/?mode=practice"],
+    ["line", "moving-timed", "classic", "/one-line/"],
+    ["naglaz", "moving", "classic", "/naglaz/"],
+    ["circle", "practice", "classic", "/circle/"],
+    ["pressure", "timed", "classic", "/pressure/"],
+    ["colorfle", "moving-timed", "classic", "/colorfle/"],
+    ["geo", "practice", "classic", "/geo/"],
+  ])(
+    "limits %s deep-link mode %s to %s",
+    async (game, requestedMode, mode, playPath) => {
+      window.history.replaceState(
+        null,
+        "",
+        `/leaderboard/?game=${game}&mode=${requestedMode}&period=all`,
+      );
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      const fetch = vi.fn((path: string) => {
+        const query = new URL(String(path), "https://playne.ru").searchParams;
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              game: query.get("game"),
+              mode: query.get("mode"),
+              period: "all",
+              page: 1,
+              total: 0,
+              entries: [],
+              mine: null,
+            }),
+          ),
+        );
+      });
+      vi.stubGlobal("fetch", fetch);
+      const box = document.createElement("div");
+      document.body.append(box);
+      const root = createRoot(box);
+      try {
+        await act(async () => root.render(<LeaderboardPage />));
+        expect(
+          fetch.mock.calls.some(([path]) =>
+            String(path).includes(`mode=${mode}`),
+          ),
+        ).toBe(true);
+        expect(box.querySelector(".rank-empty a")?.getAttribute("href")).toBe(
+          playPath,
+        );
+        expect(box.querySelectorAll(".rank-games button")).toHaveLength(7);
+      } finally {
+        act(() => root.unmount());
+        box.remove();
+        vi.unstubAllGlobals();
+      }
+    },
+  );
+  it("clears practice when switching from line to geography", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/leaderboard/?game=line&mode=practice&period=all",
+    );
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const fetch = vi.fn((path: string) => {
+      const query = new URL(String(path), "https://playne.ru").searchParams;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            game: query.get("game"),
+            mode: query.get("mode"),
+            period: "all",
+            page: 1,
+            total: 0,
+            entries: [],
+            mine: null,
+          }),
+        ),
+      );
+    });
+    vi.stubGlobal("fetch", fetch);
+    const box = document.createElement("div");
+    document.body.append(box);
+    const root = createRoot(box);
+    try {
+      await act(async () => root.render(<LeaderboardPage />));
+      await act(async () =>
+        [...box.querySelectorAll<HTMLButtonElement>(".rank-games button")]
+          .find((b) => b.textContent === "Где я?")!
+          .click(),
+      );
+      expect(window.location.search).toContain("game=geo&mode=classic");
+      expect(
+        fetch.mock.calls.some(
+          ([path]) =>
+            String(path).includes("game=geo") &&
+            String(path).includes("mode=classic"),
+        ),
+      ).toBe(true);
+      expect(box.querySelector('[aria-label="Режим Одной линией"]')).toBeNull();
+    } finally {
+      act(() => root.unmount());
+      box.remove();
+      vi.unstubAllGlobals();
+    }
   });
 });

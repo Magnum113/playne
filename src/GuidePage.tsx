@@ -135,7 +135,7 @@ export default function GuidePage({
                 href="/pressure/#pressure-about"
               >
                 <span className="guide-number" aria-hidden="true">
-                  05
+                  {String(guides.length + 1).padStart(2, "0")}
                 </span>
                 <span className="eyebrow">Жми</span>
                 <h2>«Жми»: правила игры с одной кнопкой</h2>

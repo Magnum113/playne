@@ -80,6 +80,16 @@ export function AccountBests({ best }: { best?: AccountBest[] }) {
       </section>
       <section
         className="account-best-card account-best-card--modes"
+        aria-label="Результаты игры Одной линией"
+      >
+        <h3 className="account-best-title">Одной линией</h3>
+        <div className="account-best-groups account-best-groups--shade">
+          {row("line", "classic", "Задача дня")}
+          {row("line", "practice", "Практика")}
+        </div>
+      </section>
+      <section
+        className="account-best-card account-best-card--modes"
         aria-label="Результаты игры Где я?"
       >
         <h3 className="account-best-title">Где я?</h3>

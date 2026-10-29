@@ -9,32 +9,45 @@ import {
 } from "./geo";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useRef, useState } from "react";
-import { api, gameNames, resultText, type GameId } from "./account";
+import {
+  api,
+  gameNames,
+  resultText,
+  type GameId,
+  type GameMode,
+} from "./account";
 import { GameHeader } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 import { shadeModeName, type ShadeMode } from "./colorfle";
 import { OverallStandings, OverallRules } from "./OverallLeaderboard";
-import { overallNumber } from "./overall";
+import { OVERALL_GAMES, OVERALL_MAX_POINTS, overallNumber } from "./overall";
 type LeaderboardGame = GameId | "overall";
 const boardNames = { overall: "Общий", ...gameNames };
+
+function modeForGame(game: LeaderboardGame, value: unknown): GameMode {
+  if (game === "geo" && validGeoMode(value)) return value;
+  if (game === "colorfle" && value === "timed") return "timed";
+  if (game === "line" && value === "practice") return "practice";
+  return "classic";
+}
+
 export default function LeaderboardPage() {
   const query =
     typeof window === "undefined"
       ? null
       : new URLSearchParams(window.location.search);
   const initial = query?.get("game");
-  const [game, setGame] = useState<LeaderboardGame>(
+  const initialGame: LeaderboardGame =
     initial && Object.hasOwn(boardNames, initial)
       ? (initial as LeaderboardGame)
-      : "overall",
+      : "overall";
+  const [game, setGame] = useState<LeaderboardGame>(initialGame);
+  const [mode, setMode] = useState<GameMode>(
+    modeForGame(initialGame, query?.get("mode")),
   );
-  const [mode, setMode] = useState<GeoMode>(
-    validGeoMode(query?.get("mode"))
-      ? (query!.get("mode") as GeoMode)
-      : "classic",
-  );
+  const geoMode: GeoMode = validGeoMode(mode) ? mode : "classic";
   const [period, setPeriod] = useState<"all" | "week">(
-      initial && initial !== "overall" && query?.get("period") !== "all"
+      initialGame !== "overall" && query?.get("period") !== "all"
         ? "week"
         : "all",
     ),
@@ -78,7 +91,9 @@ export default function LeaderboardPage() {
           reachGoal(ACCOUNT_GOALS.leaderboardOpen, {
             game,
             period,
-            ...(game === "geo" || game === "colorfle" ? { mode } : {}),
+            ...(game === "geo" || game === "colorfle" || game === "line"
+              ? { mode }
+              : {}),
           });
         }
       })
@@ -95,20 +110,21 @@ export default function LeaderboardPage() {
   function change(next: LeaderboardGame) {
     pageFocusPending.current = false;
     const nextPeriod = next === "overall" ? "all" : period;
+    const nextMode = modeForGame(next, mode);
     setPeriod(nextPeriod);
     setGame(next);
-    if (next !== "geo") setMode("classic");
+    setMode(nextMode);
     setPage(1);
     window.history.replaceState(
       null,
       "",
       "/leaderboard/?game=" +
         next +
-        (next === "geo" ? `&mode=${mode}` : "") +
+        (next !== "overall" ? `&mode=${nextMode}` : "") +
         `&period=${nextPeriod}`,
     );
   }
-  function chooseMode(next: GeoMode) {
+  function chooseMode(next: GameMode) {
     pageFocusPending.current = false;
     setMode(next);
     setPage(1);
@@ -159,6 +175,7 @@ export default function LeaderboardPage() {
           {Object.entries(boardNames).map(([id, name]) => (
             <button
               key={id}
+              className={id === "line" ? "rank-game-line" : undefined}
               aria-pressed={game === id}
               onClick={() => change(id as LeaderboardGame)}
             >
@@ -182,16 +199,36 @@ export default function LeaderboardPage() {
             ))}
           </div>
         )}
+        {game === "line" && (
+          <div
+            className="rank-period geo-rank-modes"
+            aria-label="Режим Одной линией"
+          >
+            {(["classic", "practice"] as const).map((option) => (
+              <button
+                key={option}
+                aria-pressed={mode === option}
+                onClick={() => chooseMode(option)}
+              >
+                {option === "classic" ? "Задача дня" : "Практика"}
+              </button>
+            ))}
+          </div>
+        )}
         {game === "geo" && (
           <div className="geo-ranking-filters">
             <div className="rank-period geo-rank-modes" aria-label="Места">
               {([false, true] as const).map((landmarks) => (
                 <button
                   key={String(landmarks)}
-                  aria-pressed={geoIsLandmarks(mode) === landmarks}
+                  aria-pressed={geoIsLandmarks(geoMode) === landmarks}
                   onClick={() =>
                     chooseMode(
-                      geoModeFor(geoCanMove(mode), geoIsTimed(mode), landmarks),
+                      geoModeFor(
+                        geoCanMove(geoMode),
+                        geoIsTimed(geoMode),
+                        landmarks,
+                      ),
                     )
                   }
                 >
@@ -199,7 +236,7 @@ export default function LeaderboardPage() {
                 </button>
               ))}
             </div>
-            {!geoIsLandmarks(mode) && (
+            {!geoIsLandmarks(geoMode) && (
               <div
                 className="rank-period geo-rank-modes"
                 aria-label="Перемещение"
@@ -207,9 +244,9 @@ export default function LeaderboardPage() {
                 {([false, true] as const).map((moving) => (
                   <button
                     key={String(moving)}
-                    aria-pressed={geoCanMove(mode) === moving}
+                    aria-pressed={geoCanMove(geoMode) === moving}
                     onClick={() =>
-                      chooseMode(geoModeFor(moving, geoIsTimed(mode)))
+                      chooseMode(geoModeFor(moving, geoIsTimed(geoMode)))
                     }
                   >
                     {moving ? "С перемещением" : "Без перемещения"}
@@ -221,10 +258,14 @@ export default function LeaderboardPage() {
               {([false, true] as const).map((timed) => (
                 <button
                   key={String(timed)}
-                  aria-pressed={geoIsTimed(mode) === timed}
+                  aria-pressed={geoIsTimed(geoMode) === timed}
                   onClick={() =>
                     chooseMode(
-                      geoModeFor(geoCanMove(mode), timed, geoIsLandmarks(mode)),
+                      geoModeFor(
+                        geoCanMove(geoMode),
+                        timed,
+                        geoIsLandmarks(geoMode),
+                      ),
                     )
                   }
                 >
@@ -237,7 +278,7 @@ export default function LeaderboardPage() {
         <div className="rank-toolbar">
           {game === "overall" ? (
             <span className="overall-period-label">
-              За всё время · до 5000 баллов
+              За всё время · до {overallNumber(OVERALL_MAX_POINTS)} баллов
             </span>
           ) : (
             <div className="rank-period" aria-label="Период рейтинга">
@@ -265,7 +306,7 @@ export default function LeaderboardPage() {
           )}
           <span>
             {game === "overall"
-              ? "5 игр · один общий счёт"
+              ? `${OVERALL_GAMES.length} игр · один общий счёт`
               : "Один лучший результат на игрока"}
           </span>
         </div>
@@ -354,7 +395,7 @@ export default function LeaderboardPage() {
                 href={
                   game === "overall"
                     ? "/#games"
-                    : `/${game}/${game === "geo" && mode !== "classic" ? `?mode=${mode}` : ""}`
+                    : `/${game === "line" ? "one-line" : game}/${(game === "geo" || game === "colorfle" || game === "line") && mode !== "classic" ? `?mode=${mode}` : ""}`
                 }
               >
                 {game === "overall"
@@ -378,9 +419,13 @@ export default function LeaderboardPage() {
               равных результатах место одинаковое.
             </p>
             <p>
-              Неделя начинается в понедельник по московскому времени. Случайные
-              задания могут различаться по сложности. Старые рекорды из браузера
-              в рейтинг не переносятся.
+              {game === "line"
+                ? mode === "practice"
+                  ? "Практика имеет отдельный рейтинг и не входит в общий зачёт."
+                  : "В режиме «Задача дня» учитывается первая попытка за каждую московскую дату. Поля дня одинаковы для всех."
+                : "Случайные задания могут различаться по сложности."}{" "}
+              Неделя начинается в понедельник по московскому времени. Старые
+              рекорды из браузера в рейтинг не переносятся.
             </p>
           </div>
         )}

@@ -43,6 +43,15 @@ export const PRESSURE_GOALS = {
   gameRestart: "pressure_game_restart",
 } as const;
 
+export const LINE_GOALS = {
+  rulesOpen: "line_rules_open",
+  gameStart: "line_game_start",
+  roundComplete: "line_round_complete",
+  gameComplete: "line_game_complete",
+  gameRestart: "line_game_restart",
+  hintUsed: "line_hint_used",
+} as const;
+
 export const ACCOUNT_GOALS = {
   loginStart: "account_yandex_login_start",
   loginSuccess: "account_yandex_login_success",
@@ -59,7 +68,8 @@ export type MetrikaGoal =
   | Values<typeof SHADE_GOALS>
   | Values<typeof GEO_GOALS>
   | Values<typeof ACCOUNT_GOALS>
-  | Values<typeof PRESSURE_GOALS>;
+  | Values<typeof PRESSURE_GOALS>
+  | Values<typeof LINE_GOALS>;
 export type MetrikaParams = Record<string, string | number | boolean>;
 
 type MetrikaFunction = {

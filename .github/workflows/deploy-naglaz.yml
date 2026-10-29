@@ -79,6 +79,8 @@ jobs:
           test -f dist/circle/index.html
           test -f dist/colorfle/index.html
           test -f dist/pressure/index.html
+          test -f dist/one-line/index.html
+          test -f dist/guides/one-line/index.html
           test -f dist/design-system/index.html
           test -f dist/geo/index.html
           test -f dist/destroy.html
@@ -92,12 +94,12 @@ jobs:
               printf 'Symbolic link in output: %s\n' "$relative" >&2
               exit 1
             elif [[ -d "$entry" ]]; then
-              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' || "$relative" = 'circle' || "$relative" = 'colorfle' || "$relative" = 'geo' || "$relative" = 'pressure' || "$relative" = 'design-system' || "$relative" = 'account' || "$relative" = 'leaderboard' || "$relative" = 'privacy' || "$relative" = 'terms' || "$relative" = 'guides' || "$relative" = 'guides/naglaz' || "$relative" = 'guides/perfect-circle' || "$relative" = 'guides/colorfle' || "$relative" = 'guides/geoguessr' ]] || {
+              [[ "$relative" = 'assets' || "$relative" = 'art' || "$relative" = 'naglaz' || "$relative" = 'circle' || "$relative" = 'colorfle' || "$relative" = 'geo' || "$relative" = 'pressure' || "$relative" = 'one-line' || "$relative" = 'design-system' || "$relative" = 'account' || "$relative" = 'leaderboard' || "$relative" = 'privacy' || "$relative" = 'terms' || "$relative" = 'guides' || "$relative" = 'guides/naglaz' || "$relative" = 'guides/perfect-circle' || "$relative" = 'guides/colorfle' || "$relative" = 'guides/geoguessr' || "$relative" = 'guides/one-line' ]] || {
                 printf 'Unexpected output directory: %s\n' "$relative" >&2
                 exit 1
               }
             elif [[ -f "$entry" ]]; then
-              [[ "$relative" = 'destroy.html' || "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'circle/index.html' || "$relative" = 'colorfle/index.html' || "$relative" = 'account/index.html' || "$relative" = 'leaderboard/index.html' || "$relative" = 'privacy/index.html' || "$relative" = 'terms/index.html' || "$relative" = 'geo/index.html' || "$relative" = 'pressure/index.html' || "$relative" = 'design-system/index.html' || "$relative" = 'guides/index.html' || "$relative" = 'guides/naglaz/index.html' || "$relative" = 'guides/perfect-circle/index.html' || "$relative" = 'guides/colorfle/index.html' || "$relative" = 'guides/geoguessr/index.html' || "$relative" = 'robots.txt' || "$relative" = 'sitemap.xml' || "$relative" = '404.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
+              [[ "$relative" = 'destroy.html' || "$relative" = 'index.html' || "$relative" = 'naglaz/index.html' || "$relative" = 'circle/index.html' || "$relative" = 'colorfle/index.html' || "$relative" = 'account/index.html' || "$relative" = 'leaderboard/index.html' || "$relative" = 'privacy/index.html' || "$relative" = 'terms/index.html' || "$relative" = 'geo/index.html' || "$relative" = 'pressure/index.html' || "$relative" = 'one-line/index.html' || "$relative" = 'design-system/index.html' || "$relative" = 'guides/index.html' || "$relative" = 'guides/naglaz/index.html' || "$relative" = 'guides/perfect-circle/index.html' || "$relative" = 'guides/colorfle/index.html' || "$relative" = 'guides/geoguessr/index.html' || "$relative" = 'guides/one-line/index.html' || "$relative" = 'robots.txt' || "$relative" = 'sitemap.xml' || "$relative" = '404.html' || "$relative" = 'favicon.svg' || "$relative" = 'favicon.ico' ||
                 "$relative" =~ ^assets/[A-Za-z0-9._-]+\.(js|css)$ ||
                 "$relative" =~ ^art/[A-Za-z0-9._-]+\.png$ ]] || {
                 printf 'Unexpected output file: %s\n' "$relative" >&2
@@ -321,12 +323,12 @@ jobs:
           curl --fail --silent --show-error https://playne.ru/api/health --output "$RUNNER_TEMP/playne-api-health.json"
           grep -Fq "$GITHUB_SHA" "$RUNNER_TEMP/playne-api-health.json"
 
-          for public_path in design-system/index.html pressure/index.html account/index.html leaderboard/index.html privacy/index.html terms/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html guides/geoguessr/index.html; do
+          for public_path in design-system/index.html pressure/index.html one-line/index.html guides/one-line/index.html account/index.html leaderboard/index.html privacy/index.html terms/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html guides/geoguessr/index.html; do
             request_path="${public_path%index.html}"
             curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 "https://playne.ru/$request_path" --output "$RUNNER_TEMP/seo-response"
             cmp "dist/$public_path" "$RUNNER_TEMP/seo-response"
           done
-          for route in guides guides/naglaz guides/perfect-circle guides/colorfle guides/geoguessr; do
+          for route in one-line guides guides/naglaz guides/perfect-circle guides/colorfle guides/geoguessr guides/one-line; do
             redirect="$(curl --silent --show-error --retry 2 --retry-delay 2 --max-time 60 --output /dev/null --write-out '%{http_code}|%{redirect_url}' "https://playne.ru/$route")"
             test "$redirect" = "308|https://playne.ru/$route/"
           done

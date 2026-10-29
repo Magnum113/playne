@@ -25,13 +25,21 @@ import {
   useState,
   type ReactNode,
 } from "react";
-export type GameId = "naglaz" | "circle" | "colorfle" | "geo" | "pressure";
+export type GameId =
+  | "naglaz"
+  | "circle"
+  | "colorfle"
+  | "geo"
+  | "pressure"
+  | "line";
+export type GameMode = GeoMode | "practice";
 export const gameNames: Record<GameId, string> = {
   naglaz: "На глаз",
   circle: "Круг",
   colorfle: "Оттенок",
   geo: "Где я?",
   pressure: "Жми",
+  line: "Одной линией",
 };
 export type User = {
   id: string;
@@ -90,9 +98,9 @@ const rankedQueue = createRankedQueue(api, {
       mode: run.mode ?? "classic",
     }),
 });
-export type GuestTrial = {
+export type GuestTrial<G extends GameId = GameId> = {
   id?: string;
-  mode?: GeoMode;
+  mode?: G extends "line" ? GameMode : GeoMode;
   completed: boolean;
   published?: boolean;
   score?: number | null;
@@ -212,9 +220,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 export const useAuth = () => useContext(AuthContext);
-export function useGuestTrial(game?: GameId) {
+export function useGuestTrial<G extends GameId = GameId>(game?: G) {
   const auth = useAuth();
-  const trial = game ? auth.trials[game] : undefined;
+  const trial = (game ? auth.trials[game] : undefined) as
+    | GuestTrial<G>
+    | undefined;
   return {
     ...auth,
     trial,
@@ -222,13 +232,17 @@ export function useGuestTrial(game?: GameId) {
     resume: !auth.user && !!trial && !trial.completed,
   };
 }
-export function guestLoginReturn(game: GameId, id?: string, mode?: GeoMode) {
+export function guestLoginReturn(game: GameId, id?: string, mode?: GameMode) {
   const params = new URLSearchParams();
   if (id) params.set("saved", id);
-  if (mode && (game === "geo" || game === "colorfle")) params.set("mode", mode);
-  return `/${game}/` + (params.size ? `?${params}` : "");
+  if (mode && (game === "geo" || game === "colorfle" || game === "line"))
+    params.set("mode", mode);
+  return (
+    `/${game === "line" ? "one-line" : game}/` +
+    (params.size ? `?${params}` : "")
+  );
 }
-export function loginToPlay(game: GameId, id?: string, mode?: GeoMode) {
+export function loginToPlay(game: GameId, id?: string, mode?: GameMode) {
   reachGoal(ACCOUNT_GOALS.loginStart, { source: "guest_party", game });
   const path = guestLoginReturn(game, id, mode);
   window.location.assign(
@@ -310,13 +324,13 @@ export function AccountNav() {
   );
 }
 export class RankedSyncError extends Error {}
-export function useRankedRun(game: GameId) {
+export function useRankedRun<G extends GameId>(game: G) {
   const auth = useGuestTrial(game);
   const [state, setState] = useState<RankedState>({ status: "idle" });
   const current = useRef<{
     generation: number;
     key?: string;
-    mode?: GeoMode;
+    mode?: GameMode;
     run: Promise<ServerRun | null>;
     queued: { index: number; answer: unknown }[];
   }>({ generation: 0, run: Promise.resolve(null), queued: [] });
@@ -339,7 +353,12 @@ export function useRankedRun(game: GameId) {
   useEffect(() => {
     if (["complete", "saved"].includes(state.status)) void auth.refresh();
   }, [state.status]);
-  function activate(data: ServerRun | null, generation: number) {
+  function activate<T extends ServerRun>(
+    data: T | null,
+    generation: number,
+  ): T | null {
+    if (game === "line" && data && current.current.generation === generation)
+      current.current.mode = data.mode ?? data.challenge.mode ?? "classic";
     const key = rankedQueue.add(data, game, current.current.mode);
     if (current.current.generation === generation) {
       current.current.key = key;
@@ -349,7 +368,7 @@ export function useRankedRun(game: GameId) {
     }
     return data;
   }
-  function begin(mode?: GeoMode): Promise<ServerRun | null> {
+  function begin(mode?: GameMode): Promise<ServerRun<G> | null> {
     const generation = current.current.generation + 1;
     if (restoreTimer.current) clearTimeout(restoreTimer.current);
     restoreAction.current = null;
@@ -358,7 +377,7 @@ export function useRankedRun(game: GameId) {
       mode,
       key: undefined as string | undefined,
       queued: [] as { index: number; answer: unknown }[],
-      run: Promise.resolve(null) as Promise<ServerRun | null>,
+      run: Promise.resolve(null) as Promise<ServerRun<G> | null>,
     };
     current.current = active;
     if (game === "circle") {
@@ -370,7 +389,7 @@ export function useRankedRun(game: GameId) {
     active.run = rankedQueue
       .flushGame(game)
       .then(() =>
-        api<ServerRun>("/games", "POST", {
+        api<ServerRun<G>>("/games", "POST", {
           game,
           mode,
           geoRulesVersion: game === "geo" ? GEO_SCORE_VERSION : undefined,
@@ -391,6 +410,43 @@ export function useRankedRun(game: GameId) {
                 ? e.message
                 : "Не удалось загрузить партию. Проверь соединение и попробуй ещё раз.",
           });
+        return null;
+      });
+    return active.run;
+  }
+  function resume(id: string): Promise<ServerRun | null> {
+    const active = {
+      generation: current.current.generation + 1,
+      mode: undefined as GameMode | undefined,
+      key: undefined as string | undefined,
+      queued: [] as { index: number; answer: unknown }[],
+      run: Promise.resolve(null) as Promise<ServerRun | null>,
+    };
+    current.current = active;
+    setState({ status: "loading" });
+    active.run = rankedQueue
+      .flushGame(game)
+      .then(() => api<ServerRun>(`/games/${encodeURIComponent(id)}`))
+      .then((data) => {
+        if (data.game !== game) throw new Error("Это партия другой игры");
+        active.mode = data.mode ?? data.challenge.mode ?? "classic";
+        return activate(data, active.generation);
+      })
+      .catch((error) => {
+        if (alive.current && current.current === active)
+          setState({
+            status: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Не удалось восстановить партию",
+          });
+        if (
+          game === "line" &&
+          error instanceof ApiError &&
+          [403, 404, 410].includes(error.status)
+        )
+          throw error;
         return null;
       });
     return active.run;
@@ -524,10 +580,30 @@ export function useRankedRun(game: GameId) {
   }
   return {
     state,
-    mode: current.current.mode ?? "classic",
+    mode: (current.current.mode ?? "classic") as G extends "line"
+      ? GameMode
+      : GeoMode,
     begin,
     submit,
     resumeColor,
+    resume,
+    lineStart: (index: number) => geoRequest("line/start", { index }),
+    lineHint: (index: number, path: number[], requestId: string) =>
+      geoRequest("line/hint", { index, path, requestId }),
+    lineAnswer: async (index: number, path: number[]) => {
+      const active = current.current;
+      submit(index, { path });
+      const run = await active.run;
+      if (!active.key || !run) return null;
+      await rankedQueue.drain(active.key);
+      if (rankedQueue.get(active.key)?.tasks.length)
+        throw new RankedSyncError(
+          "Ответ сохранён в браузере и ещё отправляется",
+        );
+      const fresh = await api<ServerRun>(`/games/${run.id}`);
+      active.run = Promise.resolve(fresh);
+      return activate(fresh, active.generation);
+    },
     panorama: async (index: number, pano: string) =>
       (await geoRequest("panorama", { index, pano })).actual,
     replaceGeo: async (index: number) =>

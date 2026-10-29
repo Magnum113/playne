@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   makeChallenge,
+  linePracticePuzzles,
   validateAnswer,
   scoreUnits,
   initialNickname,
@@ -8,6 +9,19 @@ import {
   safeReturn,
 } from "../server/scoring";
 import { pairs, objects } from "../src/data";
+import { getDailyLinePuzzles } from "../src/line";
+describe("line practice packs", () => {
+  it("excludes all five current daily fields for varied seeds", () => {
+    const day = "2026-10-29";
+    const daily = new Set(getDailyLinePuzzles(day).map((puzzle) => puzzle.id));
+    for (let seed = 0; seed < 20; seed++) {
+      const practice = linePracticePuzzles(seed, day);
+      expect(practice.map((puzzle) => puzzle.rows)).toEqual([4, 5, 5, 6, 6]);
+      expect(practice.every((puzzle) => !daily.has(puzzle.id))).toBe(true);
+      expect(practice).toEqual(linePracticePuzzles(seed, day));
+    }
+  });
+});
 describe("server-owned results", () => {
   it("uses the last server-accepted color after timeout and cannot improve the score late", () => {
     const red = { h: 0, s: 100, v: 100 },

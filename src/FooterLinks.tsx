@@ -10,6 +10,7 @@ export default function FooterLinks() {
         <a href="/colorfle/">Оттенок</a>
         <a href="/geo/">Где я?</a>
         <a href="/pressure/">Жми</a>
+        <a href="/one-line/">Одной линией</a>
       </div>
       <div>
         <a className="footer-heading" href="/guides/">
@@ -20,6 +21,7 @@ export default function FooterLinks() {
         <a href="/guides/colorfle/">Как подобрать оттенок</a>
         <a href="/guides/geoguessr/">Как угадывать места по панорамам</a>
         <a href="/pressure/#pressure-rules">Как играть в «Жми»</a>
+        <a href="/guides/one-line/">Как соединить числа одной линией</a>
         <a href="/privacy/">Конфиденциальность</a>
         <a href="/terms/">Правила сайта</a>
       </div>

@@ -1,4 +1,5 @@
 import { PressurePreview } from "./PressureGame";
+import LinePreview from "./LinePreview";
 import { readPressStats, formatPressScore } from "./pressure";
 import { AccountNav } from "./account";
 import HubTopFive from "./OverallLeaderboard";
@@ -365,6 +366,32 @@ export default function Hub() {
                   </span>
                 </div>
               </a>
+              <a
+                className="game-card game-card-live line-card"
+                href="/one-line/"
+                aria-label="Играть в Одной линией — соедини числа и заполни всё поле"
+              >
+                <div className="card-topline">
+                  <span className="card-category">ЛОГИКА И МАРШРУТЫ</span>
+                </div>
+                <LinePreview />
+                <div className="card-copy">
+                  <h2>
+                    Одной линией<span className="brand-dot">.</span>
+                  </h2>
+                  <p>
+                    Соедини числа по порядку.
+                    <br />
+                    Пройди каждую клетку один раз.
+                  </p>
+                </div>
+                <div className="card-bottom">
+                  <span>5 полей дня · 500 очков</span>
+                  <span className="card-play">
+                    Играть <Arrow />
+                  </span>
+                </div>
+              </a>
             </div>
           </div>
         </section>
@@ -429,8 +456,8 @@ export default function Hub() {
                 Можно играть с телефона?<span aria-hidden="true">+</span>
               </summary>
               <p>
-                Да. Меняй размеры, рисуй круг, подбирай цвет и осматривай
-                панорамы пальцем прямо на экране.
+                Да. Меняй размеры, рисуй круг, подбирай цвет, осматривай
+                панорамы и соединяй числа пальцем прямо на экране.
               </p>
             </details>
           </div>

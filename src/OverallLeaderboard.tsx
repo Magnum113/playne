@@ -25,7 +25,9 @@ export function OverallContributions({ entry }: { entry: OverallEntry }) {
               ? geoModeName(part.mode)
               : part?.game === "colorfle"
                 ? shadeModeName(part.mode === "timed" ? "timed" : "classic")
-                : "";
+                : part?.game === "line"
+                  ? "Задача дня"
+                  : "";
           return (
             <li key={game.id}>
               <a
@@ -33,7 +35,9 @@ export function OverallContributions({ entry }: { entry: OverallEntry }) {
                 href={
                   part
                     ? `/leaderboard/?game=${game.id}&mode=${part.mode}&period=all`
-                    : `/${game.id}/`
+                    : game.id === "line"
+                      ? "/one-line/"
+                      : `/${game.id}/`
                 }
                 aria-label={`${game.name}. ${overallNumber(part?.points ?? 0)} из 1000 баллов. ${part ? `Рекорд: ${resultText(game.id, part.score)}. ${mode ? mode + ". " : ""}Открыть рейтинг` : "Не сыграно. Играть"}`}
               >
@@ -84,7 +88,7 @@ export function OverallStandings({ entries }: { entries: OverallEntry[] }) {
               className={`overall-standing${entry.isMe ? " is-me" : ""}`}
             >
               <summary
-                aria-label={`Место ${entry.place}. ${entry.nickname}. ${overallNumber(entry.score)} баллов. ${entry.gamesPlayed} из 5 игр.${entry.isMe ? " Это ты." : ""} Результаты по играм`}
+                aria-label={`Место ${entry.place}. ${entry.nickname}. ${overallNumber(entry.score)} баллов. ${entry.gamesPlayed} из ${OVERALL_GAMES.length} игр.${entry.isMe ? " Это ты." : ""} Результаты по играм`}
               >
                 <span
                   className={`overall-standing-place${entry.place <= 3 ? " is-top" : ""}`}
@@ -97,7 +101,9 @@ export function OverallStandings({ entries }: { entries: OverallEntry[] }) {
                     {entry.nickname}
                     {entry.isMe && <span className="overall-you">Ты</span>}
                   </strong>
-                  <span>{entry.gamesPlayed} из 5 игр</span>
+                  <span>
+                    {entry.gamesPlayed} из {OVERALL_GAMES.length} игр
+                  </span>
                 </span>
                 <strong className="overall-standing-score">
                   {overallNumber(entry.score)}
@@ -133,12 +139,17 @@ export function OverallRules() {
     <details className="overall-rules">
       <summary>Как считаются баллы</summary>
       <p>
-        Пять игр — до {overallNumber(OVERALL_MAX_POINTS)} баллов. В каждой берём
-        один лучший результат за всё время, независимо от режима. Непройденная
-        игра даёт 0.
+        Шесть игр — до {overallNumber(OVERALL_MAX_POINTS)} баллов. В каждой
+        берём один лучший результат за всё время. В «Одной линией» учитывается
+        только «Задача дня», в остальных играх — лучший из всех режимов.
+        Непройденная игра даёт 0.
       </p>
       <ul>
         <li>На глаз, Оттенок, Где я?: результат из 500 умножаем на 2.</li>
+        <li>
+          Одной линией: лучший дневной результат режима «Задача дня» из 500
+          умножаем на 2. «Практика» не учитывается.
+        </li>
         <li>Круг: процент точности умножаем на 10.</li>
         <li>
           Жми: 1000 × уровни / (уровни + 50). За 50 уровней — 500 баллов, за 100

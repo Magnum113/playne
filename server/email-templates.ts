@@ -40,13 +40,16 @@ export function emailBoardName(game: GameId, mode: string) {
       ? ` · ${geoModeName(mode as any)}`
       : game === "colorfle"
         ? ` · ${shadeModeName(mode === "timed" ? "timed" : "classic")}`
-        : "")
+        : game === "line"
+          ? ` · ${mode === "practice" ? "Практика" : "Задача дня"}`
+          : "")
   );
 }
 export function emailGamePath(game: GameId, mode: string) {
   return (
-    `/${game}/` +
-    ((game === "geo" || game === "colorfle") && mode !== "classic"
+    `/${game === "line" ? "one-line" : game}/` +
+    ((game === "geo" || game === "colorfle" || game === "line") &&
+    mode !== "classic"
       ? `?mode=${encodeURIComponent(mode)}`
       : "")
   );

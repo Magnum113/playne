@@ -9,6 +9,7 @@ const server = await createServer({
 try {
   const { pages, SITE_URL } = await server.ssrLoadModule("/src/seo.ts");
   const { pressureFaq } = await server.ssrLoadModule("/src/pressureContent.ts");
+  const { lineFaq } = await server.ssrLoadModule("/src/lineContent.ts");
   const paths = new Set(pages.map((p) => p.path));
   const titles = new Set();
   const descriptions = new Set();
@@ -119,6 +120,42 @@ try {
         assert(
           text.includes(question) && text.includes(answer),
           "FAQ must be readable in the static HTML",
+        );
+        assert.equal(faq.mainEntity[i].name, question);
+        assert.equal(faq.mainEntity[i].acceptedAnswer.text, answer);
+      });
+      assert(
+        html.includes(
+          `property="og:image" content="${SITE_URL}${page.image.path}"`,
+        ),
+      );
+      assert(
+        html.includes('name="twitter:card" content="summary_large_image"'),
+      );
+      const png = await readFile(new URL(page.image.path.slice(1), dist));
+      assert.equal(png.subarray(1, 4).toString(), "PNG");
+      assert.equal(png.readUInt32BE(16), page.image.width);
+      assert.equal(png.readUInt32BE(20), page.image.height);
+    }
+    if (page.path === "/one-line/") {
+      assert(title.includes("Одной линией"));
+      assert(
+        description.includes("каждую клетку") && description.includes("Zip"),
+      );
+      assert(
+        html.includes('id="line-rules"') && html.includes('id="line-about"'),
+      );
+      assert(text.includes("5 полей") && text.includes("500 очков"));
+      assert(html.includes('href="/guides/one-line/"'));
+      const game = data["@graph"].find((x) => x["@type"] === "VideoGame");
+      assert(game?.isAccessibleForFree && game.inLanguage === "ru");
+      assert.equal(game.offers.price, "0");
+      const faq = data["@graph"].find((x) => x["@type"] === "FAQPage");
+      assert.equal(faq?.mainEntity.length, lineFaq.length);
+      lineFaq.forEach(({ question, answer }, i) => {
+        assert(
+          text.includes(question) && text.includes(answer),
+          "Line FAQ must be readable without JavaScript",
         );
         assert.equal(faq.mainEntity[i].name, question);
         assert.equal(faq.mainEntity[i].acceptedAnswer.text, answer);

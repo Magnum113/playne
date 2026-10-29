@@ -129,7 +129,9 @@
 .account-bests a {
   color: var(--text);
   text-decoration: none;
-  transition: background-color var(--motion-fast), border-color var(--motion-fast);
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast);
 }
 .account-best-card--single {
   display: flex;
@@ -307,6 +309,7 @@
 }
 .rank-games button,
 .rank-period button {
+  min-width: 0;
   min-height: 44px;
   border: 0;
   border-radius: 12px;
@@ -316,6 +319,11 @@
   font-size: 14px;
   font-weight: 550;
   padding: 12px 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.rank-games .rank-game-line {
+  grid-column: span 2;
 }
 .rank-games button[aria-pressed="true"],
 .rank-period button[aria-pressed="true"] {

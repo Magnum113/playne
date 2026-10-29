@@ -12,6 +12,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { Pool } from "pg";
 import { LEADERBOARD_SQL } from "./leaderboard";
 import { overallLeaderboard } from "./overall";
+import { hintLinePath, lineMoscowDate } from "../src/line";
 import { EMAIL_CONSENT_VERSION } from "./email-templates";
 import {
   lockPublications,
@@ -162,6 +163,7 @@ export async function buildApp(
     let value = req.cookies.playne_guest;
     if (!value || !/^[\w-]{43}$/.test(value)) {
       value = token();
+      req.cookies.playne_guest = value;
     }
     reply.setCookie("playne_guest", value, { ...options, maxAge: 365 * 86400 });
     return hash(value);
@@ -202,6 +204,32 @@ export async function buildApp(
     if (!game.published_at && new Date(game.expires_at).getTime() < Date.now())
       failure("Срок сохранения этой партии истёк.", 410);
     return game;
+  }
+  // A guest result survives login, but a second attempt at an already reserved
+  // account/day becomes practice rather than a second ranked daily result.
+  async function claimLineDay(client: any, run: any, ownerId: string) {
+    if (run.game !== "line" || run.mode !== "classic") return;
+    const day = run.challenge.day;
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+      "line:account:" + ownerId + ":" + day,
+    ]);
+    const prior = await client.query(
+      "SELECT run_id FROM playne_line_days WHERE day=$1 AND owner_id=$2",
+      [day, ownerId],
+    );
+    if (prior.rows[0] && prior.rows[0].run_id !== run.id) {
+      run.mode = "practice";
+      run.challenge.mode = "practice";
+      await client.query(
+        "UPDATE playne_games SET mode='practice',challenge=$1 WHERE id=$2",
+        [JSON.stringify(run.challenge), run.id],
+      );
+    } else if (!prior.rows[0]) {
+      await client.query(
+        "UPDATE playne_line_days SET owner_id=$1 WHERE day=$3 AND browser_hash=(SELECT browser_hash FROM playne_line_days WHERE run_id=$2 ORDER BY created_at,browser_hash LIMIT 1)",
+        [ownerId, run.id, day],
+      );
+    }
   }
   await registerEmailRoutes(app, pool, emailConfig, requireUser);
   app.get("/api/health", async () => {
@@ -401,6 +429,17 @@ export async function buildApp(
           "INSERT INTO playne_auth_sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '30 days')",
           [hash(sid), userId],
         );
+        const lineTrials = await client.query(
+          "SELECT g.* FROM playne_games g JOIN playne_guest_trials t ON t.run_id=g.id WHERE t.browser_hash=$1 AND g.game='line' AND (g.owner_id IS NULL OR g.owner_id=$2) FOR UPDATE OF g",
+          [flow.browser_hash, userId],
+        );
+        for (const trial of lineTrials.rows) {
+          await claimLineDay(client, trial, userId);
+          await client.query(
+            "UPDATE playne_games SET owner_id=$1 WHERE id=$2",
+            [userId, trial.id],
+          );
+        }
         // A guest can finish several games before signing in. Snapshot each board once.
         const claims = (
           await client.query(
@@ -495,6 +534,18 @@ export async function buildApp(
           !supportedPairIds.every((id: unknown) => typeof id === "string"))
       )
         failure("Некорректный каталог сравнений");
+      const mode =
+        game === "geo" || game === "colorfle" || game === "line"
+          ? ((req.body as any)?.mode ?? "classic")
+          : "classic";
+      if (
+        game === "line"
+          ? !["classic", "practice"].includes(mode)
+          : !validGeoMode(mode) ||
+            (game === "colorfle" && !validShadeMode(mode))
+      )
+        failure("Неизвестный режим");
+      const lineDay = game === "line" ? lineMoscowDate() : undefined;
       const b = browser(req, reply),
         u = await user(req);
       const client = await pool.connect();
@@ -528,6 +579,56 @@ export async function buildApp(
             };
           }
         }
+        if (game === "line" && mode === "classic") {
+          const day = lineDay!;
+          const locks = ["line:browser:" + b + ":" + day];
+          if (u) locks.push("line:account:" + u.id + ":" + day);
+          for (const key of locks.sort())
+            await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+              key,
+            ]);
+          const reservation = await client.query(
+            "SELECT run_id FROM playne_line_days WHERE day=$1 AND (browser_hash=$2 OR owner_id=$3) ORDER BY (owner_id=$3) DESC NULLS LAST LIMIT 1",
+            [day, b, u?.id ?? null],
+          );
+          if (reservation.rows[0]) {
+            const existingId = reservation.rows[0].run_id;
+            if (!existingId)
+              failure("Задача дня уже сыграна. Выбери практику.", 409);
+            const existing = await owned(req, reply, existingId, client, true);
+            if (existing.owner_id && existing.owner_id !== u?.id)
+              failure(
+                "Задача дня в этом браузере уже сыграна. Выбери практику.",
+                403,
+              );
+            if (u && !existing.owner_id) {
+              await claimLineDay(client, existing, u.id);
+              await client.query(
+                "UPDATE playne_games SET owner_id=$1 WHERE id=$2",
+                [u.id, existing.id],
+              );
+            }
+            await client.query(
+              "INSERT INTO playne_line_days(day,browser_hash,owner_id,run_id) VALUES($1,$2,NULL,$3) ON CONFLICT(day,browser_hash) DO NOTHING",
+              [day, b, existing.id],
+            );
+            await client.query("COMMIT");
+            return {
+              id: existing.id,
+              game,
+              version: existing.version,
+              mode: existing.mode,
+              challenge: publicChallenge(game, existing.challenge),
+              answers: existing.answers,
+              completed: !!existing.completed_at,
+              published: !!existing.published_at,
+              score:
+                existing.score_units === null
+                  ? null
+                  : existing.score_units / 10,
+            };
+          }
+        }
         const recentRows = await client.query(
           "SELECT challenge FROM playne_games WHERE game=$1 AND browser_hash=$2 ORDER BY created_at DESC LIMIT $3",
           [game, b, game === "colorfle" ? 30 : 6],
@@ -545,15 +646,6 @@ export async function buildApp(
                   ? (r.challenge.levels ?? []).map((l: any) => l.id)
                   : [],
         );
-        const mode =
-          game === "geo" || game === "colorfle"
-            ? ((req.body as any)?.mode ?? "classic")
-            : "classic";
-        if (
-          !validGeoMode(mode) ||
-          (game === "colorfle" && !validShadeMode(mode))
-        )
-          failure("Неизвестный режим");
         const geoVersion = (req.body as any)?.geoRulesVersion;
         const version =
           game === "geo"
@@ -579,6 +671,7 @@ export async function buildApp(
             game === "geo" && version === 1 ? "classic" : mode,
             game === "naglaz" ? supportedPairIds : undefined,
             (req.body as any)?.pressureRulesVersion,
+            lineDay,
           );
         } catch (e) {
           if (game === "naglaz")
@@ -596,6 +689,11 @@ export async function buildApp(
             game === "geo" && version === 1 ? "classic" : mode,
           ],
         );
+        if (game === "line" && mode === "classic")
+          await client.query(
+            "INSERT INTO playne_line_days(day,browser_hash,owner_id,run_id) VALUES($1,$2,$3,$4)",
+            [(challenge as any).day, b, u?.id ?? null, rows[0].id],
+          );
         if (!u) {
           await client.query(
             "INSERT INTO playne_guest_trials(browser_hash,game,run_id) VALUES($1,$2,$3)",
@@ -919,6 +1017,90 @@ export async function buildApp(
       c.release();
     }
   });
+  for (const action of ["start", "hint"] as const)
+    app.post(`/api/games/:id/line/${action}`, async (req, reply) => {
+      const input = req.body as any;
+      if (!Number.isInteger(input?.index) || input.index < 0 || input.index > 4)
+        failure("Некорректный раунд");
+      if (
+        action === "hint" &&
+        (!uuid(input.requestId) ||
+          !Array.isArray(input.path) ||
+          input.path.length > 36 ||
+          !input.path.every(Number.isInteger))
+      )
+        failure("Некорректная подсказка");
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const run = await owned(
+          req,
+          reply,
+          (req.params as any).id,
+          client,
+          true,
+        );
+        if (
+          run.game !== "line" ||
+          run.completed_at ||
+          run.answers.length !== input.index
+        )
+          failure("Сначала закончи текущий раунд", 409);
+        const serverNow = Date.now();
+        const rounds = run.challenge.rounds;
+        if (action === "start") {
+          rounds[input.index] ??= {
+            startedAt: serverNow,
+            hints: 0,
+            requests: {},
+          };
+        } else {
+          const round = rounds[input.index];
+          if (!round) failure("Сначала начни раунд", 409);
+          const previous = round.requests[input.requestId];
+          if (previous) {
+            await client.query("COMMIT");
+            return {
+              ...previous,
+              hints: round.hints,
+              startedAt: round.startedAt,
+              serverNow,
+            };
+          }
+          if (round.hints >= 36)
+            failure("Все подсказки этого раунда уже использованы", 409);
+          const hint = hintLinePath(
+            run.challenge.puzzles[input.index],
+            input.path,
+          );
+          round.hints++;
+          round.requests[input.requestId] = hint;
+          await client.query(
+            "UPDATE playne_games SET challenge=$1 WHERE id=$2",
+            [JSON.stringify(run.challenge), run.id],
+          );
+          await client.query("COMMIT");
+          return {
+            ...hint,
+            hints: round.hints,
+            startedAt: round.startedAt,
+            serverNow,
+          };
+        }
+        await client.query("UPDATE playne_games SET challenge=$1 WHERE id=$2", [
+          JSON.stringify(run.challenge),
+          run.id,
+        ]);
+        await client.query("COMMIT");
+        const round = rounds[input.index];
+        return { startedAt: round.startedAt, hints: round.hints, serverNow };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    });
   app.post("/api/games/:id/answers", async (req, reply) => {
     const input = req.body as any;
     if (!Number.isInteger(input?.index) || input.index < 0 || input.index > 4)
@@ -974,6 +1156,7 @@ export async function buildApp(
         units = complete ? scoreUnits(answers) : null;
       const viewer = complete ? await user(req, c) : null;
       const publish = !!viewer && (!run.owner_id || run.owner_id === viewer.id);
+      if (publish) await claimLineDay(c, run, viewer.id);
       const before =
         publish && !run.published_at
           ? await notificationSnapshot(c, run.game, run.mode)
@@ -1038,6 +1221,7 @@ export async function buildApp(
       if (!run.completed_at) failure("Сначала закончи партию", 409);
       if (run.owner_id && run.owner_id !== u.id)
         failure("Эта партия принадлежит другому аккаунту", 403);
+      await claimLineDay(c, run, u.id);
       const before = !run.published_at
         ? await notificationSnapshot(c, run.game, run.mode)
         : [];
@@ -1094,10 +1278,15 @@ export async function buildApp(
       failure("Некорректная страница");
     const u = await user(req);
     const mode =
-      q.game === "geo" || q.game === "colorfle"
+      q.game === "geo" || q.game === "colorfle" || q.game === "line"
         ? (q.mode ?? "classic")
         : "classic";
-    if (!validGeoMode(mode) || (q.game === "colorfle" && !validShadeMode(mode)))
+    if (
+      q.game === "line"
+        ? !["classic", "practice"].includes(mode)
+        : !validGeoMode(mode) ||
+          (q.game === "colorfle" && !validShadeMode(mode))
+    )
       failure("Неизвестный режим");
     const base = LEADERBOARD_SQL;
     const requestedVersion =

@@ -1,5 +1,6 @@
 import { guides } from "./guides";
 import { pressureFaq } from "./pressureContent";
+import { lineFaq } from "./lineContent";
 
 export const SITE_URL = "https://playne.ru";
 export type PageMeta = {
@@ -36,10 +37,24 @@ export const pages: PageMeta[] = [
     },
   },
   {
+    path: "/one-line/",
+    title: "Одной линией — соедини числа, заполни поле | Playne",
+    description:
+      "Соедини числа по порядку и пройди каждую клетку один раз. Бесплатная головоломка в духе Zip на русском: 5 полей дня, подсказки и до 500 очков. Первая партия без входа.",
+    kind: "game",
+    name: "Одной линией",
+    image: {
+      path: "/art/line-social.png",
+      width: 1200,
+      height: 630,
+      alt: "Одной линией — маршрут через пронумерованные клетки игрового поля",
+    },
+  },
+  {
     path: "/leaderboard/",
     title: "Общий рейтинг игроков и рекорды по играм | Playne",
     description:
-      "Общий рейтинг Playne за всё время и рекорды На глаз, Круг, Оттенок, Где я и Жми. Улучшай результаты во всех играх и поднимайся в топ.",
+      "Общий рейтинг Playne за всё время и рекорды На глаз, Круг, Оттенок, Где я, Жми и Одной линией. Улучшай результаты во всех играх и поднимайся в топ.",
     kind: "guides",
     name: "Рейтинг",
   },
@@ -72,7 +87,7 @@ export const pages: PageMeta[] = [
     path: "/",
     title: "Playne — игры онлайн для любопытных",
     description:
-      "Бесплатные игры в браузере: сравнивай размеры, рисуй круг, подбирай цвет, угадывай места по панорамам и решай задания с одной кнопкой. На телефоне и компьютере. Первая партия в каждой игре — без входа.",
+      "Бесплатные игры в браузере: сравнивай размеры, рисуй круг, подбирай цвет, угадывай места, решай задания с кнопкой и соединяй числа одной линией. Первая партия в каждой игре — без входа.",
     kind: "home",
     name: "Playne",
   },
@@ -104,7 +119,7 @@ export const pages: PageMeta[] = [
     path: "/guides/",
     title: "Правила и советы по играм Playne",
     description:
-      "Как сравнивать размеры, рисовать круг, подбирать цвет и угадывать страну по панораме. Правила игр Playne, включая Жми по мотивам Press Under Pressure, советы и объяснение очков.",
+      "Как сравнивать размеры, рисовать круг, подбирать цвет, угадывать места и соединять числа одной линией. Правила игр Playne, советы по прохождению и объяснение очков.",
     kind: "guides",
     name: "Правила и советы",
   },
@@ -179,10 +194,13 @@ export function structuredData(page: PageMeta) {
               playMode: "https://schema.org/SinglePlayer",
               isAccessibleForFree: true,
               mainEntityOfPage: { "@id": main["@id"] },
-              ...(page.path === "/pressure/"
+              ...(page.path === "/pressure/" || page.path === "/one-line/"
                 ? {
                     image: SITE_URL + page.image!.path,
-                    genre: ["Головоломка", "Логика", "Память", "Реакция"],
+                    genre:
+                      page.path === "/one-line/"
+                        ? ["Головоломка", "Логика"]
+                        : ["Головоломка", "Логика", "Память", "Реакция"],
                     operatingSystem: "Any",
                     browserRequirements: "Requires JavaScript",
                     offers: {
@@ -201,14 +219,19 @@ export function structuredData(page: PageMeta) {
             },
           ]
         : []),
-      ...(page.path === "/pressure/"
+      ...(page.path === "/pressure/" || page.path === "/one-line/"
         ? [
             {
               "@type": "FAQPage",
-              "@id": url + "#pressure-faq",
+              "@id":
+                url +
+                (page.path === "/one-line/" ? "#line-faq" : "#pressure-faq"),
               isPartOf: { "@id": main["@id"] },
               inLanguage: "ru",
-              mainEntity: pressureFaq.map(({ question, answer }) => ({
+              mainEntity: (page.path === "/one-line/"
+                ? lineFaq
+                : pressureFaq
+              ).map(({ question, answer }) => ({
                 "@type": "Question",
                 name: question,
                 acceptedAnswer: { "@type": "Answer", text: answer },

@@ -1,13 +1,12 @@
 import { validHSV } from "./colorfle";
-import type { GameId } from "./account";
-import type { GeoMode } from "./geo";
+import type { GameId, GameMode } from "./account";
 
-export type ServerRun = {
+export type ServerRun<G extends GameId = GameId> = {
   id: string;
-  game: GameId;
+  game: G;
   challenge: any;
   version?: number;
-  mode?: GeoMode;
+  mode?: G extends "line" ? GameMode : Exclude<GameMode, "practice">;
   completed?: boolean;
   published?: boolean;
   score?: number | null;
@@ -33,7 +32,7 @@ type Pending = {
   key: string;
   run: ServerRun | null;
   game: GameId;
-  mode?: GeoMode;
+  mode?: GameMode;
   tasks: Task[];
   pins: Record<number, unknown>;
   results: Record<number, any>;
@@ -108,7 +107,7 @@ export function createRankedQueue(
         if (
           !p ||
           !uuid(p.key) ||
-          !["naglaz", "circle", "colorfle", "geo", "pressure"].includes(
+          !["naglaz", "circle", "colorfle", "geo", "pressure", "line"].includes(
             p.game,
           ) ||
           !Array.isArray(p.tasks) ||
@@ -164,7 +163,7 @@ export function createRankedQueue(
     p.state = next;
     changed(p);
   }
-  function add(run: ServerRun | null, game: GameId, mode?: GeoMode) {
+  function add(run: ServerRun | null, game: GameId, mode?: GameMode) {
     load();
     const existing =
       run && [...records.values()].find((p) => p.run?.id === run!.id);

@@ -8,6 +8,14 @@ import {
 import { chooseRounds, legacyPairIds, objects, pairs } from "../src/data";
 import { score } from "../src/game";
 import { evaluateCircle } from "../src/circle";
+import { LINE_STAGE_POOLS } from "../src/linePuzzles";
+import {
+  getDailyLinePuzzles,
+  getLinePuzzles,
+  lineMoscowDate,
+  validateLineAnswer,
+  scoreLinePuzzle,
+} from "../src/line";
 import {
   randomTargets,
   shadeScore,
@@ -32,6 +40,7 @@ export const GAME_NAMES = {
   colorfle: "Оттенок",
   geo: "Где я?",
   pressure: "Жми",
+  line: "Одной линией",
 } as const;
 export type GameId = keyof typeof GAME_NAMES;
 export const isGame = (v: unknown): v is GameId =>
@@ -43,6 +52,28 @@ export const scoreVersion = (game: GameId) =>
     : game === "colorfle"
       ? SHADE_SCORE_VERSION
       : SCORE_VERSION;
+export function linePracticePuzzles(
+  seed: string | number,
+  day = lineMoscowDate(),
+) {
+  const excluded = new Set(getDailyLinePuzzles(day).map((puzzle) => puzzle.id));
+  const puzzles = getLinePuzzles(seed);
+  for (let attempt = 0; attempt < 50; attempt++) {
+    if (puzzles.every((puzzle) => !excluded.has(puzzle.id))) return puzzles;
+    const replacements = getLinePuzzles(`${seed}:practice:${attempt}`);
+    puzzles.forEach((puzzle, index) => {
+      if (excluded.has(puzzle.id)) puzzles[index] = replacements[index];
+    });
+  }
+  // A deterministic fallback also covers unlucky seeds without leaking a daily board.
+  return puzzles.map((puzzle, index) =>
+    excluded.has(puzzle.id)
+      ? LINE_STAGE_POOLS[index].find(
+          (candidate) => !excluded.has(candidate.id),
+        )!
+      : puzzle,
+  );
+}
 // Convert old rounds into tenths before summing, so displayed rounds match the total.
 export const GEO_V3_UNITS_SQL = `CASE WHEN game='geo' AND version=2 THEN (SELECT coalesce(sum(CASE WHEN (a->>'score')::numeric >= 5000 THEN 1000 ELSE LEAST(999,round((a->>'score')::numeric/5)) END),0)::integer FROM jsonb_array_elements(answers) AS a) ELSE score_units END`;
 export const GEO_V4_UNITS_SQL = `CASE WHEN game='geo' AND version IN(2,3) THEN (SELECT coalesce(sum(CASE WHEN (a->>'score')::numeric >= CASE WHEN version=2 THEN 5000 ELSE 100 END THEN 1000 ELSE LEAST(99,round((a->>'score')::numeric/CASE WHEN version=2 THEN 50 ELSE 1 END))*10 END),0)::integer FROM jsonb_array_elements(answers) AS a) ELSE score_units END`;
@@ -72,10 +103,23 @@ export function geoProjection(run: any, viewerVersion: number) {
 export function makeChallenge(
   game: GameId,
   recent: string[] = [],
-  mode: GeoMode = "classic",
+  mode: GeoMode | "practice" = "classic",
   supportedPairIds: readonly string[] = legacyPairIds,
   pressureRulesVersion = 1,
+  lineDay?: string,
 ) {
+  if (game === "line") {
+    const day = lineDay ?? lineMoscowDate();
+    return {
+      puzzles:
+        mode === "practice"
+          ? linePracticePuzzles(Math.floor(Math.random() * 4294967296), day)
+          : getDailyLinePuzzles(day),
+      day,
+      mode,
+      rounds: {},
+    };
+  }
   if (game === "pressure") {
     if (pressureRulesVersion === PRESSURE_RULES_VERSION) {
       const seed = Math.floor(Math.random() * 4294967296);
@@ -96,13 +140,25 @@ export function makeChallenge(
     return { targets: randomTargets(Math.random, recent), mode, timers: {} };
   if (game === "geo")
     return {
-      places: chooseGeoRounds(recent, Math.random, mode),
+      places: chooseGeoRounds(recent, Math.random, mode as GeoMode),
       panoramas: {},
       mode,
     };
   return {};
 }
 export function publicChallenge(game: GameId, challenge: any) {
+  if (game === "line")
+    return {
+      puzzles: challenge.puzzles,
+      day: challenge.day,
+      mode: challenge.mode,
+      rounds: Object.fromEntries(
+        Object.entries(challenge.rounds ?? {}).map(([index, value]) => {
+          const round = value as { startedAt: number; hints: number };
+          return [index, { startedAt: round.startedAt, hints: round.hints }];
+        }),
+      ),
+    };
   if (game === "geo")
     return {
       places: challenge.places,
@@ -124,6 +180,24 @@ export function validateAnswer(
   now = Date.now(),
   version = 4,
 ) {
+  if (game === "line") {
+    const puzzle = challenge.puzzles?.[index];
+    const round = challenge.rounds?.[index];
+    if (!puzzle || !validateLineAnswer(puzzle, input?.path))
+      throw new Error("Пройди все клетки по порядку, не пересекая стены");
+    if (!round || !Number.isFinite(round.startedAt) || now < round.startedAt)
+      throw new Error("Сначала начни раунд");
+    const elapsedMs = now - round.startedAt;
+    const hints = round.hints;
+    if (!Number.isInteger(hints) || hints < 0)
+      throw new Error("Не удалось проверить подсказки");
+    return {
+      path: [...input.path],
+      elapsedMs,
+      hints,
+      score: scoreLinePuzzle(elapsedMs, hints, puzzle),
+    };
+  }
   if (game === "pressure") {
     if (index !== 0) throw new Error("Некорректная попытка");
     if (challenge.rulesVersion === PRESSURE_RULES_VERSION)
@@ -271,7 +345,7 @@ export function initialNickname(profile: any) {
 export function safeReturn(value: unknown) {
   if (
     typeof value !== "string" ||
-    !/^\/(?:account|naglaz|circle|colorfle|geo|pressure|leaderboard)\/(?:\?[^#]*)?$/.test(
+    !/^\/(?:account|naglaz|circle|colorfle|geo|pressure|line|one-line|leaderboard)\/(?:\?[^#]*)?$/.test(
       value,
     )
   )
@@ -292,8 +366,10 @@ export function safeReturn(value: unknown) {
       if (
         url.pathname === "/geo/"
           ? !validGeoMode(item)
-          : url.pathname !== "/colorfle/" ||
-            !["classic", "timed"].includes(item)
+          : ["/line/", "/one-line/"].includes(url.pathname)
+            ? !["classic", "practice"].includes(item)
+            : url.pathname !== "/colorfle/" ||
+              !["classic", "timed"].includes(item)
       )
         return "/account/";
     } else return "/account/";

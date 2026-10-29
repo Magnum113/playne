@@ -243,6 +243,8 @@ export default function AccountPage() {
                           ` · ${h.version === 1 ? "Прежние правила" : geoModeName(h.mode as GeoMode)}`}
                         {h.game === "colorfle" &&
                           ` · ${shadeModeName(h.mode === "timed" ? "timed" : "classic")}`}
+                        {h.game === "line" &&
+                          ` · ${h.mode === "practice" ? "Практика" : "Задача дня"}`}
                         <small>
                           {new Date(h.completed_at).toLocaleDateString(
                             "ru-RU",

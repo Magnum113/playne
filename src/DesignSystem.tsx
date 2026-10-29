@@ -31,6 +31,8 @@ import { SizePreview, CirclePreview, ColorPreview } from "./Hub";
 import GeoPreview from "./GeoPreview";
 import LandmarkPreview from "./LandmarkPreview";
 import { PressurePreview, PressureTimer } from "./PressureGame";
+import LinePreview from "./LinePreview";
+import { lineRules, lineScoreText } from "./lineContent";
 import { Palette, Swatch } from "./ColorfleGame";
 import Board from "./Board";
 import Silhouette from "./Silhouette";
@@ -407,20 +409,27 @@ function Navigation() {
   return (
     <>
       <div className="rank-games" aria-label="Пример выбора игры">
-        {["Общий", "На глаз", "Круг", "Оттенок", "Где я?", "Жми"].map(
-          (name) => (
-            <button
-              key={name}
-              aria-pressed={game === name}
-              onClick={() => {
-                setGame(name);
-                if (name === "Общий") setPeriod("Всё время");
-              }}
-            >
-              {name}
-            </button>
-          ),
-        )}
+        {[
+          "Общий",
+          "На глаз",
+          "Круг",
+          "Оттенок",
+          "Где я?",
+          "Жми",
+          "Одной линией",
+        ].map((name) => (
+          <button
+            key={name}
+            className={name === "Одной линией" ? "rank-game-line" : undefined}
+            aria-pressed={game === name}
+            onClick={() => {
+              setGame(name);
+              if (name === "Общий") setPeriod("Всё время");
+            }}
+          >
+            {name}
+          </button>
+        ))}
       </div>
       <div className="rank-toolbar">
         {game === "Общий" ? (
@@ -506,6 +515,14 @@ const gameCards = [
     description: "Следуй правилу. Не ошибись.",
     Preview: PressurePreview,
     detail: "До первой ошибки",
+  },
+  {
+    name: "Одной линией",
+    label: "ЛОГИКА И МАРШРУТЫ",
+    path: "/one-line/",
+    description: "Соедини числа и заполни каждую клетку.",
+    Preview: LinePreview,
+    detail: "5 полей дня · 500 очков",
   },
 ];
 function ComparisonDemo() {
@@ -936,9 +953,9 @@ function Results() {
   const [profileState, setProfileState] = useState("scores");
   const example: OverallEntry = {
     nickname: "Твой ник",
-    score: 3509,
+    score: 4361,
     place: 3,
-    gamesPlayed: 5,
+    gamesPlayed: 6,
     isMe: true,
     contributions: [
       { game: "naglaz", mode: "classic", score: 322, points: 644 },
@@ -946,12 +963,13 @@ function Results() {
       { game: "colorfle", mode: "timed", score: 421, points: 842 },
       { game: "geo", mode: "moving", score: 343, points: 686 },
       { game: "pressure", mode: "classic", score: 42, points: 456 },
+      { game: "line", mode: "classic", score: 426, points: 852 },
     ],
   };
   const top: OverallBoard = {
     game: "overall",
     period: "all",
-    version: 1,
+    version: 2,
     page: 1,
     limit: 5,
     total: 24,
@@ -967,7 +985,7 @@ function Results() {
       nickname,
       place: i + 1,
       isMe: i === 2,
-      score: 3509 + (2 - i) * 100,
+      score: 4361 + (2 - i) * 100,
       contributions: example.contributions.map((p) =>
         p.game === "naglaz"
           ? {
@@ -987,8 +1005,9 @@ function Results() {
         wide
       >
         <p className="ds-note">
-          Демонстрационные данные. Пять игр с равным весом, один лучший режим на
-          игру. Вертикальный список: справа от игр на десктопе и над играми на
+          Демонстрационные данные. Шесть игр с равным весом. Для «Одной линией»
+          — лучший дневной результат режима «Задача дня», для остальных — лучший
+          режим. Вертикальный список: справа от игр на десктопе и над играми на
           телефоне. Анимация появления отключается при уменьшении движения.
         </p>
         <div className="ds-top-five-demo">
@@ -1009,6 +1028,7 @@ function Results() {
             ["Оттенок", resultText("colorfle", 482)],
             ["Где я?", resultText("geo", 420)],
             ["Жми", resultText("pressure", 31)],
+            ["Одной линией", resultText("line", 426)],
           ].map(([label, value]) => (
             <div key={label}>
               <span>{label}</span>
@@ -1122,6 +1142,12 @@ function Results() {
                     },
                     { game: "colorfle", mode: "classic", score: 131 },
                     { game: "colorfle", mode: "timed", score: 421 },
+                    {
+                      game: "line",
+                      mode: "classic",
+                      score: profileState === "maximum" ? 500 : 426,
+                    },
+                    { game: "line", mode: "practice", score: 470 },
                     { game: "geo", mode: "classic", score: 60 },
                     { game: "geo", mode: "timed", score: 0 },
                     { game: "geo", mode: "moving", score: 343 },
@@ -1533,7 +1559,7 @@ export default function DesignSystem() {
             </Section>
             <Section id="cards">
               <p className="ds-note">
-                Шесть текущих карточек, те же изображения и классы, что на
+                Семь текущих карточек, те же изображения и классы, что на
                 главной. Вся карточка — ссылка.
               </p>
               <div className="game-cards ds-game-cards">
@@ -1658,6 +1684,23 @@ export default function DesignSystem() {
                   <PressureDemo />
                 </Sample>
               </div>
+              <Sample
+                title="Одной линией: поле, числа и маршрут"
+                source="LinePreview.tsx · lineContent.ts"
+              >
+                <LinePreview />
+                <div className="ds-prose">
+                  <ol>
+                    {lineRules.map(({ title, text }) => (
+                      <li key={title}>
+                        <strong>{title}</strong> {text}
+                      </li>
+                    ))}
+                  </ol>
+                  <p>{lineScoreText}</p>
+                  <a href="/one-line/">Открыть игру «Одной линией» →</a>
+                </div>
+              </Sample>
               <Sample
                 title="Оттенок: образец и палитра"
                 source="Palette · Swatch"
@@ -1848,11 +1891,12 @@ export default function DesignSystem() {
                   </p>
                 </li>
                 <li>
-                  <h3>Рейтинг без лишней строки</h3>
+                  <h3>Семь вкладок рейтинга</h3>
                   <p>
-                    Общий рейтинг и пять игр помещаются в один ряд на
-                    компьютере. На телефоне вкладки перестраиваются; длинные
-                    результаты не выходят за край.
+                    Общий рейтинг и шесть игр перестраиваются по доступной
+                    ширине. У «Одной линией» больше места для длинного названия.
+                    На телефоне вкладки остаются доступны без горизонтальной
+                    прокрутки.
                   </p>
                 </li>
                 <li>

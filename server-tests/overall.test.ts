@@ -115,6 +115,29 @@ const db = process.env.TEST_DATABASE_URL;
     expect(result.entries.map((e: any) => e.score)).toEqual([1000, 0]);
     expect(result.entries[1].gamesPlayed).toBe(1);
   });
+  it("adds the sixth slot only for completed daily line runs, preserving existing contributions", async () => {
+    const id = await addUser();
+    for (const [game, score] of [
+      ["naglaz", 500],
+      ["circle", 100],
+      ["colorfle", 500],
+      ["geo", 500],
+      ["pressure", 25000],
+    ] as const)
+      await run(id, game, score);
+    const before = (await board()).entries[0];
+    await run(id, "line", 500, "practice");
+    expect((await board()).entries[0].score).toBe(before.score);
+    await run(id, "line", 500);
+    const result = await board();
+    expect(result.version).toBe(2);
+    expect(result.entries[0].gamesPlayed).toBe(6);
+    expect(result.entries[0].score).toBe(before.score + 1000);
+    expect(result.entries[0].score).toBeLessThanOrEqual(6000);
+    expect(
+      result.entries[0].contributions.filter((p: any) => p.game !== "line"),
+    ).toEqual(before.contributions);
+  });
   it("keeps scores stable on replay, rewards improvements, and shares tied places", async () => {
     const a = await addUser("Первый"),
       b = await addUser("Второй");

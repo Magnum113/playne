@@ -8,6 +8,7 @@ import CircleGame from "./CircleGame";
 import ColorfleGame from "./ColorfleGame";
 import GeoGame from "./GeoGame";
 import PressureGame from "./PressureGame";
+import LineGame from "./LineGame";
 import GuidePage from "./GuidePage";
 import { guides } from "./guides";
 
@@ -23,6 +24,7 @@ export default function Site({ path }: { path: string }) {
   if (route === "/circle/") return <CircleGame />;
   if (route === "/colorfle/") return <ColorfleGame />;
   if (route === "/pressure/") return <PressureGame />;
+  if (route === "/one-line/") return <LineGame />;
   if (route === "/geo/") return <GeoGame />;
   if (route === "/guides/") return <GuidePage />;
   const guide = guides.find((g) => route === `/guides/${g.slug}/`);

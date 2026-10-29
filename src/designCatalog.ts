@@ -138,6 +138,11 @@ export const componentInventory = [
     "cards",
   ],
   [
+    "Одной линией: карточка, поле, числа и маршрут",
+    "Hub.tsx · LinePreview.tsx",
+    "cards",
+  ],
+  [
     "Точки раундов: пройденный, текущий, следующий",
     "ui.tsx · RoundDots",
     "gameplay",
@@ -185,6 +190,11 @@ export const componentInventory = [
   [
     "Жми: кольцо времени, успех, ошибка и пауза",
     "PressureGame.tsx · PressureTimer",
+    "gameplay",
+  ],
+  [
+    "Одной линией: маршрут, клетки, правила и очки",
+    "LinePreview.tsx · lineContent.ts",
     "gameplay",
   ],
   [
@@ -239,7 +249,7 @@ export const componentInventory = [
   ],
   [
     "Текстовые страницы, правила, списки и FAQ",
-    "GuidePage.tsx · PressureAbout.tsx",
+    "GuidePage.tsx · PressureAbout.tsx · LineAbout.tsx",
     "content",
   ],
   ["Общий футер со всеми ссылками", "FooterLinks.tsx", "content"],
