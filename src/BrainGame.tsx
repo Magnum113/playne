@@ -138,6 +138,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
   const [showFlash, setShowFlash] = useState(false);
   const [timing, setTiming] = useState<Timing | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [today, setToday] = useState(() => brainMoscowDate());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -161,6 +162,22 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
   const currentAnswer = answers[index];
   const slideState =
     round?.kind === "slide" ? replaySlideMoves(round, moves) : null;
+
+  useEffect(() => {
+    const checkDate = () => setToday(brainMoscowDate());
+    const visible = () => {
+      if (!document.hidden) checkDate();
+    };
+    checkDate();
+    const timer = window.setInterval(checkDate, 30_000);
+    window.addEventListener("focus", checkDate);
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", checkDate);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, []);
 
   useEffect(() => {
     if (phase !== "playing") return;
@@ -436,6 +453,12 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
       setRun(data);
       setMode(data.mode === "practice" ? "practice" : "classic");
       setDifficulty(data.challenge.difficulty ?? 1);
+      if (chosen === "classic" && phase === "finished")
+        window.history.replaceState(
+          null,
+          "",
+          data.completed ? `${content.path}?result=${data.id}` : content.path,
+        );
       if (data.completed) {
         setPhase("finished");
         return;
@@ -614,6 +637,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
       ? !rotationAlignment(round.shapeA, round.shapeB)?.mirrored
       : false;
   const dailyResult = run?.mode !== "practice";
+  const newDailyAvailable = dailyResult && !!run && run.challenge.day !== today;
   const flashCanAnswer =
     !timing?.revealUntil || now + timing.offset >= timing.revealUntil;
   function roundMetric(answer: any, roundIndex: number): string {
@@ -746,8 +770,11 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
               <>
                 <SaveResult run={ranked} game={game} />
                 <p className="brain-gentle-goal">
-                  Новый набор появится завтра. Можно выбрать три удобных дня на
-                  неделе — пропущенный день ничего не обнуляет.
+                  {newDailyAvailable
+                    ? "Задача на сегодня уже готова."
+                    : "Новый набор появится завтра."}{" "}
+                  Можно выбрать три удобных дня на неделе — пропущенный день
+                  ничего не обнуляет.
                 </p>
               </>
             ) : (
@@ -758,6 +785,15 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
               </StatusMessage>
             )}
             <div className="brain-summary-actions">
+              {newDailyAvailable && access.user && (
+                <button
+                  className="primary"
+                  disabled={busy}
+                  onClick={() => void begin("classic", 1)}
+                >
+                  {busy ? "Готовим задания…" : "Начать задачу дня"}
+                </button>
+              )}
               <button
                 className="primary"
                 disabled={busy}
@@ -787,6 +823,15 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
               </a>
               <a href="/brain/">Выбрать другую игру →</a>
             </div>
+            {newDailyAvailable &&
+              (error || ranked.state.status === "error") && (
+                <p className="brain-error" role="alert">
+                  {error ||
+                    (ranked.state.status === "error"
+                      ? ranked.state.message
+                      : "")}
+                </p>
+              )}
           </section>
         ) : (
           <section className="brain-stage" aria-label={`Игра ${content.name}`}>

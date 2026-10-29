@@ -18,12 +18,16 @@ const mock = vi.hoisted(() => ({
   brainStart: vi.fn(),
   brainAnswer: vi.fn(),
   brainHint: vi.fn(),
+  user: { id: "u", nickname: "Игрок" } as {
+    id: string;
+    nickname: string;
+  } | null,
 }));
 vi.mock("../src/account", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/account")>()),
   useRankedRun: () => ({ ...mock, state: { status: "ready" } }),
   useGuestTrial: () => ({
-    user: { id: "u", nickname: "Игрок" },
+    user: mock.user,
     ready: true,
     loading: false,
     blocked: false,
@@ -65,6 +69,7 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/brain/flash/");
   localStorage.clear();
   vi.clearAllMocks();
+  mock.user = { id: "u", nickname: "Игрок" };
   box = document.createElement("div");
   document.body.append(box);
   root = createRoot(box);
@@ -78,6 +83,102 @@ afterEach(() => {
 });
 
 describe("brain game orchestration", () => {
+  function completedDaily() {
+    const data = fixture("rotate");
+    return {
+      ...data,
+      completed: true,
+      score: 500,
+      answers: Array.from({ length: 5 }, () => ({
+        same: true,
+        correctSame: true,
+        score: 100,
+      })),
+    };
+  }
+
+  it("keeps yesterday's result visible and starts today's pack only after a click", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-30T12:00:00Z"));
+    const yesterday = completedDaily();
+    window.history.replaceState(null, "", `/brain/rotate/?result=${runId}`);
+    mock.resume.mockResolvedValue(yesterday);
+    const today = fixture("rotate");
+    mock.begin.mockResolvedValue({
+      ...today,
+      id: "12345678-1234-4234-8234-123456789013",
+      challenge: { ...today.challenge, day: "2026-10-30" },
+    });
+    await act(async () => root.render(<BrainGame game="rotate" />));
+    expect(box.querySelector(".brain-total strong")?.textContent).toBe("500");
+    expect(box.querySelector(".brain-summary .eyebrow")?.textContent).toContain(
+      "2026-10-29",
+    );
+    expect(button("Начать задачу дня")).toBeTruthy();
+    expect(mock.begin).not.toHaveBeenCalled();
+    expect(mock.brainStart).not.toHaveBeenCalled();
+    await act(async () => button("Начать задачу дня").click());
+    expect(mock.begin).toHaveBeenCalledWith("classic", 1);
+    expect(mock.brainStart).not.toHaveBeenCalled();
+    expect(button("Начать раунд →")).toBeTruthy();
+    expect(window.location.search).toBe("");
+  });
+
+  it.each(["focus", "visibility", "interval"])(
+    "offers the new Moscow day on %s without changing the old result",
+    async (trigger) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-29T20:59:50Z"));
+      window.history.replaceState(null, "", `/brain/rotate/?result=${runId}`);
+      mock.resume.mockResolvedValue(completedDaily());
+      await act(async () => root.render(<BrainGame game="rotate" />));
+      expect(button("Начать задачу дня")).toBeUndefined();
+      vi.setSystemTime(new Date("2026-10-29T21:00:01Z"));
+      await act(async () => {
+        if (trigger === "focus") window.dispatchEvent(new Event("focus"));
+        else if (trigger === "visibility")
+          document.dispatchEvent(new Event("visibilitychange"));
+        else vi.advanceTimersByTime(30_000);
+      });
+      expect(button("Начать задачу дня")).toBeTruthy();
+      expect(box.querySelector(".brain-total strong")?.textContent).toBe("500");
+      expect(window.location.search).toBe(`?result=${runId}`);
+      expect(mock.resume).toHaveBeenCalledTimes(1);
+      expect(mock.begin).not.toHaveBeenCalled();
+      expect(mock.brainStart).not.toHaveBeenCalled();
+      expect(box.querySelector(".brain-stage")).toBeNull();
+    },
+  );
+
+  it("keeps the existing login gate for a guest viewing an old daily result", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-30T12:00:00Z"));
+    mock.user = null;
+    window.history.replaceState(null, "", `/brain/rotate/?result=${runId}`);
+    mock.resume.mockResolvedValue(completedDaily());
+    await act(async () => root.render(<BrainGame game="rotate" />));
+    expect(box.querySelector(".brain-total strong")?.textContent).toBe("500");
+    expect(box.querySelector('[data-testid="public-save"]')).toBeTruthy();
+    expect(button("Начать задачу дня")).toBeUndefined();
+    expect(mock.begin).not.toHaveBeenCalled();
+  });
+
+  it("retains the historical result and its link when the new day cannot load", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-30T12:00:00Z"));
+    window.history.replaceState(null, "", `/brain/rotate/?result=${runId}`);
+    mock.resume.mockResolvedValue(completedDaily());
+    mock.begin.mockRejectedValue(new Error("Нет соединения"));
+    await act(async () => root.render(<BrainGame game="rotate" />));
+    await act(async () => button("Начать задачу дня").click());
+    expect(box.querySelector(".brain-total strong")?.textContent).toBe("500");
+    expect(box.querySelector('[role="alert"]')?.textContent).toBe(
+      "Нет соединения",
+    );
+    expect(window.location.search).toBe(`?result=${runId}`);
+    expect(button("Начать задачу дня")?.disabled).toBe(false);
+  });
+
   it.each([
     ["3", 3],
     ["2", 2],

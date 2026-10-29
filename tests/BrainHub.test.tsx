@@ -50,6 +50,8 @@ function playLinks() {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   mocks.api.mockReset();
   mocks.api.mockResolvedValue(progress());
@@ -63,6 +65,8 @@ afterEach(() => {
   if (root) act(() => root!.unmount());
   root = undefined;
   container.remove();
+  vi.clearAllTimers();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -165,5 +169,64 @@ describe("brain hub", () => {
     expect(container.querySelector(".brain-today-count")?.textContent).toBe("0 / 4 игр");
     expect(container.querySelectorAll(".brain-calendar li")).toHaveLength(0);
     expect(playLinks()).toHaveLength(4);
+  });
+
+  it.each(["focus", "visibility"] as const)("refreshes progress on %s after Moscow midnight without starting a game", async (event) => {
+    vi.setSystemTime(new Date("2026-10-29T20:59:59Z"));
+    let resolveNext!: (data: BrainProgress) => void;
+    const nextResponse = new Promise<BrainProgress>((resolve) => { resolveNext = resolve; });
+    mocks.api.mockResolvedValueOnce(progress()).mockReturnValueOnce(nextResponse);
+    await mount();
+    expect(container.querySelector(".brain-today-count")?.textContent).toBe("2 / 4 игр");
+
+    vi.setSystemTime(new Date("2026-10-29T21:00:01Z"));
+    act(() => {
+      if (event === "focus") window.dispatchEvent(new Event("focus"));
+      else document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(mocks.api).toHaveBeenCalledTimes(2);
+    // The previous day's result must disappear while today's request is pending.
+    expect(container.querySelector(".brain-today-count")?.textContent).toBe("0 / 4 игр");
+    expect(container.textContent).not.toContain("Сегодня: 420 / 500 очков");
+    expect(playLinks().map((link) => link.getAttribute("href"))).toEqual(games.map((game) => `/brain/${game}/`));
+
+    const next = progress();
+    next.today = {day: "2026-10-30", results: {
+      dispatch: {id: "44444444-4444-4444-8444-444444444444", completed: true, score: 480, mode: "classic"},
+    }};
+    next.last7Days = next.last7Days.map((day, index) => ({...day, day: `2026-10-${24 + index}`}));
+    await act(async () => resolveNext(next));
+    expect(container.querySelector(".brain-today-count")?.textContent).toBe("1 / 4 игр");
+    expect(container.textContent).toContain("Сегодня: 480 / 500 очков");
+    expect(playLinks()[3].getAttribute("href")).toContain("?result=44444444-4444-4444-8444-444444444444");
+    expect(mocks.api.mock.calls.every(([path, method]) => path === "/brain/progress" && (method === undefined || method === "GET"))).toBe(true);
+  });
+
+  it("does not label a stale yesterday response as today's results", async () => {
+    vi.setSystemTime(new Date("2026-10-29T21:00:01Z"));
+    mocks.api.mockResolvedValue(progress()); // A stale response still describes October29.
+    await mount();
+    expect(container.querySelector(".brain-today-count")?.textContent).toBe("0 / 4 игр");
+    expect(container.querySelectorAll(".brain-done")).toHaveLength(0);
+    expect(container.textContent).not.toContain("Сегодня: 420 / 500 очков");
+    expect(playLinks().map((link) => link.getAttribute("href"))).toEqual(games.map((game) => `/brain/${game}/`));
+    expect(mocks.api.mock.calls.every(([path, method]) => path === "/brain/progress" && (method === undefined || method === "GET"))).toBe(true);
+  });
+
+  it("checks the date in an open tab without repeatedly fetching on the same day", async () => {
+    vi.setSystemTime(new Date("2026-10-29T20:58:00Z"));
+    const next = progress();
+    next.today = {day: "2026-10-30", results: {}};
+    mocks.api.mockResolvedValueOnce(progress()).mockResolvedValueOnce(next);
+    await mount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+    expect(mocks.api).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(new Date("2026-10-29T21:00:01Z"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+    expect(mocks.api).toHaveBeenCalledTimes(2);
+    expect(container.querySelector(".brain-today-count")?.textContent).toBe("0 / 4 игр");
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(mocks.api).toHaveBeenCalledTimes(2);
+    expect(mocks.api.mock.calls.every(([path, method]) => path === "/brain/progress" && (method === undefined || method === "GET"))).toBe(true);
   });
 });

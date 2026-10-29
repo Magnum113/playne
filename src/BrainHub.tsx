@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, useAuth } from "./account";
 import { GameHeader } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 import { brainGames } from "./brainContent";
+import { brainMoscowDate } from "./brain";
 import { BrainPreview } from "./BrainBoards";
 import { brainDateLabel, type BrainProgress } from "./brainProgress";
 import "./brain-hub.css";
@@ -53,15 +54,42 @@ export function BrainFeature() {
 export default function BrainHub() {
   const { user, loading: authLoading } = useAuth();
   const identity = user?.id ?? "guest";
+  const today = brainMoscowDate();
+  const lastDay = useRef(today);
   const [storedProgress, setStoredProgress] = useState<{
     identity: string;
     data: BrainProgress;
   } | null>(null);
   const progress =
-    storedProgress?.identity === identity ? storedProgress.data : null;
+    storedProgress?.identity === identity &&
+    storedProgress.data.today.day === today
+      ? storedProgress.data
+      : null;
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const refresh = () => {
+      if (document.hidden) return;
+      lastDay.current = brainMoscowDate();
+      setRetry((value) => value + 1);
+    };
+    const visible = () => {
+      if (!document.hidden) refresh();
+    };
+    const timer = window.setInterval(() => {
+      if (brainMoscowDate() !== lastDay.current) refresh();
+    }, 30_000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", refresh);
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", refresh);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, []);
   useEffect(() => {
     if (authLoading) return;
     let active = true;
