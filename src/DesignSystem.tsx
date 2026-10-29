@@ -1,5 +1,11 @@
 import { EmailConsent } from "./EmailPreferences";
 import { AccountBests } from "./AccountBests";
+import {
+  TopFiveCard,
+  OverallContributions,
+  OverallRules,
+} from "./OverallLeaderboard";
+import { type OverallBoard, type OverallEntry } from "./overall";
 import { GuestTrialPrompt } from "./account";
 import { GameIntro, GameRecord, GameStartAction } from "./GameIntro";
 import {
@@ -395,34 +401,43 @@ function Forms() {
   );
 }
 function Navigation() {
-  const [game, setGame] = useState("На глаз"),
-    [period, setPeriod] = useState("Неделя"),
+  const [game, setGame] = useState("Общий"),
+    [period, setPeriod] = useState("Всё время"),
     [page, setPage] = useState(1);
   return (
     <>
       <div className="rank-games" aria-label="Пример выбора игры">
-        {["На глаз", "Круг", "Оттенок", "Где я?", "Жми"].map((name) => (
-          <button
-            key={name}
-            aria-pressed={game === name}
-            onClick={() => setGame(name)}
-          >
-            {name}
-          </button>
-        ))}
-      </div>
-      <div className="rank-toolbar">
-        <div className="rank-period" aria-label="Пример выбора периода">
-          {["Неделя", "Всё время"].map((name) => (
+        {["Общий", "На глаз", "Круг", "Оттенок", "Где я?", "Жми"].map(
+          (name) => (
             <button
               key={name}
-              aria-pressed={period === name}
-              onClick={() => setPeriod(name)}
+              aria-pressed={game === name}
+              onClick={() => {
+                setGame(name);
+                if (name === "Общий") setPeriod("Всё время");
+              }}
             >
               {name}
             </button>
-          ))}
-        </div>
+          ),
+        )}
+      </div>
+      <div className="rank-toolbar">
+        {game === "Общий" ? (
+          <span>За всё время</span>
+        ) : (
+          <div className="rank-period" aria-label="Пример выбора периода">
+            {["Неделя", "Всё время"].map((name) => (
+              <button
+                key={name}
+                aria-pressed={period === name}
+                onClick={() => setPeriod(name)}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
         <span>
           {game} · {period}
         </span>
@@ -919,8 +934,66 @@ function SaveStates() {
 }
 function Results() {
   const [profileState, setProfileState] = useState("scores");
+  const example: OverallEntry = {
+    nickname: "Твой ник",
+    score: 3509,
+    place: 3,
+    gamesPlayed: 5,
+    isMe: true,
+    contributions: [
+      { game: "naglaz", mode: "classic", score: 322, points: 644 },
+      { game: "circle", mode: "classic", score: 88.1, points: 881 },
+      { game: "colorfle", mode: "timed", score: 421, points: 842 },
+      { game: "geo", mode: "moving", score: 343, points: 686 },
+      { game: "pressure", mode: "classic", score: 42, points: 456 },
+    ],
+  };
+  const top: OverallBoard = {
+    game: "overall",
+    period: "all",
+    version: 1,
+    page: 1,
+    limit: 5,
+    total: 24,
+    mine: example,
+    entries: [
+      "Любопытный",
+      "Исследователь",
+      "Твой ник",
+      "Следопыт",
+      "Игрок",
+    ].map((nickname, i) => ({
+      ...example,
+      nickname,
+      place: i + 1,
+      isMe: i === 2,
+      score: 3509 + (2 - i) * 100,
+      contributions: example.contributions.map((p) =>
+        p.game === "naglaz"
+          ? {
+              ...p,
+              score: p.score + (2 - i) * 50,
+              points: p.points + (2 - i) * 100,
+            }
+          : p,
+      ),
+    })),
+  };
   return (
     <div className="ds-grid">
+      <Sample
+        title="Общий рейтинг и топ-5 на главной"
+        source="OverallLeaderboard.tsx · overall.css"
+        wide
+      >
+        <p className="ds-note">
+          Демонстрационные данные. Пять игр с равным весом, один лучший режим на
+          игру. Анимация появления и полос отключается при уменьшении движения.
+        </p>
+        <TopFiveCard data={top} />
+        <OverallContributions entry={example} />
+        <OverallRules />
+      </Sample>
       <Sample title="Разные единицы результата" source="resultText">
         <div className="ds-stat-grid">
           {[
@@ -1770,9 +1843,9 @@ export default function DesignSystem() {
                 <li>
                   <h3>Рейтинг без лишней строки</h3>
                   <p>
-                    Пять игр помещаются в один ряд на компьютере. На телефоне
-                    вкладки перестраиваются; длинные результаты не выходят за
-                    край.
+                    Общий рейтинг и пять игр помещаются в один ряд на
+                    компьютере. На телефоне вкладки перестраиваются; длинные
+                    результаты не выходят за край.
                   </p>
                 </li>
                 <li>

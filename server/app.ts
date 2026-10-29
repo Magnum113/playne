@@ -11,6 +11,7 @@ import rateLimit from "@fastify/rate-limit";
 import { randomBytes, createHash } from "node:crypto";
 import { Pool } from "pg";
 import { LEADERBOARD_SQL } from "./leaderboard";
+import { overallLeaderboard } from "./overall";
 import { EMAIL_CONSENT_VERSION } from "./email-templates";
 import {
   lockPublications,
@@ -1068,6 +1069,23 @@ export async function buildApp(
   });
   app.get("/api/leaderboard", async (req, reply) => {
     const q = req.query as any;
+    if (q.game === "overall") {
+      const page = Number(q.page ?? 1),
+        limit = Number(q.limit ?? 25);
+      if (
+        !Number.isInteger(page) ||
+        page < 1 ||
+        page > 10000 ||
+        ![5, 25].includes(limit)
+      )
+        failure("Некорректная страница");
+      return overallLeaderboard(
+        pool,
+        (await user(req))?.id ?? null,
+        page,
+        limit,
+      );
+    }
     if (!isGame(q.game)) failure("Неизвестная игра");
     const period = q.period ?? "all";
     if (!["all", "week"].includes(period)) failure("Неизвестный период");

@@ -13,16 +13,20 @@ import { api, gameNames, resultText, AccountNav, type GameId } from "./account";
 import { GameHeader } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 import { shadeModeName, type ShadeMode } from "./colorfle";
+import { OverallContributions, OverallRules } from "./OverallLeaderboard";
+import { overallNumber } from "./overall";
+type LeaderboardGame = GameId | "overall";
+const boardNames = { overall: "Общий", ...gameNames };
 export default function LeaderboardPage() {
   const query =
     typeof window === "undefined"
       ? null
       : new URLSearchParams(window.location.search);
   const initial = query?.get("game");
-  const [game, setGame] = useState<GameId>(
-    initial && Object.hasOwn(gameNames, initial)
-      ? (initial as GameId)
-      : "naglaz",
+  const [game, setGame] = useState<LeaderboardGame>(
+    initial && Object.hasOwn(boardNames, initial)
+      ? (initial as LeaderboardGame)
+      : "overall",
   );
   const [mode, setMode] = useState<GeoMode>(
     validGeoMode(query?.get("mode"))
@@ -30,7 +34,9 @@ export default function LeaderboardPage() {
       : "classic",
   );
   const [period, setPeriod] = useState<"all" | "week">(
-      query?.get("period") === "all" ? "all" : "week",
+      initial && initial !== "overall" && query?.get("period") !== "all"
+        ? "week"
+        : "all",
     ),
     [page, setPage] = useState(1),
     [data, setData] = useState<any>(null),
@@ -42,7 +48,9 @@ export default function LeaderboardPage() {
     setLoading(true);
     setError("");
     void api(
-      `/leaderboard?game=${game}&period=${period}&page=${page}&mode=${mode}`,
+      game === "overall"
+        ? `/leaderboard?game=overall&page=${page}`
+        : `/leaderboard?game=${game}&period=${period}&page=${page}&mode=${mode}`,
     )
       .then((d) => {
         if (active) {
@@ -64,7 +72,9 @@ export default function LeaderboardPage() {
       active = false;
     };
   }, [game, period, page, mode, retry]);
-  function change(next: GameId) {
+  function change(next: LeaderboardGame) {
+    const nextPeriod = next === "overall" ? "all" : period;
+    setPeriod(nextPeriod);
     setGame(next);
     if (next !== "geo") setMode("classic");
     setPage(1);
@@ -74,7 +84,7 @@ export default function LeaderboardPage() {
       "/leaderboard/?game=" +
         next +
         (next === "geo" ? `&mode=${mode}` : "") +
-        `&period=${period}`,
+        `&period=${nextPeriod}`,
     );
   }
   function chooseMode(next: GeoMode) {
@@ -94,7 +104,8 @@ export default function LeaderboardPage() {
           {e.nickname}
           {e.isMe && <span className="you-label">Ты</span>}
         </strong>
-        {game !== "circle" && (
+        {game === "overall" && <OverallContributions entry={e} />}
+        {game !== "circle" && game !== "overall" && (
           <small className="rank-rounds">
             {e.rounds.map((s: number, i: number) => (
               <span key={i}>{geoPoints(s)}</span>
@@ -102,7 +113,11 @@ export default function LeaderboardPage() {
           </small>
         )}
       </td>
-      <td className="rank-score">{resultText(game, e.score)}</td>
+      <td className="rank-score">
+        {game === "overall"
+          ? overallNumber(e.score)
+          : resultText(game, e.score)}
+      </td>
     </tr>
   );
   return (
@@ -117,14 +132,14 @@ export default function LeaderboardPage() {
           Рейтинг<span className="brand-dot">.</span>
         </h1>
         <p className="community-intro">
-          Лучшие результаты по каждой игре. Сыграй и найди своё место.
+          Общий зачёт и рекорды по играм. Найди своё место.
         </p>
         <div className="rank-games" aria-label="Выбор игры">
-          {Object.entries(gameNames).map(([id, name]) => (
+          {Object.entries(boardNames).map(([id, name]) => (
             <button
               key={id}
               aria-pressed={game === id}
-              onClick={() => change(id as GameId)}
+              onClick={() => change(id as LeaderboardGame)}
             >
               {name}
             </button>
@@ -199,30 +214,40 @@ export default function LeaderboardPage() {
           </div>
         )}
         <div className="rank-toolbar">
-          <div className="rank-period" aria-label="Период рейтинга">
-            <button
-              aria-pressed={period === "week"}
-              onClick={() => {
-                setPeriod("week");
-                setPage(1);
-              }}
-            >
-              Неделя
-            </button>
-            <button
-              aria-pressed={period === "all"}
-              onClick={() => {
-                setPeriod("all");
-                setPage(1);
-              }}
-            >
-              Всё время
-            </button>
-          </div>
-          <span>Один лучший результат на игрока</span>
+          {game === "overall" ? (
+            <span className="overall-period-label">
+              За всё время · до 5000 баллов
+            </span>
+          ) : (
+            <div className="rank-period" aria-label="Период рейтинга">
+              <button
+                aria-pressed={period === "week"}
+                onClick={() => {
+                  setPeriod("week");
+                  setPage(1);
+                }}
+              >
+                Неделя
+              </button>
+              <button
+                aria-pressed={period === "all"}
+                onClick={() => {
+                  setPeriod("all");
+                  setPage(1);
+                }}
+              >
+                Всё время
+              </button>
+            </div>
+          )}
+          <span>
+            {game === "overall"
+              ? "5 игр · один общий счёт"
+              : "Один лучший результат на игрока"}
+          </span>
         </div>
         <section className="community-panel ranking-panel" aria-busy={loading}>
-          <h2 className="sr-only">{gameNames[game]} — рейтинг</h2>
+          <h2 className="sr-only">{boardNames[game]} — рейтинг</h2>
           {loading ? (
             <p role="status">Загружаем рейтинг…</p>
           ) : error ? (
@@ -237,12 +262,16 @@ export default function LeaderboardPage() {
             </div>
           ) : data?.entries.length ? (
             <>
-              <table className="rank-table">
+              <table
+                className={`rank-table${game === "overall" ? " overall-table" : ""}`}
+              >
                 <thead>
                   <tr>
                     <th scope="col">Место</th>
                     <th scope="col">Игрок</th>
-                    <th scope="col">Результат</th>
+                    <th scope="col">
+                      {game === "overall" ? "Баллы" : "Результат"}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -254,7 +283,11 @@ export default function LeaderboardPage() {
                   <span>
                     Твоё место: <strong>{data.mine.place}</strong>
                   </span>
-                  <strong>{resultText(game, data.mine.score)}</strong>
+                  <strong>
+                    {game === "overall"
+                      ? overallNumber(data.mine.score)
+                      : resultText(game, data.mine.score)}
+                  </strong>
                 </div>
               )}
               <div className="rank-pagination">
@@ -279,30 +312,47 @@ export default function LeaderboardPage() {
             <div className="rank-empty">
               <h2>Первое место пока свободно.</h2>
               <p>
-                {period === "week"
-                  ? "На этой неделе ещё никто не сохранил результат."
-                  : "В этой игре ещё нет опубликованных результатов."}
+                {game === "overall"
+                  ? "Сыграй в любую игру и сохрани результат — появишься здесь."
+                  : period === "week"
+                    ? "На этой неделе ещё никто не сохранил результат."
+                    : "В этой игре ещё нет опубликованных результатов."}
               </p>
               <a
                 className="primary"
-                href={`/${game}/${game === "geo" && mode !== "classic" ? `?mode=${mode}` : ""}`}
+                href={
+                  game === "overall"
+                    ? "/#games"
+                    : `/${game}/${game === "geo" && mode !== "classic" ? `?mode=${mode}` : ""}`
+                }
               >
-                Играть в «{gameNames[game]}» ↗
+                {game === "overall"
+                  ? "Выбрать игру →"
+                  : `Играть в «${gameNames[game]}» ↗`}
               </a>
             </div>
           )}
         </section>
-        <div className="ranking-rules">
-          <p>
-            В таблице — только завершённые и проверенные сервером партии. При
-            равных результатах место одинаковое.
-          </p>
-          <p>
-            Неделя начинается в понедельник по московскому времени. Случайные
-            задания могут различаться по сложности. Старые рекорды из браузера в
-            рейтинг не переносятся.
-          </p>
-        </div>
+        {game === "overall" ? (
+          <div className="ranking-rules">
+            <OverallRules />
+            <a className="primary overall-play" href="/#games">
+              Подними свой рекорд →
+            </a>
+          </div>
+        ) : (
+          <div className="ranking-rules">
+            <p>
+              В таблице — только завершённые и проверенные сервером партии. При
+              равных результатах место одинаковое.
+            </p>
+            <p>
+              Неделя начинается в понедельник по московскому времени. Случайные
+              задания могут различаться по сложности. Старые рекорды из браузера
+              в рейтинг не переносятся.
+            </p>
+          </div>
+        )}
       </main>
       <footer className="community-footer">
         <FooterLinks />

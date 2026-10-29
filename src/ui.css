@@ -216,7 +216,7 @@ dialog,
   color: var(--danger);
 }
 .rank-games {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 .rank-table td,
 .rank-table th {

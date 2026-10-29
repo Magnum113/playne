@@ -193,6 +193,11 @@ export const componentInventory = [
     "results",
   ],
   [
+    "Общий рейтинг, вклад игр и топ-5 на главной",
+    "OverallLeaderboard.tsx · overall.css",
+    "results",
+  ],
+  [
     "Пять результатов раундов и личный рекорд",
     "community.css · colorfle.css",
     "results",

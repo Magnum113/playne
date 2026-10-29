@@ -1,6 +1,7 @@
 import { PressurePreview } from "./PressureGame";
 import { readPressStats, formatPressScore } from "./pressure";
 import { AccountNav } from "./account";
+import HubTopFive from "./OverallLeaderboard";
 import FooterLinks from "./FooterLinks";
 import { DestroyWebsiteLink, PlayneBrand, ThemeToggle } from "./SiteHeader";
 import Silhouette from "./Silhouette";
@@ -187,6 +188,7 @@ export default function Hub() {
               <br /> Первая партия в каждой игре — без входа.
             </p>
           </div>
+          <HubTopFive />
           <div className="game-cards">
             <a
               className="game-card game-card-live"
