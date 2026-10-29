@@ -75,7 +75,7 @@
   background: var(--hover);
 }
 .top-five-list .is-me a {
-  background: var(--purple-tint);
+  background: var(--mint-tint);
 }
 .top-five-place {
   align-self: center;
