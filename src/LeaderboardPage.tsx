@@ -43,6 +43,13 @@ export default function LeaderboardPage() {
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
     [retry, setRetry] = useState(0);
+  // Selection changes render before useEffect sets loading. Never interpret
+  // the previous board's rows using another game's response format.
+  const currentBoard =
+    data?.game === game &&
+    data?.page === page &&
+    (game === "overall" || (data?.mode === mode && data?.period === period));
+  const waiting = loading || (!error && !currentBoard);
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -246,9 +253,9 @@ export default function LeaderboardPage() {
               : "Один лучший результат на игрока"}
           </span>
         </div>
-        <section className="community-panel ranking-panel" aria-busy={loading}>
+        <section className="community-panel ranking-panel" aria-busy={waiting}>
           <h2 className="sr-only">{boardNames[game]} — рейтинг</h2>
-          {loading ? (
+          {waiting ? (
             <p role="status">Загружаем рейтинг…</p>
           ) : error ? (
             <div>

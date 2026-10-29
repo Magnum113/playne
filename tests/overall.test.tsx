@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TopFiveCard, OverallContributions } from "../src/OverallLeaderboard";
 import LeaderboardPage from "../src/LeaderboardPage";
@@ -27,6 +29,68 @@ const board: OverallBoard = {
 };
 beforeEach(() => window.history.replaceState(null, "", "/leaderboard/"));
 describe("Overall leaderboard UI", () => {
+  it("does not reuse another board's response during switching or accept late responses", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    let resolveGame: (response: Response) => void = () => {};
+    vi.stubGlobal("fetch", (path: string) =>
+      String(path).includes("game=overall")
+        ? Promise.resolve(new Response(JSON.stringify(board)))
+        : new Promise<Response>((resolve) => {
+            resolveGame = resolve;
+          }),
+    );
+    const box = document.createElement("div");
+    document.body.append(box);
+    const root = createRoot(box);
+    const click = (name: string) =>
+      [...box.querySelectorAll<HTMLButtonElement>(".rank-games button")]
+        .find((b) => b.textContent === name)!
+        .click();
+    const gameResponse = () =>
+      new Response(
+        JSON.stringify({
+          game: "naglaz",
+          mode: "classic",
+          period: "all",
+          page: 1,
+          total: 1,
+          mine: null,
+          entries: [
+            {
+              nickname: "Игрок",
+              score: 400,
+              place: 1,
+              rounds: [80, 80, 80, 80, 80],
+              isMe: false,
+            },
+          ],
+        }),
+      );
+    try {
+      await act(async () => root.render(<LeaderboardPage />));
+      expect(box.querySelector(".overall-table")).toBeTruthy();
+      await act(async () => click("На глаз"));
+      expect(box.querySelector(".rank-table")).toBeNull();
+      expect(box.textContent).toContain("Загружаем рейтинг");
+      await act(async () => resolveGame(gameResponse()));
+      expect(box.querySelector(".rank-table")).toBeTruthy();
+      expect(box.querySelector(".overall-table")).toBeNull();
+      await act(async () => click("Общий"));
+      expect(box.querySelector(".overall-table")).toBeTruthy();
+      await act(async () => click("На глаз"));
+      await act(async () => click("Общий"));
+      await act(async () => resolveGame(gameResponse()));
+      expect(box.querySelector(".overall-table")).toBeTruthy();
+      expect(
+        box.querySelector('.rank-games button[aria-pressed="true"]')
+          ?.textContent,
+      ).toBe("Общий");
+    } finally {
+      act(() => root.unmount());
+      box.remove();
+      vi.unstubAllGlobals();
+    }
+  });
   it("shows the overall all-time board by default without weekly controls", () => {
     const box = document.createElement("div");
     box.innerHTML = renderToStaticMarkup(<LeaderboardPage />);
