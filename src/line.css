@@ -417,7 +417,7 @@
   }
 }
 @media (max-width: 360px) {
-  .line-app {
+  .app.line-app {
     padding-inline: 12px;
   }
 }
