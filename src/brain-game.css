@@ -1,3 +1,6 @@
+.brain-app {
+  overflow-anchor: none;
+}
 .brain-main {
   max-width: 1120px;
   margin: 0 auto;
@@ -104,6 +107,7 @@
 }
 .brain-stage,
 .brain-summary {
+  scroll-margin-top: 16px;
   max-width: 760px;
   margin: 32px auto 64px;
   padding: 32px;

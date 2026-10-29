@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ApiError, SaveResult, useGuestTrial, useRankedRun } from "./account";
 import type { ServerRun } from "./rankedQueue";
 import { GameHeader } from "./SiteHeader";
@@ -31,8 +31,11 @@ import {
   type BrainGameId,
   type BrainMode,
 } from "./brainContent";
-import "./brain-game.css";
 import { BRAIN_GOALS, reachGoal } from "./analytics";
+import "./brain-game.css";
+
+const useGameLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 type Phase =
   "welcome" | "ready" | "playing" | "checking" | "round-result" | "finished";
@@ -146,6 +149,8 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
   const [saved] = useState(() => readSaved(game));
   const rules = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const stage = useRef<HTMLElement>(null);
+  const summary = useRef<HTMLElement>(null);
   const sending = useRef(false);
   const hintRequest = useRef<{ id: string; moves: SlideMove[] } | null>(null);
   const resultRequest = useRef<{
@@ -233,16 +238,13 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
       hintRequest: hintRequest.current ?? undefined,
     });
   }, [game, run, phase, index, cells, moves, actions, flashSeen, pending]);
-  useEffect(() => {
+  useGameLayoutEffect(() => {
     if (["ready", "playing", "round-result", "finished"].includes(phase)) {
       heading.current?.focus({ preventScroll: true });
-      if (phase !== "playing")
-        heading.current?.scrollIntoView({
-          block: "start",
-          behavior: "instant",
-        });
+      const target = phase === "finished" ? summary.current : stage.current;
+      target?.scrollIntoView({ block: "start", behavior: "instant" });
     }
-  }, [phase]);
+  }, [phase, index, run?.id]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -740,7 +742,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
             </div>
           </section>
         ) : phase === "finished" ? (
-          <section className="brain-summary">
+          <section className="brain-summary" ref={summary}>
             <p className="eyebrow">
               {dailyResult
                 ? `ЗАДАЧА ДНЯ · ${run?.challenge.day}`
@@ -834,7 +836,11 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
               )}
           </section>
         ) : (
-          <section className="brain-stage" aria-label={`Игра ${content.name}`}>
+          <section
+            className="brain-stage"
+            ref={stage}
+            aria-label={`Игра ${content.name}`}
+          >
             <div className="brain-stage-top">
               <span>
                 {mode === "classic"
