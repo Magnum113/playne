@@ -52,6 +52,16 @@ export const LINE_GOALS = {
   hintUsed: "line_hint_used",
 } as const;
 
+export const BRAIN_GOALS = {
+  rulesOpen: "brain_rules_open",
+  gameStart: "brain_game_start",
+  roundComplete: "brain_round_complete",
+  gameComplete: "brain_game_complete",
+  gameRestart: "brain_game_restart",
+  hintUsed: "brain_hint_used",
+  practiceLevel: "brain_practice_level",
+} as const;
+
 export const ACCOUNT_GOALS = {
   loginStart: "account_yandex_login_start",
   loginSuccess: "account_yandex_login_success",
@@ -69,7 +79,8 @@ export type MetrikaGoal =
   | Values<typeof GEO_GOALS>
   | Values<typeof ACCOUNT_GOALS>
   | Values<typeof PRESSURE_GOALS>
-  | Values<typeof LINE_GOALS>;
+  | Values<typeof LINE_GOALS>
+  | Values<typeof BRAIN_GOALS>;
 export type MetrikaParams = Record<string, string | number | boolean>;
 
 type MetrikaFunction = {

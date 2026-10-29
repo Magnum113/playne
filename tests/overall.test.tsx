@@ -30,7 +30,7 @@ const entry: OverallEntry = {
 const board: OverallBoard = {
   game: "overall",
   period: "all",
-  version: 2,
+  version: 3,
   page: 1,
   limit: 5,
   total: 1,
@@ -322,12 +322,12 @@ describe("Overall leaderboard UI", () => {
     ).toBeTruthy();
     expect(box.querySelector('a[href="/circle/"]')).toBeTruthy();
     expect(box.querySelector('a[href="/one-line/"]')).toBeTruthy();
-    expect(box.querySelectorAll(".overall-contributions > li")).toHaveLength(6);
+    expect(box.querySelectorAll(".overall-contributions > li")).toHaveLength(7);
     expect(box.textContent).toContain("Не сыграно");
   });
-  it("shows six equal game contributions with classic-only line rules", () => {
-    expect(OVERALL_GAMES).toHaveLength(6);
-    expect(OVERALL_MAX_POINTS).toBe(6000);
+  it("keeps six games plus one brain category with daily-only rules", () => {
+    expect(OVERALL_GAMES).toHaveLength(7);
+    expect(OVERALL_MAX_POINTS).toBe(7000);
     const box = document.createElement("div");
     box.innerHTML = renderToStaticMarkup(
       <>
@@ -335,7 +335,7 @@ describe("Overall leaderboard UI", () => {
         <OverallStandings entries={[{ ...entry, gamesPlayed: 6 }]} />
       </>,
     );
-    expect(box.textContent).toContain("6 из 6 игр");
+    expect(box.textContent).toContain("6 из 7 категорий");
     expect(box.textContent).toContain("«Практика» не учитывается");
   });
   it.each([
@@ -346,6 +346,10 @@ describe("Overall leaderboard UI", () => {
     ["pressure", "timed", "classic", "/pressure/"],
     ["colorfle", "moving-timed", "classic", "/colorfle/"],
     ["geo", "practice", "classic", "/geo/"],
+    ["flash", "practice", "classic", "/brain/flash/"],
+    ["rotate", "timed", "classic", "/brain/rotate/"],
+    ["slide", "moving", "classic", "/brain/slide/"],
+    ["dispatch", "practice", "classic", "/brain/dispatch/"],
   ])(
     "limits %s deep-link mode %s to %s",
     async (game, requestedMode, mode, playPath) => {
@@ -385,7 +389,7 @@ describe("Overall leaderboard UI", () => {
         expect(box.querySelector(".rank-empty a")?.getAttribute("href")).toBe(
           playPath,
         );
-        expect(box.querySelectorAll(".rank-games button")).toHaveLength(7);
+        expect(box.querySelectorAll(".rank-games button")).toHaveLength(8);
       } finally {
         act(() => root.unmount());
         box.remove();
@@ -441,5 +445,58 @@ describe("Overall leaderboard UI", () => {
       box.remove();
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("brain category standings", () => {
+  it("gives the entire brain section one existing category weight", () => {
+    const box = document.createElement("div");
+    box.innerHTML = renderToStaticMarkup(
+      <OverallContributions
+        entry={{
+          ...entry,
+          contributions: [
+            { game: "brain", mode: "classic", score: 825, points: 825 },
+          ],
+        }}
+      />,
+    );
+    expect(box.querySelectorAll(".overall-contributions > li")).toHaveLength(7);
+    const card = box.querySelector('a[href*="game=brain"]')!;
+    expect(card.textContent).toContain("825");
+    expect(card.textContent).toContain("/ 1000");
+    expect(box.querySelector('a[href="/brain/"]')).toBeNull();
+    box.innerHTML = renderToStaticMarkup(
+      <OverallContributions entry={{ ...entry, contributions: [] }} />,
+    );
+    expect(box.querySelector('a[href="/brain/"]')).not.toBeNull();
+  });
+  it("shows four equal 250-point contributions and preserves half points", () => {
+    const box = document.createElement("div");
+    box.innerHTML = renderToStaticMarkup(
+      <OverallStandings
+        scope="brain"
+        entries={[
+          {
+            ...entry,
+            score: 561,
+            gamesPlayed: 4,
+            contributions: [
+              { game: "flash", mode: "classic", score: 123, points: 61.5 },
+              { game: "rotate", mode: "classic", score: 500, points: 250 },
+              { game: "slide", mode: "classic", score: 0, points: 0 },
+              { game: "dispatch", mode: "classic", score: 499, points: 249.5 },
+            ],
+          },
+        ]}
+      />,
+    );
+    expect(box.querySelectorAll(".overall-contributions > li")).toHaveLength(4);
+    expect(box.textContent).toContain("4 из 4 игр");
+    expect(box.textContent).toContain("61,5");
+    expect(box.textContent).toContain("/ 250");
+    expect(
+      box.querySelector('a[href*="game=slide"]')?.textContent,
+    ).not.toContain("Не сыграно");
   });
 });

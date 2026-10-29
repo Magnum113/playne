@@ -9,6 +9,9 @@ import ColorfleGame from "./ColorfleGame";
 import GeoGame from "./GeoGame";
 import PressureGame from "./PressureGame";
 import LineGame from "./LineGame";
+import BrainHub from "./BrainHub";
+import BrainGame from "./BrainGame";
+import { BRAIN_GAME_IDS } from "./brainContent";
 import GuidePage from "./GuidePage";
 import { guides } from "./guides";
 
@@ -25,6 +28,9 @@ export default function Site({ path }: { path: string }) {
   if (route === "/colorfle/") return <ColorfleGame />;
   if (route === "/pressure/") return <PressureGame />;
   if (route === "/one-line/") return <LineGame />;
+  if (route === "/brain/") return <BrainHub />;
+  const brainGame = BRAIN_GAME_IDS.find((id) => route === `/brain/${id}/`);
+  if (brainGame) return <BrainGame game={brainGame} />;
   if (route === "/geo/") return <GeoGame />;
   if (route === "/guides/") return <GuidePage />;
   const guide = guides.find((g) => route === `/guides/${g.slug}/`);

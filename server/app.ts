@@ -13,6 +13,13 @@ import { Pool } from "pg";
 import { LEADERBOARD_SQL } from "./leaderboard";
 import { overallLeaderboard } from "./overall";
 import { hintLinePath, lineMoscowDate } from "../src/line";
+import {
+  isBrainGame,
+  brainDailyPack,
+  privateBrain,
+  claimBrainDay,
+  registerBrainRoutes,
+} from "./brain";
 import { EMAIL_CONSENT_VERSION } from "./email-templates";
 import {
   lockPublications,
@@ -201,7 +208,11 @@ export async function buildApp(
       (game.browser_hash !== browser(req, reply) && game.owner_id !== owner?.id)
     )
       failure("Партия не найдена", 404);
-    if (!game.published_at && new Date(game.expires_at).getTime() < Date.now())
+    if (
+      !game.published_at &&
+      !(privateBrain(game) && game.owner_id && game.completed_at) &&
+      new Date(game.expires_at).getTime() < Date.now()
+    )
       failure("Срок сохранения этой партии истёк.", 410);
     return game;
   }
@@ -232,6 +243,7 @@ export async function buildApp(
     }
   }
   await registerEmailRoutes(app, pool, emailConfig, requireUser);
+  await registerBrainRoutes(app, pool, owned, failure, browser, user);
   app.get("/api/health", async () => {
     await pool.query("SELECT 1");
     return { ok: true, revision: config.revision };
@@ -430,11 +442,12 @@ export async function buildApp(
           [hash(sid), userId],
         );
         const lineTrials = await client.query(
-          "SELECT g.* FROM playne_games g JOIN playne_guest_trials t ON t.run_id=g.id WHERE t.browser_hash=$1 AND g.game='line' AND (g.owner_id IS NULL OR g.owner_id=$2) FOR UPDATE OF g",
+          "SELECT g.* FROM playne_games g JOIN playne_guest_trials t ON t.run_id=g.id WHERE t.browser_hash=$1 AND g.game IN('line','flash','rotate','slide','dispatch') AND (g.owner_id IS NULL OR g.owner_id=$2) FOR UPDATE OF g",
           [flow.browser_hash, userId],
         );
         for (const trial of lineTrials.rows) {
           await claimLineDay(client, trial, userId);
+          await claimBrainDay(client, trial, userId);
           await client.query(
             "UPDATE playne_games SET owner_id=$1 WHERE id=$2",
             [userId, trial.id],
@@ -443,7 +456,7 @@ export async function buildApp(
         // A guest can finish several games before signing in. Snapshot each board once.
         const claims = (
           await client.query(
-            `SELECT g.id,g.game,g.mode FROM playne_games g JOIN playne_guest_trials t ON t.run_id=g.id WHERE t.browser_hash=$1 AND g.completed_at IS NOT NULL AND g.published_at IS NULL AND (g.owner_id IS NULL OR g.owner_id=$2) ORDER BY g.game,g.mode,g.id`,
+            `SELECT g.id,g.game,g.mode FROM playne_games g JOIN playne_guest_trials t ON t.run_id=g.id WHERE t.browser_hash=$1 AND g.completed_at IS NOT NULL AND g.published_at IS NULL AND NOT(g.game IN('flash','rotate','slide','dispatch') AND g.mode='practice') AND (g.owner_id IS NULL OR g.owner_id=$2) ORDER BY g.game,g.mode,g.id`,
             [flow.browser_hash, userId],
           )
         ).rows;
@@ -466,7 +479,7 @@ export async function buildApp(
             });
         }
         await client.query(
-          `UPDATE playne_games g SET owner_id=$1,published_at=coalesce(g.published_at,now()),
+          `UPDATE playne_games g SET owner_id=$1,published_at=CASE WHEN g.game IN('flash','rotate','slide','dispatch') AND g.mode='practice' THEN NULL ELSE coalesce(g.published_at,now()) END,
           answers=CASE WHEN g.game='geo' THEN (SELECT jsonb_agg(a - 'actual' - 'guess') FROM jsonb_array_elements(g.answers) a) ELSE g.answers END,
           challenge=CASE WHEN g.game='geo' THEN jsonb_build_object('places',g.challenge->'places','mode',g.mode) ELSE g.challenge END
           FROM playne_guest_trials t WHERE t.run_id=g.id AND t.browser_hash=$2 AND g.completed_at IS NOT NULL AND (g.owner_id IS NULL OR g.owner_id=$1)`,
@@ -535,22 +548,38 @@ export async function buildApp(
       )
         failure("Некорректный каталог сравнений");
       const mode =
-        game === "geo" || game === "colorfle" || game === "line"
+        game === "geo" ||
+        game === "colorfle" ||
+        game === "line" ||
+        isBrainGame(game)
           ? ((req.body as any)?.mode ?? "classic")
           : "classic";
       if (
-        game === "line"
+        game === "line" || isBrainGame(game)
           ? !["classic", "practice"].includes(mode)
           : !validGeoMode(mode) ||
             (game === "colorfle" && !validShadeMode(mode))
       )
         failure("Неизвестный режим");
-      const lineDay = game === "line" ? lineMoscowDate() : undefined;
+      const lineDay =
+        game === "line" || isBrainGame(game) ? lineMoscowDate() : undefined;
+      const difficulty =
+        (req.body as any)?.difficulty ?? (req.body as any)?.level ?? 1;
+      if (
+        isBrainGame(game) &&
+        mode === "practice" &&
+        (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 3)
+      )
+        failure("Неизвестная сложность");
       const b = browser(req, reply),
         u = await user(req);
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
+        // Claims/publication take this lock before the run and account/day locks.
+        // Daily starts use the same order, including adoption of a guest attempt.
+        if (isBrainGame(game) && mode === "classic")
+          await lockPublications(client);
         if (!u) {
           await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
             "trial:" + b + ":" + game,
@@ -576,20 +605,25 @@ export async function buildApp(
               challenge: publicChallenge(game, existing.challenge),
               answers: existing.answers,
               completed: false,
+              ...(isBrainGame(game) ? { private: privateBrain(existing) } : {}),
             };
           }
         }
-        if (game === "line" && mode === "classic") {
+        if ((game === "line" || isBrainGame(game)) && mode === "classic") {
           const day = lineDay!;
-          const locks = ["line:browser:" + b + ":" + day];
-          if (u) locks.push("line:account:" + u.id + ":" + day);
+          const prefix = game === "line" ? "line" : "brain";
+          const keyGame = game === "line" ? "" : ":" + game;
+          const locks = [`${prefix}:browser:${b}${keyGame}:${day}`];
+          if (u) locks.push(`${prefix}:account:${u.id}${keyGame}:${day}`);
           for (const key of locks.sort())
             await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
               key,
             ]);
           const reservation = await client.query(
-            "SELECT run_id FROM playne_line_days WHERE day=$1 AND (browser_hash=$2 OR owner_id=$3) ORDER BY (owner_id=$3) DESC NULLS LAST LIMIT 1",
-            [day, b, u?.id ?? null],
+            `SELECT run_id FROM ${game === "line" ? "playne_line_days" : "playne_brain_days"} WHERE day=$1 ${game === "line" ? "" : "AND game=$4"} AND (browser_hash=$2 OR owner_id=$3) ORDER BY (owner_id=$3) DESC NULLS LAST LIMIT 1`,
+            game === "line"
+              ? [day, b, u?.id ?? null]
+              : [day, b, u?.id ?? null, game],
           );
           if (reservation.rows[0]) {
             const existingId = reservation.rows[0].run_id;
@@ -603,15 +637,22 @@ export async function buildApp(
               );
             if (u && !existing.owner_id) {
               await claimLineDay(client, existing, u.id);
+              await claimBrainDay(client, existing, u.id);
               await client.query(
                 "UPDATE playne_games SET owner_id=$1 WHERE id=$2",
                 [u.id, existing.id],
               );
             }
-            await client.query(
-              "INSERT INTO playne_line_days(day,browser_hash,owner_id,run_id) VALUES($1,$2,NULL,$3) ON CONFLICT(day,browser_hash) DO NOTHING",
-              [day, b, existing.id],
-            );
+            if (game === "line")
+              await client.query(
+                "INSERT INTO playne_line_days(day,browser_hash,owner_id,run_id) VALUES($1,$2,NULL,$3) ON CONFLICT(day,browser_hash) DO NOTHING",
+                [day, b, existing.id],
+              );
+            else
+              await client.query(
+                "INSERT INTO playne_brain_days(day,game,browser_hash,owner_id,run_id) VALUES($1,$2,$3,NULL,$4) ON CONFLICT(day,game,browser_hash) DO NOTHING",
+                [day, game, b, existing.id],
+              );
             await client.query("COMMIT");
             return {
               id: existing.id,
@@ -622,6 +663,7 @@ export async function buildApp(
               answers: existing.answers,
               completed: !!existing.completed_at,
               published: !!existing.published_at,
+              ...(isBrainGame(game) ? { private: privateBrain(existing) } : {}),
               score:
                 existing.score_units === null
                   ? null
@@ -663,6 +705,9 @@ export async function buildApp(
           version < 4
         )
           failure("Обнови страницу, чтобы играть в этом режиме");
+        const brainPack = isBrainGame(game)
+          ? await brainDailyPack(client, game, lineDay!)
+          : undefined;
         let challenge: ReturnType<typeof makeChallenge>;
         try {
           challenge = makeChallenge(
@@ -672,6 +717,8 @@ export async function buildApp(
             game === "naglaz" ? supportedPairIds : undefined,
             (req.body as any)?.pressureRulesVersion,
             lineDay,
+            difficulty,
+            brainPack,
           );
         } catch (e) {
           if (game === "naglaz")
@@ -694,6 +741,11 @@ export async function buildApp(
             "INSERT INTO playne_line_days(day,browser_hash,owner_id,run_id) VALUES($1,$2,$3,$4)",
             [(challenge as any).day, b, u?.id ?? null, rows[0].id],
           );
+        if (isBrainGame(game) && mode === "classic")
+          await client.query(
+            "INSERT INTO playne_brain_days(day,game,browser_hash,owner_id,run_id) VALUES($1,$2,$3,$4,$5)",
+            [(challenge as any).day, game, b, u?.id ?? null, rows[0].id],
+          );
         if (!u) {
           await client.query(
             "INSERT INTO playne_guest_trials(browser_hash,game,run_id) VALUES($1,$2,$3)",
@@ -713,6 +765,7 @@ export async function buildApp(
           mode: game === "geo" && version === 1 ? "classic" : mode,
           challenge: publicChallenge(game, challenge),
           answers: [],
+          ...(isBrainGame(game) ? { private: mode === "practice" } : {}),
         };
       } catch (e) {
         await client.query("ROLLBACK");
@@ -771,6 +824,7 @@ export async function buildApp(
       challenge: publicChallenge(run.game, run.challenge),
       published: !!run.published_at,
       completed: !!run.completed_at,
+      ...(isBrainGame(run.game) ? { private: privateBrain(run) } : {}),
     };
   });
   app.post("/api/games/:id/replace", async (req, reply) => {
@@ -1115,6 +1169,7 @@ export async function buildApp(
         await c.query("COMMIT");
         return {
           answer: run.answers[input.index],
+          ...(isBrainGame(run.game) ? { private: privateBrain(run) } : {}),
           completed: !!run.completed_at,
           published: !!run.published_at,
           score: run.score_units === null ? null : run.score_units / 10,
@@ -1155,8 +1210,13 @@ export async function buildApp(
           (["circle", "pressure"].includes(run.game) ? 1 : 5),
         units = complete ? scoreUnits(answers) : null;
       const viewer = complete ? await user(req, c) : null;
-      const publish = !!viewer && (!run.owner_id || run.owner_id === viewer.id);
-      if (publish) await claimLineDay(c, run, viewer.id);
+      const shouldOwn =
+        !!viewer && (!run.owner_id || run.owner_id === viewer.id);
+      if (shouldOwn) {
+        await claimLineDay(c, run, viewer.id);
+        await claimBrainDay(c, run, viewer.id);
+      }
+      const publish = shouldOwn && !privateBrain(run);
       const before =
         publish && !run.published_at
           ? await notificationSnapshot(c, run.game, run.mode)
@@ -1170,7 +1230,7 @@ export async function buildApp(
           ? { places: run.challenge.places, mode: run.mode }
           : run.challenge;
       await c.query(
-        "UPDATE playne_games SET answers=$1,score_units=$2,completed_at=CASE WHEN $3 THEN now() ELSE NULL END,owner_id=CASE WHEN $5 THEN $6 ELSE owner_id END,published_at=CASE WHEN $5 THEN coalesce(published_at,now()) ELSE published_at END,challenge=$7 WHERE id=$4",
+        "UPDATE playne_games SET answers=$1,score_units=$2,completed_at=CASE WHEN $3 THEN now() ELSE NULL END,owner_id=CASE WHEN $8 THEN $6 ELSE owner_id END,published_at=CASE WHEN $5 THEN coalesce(published_at,now()) ELSE published_at END,challenge=$7 WHERE id=$4",
         [
           JSON.stringify(savedAnswers),
           units,
@@ -1179,6 +1239,7 @@ export async function buildApp(
           publish,
           viewer?.id ?? null,
           JSON.stringify(savedChallenge),
+          shouldOwn,
         ],
       );
       if (complete)
@@ -1202,6 +1263,7 @@ export async function buildApp(
         answer,
         completed: complete,
         published: publish || !!run.published_at,
+        ...(isBrainGame(run.game) ? { private: privateBrain(run) } : {}),
         score: units === null ? null : units / 10,
       };
     } catch (e) {
@@ -1222,6 +1284,15 @@ export async function buildApp(
       if (run.owner_id && run.owner_id !== u.id)
         failure("Эта партия принадлежит другому аккаунту", 403);
       await claimLineDay(c, run, u.id);
+      await claimBrainDay(c, run, u.id);
+      if (privateBrain(run)) {
+        await c.query(
+          "UPDATE playne_games SET owner_id=$1,published_at=NULL WHERE id=$2",
+          [u.id, run.id],
+        );
+        await c.query("COMMIT");
+        return { ok: true, private: true, score: run.score_units / 10 };
+      }
       const before = !run.published_at
         ? await notificationSnapshot(c, run.game, run.mode)
         : [];
@@ -1253,7 +1324,9 @@ export async function buildApp(
   });
   app.get("/api/leaderboard", async (req, reply) => {
     const q = req.query as any;
-    if (q.game === "overall") {
+    if (q.game === "overall" || q.game === "brain") {
+      if (q.game === "brain" && q.mode && q.mode !== "classic")
+        failure("Практика доступна только в личной истории");
       const page = Number(q.page ?? 1),
         limit = Number(q.limit ?? 25);
       if (
@@ -1268,9 +1341,12 @@ export async function buildApp(
         (await user(req))?.id ?? null,
         page,
         limit,
+        q.game === "brain" ? "brain" : "overall",
       );
     }
     if (!isGame(q.game)) failure("Неизвестная игра");
+    if (isBrainGame(q.game) && q.mode && q.mode !== "classic")
+      failure("Практика доступна только в личной истории");
     const period = q.period ?? "all";
     if (!["all", "week"].includes(period)) failure("Неизвестный период");
     const page = Number(q.page ?? 1);
@@ -1335,11 +1411,11 @@ export async function buildApp(
   app.get("/api/account", async (req) => {
     const u = await requireUser(req);
     const rows = await pool.query(
-      "SELECT id,game,mode,version,score_units,answers,completed_at FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL ORDER BY completed_at DESC LIMIT 30",
+      "SELECT id,game,mode,version,score_units,answers,completed_at,challenge->>'difficulty' AS difficulty FROM playne_games WHERE owner_id=$1 AND (published_at IS NOT NULL OR (game IN('flash','rotate','slide','dispatch') AND mode='practice' AND completed_at IS NOT NULL)) ORDER BY completed_at DESC LIMIT 30",
       [u.id],
     );
     const best = await pool.query(
-      `SELECT game,mode,max(CASE WHEN $3=4 THEN ${GEO_V4_UNITS_SQL} WHEN $3=3 THEN ${GEO_V3_UNITS_SQL} ELSE score_units END)/10.0 AS score FROM playne_games WHERE owner_id=$1 AND published_at IS NOT NULL AND ((game='geo' AND (version=$3 OR ($3=3 AND version=2) OR ($3=4 AND version IN(2,3)))) OR (game='colorfle' AND version=$4) OR (game NOT IN('geo','colorfle') AND version=$2)) GROUP BY game,mode`,
+      `SELECT game,mode,max(CASE WHEN $3=4 THEN ${GEO_V4_UNITS_SQL} WHEN $3=3 THEN ${GEO_V3_UNITS_SQL} ELSE score_units END)/10.0 AS score FROM playne_games WHERE owner_id=$1 AND (published_at IS NOT NULL OR (game IN('flash','rotate','slide','dispatch') AND mode='practice' AND completed_at IS NOT NULL)) AND ((game='geo' AND (version=$3 OR ($3=3 AND version=2) OR ($3=4 AND version IN(2,3)))) OR (game='colorfle' AND version=$4) OR (game NOT IN('geo','colorfle') AND version=$2)) GROUP BY game,mode`,
       [u.id, SCORE_VERSION, geoViewerVersion(req), SHADE_SCORE_VERSION],
     );
     return {
@@ -1366,7 +1442,7 @@ export async function buildApp(
     await pool.query("DELETE FROM playne_auth_sessions WHERE expires_at<now()");
     await pool.query("DELETE FROM playne_oauth_states WHERE expires_at<now()");
     await pool.query(
-      "DELETE FROM playne_games WHERE published_at IS NULL AND expires_at<now()",
+      "DELETE FROM playne_games WHERE published_at IS NULL AND expires_at<now() AND NOT(game IN('flash','rotate','slide','dispatch') AND mode='practice' AND owner_id IS NOT NULL AND completed_at IS NOT NULL)",
     );
     await pool.query(
       "DELETE FROM playne_guest_trials WHERE created_at<now()-interval '365 days'",

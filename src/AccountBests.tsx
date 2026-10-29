@@ -1,4 +1,5 @@
 import { gameNames, resultText, type GameId } from "./account";
+import { brainGames } from "./brainContent";
 
 export type AccountBest = { game: GameId; mode: string; score: number };
 
@@ -108,6 +109,38 @@ export function AccountBests({ best }: { best?: AccountBest[] }) {
             </div>
           ))}
         </div>
+      </section>
+      <section
+        className="account-best-card account-best-card--modes account-best-brain"
+        aria-label="Результаты разминки для ума"
+      >
+        <h3 className="account-best-title">Разминка для ума</h3>
+        <p className="account-best-brain-caption">
+          Лучшие задачи дня. Практика сохраняется в истории.
+        </p>
+        <div className="account-best-groups account-best-groups--shade">
+          {brainGames.map((game) => (
+            <div key={game.id}>{row(game.id, "classic", game.name)}</div>
+          ))}
+        </div>
+        <a className="account-best-brain-total" href="/leaderboard/?game=brain">
+          Рейтинг разминки{" "}
+          <strong>
+            {Math.floor(
+              brainGames.reduce(
+                (total, game) =>
+                  total +
+                  (best.find(
+                    (record) =>
+                      record.game === game.id && record.mode === "classic",
+                  )?.score ?? 0),
+                0,
+              ) / 2,
+            ).toLocaleString("ru-RU")}{" "}
+            / 1000
+          </strong>
+          <RankArrow />
+        </a>
       </section>
     </div>
   );

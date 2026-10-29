@@ -12,6 +12,7 @@ import { circlePercent, readCircleBest } from "./circle";
 import GeoPreview from "./GeoPreview";
 import LandmarkPreview from "./LandmarkPreview";
 import { readGeoStats } from "./geo";
+import { BrainFeature } from "./BrainHub";
 
 function Arrow() {
   return (
@@ -168,6 +169,9 @@ export default function Hub() {
         <PlayneBrand large />
         <nav aria-label="Навигация">
           <a href="#games">Игры</a>
+          <a href="#brain-games" className="hub-brain-link">
+            Разминка
+          </a>
           <a href="#about">О Playne</a>
           <a className="hub-ranking-link" href="/leaderboard/">
             Рейтинг
@@ -187,6 +191,10 @@ export default function Hub() {
             <p>
               Проверь глазомер, реакцию и знание мира.
               <br /> Первая партия в каждой игре — без входа.
+              <br />
+              <a className="hub-brain-shortcut" href="#brain-games">
+                Разминка для ума каждый день →
+              </a>
             </p>
           </div>
           <div className="hub-catalog">
@@ -395,6 +403,7 @@ export default function Hub() {
             </div>
           </div>
         </section>
+        <BrainFeature />
         <section className="hub-about" id="about" aria-labelledby="about-title">
           <div className="hub-about-heading">
             <p className="eyebrow">О PLAYNE</p>

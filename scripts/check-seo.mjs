@@ -10,6 +10,7 @@ try {
   const { pages, SITE_URL } = await server.ssrLoadModule("/src/seo.ts");
   const { pressureFaq } = await server.ssrLoadModule("/src/pressureContent.ts");
   const { lineFaq } = await server.ssrLoadModule("/src/lineContent.ts");
+  const { brainGames } = await server.ssrLoadModule("/src/brainContent.ts");
   const paths = new Set(pages.map((p) => p.path));
   const titles = new Set();
   const descriptions = new Set();
@@ -96,6 +97,46 @@ try {
       .replace(/<style[\s\S]*?<\/style>/g, "")
       .replace(/<[^>]*>/g, " ")
       .replace(/\s+/g, " ");
+    const brain = brainGames.find((game) => game.path === page.path);
+    if (brain) {
+      assert(
+        text.includes(brain.name) &&
+          text
+            .toLocaleLowerCase("ru-RU")
+            .includes(brain.skill.toLocaleLowerCase("ru-RU")),
+      );
+      assert(
+        html.includes('href="/brain/"'),
+        `${page.path}: parent section link`,
+      );
+      assert(
+        html.includes(`id="${brain.id}-faq"`),
+        `${page.path}: visible FAQ`,
+      );
+      const game = data["@graph"].find((x) => x["@type"] === "VideoGame");
+      assert(game?.isAccessibleForFree && game.inLanguage === "ru");
+      assert(game.image.endsWith(`/art/brain-${brain.id}-social.png`));
+      const faq = data["@graph"].find((x) => x["@type"] === "FAQPage");
+      assert.equal(faq?.mainEntity.length, brain.faq.length);
+      brain.faq.forEach(({ question, answer }, i) => {
+        assert.equal(faq.mainEntity[i].name, question);
+        assert.equal(faq.mainEntity[i].acceptedAnswer.text, answer);
+        assert(
+          text.includes(question.replace(/[«»]/g, "")) ||
+            html.includes(question) ||
+            text.includes(question),
+        );
+      });
+      assert(
+        html.includes('href="/guides/brain/"'),
+        `${page.path}: shared guide`,
+      );
+    }
+    if (page.path === "/brain/") {
+      assert(brainGames.every((game) => html.includes(`href="${game.path}"`)));
+      assert(text.includes("Три дня разминки") && text.includes("Практика"));
+      assert(data["@graph"].some((x) => x["@type"] === "CollectionPage"));
+    }
     if (page.path === "/pressure/") {
       assert(
         title.includes("Press Under Pressure") &&

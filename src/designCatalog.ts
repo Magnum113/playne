@@ -143,6 +143,16 @@ export const componentInventory = [
     "cards",
   ],
   [
+    "Разминка для ума: четыре карточки, календарь и практика",
+    "BrainHub.tsx · BrainPreview.tsx · brain-hub.css",
+    "cards",
+  ],
+  [
+    "Вспышка, Поворот, Передвинь и Диспетчер: поля, правила, ответы",
+    "BrainGame.tsx · BrainBoards.tsx · brain-game.css",
+    "gameplay",
+  ],
+  [
     "Точки раундов: пройденный, текущий, следующий",
     "ui.tsx · RoundDots",
     "gameplay",

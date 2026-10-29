@@ -41,3 +41,36 @@ describe("account line results", () => {
     expect(classic.textContent).not.toContain("500");
   });
 });
+
+describe("brain account records", () => {
+  it("adds the four daily records as one category and ignores practice", () => {
+    const box = document.createElement("div");
+    box.innerHTML = renderToStaticMarkup(
+      <AccountBests
+        best={[
+          { game: "flash", mode: "classic", score: 400 },
+          { game: "flash", mode: "practice", score: 500 },
+          { game: "rotate", mode: "classic", score: 300 },
+          { game: "slide", mode: "classic", score: 200 },
+          { game: "dispatch", mode: "classic", score: 100 },
+        ]}
+      />,
+    );
+    const group = box.querySelector(
+      '[aria-label="Результаты разминки для ума"]',
+    )!;
+    expect(group.querySelectorAll(".account-best-row")).toHaveLength(4);
+    expect(
+      group.querySelector(".account-best-brain-total")?.textContent,
+    ).toContain("500 / 1000");
+    expect(
+      group.querySelector('a[href*="game=flash&mode=classic"]')?.textContent,
+    ).toContain("400");
+    expect(
+      group.querySelector(
+        'a[href*="game=flash&mode=classic"] .account-best-score',
+      )?.textContent,
+    ).toBe("400 / 500");
+    expect(group.querySelector('a[href*="mode=practice"]')).toBeNull();
+  });
+});

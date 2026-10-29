@@ -33,6 +33,7 @@ import LandmarkPreview from "./LandmarkPreview";
 import { PressurePreview, PressureTimer } from "./PressureGame";
 import LinePreview from "./LinePreview";
 import { lineRules, lineScoreText } from "./lineContent";
+import { BrainFeature } from "./BrainHub";
 import { Palette, Swatch } from "./ColorfleGame";
 import Board from "./Board";
 import Silhouette from "./Silhouette";
@@ -417,10 +418,13 @@ function Navigation() {
           "Где я?",
           "Жми",
           "Одной линией",
+          "Разминка для ума",
         ].map((name) => (
           <button
             key={name}
-            className={name === "Одной линией" ? "rank-game-line" : undefined}
+            className={
+              name === "Разминка для ума" ? "rank-game-brain" : undefined
+            }
             aria-pressed={game === name}
             onClick={() => {
               setGame(name);
@@ -953,9 +957,9 @@ function Results() {
   const [profileState, setProfileState] = useState("scores");
   const example: OverallEntry = {
     nickname: "Твой ник",
-    score: 4361,
+    score: 5186,
     place: 3,
-    gamesPlayed: 6,
+    gamesPlayed: 7,
     isMe: true,
     contributions: [
       { game: "naglaz", mode: "classic", score: 322, points: 644 },
@@ -964,12 +968,13 @@ function Results() {
       { game: "geo", mode: "moving", score: 343, points: 686 },
       { game: "pressure", mode: "classic", score: 42, points: 456 },
       { game: "line", mode: "classic", score: 426, points: 852 },
+      { game: "brain", mode: "classic", score: 825, points: 825 },
     ],
   };
   const top: OverallBoard = {
     game: "overall",
     period: "all",
-    version: 2,
+    version: 3,
     page: 1,
     limit: 5,
     total: 24,
@@ -1005,10 +1010,11 @@ function Results() {
         wide
       >
         <p className="ds-note">
-          Демонстрационные данные. Шесть игр с равным весом. Для «Одной линией»
-          — лучший дневной результат режима «Задача дня», для остальных — лучший
-          режим. Вертикальный список: справа от игр на десктопе и над играми на
-          телефоне. Анимация появления отключается при уменьшении движения.
+          Демонстрационные данные. Шесть игр и категория «Разминка для ума» с
+          равным весом. Для «Одной линией» — лучший дневной результат режима
+          «Задача дня», для остальных — лучший режим. Вертикальный список:
+          справа от игр на десктопе и над играми на телефоне. Анимация появления
+          отключается при уменьшении движения.
         </p>
         <div className="ds-top-five-demo">
           <TopFiveCard data={top} />
@@ -1559,8 +1565,8 @@ export default function DesignSystem() {
             </Section>
             <Section id="cards">
               <p className="ds-note">
-                Семь текущих карточек, те же изображения и классы, что на
-                главной. Вся карточка — ссылка.
+                Основной каталог и отдельная подборка разминки. Те же
+                изображения и классы, что на главной. Вся карточка — ссылка.
               </p>
               <div className="game-cards ds-game-cards">
                 {gameCards.map(
@@ -1594,6 +1600,7 @@ export default function DesignSystem() {
                 )}
               </div>
             </Section>
+            <BrainFeature />
             <Section id="gameplay">
               <Sample
                 title="Старт игры и личный рекорд"
@@ -1893,10 +1900,10 @@ export default function DesignSystem() {
                 <li>
                   <h3>Семь вкладок рейтинга</h3>
                   <p>
-                    Общий рейтинг и шесть игр перестраиваются по доступной
-                    ширине. У «Одной линией» больше места для длинного названия.
-                    На телефоне вкладки остаются доступны без горизонтальной
-                    прокрутки.
+                    Основной каталог, разминка и рейтинг перестраиваются по
+                    доступной ширине. У «Одной линией» больше места для длинного
+                    названия. На телефоне вкладки остаются доступны без
+                    горизонтальной прокрутки.
                   </p>
                 </li>
                 <li>

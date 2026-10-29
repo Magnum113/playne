@@ -2,6 +2,7 @@ import { GAME_NAMES, type GameId } from "./scoring";
 import { geoModeName } from "../src/geo";
 import { shadeModeName } from "../src/colorfle";
 import { formatPressScore } from "../src/pressure";
+import { isBrainGame } from "./brain";
 
 export type EmailVariant = "A" | "B" | "C";
 export type RankEmailItem = {
@@ -40,15 +41,18 @@ export function emailBoardName(game: GameId, mode: string) {
       ? ` · ${geoModeName(mode as any)}`
       : game === "colorfle"
         ? ` · ${shadeModeName(mode === "timed" ? "timed" : "classic")}`
-        : game === "line"
+        : game === "line" || isBrainGame(game)
           ? ` · ${mode === "practice" ? "Практика" : "Задача дня"}`
           : "")
   );
 }
 export function emailGamePath(game: GameId, mode: string) {
   return (
-    `/${game === "line" ? "one-line" : game}/` +
-    ((game === "geo" || game === "colorfle" || game === "line") &&
+    `/${isBrainGame(game) ? "brain/" + game : game === "line" ? "one-line" : game}/` +
+    ((game === "geo" ||
+      game === "colorfle" ||
+      game === "line" ||
+      isBrainGame(game)) &&
     mode !== "classic"
       ? `?mode=${encodeURIComponent(mode)}`
       : "")

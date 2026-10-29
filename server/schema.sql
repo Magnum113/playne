@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS playne_oauth_states (
 CREATE TABLE IF NOT EXISTS playne_games (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), browser_hash char(64) NOT NULL,
  owner_id uuid REFERENCES playne_users(id) ON DELETE CASCADE,
- game text NOT NULL CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line')),
+ game text NOT NULL CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch')),
  version integer NOT NULL DEFAULT 1, challenge jsonb NOT NULL, answers jsonb NOT NULL DEFAULT '[]',
  score_units integer, completed_at timestamptz, published_at timestamptz,
  expires_at timestamptz NOT NULL DEFAULT now()+interval '24 hours', created_at timestamptz NOT NULL DEFAULT now(),
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS playne_games (
  CHECK(published_at IS NULL OR (completed_at IS NOT NULL AND owner_id IS NOT NULL AND score_units IS NOT NULL))
 );
 ALTER TABLE playne_games DROP CONSTRAINT IF EXISTS playne_games_game_check;
-ALTER TABLE playne_games ADD CONSTRAINT playne_games_game_check CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line'));
+ALTER TABLE playne_games ADD CONSTRAINT playne_games_game_check CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch'));
 ALTER TABLE playne_games ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'classic';
 ALTER TABLE playne_games DROP CONSTRAINT IF EXISTS playne_games_score_units_check;
 ALTER TABLE playne_games ADD CONSTRAINT playne_games_score_units_check CHECK(score_units IS NULL OR score_units BETWEEN 0 AND 250000);
@@ -44,14 +44,14 @@ CREATE TABLE IF NOT EXISTS playne_color_score_backups (
  created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS playne_guest_trials (
- browser_hash char(64) NOT NULL, game text NOT NULL CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line')),
+ browser_hash char(64) NOT NULL, game text NOT NULL CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch')),
  run_id uuid REFERENCES playne_games(id) ON DELETE SET NULL,
  consumed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY(browser_hash,game)
 );
 CREATE INDEX IF NOT EXISTS playne_guest_trials_run ON playne_guest_trials(run_id);
 ALTER TABLE playne_guest_trials DROP CONSTRAINT IF EXISTS playne_guest_trials_game_check;
-ALTER TABLE playne_guest_trials ADD CONSTRAINT playne_guest_trials_game_check CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line'));
+ALTER TABLE playne_guest_trials ADD CONSTRAINT playne_guest_trials_game_check CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch'));
 CREATE TABLE IF NOT EXISTS playne_line_days (
  day date NOT NULL, browser_hash char(64) NOT NULL,
  owner_id uuid REFERENCES playne_users(id) ON DELETE SET NULL,
@@ -61,6 +61,21 @@ CREATE TABLE IF NOT EXISTS playne_line_days (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS playne_line_one_daily_account ON playne_line_days(day,owner_id) WHERE owner_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS playne_line_days_run ON playne_line_days(run_id);
+CREATE TABLE IF NOT EXISTS playne_brain_packs (
+ day date NOT NULL, game text NOT NULL CHECK(game IN('flash','rotate','slide','dispatch')),
+ version integer NOT NULL CHECK(version=1), challenge jsonb NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(day,game,version)
+);
+CREATE TABLE IF NOT EXISTS playne_brain_days (
+ day date NOT NULL, game text NOT NULL CHECK(game IN('flash','rotate','slide','dispatch')),
+ browser_hash char(64) NOT NULL, owner_id uuid REFERENCES playne_users(id) ON DELETE SET NULL,
+ run_id uuid REFERENCES playne_games(id) ON DELETE SET NULL,
+ created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(day,game,browser_hash)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS playne_brain_one_daily_account ON playne_brain_days(day,game,owner_id) WHERE owner_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS playne_brain_days_run ON playne_brain_days(run_id);
+CREATE INDEX IF NOT EXISTS playne_brain_completed_history ON playne_games(owner_id,completed_at DESC) WHERE game IN('flash','rotate','slide','dispatch') AND completed_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS playne_brain_private_history ON playne_games(owner_id,created_at DESC) WHERE game IN('flash','rotate','slide','dispatch');
 ALTER TABLE playne_oauth_states ADD COLUMN IF NOT EXISTS email_opt_in boolean NOT NULL DEFAULT false;
 ALTER TABLE playne_oauth_states ADD COLUMN IF NOT EXISTS email_consent_version text;
 CREATE TABLE IF NOT EXISTS playne_email_contacts (

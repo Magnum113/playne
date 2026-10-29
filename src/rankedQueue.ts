@@ -6,9 +6,12 @@ export type ServerRun<G extends GameId = GameId> = {
   game: G;
   challenge: any;
   version?: number;
-  mode?: G extends "line" ? GameMode : Exclude<GameMode, "practice">;
+  mode?: G extends "line" | "flash" | "rotate" | "slide" | "dispatch"
+    ? GameMode
+    : Exclude<GameMode, "practice">;
   completed?: boolean;
   published?: boolean;
+  private?: boolean;
   score?: number | null;
   answers?: any[];
 };
@@ -107,9 +110,18 @@ export function createRankedQueue(
         if (
           !p ||
           !uuid(p.key) ||
-          !["naglaz", "circle", "colorfle", "geo", "pressure", "line"].includes(
-            p.game,
-          ) ||
+          ![
+            "naglaz",
+            "circle",
+            "colorfle",
+            "geo",
+            "pressure",
+            "line",
+            "flash",
+            "rotate",
+            "slide",
+            "dispatch",
+          ].includes(p.game) ||
           !Array.isArray(p.tasks) ||
           p.tasks.length > 5 ||
           !Number.isFinite(p.updated) ||
@@ -147,7 +159,7 @@ export function createRankedQueue(
         (r) =>
           r.tasks.length ||
           Object.keys(r.pins).length ||
-          (r.completed && !r.published),
+          (r.completed && !r.published && !r.run?.private),
       );
       const history = all.filter((r) => !pending.includes(r)).slice(-12);
       storage()?.setItem(
@@ -296,6 +308,8 @@ export function createRankedQueue(
           p.tasks.shift();
           p.completed = !!result.completed;
           p.published = !!result.published;
+          if (typeof result.private === "boolean")
+            p.run!.private = result.private;
           p.score = result.score ?? p.score;
           p.failures = 0;
           state(p, {
@@ -305,9 +319,20 @@ export function createRankedQueue(
           });
           if (p.published) options.onPublished?.(p.run!, p.score ?? 0);
         }
-        if (p.completed && !p.published && userId) {
+        if (p.completed && !p.published && !p.run?.private && userId) {
           state(p, { status: "saving", id: p.run!.id, score: p.score });
-          await request(`/games/${p.run!.id}/publish`, "POST", {});
+          const saved = await request(
+            `/games/${p.run!.id}/publish`,
+            "POST",
+            {},
+          );
+          if (saved.private) {
+            p.run!.private = true;
+            p.published = false;
+            p.failures = 0;
+            state(p, { status: "complete", id: p.run!.id, score: p.score });
+            return;
+          }
           p.published = true;
           p.failures = 0;
           state(p, { status: "saved", id: p.run!.id, score: p.score });
@@ -347,7 +372,7 @@ export function createRankedQueue(
         p.failures === 0 &&
         (p.tasks.length ||
           Object.keys(p.pins).length ||
-          (p.completed && !p.published && userId))
+          (p.completed && !p.published && !p.run?.private && userId))
       )
         void drain(key);
     });

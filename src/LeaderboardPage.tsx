@@ -21,8 +21,14 @@ import FooterLinks from "./FooterLinks";
 import { shadeModeName, type ShadeMode } from "./colorfle";
 import { OverallStandings, OverallRules } from "./OverallLeaderboard";
 import { OVERALL_GAMES, OVERALL_MAX_POINTS, overallNumber } from "./overall";
-type LeaderboardGame = GameId | "overall";
-const boardNames = { overall: "Общий", ...gameNames };
+import { BRAIN_GAME_IDS, brainGames, type BrainGameId } from "./brainContent";
+type LeaderboardGame = GameId | "overall" | "brain";
+const boardNames = {
+  overall: "Общий",
+  ...gameNames,
+  brain: "Разминка для ума",
+};
+const isBrain = (game: string) => BRAIN_GAME_IDS.includes(game as BrainGameId);
 
 function modeForGame(game: LeaderboardGame, value: unknown): GameMode {
   if (game === "geo" && validGeoMode(value)) return value;
@@ -47,7 +53,8 @@ export default function LeaderboardPage() {
   );
   const geoMode: GeoMode = validGeoMode(mode) ? mode : "classic";
   const [period, setPeriod] = useState<"all" | "week">(
-      initialGame !== "overall" && query?.get("period") !== "all"
+      !(["overall", "brain"] as string[]).includes(initialGame) &&
+        query?.get("period") !== "all"
         ? "week"
         : "all",
     ),
@@ -58,10 +65,12 @@ export default function LeaderboardPage() {
     [retry, setRetry] = useState(0);
   // Selection changes render before useEffect sets loading. Never interpret
   // the previous board's rows using another game's response format.
+  const aggregate = game === "overall" || game === "brain";
+  const brainSelected = game === "brain" || isBrain(game);
   const currentBoard =
     data?.game === game &&
     data?.page === page &&
-    (game === "overall" || (data?.mode === mode && data?.period === period));
+    (aggregate || (data?.mode === mode && data?.period === period));
   const waiting = loading || (!error && !currentBoard);
   const panelRef = useRef<HTMLElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -81,8 +90,8 @@ export default function LeaderboardPage() {
     setLoading(true);
     setError("");
     void api(
-      game === "overall"
-        ? `/leaderboard?game=overall&page=${page}`
+      aggregate
+        ? `/leaderboard?game=${game}&page=${page}`
         : `/leaderboard?game=${game}&period=${period}&page=${page}&mode=${mode}`,
     )
       .then((d) => {
@@ -109,7 +118,7 @@ export default function LeaderboardPage() {
   }, [game, period, page, mode, retry]);
   function change(next: LeaderboardGame) {
     pageFocusPending.current = false;
-    const nextPeriod = next === "overall" ? "all" : period;
+    const nextPeriod = next === "overall" || next === "brain" ? "all" : period;
     const nextMode = modeForGame(next, mode);
     setPeriod(nextPeriod);
     setGame(next);
@@ -120,7 +129,7 @@ export default function LeaderboardPage() {
       "",
       "/leaderboard/?game=" +
         next +
-        (next !== "overall" ? `&mode=${nextMode}` : "") +
+        (next !== "overall" && next !== "brain" ? `&mode=${nextMode}` : "") +
         `&period=${nextPeriod}`,
     );
   }
@@ -142,7 +151,7 @@ export default function LeaderboardPage() {
           {e.nickname}
           {e.isMe && <span className="you-label">Ты</span>}
         </strong>
-        {game !== "circle" && game !== "overall" && (
+        {game !== "circle" && !aggregate && (
           <small className="rank-rounds">
             {e.rounds.map((s: number, i: number) => (
               <span key={i}>{geoPoints(s)}</span>
@@ -151,9 +160,9 @@ export default function LeaderboardPage() {
         )}
       </td>
       <td className="rank-score">
-        {game === "overall"
+        {aggregate
           ? overallNumber(e.score)
-          : resultText(game, e.score)}
+          : resultText(game as GameId, e.score)}
       </td>
     </tr>
   );
@@ -172,17 +181,38 @@ export default function LeaderboardPage() {
           Общий зачёт и рекорды по играм. Найди своё место.
         </p>
         <div className="rank-games" aria-label="Выбор игры">
-          {Object.entries(boardNames).map(([id, name]) => (
-            <button
-              key={id}
-              className={id === "line" ? "rank-game-line" : undefined}
-              aria-pressed={game === id}
-              onClick={() => change(id as LeaderboardGame)}
-            >
-              {name}
-            </button>
-          ))}
+          {Object.entries(boardNames)
+            .filter(([id]) => !isBrain(id))
+            .map(([id, name]) => (
+              <button
+                key={id}
+                className={id === "brain" ? "rank-game-brain" : undefined}
+                aria-pressed={id === "brain" ? brainSelected : game === id}
+                onClick={() => change(id as LeaderboardGame)}
+              >
+                {name}
+              </button>
+            ))}
         </div>
+        {brainSelected && (
+          <div className="rank-brain-games" aria-label="Игра разминки">
+            <button
+              aria-pressed={game === "brain"}
+              onClick={() => change("brain")}
+            >
+              Все четыре игры
+            </button>
+            {brainGames.map((option) => (
+              <button
+                key={option.id}
+                aria-pressed={game === option.id}
+                onClick={() => change(option.id)}
+              >
+                {option.name}
+              </button>
+            ))}
+          </div>
+        )}
         {game === "colorfle" && (
           <div
             className="rank-period geo-rank-modes"
@@ -276,9 +306,11 @@ export default function LeaderboardPage() {
           </div>
         )}
         <div className="rank-toolbar">
-          {game === "overall" ? (
+          {aggregate ? (
             <span className="overall-period-label">
-              За всё время · до {overallNumber(OVERALL_MAX_POINTS)} баллов
+              За всё время · до{" "}
+              {overallNumber(game === "brain" ? 1000 : OVERALL_MAX_POINTS)}{" "}
+              баллов
             </span>
           ) : (
             <div className="rank-period" aria-label="Период рейтинга">
@@ -306,13 +338,17 @@ export default function LeaderboardPage() {
           )}
           <span>
             {game === "overall"
-              ? `${OVERALL_GAMES.length} игр · один общий счёт`
-              : "Один лучший результат на игрока"}
+              ? `${OVERALL_GAMES.length} категорий · один общий счёт`
+              : game === "brain"
+                ? "Четыре игры · только задачи дня"
+                : isBrain(game)
+                  ? "Одна попытка дня · до 500 очков"
+                  : "Один лучший результат на игрока"}
           </span>
         </div>
         <section
           ref={panelRef}
-          className={`community-panel ranking-panel${game === "overall" ? " overall-ranking-panel" : ""}`}
+          className={`community-panel ranking-panel${aggregate ? " overall-ranking-panel" : ""}`}
           aria-busy={waiting}
         >
           <h2 ref={headingRef} className="sr-only" tabIndex={-1}>
@@ -332,8 +368,11 @@ export default function LeaderboardPage() {
             </div>
           ) : data?.entries.length ? (
             <>
-              {game === "overall" ? (
-                <OverallStandings entries={data.entries} />
+              {aggregate ? (
+                <OverallStandings
+                  entries={data.entries}
+                  scope={game === "brain" ? "brain" : "overall"}
+                />
               ) : (
                 <table className="rank-table">
                   <thead>
@@ -356,9 +395,9 @@ export default function LeaderboardPage() {
                     Твоё место: <strong>{data.mine.place}</strong>
                   </span>
                   <strong>
-                    {game === "overall"
+                    {aggregate
                       ? overallNumber(data.mine.score)
-                      : resultText(game, data.mine.score)}
+                      : resultText(game as GameId, data.mine.score)}
                   </strong>
                 </div>
               )}
@@ -395,12 +434,18 @@ export default function LeaderboardPage() {
                 href={
                   game === "overall"
                     ? "/#games"
-                    : `/${game === "line" ? "one-line" : game}/${(game === "geo" || game === "colorfle" || game === "line") && mode !== "classic" ? `?mode=${mode}` : ""}`
+                    : game === "brain"
+                      ? "/brain/"
+                      : isBrain(game)
+                        ? `/brain/${game}/`
+                        : `/${game === "line" ? "one-line" : game}/${(game === "geo" || game === "colorfle" || game === "line") && mode !== "classic" ? `?mode=${mode}` : ""}`
                 }
               >
                 {game === "overall"
                   ? "Выбрать игру →"
-                  : `Играть в «${gameNames[game]}» ↗`}
+                  : game === "brain"
+                    ? "Начать разминку →"
+                    : `Играть в «${gameNames[game]}» ↗`}
               </a>
             </div>
           )}
@@ -412,6 +457,22 @@ export default function LeaderboardPage() {
               Подними свой рекорд →
             </a>
           </div>
+        ) : game === "brain" ? (
+          <div className="ranking-rules">
+            <p>
+              Каждая игра даёт до 250 баллов: её лучший дневной результат из 500
+              делим на 2. Складываем четыре результата и округляем сумму вниз —
+              до 1000. Весь раздел входит в общий рейтинг как одна категория
+              того же веса, что и остальные игры.
+            </p>
+            <p>
+              Практика остаётся в личной истории. В задачах дня у всех один
+              набор на московскую дату и одна зачётная попытка.
+            </p>
+            <a className="primary overall-play" href="/brain/">
+              Выбрать разминку →
+            </a>
+          </div>
         ) : (
           <div className="ranking-rules">
             <p>
@@ -419,11 +480,13 @@ export default function LeaderboardPage() {
               равных результатах место одинаковое.
             </p>
             <p>
-              {game === "line"
-                ? mode === "practice"
-                  ? "Практика имеет отдельный рейтинг и не входит в общий зачёт."
-                  : "В режиме «Задача дня» учитывается первая попытка за каждую московскую дату. Поля дня одинаковы для всех."
-                : "Случайные задания могут различаться по сложности."}{" "}
+              {isBrain(game)
+                ? "В рейтинге — только задачи дня: одна попытка за московскую дату, одинаковые пять раундов для всех. Практика не публикуется."
+                : game === "line"
+                  ? mode === "practice"
+                    ? "Практика имеет отдельный рейтинг и не входит в общий зачёт."
+                    : "В режиме «Задача дня» учитывается первая попытка за каждую московскую дату. Поля дня одинаковы для всех."
+                  : "Случайные задания могут различаться по сложности."}{" "}
               Неделя начинается в понедельник по московскому времени. Старые
               рекорды из браузера в рейтинг не переносятся.
             </p>

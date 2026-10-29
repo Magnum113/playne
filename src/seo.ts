@@ -1,18 +1,46 @@
 import { guides } from "./guides";
 import { pressureFaq } from "./pressureContent";
 import { lineFaq } from "./lineContent";
+import { brainGames } from "./brainContent";
 
 export const SITE_URL = "https://playne.ru";
 export type PageMeta = {
   path: string;
   title: string;
   description: string;
-  kind: "home" | "game" | "guides" | "article" | "info";
+  kind: "home" | "game" | "guides" | "article" | "info" | "collection";
   noindex?: boolean;
   name: string;
   image?: { path: string; width: number; height: number; alt: string };
 };
 export const pages: PageMeta[] = [
+  {
+    path: "/brain/",
+    title: "Разминка для ума — игры на память, внимание и логику | Playne",
+    description:
+      "Четыре бесплатные игры: запоминай клетки во «Вспышке», сравнивай фигуры в «Повороте», двигай блоки и управляй поездами. Задания дня, практика и личный прогресс.",
+    kind: "collection",
+    name: "Разминка для ума",
+    image: {
+      path: "/art/brain-social.png",
+      width: 1200,
+      height: 630,
+      alt: "Разминка для ума — четыре игры Playne",
+    },
+  },
+  ...brainGames.map((game) => ({
+    path: game.path,
+    title: `${game.name} — ${game.id === "flash" ? "игра на зрительную память" : game.id === "rotate" ? "мысленно поворачивай фигуры" : game.id === "slide" ? "освободи выход для блока" : "направляй поезда на станции"} | Playne`,
+    description: `${game.description} Задача дня для всех и практика с выбором сложности. Бесплатно в браузере.`,
+    kind: "game" as const,
+    name: game.name,
+    image: {
+      path: `/art/brain-${game.id}-social.png`,
+      width: 1200,
+      height: 630,
+      alt: `${game.name} — ${game.skill}, игра Playne`,
+    },
+  })),
   {
     path: "/design-system/",
     title: "Дизайн-система Playne — компоненты, цвета и игровые интерфейсы",
@@ -87,7 +115,7 @@ export const pages: PageMeta[] = [
     path: "/",
     title: "Playne — игры онлайн для любопытных",
     description:
-      "Бесплатные игры в браузере: сравнивай размеры, рисуй круг, подбирай цвет, угадывай места, решай задания с кнопкой и соединяй числа одной линией. Первая партия в каждой игре — без входа.",
+      "Бесплатные игры в браузере: глазомер, реакция, география, логика и отдельная разминка для ума — память, фигуры, блоки и поезда. Первая партия каждой игры без входа.",
     kind: "home",
     name: "Playne",
   },
@@ -119,7 +147,7 @@ export const pages: PageMeta[] = [
     path: "/guides/",
     title: "Правила и советы по играм Playne",
     description:
-      "Как сравнивать размеры, рисовать круг, подбирать цвет, угадывать места и соединять числа одной линией. Правила игр Playne, советы по прохождению и объяснение очков.",
+      "Правила и советы по играм Playne: глазомер, круг, цвет, география, одна линия и разминка для ума. Как играть, усложнять задачи и понимать очки.",
     kind: "guides",
     name: "Правила и советы",
   },
@@ -142,6 +170,14 @@ export const pages: PageMeta[] = [
 
 export function structuredData(page: PageMeta) {
   const url = SITE_URL + page.path;
+  const brainGame = brainGames.find((game) => game.path === page.path);
+  const faq =
+    brainGame?.faq ??
+    (page.path === "/one-line/"
+      ? lineFaq
+      : page.path === "/pressure/"
+        ? pressureFaq
+        : null);
   const website = {
     "@type": "WebSite",
     "@id": SITE_URL + "/#website",
@@ -154,6 +190,9 @@ export function structuredData(page: PageMeta) {
       ? []
       : [
           { name: "Playne", item: SITE_URL + "/" },
+          ...(brainGame
+            ? [{ name: "Разминка для ума", item: SITE_URL + "/brain/" }]
+            : []),
           ...(page.kind === "article"
             ? [{ name: "Правила и советы", item: SITE_URL + "/guides/" }]
             : []),
@@ -163,7 +202,9 @@ export function structuredData(page: PageMeta) {
     "@type":
       page.kind === "article"
         ? "Article"
-        : page.kind === "home" || page.kind === "guides"
+        : page.kind === "home" ||
+            page.kind === "guides" ||
+            page.kind === "collection"
           ? "CollectionPage"
           : "WebPage",
     "@id": url + "#page",
@@ -194,11 +235,14 @@ export function structuredData(page: PageMeta) {
               playMode: "https://schema.org/SinglePlayer",
               isAccessibleForFree: true,
               mainEntityOfPage: { "@id": main["@id"] },
-              ...(page.path === "/pressure/" || page.path === "/one-line/"
+              ...(page.path === "/pressure/" ||
+              page.path === "/one-line/" ||
+              !!brainGame
                 ? {
                     image: SITE_URL + page.image!.path,
-                    genre:
-                      page.path === "/one-line/"
+                    genre: brainGame
+                      ? ["Головоломка", brainGame.skill]
+                      : page.path === "/one-line/"
                         ? ["Головоломка", "Логика"]
                         : ["Головоломка", "Логика", "Память", "Реакция"],
                     operatingSystem: "Any",
@@ -219,19 +263,20 @@ export function structuredData(page: PageMeta) {
             },
           ]
         : []),
-      ...(page.path === "/pressure/" || page.path === "/one-line/"
+      ...(faq
         ? [
             {
               "@type": "FAQPage",
               "@id":
                 url +
-                (page.path === "/one-line/" ? "#line-faq" : "#pressure-faq"),
+                (brainGame
+                  ? `#${brainGame.id}-faq`
+                  : page.path === "/one-line/"
+                    ? "#line-faq"
+                    : "#pressure-faq"),
               isPartOf: { "@id": main["@id"] },
               inLanguage: "ru",
-              mainEntity: (page.path === "/one-line/"
-                ? lineFaq
-                : pressureFaq
-              ).map(({ question, answer }) => ({
+              mainEntity: faq.map(({ question, answer }) => ({
                 "@type": "Question",
                 name: question,
                 acceptedAnswer: { "@type": "Answer", text: answer },

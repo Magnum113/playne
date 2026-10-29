@@ -59,6 +59,7 @@ export default function AccountPage() {
       !validClaim ||
       !pending?.completed ||
       pending.published ||
+      pending.private ||
       publishing.current === validClaim
     )
       return;
@@ -87,15 +88,24 @@ export default function AccountPage() {
     setSavingClaim(true);
     setError("");
     try {
-      await api(`/games/${validClaim}/publish`, "POST", {});
-      setPending((p: any) => ({ ...p, published: true }));
+      const result = await api(`/games/${validClaim}/publish`, "POST", {});
+      setPending((p: any) => ({
+        ...p,
+        published: !result.private,
+        private: !!result.private,
+      }));
       setData(await api("/account"));
-      setMessage("Результат сохранён в рейтинг.");
-      trackPublished(validClaim, {
-        game: pending.game,
-        score: pending.score,
-        automatic: true,
-      });
+      setMessage(
+        result.private
+          ? "Результат практики сохранён в личной истории."
+          : "Результат сохранён в рейтинг.",
+      );
+      if (!result.private)
+        trackPublished(validClaim, {
+          game: pending.game,
+          score: pending.score,
+          automatic: true,
+        });
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -197,7 +207,9 @@ export default function AccountPage() {
                   {gameNames[pending.game as GameId]} ·{" "}
                   {resultText(pending.game, pending.score, pending.version)}
                 </h2>
-                {pending.published ? (
+                {pending.private ? (
+                  <p>Результат практики сохранён в личной истории.</p>
+                ) : pending.published ? (
                   <>
                     <p>Результат уже в рейтинге.</p>
                     <a
@@ -243,6 +255,10 @@ export default function AccountPage() {
                           ` · ${h.version === 1 ? "Прежние правила" : geoModeName(h.mode as GeoMode)}`}
                         {h.game === "colorfle" &&
                           ` · ${shadeModeName(h.mode === "timed" ? "timed" : "classic")}`}
+                        {["flash", "rotate", "slide", "dispatch"].includes(
+                          h.game,
+                        ) &&
+                          ` · ${h.mode === "practice" ? "Практика · Уровень " + h.difficulty : "Задача дня"}`}
                         {h.game === "line" &&
                           ` · ${h.mode === "practice" ? "Практика" : "Задача дня"}`}
                         <small>

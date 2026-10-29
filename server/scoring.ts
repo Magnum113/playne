@@ -8,6 +8,8 @@ import {
 import { chooseRounds, legacyPairIds, objects, pairs } from "../src/data";
 import { score } from "../src/game";
 import { evaluateCircle } from "../src/circle";
+import { isBrainGame, createBrain, publicBrain, brainAnswer } from "./brain";
+import type { BrainChallenge } from "../src/brain";
 import { LINE_STAGE_POOLS } from "../src/linePuzzles";
 import {
   getDailyLinePuzzles,
@@ -41,6 +43,10 @@ export const GAME_NAMES = {
   geo: "Где я?",
   pressure: "Жми",
   line: "Одной линией",
+  flash: "Вспышка",
+  rotate: "Поворот",
+  slide: "Передвинь",
+  dispatch: "Диспетчер",
 } as const;
 export type GameId = keyof typeof GAME_NAMES;
 export const isGame = (v: unknown): v is GameId =>
@@ -107,7 +113,17 @@ export function makeChallenge(
   supportedPairIds: readonly string[] = legacyPairIds,
   pressureRulesVersion = 1,
   lineDay?: string,
-) {
+  difficulty = 1,
+  brainPack?: BrainChallenge,
+): any {
+  if (isBrainGame(game))
+    return createBrain(
+      game,
+      mode,
+      lineDay ?? lineMoscowDate(),
+      difficulty,
+      brainPack,
+    );
   if (game === "line") {
     const day = lineDay ?? lineMoscowDate();
     return {
@@ -147,6 +163,7 @@ export function makeChallenge(
   return {};
 }
 export function publicChallenge(game: GameId, challenge: any) {
+  if (isBrainGame(game)) return publicBrain(challenge);
   if (game === "line")
     return {
       puzzles: challenge.puzzles,
@@ -180,6 +197,7 @@ export function validateAnswer(
   now = Date.now(),
   version = 4,
 ) {
+  if (isBrainGame(game)) return brainAnswer(challenge, index, input, now);
   if (game === "line") {
     const puzzle = challenge.puzzles?.[index];
     const round = challenge.rounds?.[index];
@@ -345,7 +363,7 @@ export function initialNickname(profile: any) {
 export function safeReturn(value: unknown) {
   if (
     typeof value !== "string" ||
-    !/^\/(?:account|naglaz|circle|colorfle|geo|pressure|line|one-line|leaderboard)\/(?:\?[^#]*)?$/.test(
+    !/^\/(?:account|naglaz|circle|colorfle|geo|pressure|line|one-line|brain\/(?:flash|rotate|slide|dispatch)|leaderboard)\/(?:\?[^#]*)?$/.test(
       value,
     )
   )
@@ -366,7 +384,8 @@ export function safeReturn(value: unknown) {
       if (
         url.pathname === "/geo/"
           ? !validGeoMode(item)
-          : ["/line/", "/one-line/"].includes(url.pathname)
+          : ["/line/", "/one-line/"].includes(url.pathname) ||
+              /^\/brain\/(flash|rotate|slide|dispatch)\/$/.test(url.pathname)
             ? !["classic", "practice"].includes(item)
             : url.pathname !== "/colorfle/" ||
               !["classic", "timed"].includes(item)

@@ -13,6 +13,15 @@ export default function FooterLinks() {
         <a href="/one-line/">Одной линией</a>
       </div>
       <div>
+        <a className="footer-heading" href="/brain/">
+          Разминка для ума
+        </a>
+        <a href="/brain/flash/">Вспышка</a>
+        <a href="/brain/rotate/">Поворот</a>
+        <a href="/brain/slide/">Передвинь</a>
+        <a href="/brain/dispatch/">Диспетчер</a>
+      </div>
+      <div>
         <a className="footer-heading" href="/guides/">
           Правила и советы
         </a>
@@ -22,6 +31,7 @@ export default function FooterLinks() {
         <a href="/guides/geoguessr/">Как угадывать места по панорамам</a>
         <a href="/pressure/#pressure-rules">Как играть в «Жми»</a>
         <a href="/guides/one-line/">Как соединить числа одной линией</a>
+        <a href="/guides/brain/">Как устроена разминка для ума</a>
         <a href="/privacy/">Конфиденциальность</a>
         <a href="/terms/">Правила сайта</a>
       </div>

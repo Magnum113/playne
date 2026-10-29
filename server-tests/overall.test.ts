@@ -130,13 +130,60 @@ const db = process.env.TEST_DATABASE_URL;
     expect((await board()).entries[0].score).toBe(before.score);
     await run(id, "line", 500);
     const result = await board();
-    expect(result.version).toBe(2);
+    expect(result.version).toBe(3);
     expect(result.entries[0].gamesPlayed).toBe(6);
     expect(result.entries[0].score).toBe(before.score + 1000);
-    expect(result.entries[0].score).toBeLessThanOrEqual(6000);
+    expect(result.entries[0].score).toBeLessThanOrEqual(7000);
     expect(
       result.entries[0].contributions.filter((p: any) => p.game !== "line"),
     ).toEqual(before.contributions);
+  });
+  it("adds a capped seventh brain category while preserving all six legacy contributions", async () => {
+    const id = await addUser();
+    for (const [game, score] of [
+      ["naglaz", 500],
+      ["circle", 100],
+      ["colorfle", 500],
+      ["geo", 500],
+      ["pressure", 25000],
+      ["line", 500],
+    ] as const)
+      await run(id, game, score);
+    const before = (await board()).entries[0];
+    for (const game of ["flash", "rotate", "slide", "dispatch"] as const)
+      await run(id, game, 500);
+    const after = (await board()).entries[0];
+    expect(after.gamesPlayed).toBe(7);
+    expect(after.score).toBe(before.score + 1000);
+    expect(after.score).toBeLessThanOrEqual(7000);
+    expect(after.contributions.filter((c: any) => c.game !== "brain")).toEqual(
+      before.contributions,
+    );
+    for (const game of ["flash", "rotate", "slide", "dispatch"] as const)
+      await run(id, game, 25000);
+    expect((await board()).entries[0].score).toBe(after.score);
+    const brain = (await app.inject("/api/leaderboard?game=brain")).json();
+    expect(brain.entries[0].score).toBe(1000);
+    expect(
+      brain.entries[0].contributions.every((c: any) => c.points <= 250),
+    ).toBe(true);
+  });
+  it("floors only the final brain aggregate, preserving half points in game contributions", async () => {
+    const id = await addUser();
+    for (const game of ["flash", "rotate", "slide"] as const)
+      await run(id, game, 499);
+    await run(id, "dispatch", 500);
+    const brain = (await app.inject("/api/leaderboard?game=brain")).json()
+      .entries[0];
+    expect(brain.score).toBe(998);
+    expect(brain.contributions.map((c: any) => c.points)).toEqual([
+      249.5, 249.5, 249.5, 250,
+    ]);
+    expect((await board()).entries[0].contributions[0]).toMatchObject({
+      game: "brain",
+      points: 998,
+      score: 998,
+    });
   });
   it("keeps scores stable on replay, rewards improvements, and shares tied places", async () => {
     const a = await addUser("Первый"),

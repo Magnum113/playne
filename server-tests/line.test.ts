@@ -267,7 +267,7 @@ const db = process.env.TEST_DATABASE_URL;
     const daily = (await start(player.cookie)).json();
     await finish(player.cookie, daily);
     const overall = (await app.inject("/api/leaderboard?game=overall")).json();
-    expect(overall.version).toBe(2);
+    expect(overall.version).toBe(3);
     expect(overall.entries[0]).toMatchObject({ score: 1000, gamesPlayed: 1 });
     expect(overall.entries[0].contributions[0]).toMatchObject({
       game: "line",

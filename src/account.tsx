@@ -31,7 +31,13 @@ export type GameId =
   | "colorfle"
   | "geo"
   | "pressure"
-  | "line";
+  | "line"
+  | "flash"
+  | "rotate"
+  | "slide"
+  | "dispatch";
+const isBrain = (game: string) =>
+  ["flash", "rotate", "slide", "dispatch"].includes(game);
 export type GameMode = GeoMode | "practice";
 export const gameNames: Record<GameId, string> = {
   naglaz: "На глаз",
@@ -40,6 +46,10 @@ export const gameNames: Record<GameId, string> = {
   geo: "Где я?",
   pressure: "Жми",
   line: "Одной линией",
+  flash: "Вспышка",
+  rotate: "Поворот",
+  slide: "Передвинь",
+  dispatch: "Диспетчер",
 };
 export type User = {
   id: string;
@@ -100,7 +110,9 @@ const rankedQueue = createRankedQueue(api, {
 });
 export type GuestTrial<G extends GameId = GameId> = {
   id?: string;
-  mode?: G extends "line" ? GameMode : GeoMode;
+  mode?: G extends "line" | "flash" | "rotate" | "slide" | "dispatch"
+    ? GameMode
+    : GeoMode;
   completed: boolean;
   published?: boolean;
   score?: number | null;
@@ -235,10 +247,13 @@ export function useGuestTrial<G extends GameId = GameId>(game?: G) {
 export function guestLoginReturn(game: GameId, id?: string, mode?: GameMode) {
   const params = new URLSearchParams();
   if (id) params.set("saved", id);
-  if (mode && (game === "geo" || game === "colorfle" || game === "line"))
+  if (
+    mode &&
+    (game === "geo" || game === "colorfle" || game === "line" || isBrain(game))
+  )
     params.set("mode", mode);
   return (
-    `/${game === "line" ? "one-line" : game}/` +
+    `/${isBrain(game) ? "brain/" + game : game === "line" ? "one-line" : game}/` +
     (params.size ? `?${params}` : "")
   );
 }
@@ -280,7 +295,9 @@ export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
     <div className="guest-trial-prompt">
       <h2>Сыграем ещё?</h2>
       <p>
-        Войди через Яндекс, чтобы играть дальше и сохранить результат в рейтинг.
+        {isBrain(game) && trial?.mode === "practice"
+          ? "Войди через Яндекс, чтобы играть дальше и сохранить практику в личной истории."
+          : "Войди через Яндекс, чтобы играть дальше и сохранить результат в рейтинг."}
       </p>
       <YandexLogin
         disabled={loading}
@@ -357,7 +374,11 @@ export function useRankedRun<G extends GameId>(game: G) {
     data: T | null,
     generation: number,
   ): T | null {
-    if (game === "line" && data && current.current.generation === generation)
+    if (
+      (game === "line" || isBrain(game)) &&
+      data &&
+      current.current.generation === generation
+    )
       current.current.mode = data.mode ?? data.challenge.mode ?? "classic";
     const key = rankedQueue.add(data, game, current.current.mode);
     if (current.current.generation === generation) {
@@ -368,7 +389,10 @@ export function useRankedRun<G extends GameId>(game: G) {
     }
     return data;
   }
-  function begin(mode?: GameMode): Promise<ServerRun<G> | null> {
+  function begin(
+    mode?: GameMode,
+    difficulty = 1,
+  ): Promise<ServerRun<G> | null> {
     const generation = current.current.generation + 1;
     if (restoreTimer.current) clearTimeout(restoreTimer.current);
     restoreAction.current = null;
@@ -392,6 +416,7 @@ export function useRankedRun<G extends GameId>(game: G) {
         api<ServerRun<G>>("/games", "POST", {
           game,
           mode,
+          ...(isBrain(game) ? { difficulty } : {}),
           geoRulesVersion: game === "geo" ? GEO_SCORE_VERSION : undefined,
           pressureRulesVersion:
             game === "pressure" ? PRESSURE_RULES_VERSION : undefined,
@@ -442,7 +467,7 @@ export function useRankedRun<G extends GameId>(game: G) {
                 : "Не удалось восстановить партию",
           });
         if (
-          game === "line" &&
+          (game === "line" || isBrain(game)) &&
           error instanceof ApiError &&
           [403, 404, 410].includes(error.status)
         )
@@ -580,13 +605,36 @@ export function useRankedRun<G extends GameId>(game: G) {
   }
   return {
     state,
-    mode: (current.current.mode ?? "classic") as G extends "line"
+    mode: (current.current.mode ?? "classic") as G extends
+      | "line"
+      | "flash"
+      | "rotate"
+      | "slide"
+      | "dispatch"
       ? GameMode
       : GeoMode,
     begin,
     submit,
     resumeColor,
     resume,
+    brainStart: (index: number) => geoRequest("brain/start", { index }),
+    brainHint: (index: number, moves: unknown[], requestId: string) =>
+      geoRequest("brain/hint", { index, moves, requestId }),
+    brainAnswer: async (index: number, answer: unknown) => {
+      const active = current.current;
+      submit(index, answer);
+      const run = await active.run;
+      if (!active.key || !run)
+        throw new RankedSyncError("Нет соединения с сервером");
+      await rankedQueue.drain(active.key);
+      if (rankedQueue.get(active.key)?.tasks.length)
+        throw new RankedSyncError(
+          "Ответ сохранён в браузере и ещё отправляется",
+        );
+      const fresh = await api<ServerRun>(`/games/${run.id}`);
+      active.run = Promise.resolve(fresh);
+      return activate(fresh, active.generation);
+    },
     lineStart: (index: number) => geoRequest("line/start", { index }),
     lineHint: (index: number, path: number[], requestId: string) =>
       geoRequest("line/hint", { index, path, requestId }),
@@ -651,6 +699,13 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
   const { user, loading } = useAuth();
   const s = run.state;
   const ranking = `/leaderboard/?game=${game}&mode=${run.mode}`;
+  if (isBrain(game) && run.mode === "practice")
+    return (
+      <p className="save-result" role="status">
+        Результат практики сохранён в личной истории. В публичный рейтинг
+        попадает задача дня.
+      </p>
+    );
   function login() {
     if (!s.id) return;
     reachGoal(ACCOUNT_GOALS.loginStart, { source: "game_result", game });
