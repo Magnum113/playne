@@ -865,3 +865,9 @@
 .ds-save-tabs + .account-bests {
   margin-block-start: 16px;
 }
+
+.ds-top-five-demo {
+  width: 100%;
+  max-width: 304px;
+  margin-block: 16px;
+}

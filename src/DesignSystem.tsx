@@ -988,9 +988,12 @@ function Results() {
       >
         <p className="ds-note">
           Демонстрационные данные. Пять игр с равным весом, один лучший режим на
-          игру. Анимация появления и полос отключается при уменьшении движения.
+          игру. Вертикальный список: справа от игр на десктопе и над играми на
+          телефоне. Анимация появления отключается при уменьшении движения.
         </p>
-        <TopFiveCard data={top} />
+        <div className="ds-top-five-demo">
+          <TopFiveCard data={top} />
+        </div>
         <OverallContributions entry={example} />
         <OverallRules />
       </Sample>

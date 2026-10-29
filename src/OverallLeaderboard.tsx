@@ -102,57 +102,44 @@ export function TopFiveCard({
           <a href="/leaderboard/?game=overall">Открыть рейтинг →</a>
         </p>
       ) : (
-        <div
-          className="top-five-scroll"
-          tabIndex={0}
-          role="region"
-          aria-label="Пять лидеров Playne"
-        >
-          <ol className="top-five-list">
-            {Array.from({ length: 5 }, (_, i) => {
-              const entry = data?.entries[i];
-              return (
-                <li
-                  key={i}
-                  className={`${entry?.isMe ? "is-me" : ""} ${loading ? "is-loading" : ""}`}
-                  style={
-                    {
-                      "--leader-delay": `${i * 50}ms`,
-                      "--leader-fill": `${((entry?.score ?? 0) / OVERALL_MAX_POINTS) * 100}%`,
-                    } as CSSProperties
+        <ol className="top-five-list" aria-label="Пять лидеров Playne">
+          {Array.from({ length: 5 }, (_, i) => {
+            const entry = data?.entries[i];
+            return (
+              <li
+                key={i}
+                className={`${entry?.isMe ? "is-me" : ""} ${loading ? "is-loading" : ""}`}
+                style={
+                  {
+                    "--leader-delay": `${i * 50}ms`,
+                  } as CSSProperties
+                }
+              >
+                <a
+                  href="/leaderboard/?game=overall"
+                  aria-label={
+                    entry
+                      ? `${entry.place}. ${entry.nickname}. ${overallNumber(entry.score)} баллов${entry.isMe ? ". Это ты" : ""}`
+                      : loading
+                        ? "Загружаем рейтинг"
+                        : "Свободное место в рейтинге"
                   }
                 >
-                  <a
-                    href="/leaderboard/?game=overall"
-                    aria-label={
-                      entry
-                        ? `${entry.place}. ${entry.nickname}. ${overallNumber(entry.score)} баллов${entry.isMe ? ". Это ты" : ""}`
-                        : loading
-                          ? "Загружаем рейтинг"
-                          : "Свободное место в рейтинге"
-                    }
-                  >
-                    <span className="top-five-place" aria-hidden="true">
-                      {entry?.place ?? i + 1}
-                    </span>
-                    <span className="top-five-player">
-                      <span className="top-five-name" title={entry?.nickname}>
-                        {entry?.nickname ??
-                          (loading ? "Загружаем…" : "Место свободно")}
-                      </span>
-                      <strong>
-                        {entry ? overallNumber(entry.score) : "—"}
-                      </strong>
-                    </span>
-                    <span className="top-five-bar" aria-hidden="true">
-                      <span />
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
+                  <span className="top-five-place" aria-hidden="true">
+                    {entry?.place ?? i + 1}
+                  </span>
+                  <span className="top-five-name" title={entry?.nickname}>
+                    {entry?.nickname ??
+                      (loading ? "Загружаем…" : "Место свободно")}
+                  </span>
+                  <strong className="top-five-score">
+                    {entry ? overallNumber(entry.score) : "—"}
+                  </strong>
+                </a>
+              </li>
+            );
+          })}
+        </ol>
       )}
     </section>
   );

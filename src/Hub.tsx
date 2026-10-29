@@ -188,180 +188,184 @@ export default function Hub() {
               <br /> Первая партия в каждой игре — без входа.
             </p>
           </div>
-          <HubTopFive />
-          <div className="game-cards">
-            <a
-              className="game-card game-card-live"
-              href="/naglaz/"
-              aria-label="Играть в На глаз"
-            >
-              <div className="card-topline">
-                <span className="card-category">ГЛАЗОМЕР</span>
-              </div>
-              <SizePreview />
-              <div className="card-copy">
-                <h2>
-                  На глаз<span className="brand-dot">.</span>
-                </h2>
-                <p>
-                  Насколько велика ракета рядом с башней?
-                  <br /> Подбери размер и проверь себя.
-                </p>
-              </div>
-              <div className="card-bottom">
-                <span>
-                  {best > 0
-                    ? `Твой рекорд: ${best} / 500`
-                    : "5 раундов · 500 очков"}
-                </span>
-                <span className="card-play">
-                  Играть <Arrow />
-                </span>
-              </div>
-            </a>
-            <a
-              className="game-card game-card-live"
-              href="/circle/"
-              aria-label="Играть в Круг"
-            >
-              <div className="card-topline">
-                <span className="card-category">ТОЧНОСТЬ</span>
-              </div>
-              <CirclePreview />
-              <div className="card-copy">
-                <h2>
-                  Круг<span className="brand-dot">.</span>
-                </h2>
-                <p>
-                  Нарисуй идеальный круг одним движением.
-                  <br /> Кажется, что это просто?
-                </p>
-              </div>
-              <div className="card-bottom">
-                <span>
-                  {circleBest > 0
-                    ? `Твой рекорд: ${circlePercent(circleBest)}`
-                    : "Одна линия · 100% точности"}
-                </span>
-                <span className="card-play">
-                  Играть <Arrow />
-                </span>
-              </div>
-            </a>
-            <a
-              className="game-card game-card-live"
-              href="/colorfle/"
-              aria-label="Играть в Оттенок"
-            >
-              <div className="card-topline">
-                <span className="card-category">ЧУВСТВО ЦВЕТА</span>
-              </div>
-              <ColorPreview />
-              <div className="card-copy">
-                <h2>
-                  Оттенок<span className="brand-dot">.</span>
-                </h2>
-                <p>
-                  Сможешь попасть в этот цвет?
-                  <br /> Подбери оттенок на палитре.
-                </p>
-              </div>
-              <div className="card-bottom">
-                <span>5 цветов · 500 очков</span>
-                <span className="card-play">
-                  Играть <Arrow />
-                </span>
-              </div>
-            </a>
-            <a
-              className="game-card game-card-live"
-              href="/geo/"
-              aria-label="Играть в Где я?"
-            >
-              <div className="card-topline">
-                <span className="card-category">ГЕОГРАФИЯ</span>
-              </div>
-              <GeoPreview />
-              <div className="card-copy">
-                <h2>
-                  Где я<span className="brand-dot">?</span>
-                </h2>
-                <p>
-                  Бесплатный аналог GeoGuessr.
-                  <br /> Найди его на карте мира.
-                </p>
-              </div>
-              <div className="card-bottom">
-                <span>
-                  {geoBest > 0
-                    ? `Твой рекорд: ${geoBest.toLocaleString("ru-RU")} / 500`
-                    : "5 мест · 500 очков"}
-                </span>
-                <span className="card-play">
-                  Играть <Arrow />
-                </span>
-              </div>
-            </a>
-            <a
-              className="game-card game-card-live landmark-card"
-              href="/geo/?mode=landmarks"
-              aria-label="Играть в Достопримечательности"
-            >
-              <div className="card-topline">
-                <span className="card-category">ЗНАМЕНИТЫЕ МЕСТА</span>
-              </div>
-              <LandmarkPreview />
-              <div className="card-copy">
-                <h2>
-                  Достопримечательности<span className="brand-dot">.</span>
-                </h2>
-                <p>
-                  Узнай храмы, памятники и чудеса природы.
-                  <br />
-                  Найди их на карте мира.
-                </p>
-              </div>
-              <div className="card-bottom">
-                <span>
-                  {landmarkBest > 0
-                    ? `Твой рекорд: ${landmarkBest.toLocaleString("ru-RU")} / 500`
-                    : "5 мест · 500 очков"}
-                </span>
-                <span className="card-play">
-                  Играть <Arrow />
-                </span>
-              </div>
-            </a>
-            <a
-              className="game-card game-card-live"
-              href="/pressure/"
-              aria-label="Играть в Жми — бесплатный аналог Press Under Pressure"
-            >
-              <div className="card-topline">
-                <span className="card-category">ВНИМАТЕЛЬНОСТЬ И РЕАКЦИЯ</span>
-              </div>
-              <PressurePreview />
-              <div className="card-copy">
-                <h2>
-                  Жми<span className="brand-dot">.</span>
-                </h2>
-                <p>
-                  По мотивам Press Under Pressure, на русском.
-                  <br />
-                  Одна кнопка, память, логика и реакция.
-                </p>
-              </div>
-              <div className="card-bottom">
-                <span>
-                  {pressureBest > 0
-                    ? `Твой рекорд: ${formatPressScore(pressureBest)}`
-                    : "До первой ошибки · без ограничения уровней"}
-                </span>
-                <span className="card-play">
-                  Играть <Arrow />
-                </span>
-              </div>
-            </a>
+          <div className="hub-catalog">
+            <HubTopFive />
+            <div className="game-cards">
+              <a
+                className="game-card game-card-live"
+                href="/naglaz/"
+                aria-label="Играть в На глаз"
+              >
+                <div className="card-topline">
+                  <span className="card-category">ГЛАЗОМЕР</span>
+                </div>
+                <SizePreview />
+                <div className="card-copy">
+                  <h2>
+                    На глаз<span className="brand-dot">.</span>
+                  </h2>
+                  <p>
+                    Насколько велика ракета рядом с башней?
+                    <br /> Подбери размер и проверь себя.
+                  </p>
+                </div>
+                <div className="card-bottom">
+                  <span>
+                    {best > 0
+                      ? `Твой рекорд: ${best} / 500`
+                      : "5 раундов · 500 очков"}
+                  </span>
+                  <span className="card-play">
+                    Играть <Arrow />
+                  </span>
+                </div>
+              </a>
+              <a
+                className="game-card game-card-live"
+                href="/circle/"
+                aria-label="Играть в Круг"
+              >
+                <div className="card-topline">
+                  <span className="card-category">ТОЧНОСТЬ</span>
+                </div>
+                <CirclePreview />
+                <div className="card-copy">
+                  <h2>
+                    Круг<span className="brand-dot">.</span>
+                  </h2>
+                  <p>
+                    Нарисуй идеальный круг одним движением.
+                    <br /> Кажется, что это просто?
+                  </p>
+                </div>
+                <div className="card-bottom">
+                  <span>
+                    {circleBest > 0
+                      ? `Твой рекорд: ${circlePercent(circleBest)}`
+                      : "Одна линия · 100% точности"}
+                  </span>
+                  <span className="card-play">
+                    Играть <Arrow />
+                  </span>
+                </div>
+              </a>
+              <a
+                className="game-card game-card-live"
+                href="/colorfle/"
+                aria-label="Играть в Оттенок"
+              >
+                <div className="card-topline">
+                  <span className="card-category">ЧУВСТВО ЦВЕТА</span>
+                </div>
+                <ColorPreview />
+                <div className="card-copy">
+                  <h2>
+                    Оттенок<span className="brand-dot">.</span>
+                  </h2>
+                  <p>
+                    Сможешь попасть в этот цвет?
+                    <br /> Подбери оттенок на палитре.
+                  </p>
+                </div>
+                <div className="card-bottom">
+                  <span>5 цветов · 500 очков</span>
+                  <span className="card-play">
+                    Играть <Arrow />
+                  </span>
+                </div>
+              </a>
+              <a
+                className="game-card game-card-live"
+                href="/geo/"
+                aria-label="Играть в Где я?"
+              >
+                <div className="card-topline">
+                  <span className="card-category">ГЕОГРАФИЯ</span>
+                </div>
+                <GeoPreview />
+                <div className="card-copy">
+                  <h2>
+                    Где я<span className="brand-dot">?</span>
+                  </h2>
+                  <p>
+                    Бесплатный аналог GeoGuessr.
+                    <br /> Найди его на карте мира.
+                  </p>
+                </div>
+                <div className="card-bottom">
+                  <span>
+                    {geoBest > 0
+                      ? `Твой рекорд: ${geoBest.toLocaleString("ru-RU")} / 500`
+                      : "5 мест · 500 очков"}
+                  </span>
+                  <span className="card-play">
+                    Играть <Arrow />
+                  </span>
+                </div>
+              </a>
+              <a
+                className="game-card game-card-live landmark-card"
+                href="/geo/?mode=landmarks"
+                aria-label="Играть в Достопримечательности"
+              >
+                <div className="card-topline">
+                  <span className="card-category">ЗНАМЕНИТЫЕ МЕСТА</span>
+                </div>
+                <LandmarkPreview />
+                <div className="card-copy">
+                  <h2>
+                    Достопримечательности<span className="brand-dot">.</span>
+                  </h2>
+                  <p>
+                    Узнай храмы, памятники и чудеса природы.
+                    <br />
+                    Найди их на карте мира.
+                  </p>
+                </div>
+                <div className="card-bottom">
+                  <span>
+                    {landmarkBest > 0
+                      ? `Твой рекорд: ${landmarkBest.toLocaleString("ru-RU")} / 500`
+                      : "5 мест · 500 очков"}
+                  </span>
+                  <span className="card-play">
+                    Играть <Arrow />
+                  </span>
+                </div>
+              </a>
+              <a
+                className="game-card game-card-live"
+                href="/pressure/"
+                aria-label="Играть в Жми — бесплатный аналог Press Under Pressure"
+              >
+                <div className="card-topline">
+                  <span className="card-category">
+                    ВНИМАТЕЛЬНОСТЬ И РЕАКЦИЯ
+                  </span>
+                </div>
+                <PressurePreview />
+                <div className="card-copy">
+                  <h2>
+                    Жми<span className="brand-dot">.</span>
+                  </h2>
+                  <p>
+                    По мотивам Press Under Pressure, на русском.
+                    <br />
+                    Одна кнопка, память, логика и реакция.
+                  </p>
+                </div>
+                <div className="card-bottom">
+                  <span>
+                    {pressureBest > 0
+                      ? `Твой рекорд: ${formatPressScore(pressureBest)}`
+                      : "До первой ошибки · без ограничения уровней"}
+                  </span>
+                  <span className="card-play">
+                    Играть <Arrow />
+                  </span>
+                </div>
+              </a>
+            </div>
           </div>
         </section>
         <section className="hub-about" id="about" aria-labelledby="about-title">
