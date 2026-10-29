@@ -862,3 +862,6 @@
 .ds-save-tabs {
   flex-wrap: wrap;
 }
+.ds-save-tabs + .account-bests {
+  margin-block-start: 16px;
+}

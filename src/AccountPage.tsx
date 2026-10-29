@@ -1,5 +1,6 @@
 import { YandexLogin, EmailAction, EmailPreferences } from "./EmailPreferences";
-import { GEO_MODES, geoModeName, type GeoMode } from "./geo";
+import { geoModeName, type GeoMode } from "./geo";
+import { AccountBests } from "./AccountBests";
 import { shadeModeName } from "./colorfle";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -228,43 +229,7 @@ export default function AccountPage() {
             )}
             <section>
               <h2>Лучшие результаты в рейтинге</h2>
-              <div className="account-bests">
-                {Object.entries(gameNames)
-                  .flatMap(([id, name]) =>
-                    id === "geo"
-                      ? GEO_MODES.map((mode) => [
-                          id,
-                          `${name} · ${geoModeName(mode)}`,
-                          mode,
-                        ])
-                      : id === "colorfle"
-                        ? (["classic", "timed"] as const).map((mode) => [
-                            id,
-                            `${name} · ${shadeModeName(mode)}`,
-                            mode,
-                          ])
-                        : [[id, name, "classic"]],
-                  )
-                  .map(([id, name, mode]) => {
-                    const best = data?.best.find(
-                      (b: any) => b.game === id && b.mode === mode,
-                    );
-                    return (
-                      <a
-                        className="community-panel"
-                        href={`/leaderboard/?game=${id}&mode=${mode}`}
-                        key={id + mode}
-                      >
-                        <span>{name}</span>
-                        <strong>
-                          {best
-                            ? resultText(id as GameId, best.score)
-                            : "Пока нет"}
-                        </strong>
-                      </a>
-                    );
-                  })}
-              </div>
+              <AccountBests best={data?.best} />
             </section>
             <section className="community-panel">
               <h2>Последние сохранённые партии</h2>

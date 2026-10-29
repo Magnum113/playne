@@ -306,9 +306,6 @@ dialog,
 .geo-mode-choice strong {
   line-height: 1.4;
 }
-.account-bests {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-}
 .account-history li,
 .my-rank {
   flex-wrap: wrap;

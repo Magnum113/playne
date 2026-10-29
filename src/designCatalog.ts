@@ -207,7 +207,11 @@ export const componentInventory = [
     "account.tsx · SaveResult",
     "results",
   ],
-  ["Профиль: лучшие результаты и история партий", "AccountPage.tsx", "results"],
+  [
+    "Профиль: результаты по играм, режимам и история партий",
+    "AccountBests.tsx · AccountPage.tsx",
+    "results",
+  ],
   [
     "Правила, подтверждение и закрытие по Escape",
     "style.css · colorfle.css · geo.css",

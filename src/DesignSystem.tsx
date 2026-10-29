@@ -1,4 +1,5 @@
 import { EmailConsent } from "./EmailPreferences";
+import { AccountBests } from "./AccountBests";
 import { GuestTrialPrompt } from "./account";
 import { GameIntro, GameRecord, GameStartAction } from "./GameIntro";
 import {
@@ -917,6 +918,7 @@ function SaveStates() {
   );
 }
 function Results() {
+  const [profileState, setProfileState] = useState("scores");
   return (
     <div className="ds-grid">
       <Sample title="Разные единицы результата" source="resultText">
@@ -994,19 +996,62 @@ function Results() {
           <strong>438 / 500</strong>
         </div>
       </Sample>
-      <Sample title="Личный кабинет" source=".account-history" wide>
-        <div className="account-bests">
+      <Sample
+        title="Лучшие результаты по играм"
+        source="AccountBests.tsx · community.css"
+        wide
+      >
+        <p className="ds-note">
+          Название игры — один раз, режимы — внутри её блока. Каждая строка
+          открывает рейтинг своего режима за всё время. Нулевой результат и
+          отсутствие партии — разные состояния.
+        </p>
+        <div
+          className="rank-period ds-save-tabs"
+          role="group"
+          aria-label="Состояние лучших результатов"
+        >
           {[
-            ["Жми", "31 очко"],
-            ["Круг", "98,6%"],
-          ].map(([name, score]) => (
-            <div className="community-panel" key={name}>
-              <span>{name}</span>
-              <strong>{score}</strong>
-              <a href="/account/">Личный кабинет →</a>
-            </div>
+            ["scores", "С результатами"],
+            ["empty", "Без результатов"],
+            ["maximum", "Большой рекорд"],
+            ["loading", "Загрузка"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              aria-pressed={profileState === id}
+              onClick={() => setProfileState(id)}
+            >
+              {label}
+            </button>
           ))}
         </div>
+        <AccountBests
+          best={
+            profileState === "loading"
+              ? undefined
+              : profileState === "empty"
+                ? []
+                : [
+                    { game: "naglaz", mode: "classic", score: 322 },
+                    { game: "circle", mode: "classic", score: 88.1 },
+                    {
+                      game: "pressure",
+                      mode: "classic",
+                      score: profileState === "maximum" ? 25000 : 42,
+                    },
+                    { game: "colorfle", mode: "classic", score: 131 },
+                    { game: "colorfle", mode: "timed", score: 421 },
+                    { game: "geo", mode: "classic", score: 60 },
+                    { game: "geo", mode: "timed", score: 0 },
+                    { game: "geo", mode: "moving", score: 343 },
+                    { game: "geo", mode: "moving-timed", score: 48 },
+                    { game: "geo", mode: "landmarks", score: 317 },
+                  ]
+          }
+        />
+      </Sample>
+      <Sample title="История партий" source=".account-history" wide>
         <ul className="account-history">
           <li>
             <div>
