@@ -26,6 +26,95 @@ afterEach(() => {
 });
 
 describe("brain board controls", () => {
+  function SlideTrace({ puzzle }: { puzzle: SlideRound }) {
+    const [moves, setMoves] = useState<SlideMove[]>([]);
+    return (
+      <>
+        <SlideBoard round={puzzle} moves={moves} onChange={setMoves} />
+        <output className="test-slide-trace">{JSON.stringify(moves)}</output>
+        <button
+          className="test-slide-undo"
+          onClick={() => setMoves((current) => current.slice(0, -1))}
+        >
+          Отменить ход
+        </button>
+      </>
+    );
+  }
+  const openParking: SlideRound = {
+    kind: "slide",
+    id: "fair-input",
+    stage: 0,
+    size: 6,
+    parMoves: 1,
+    cars: [
+      { id: "R", x: 0, y: 2, length: 2, axis: "x" },
+      { id: "A", x: 5, y: 4, length: 2, axis: "y" },
+    ],
+  };
+  const trace = () =>
+    JSON.parse(box.querySelector(".test-slide-trace")!.textContent!);
+  async function arrow(carId: string, key: string) {
+    const car = box.querySelector<HTMLButtonElement>(
+      `[aria-label^="Машина ${carId}"]`,
+    )!;
+    await act(async () => {
+      car.focus();
+      car.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    });
+  }
+
+  it("counts three arrow presses as one car move and merges reversals to zero", async () => {
+    await act(async () => root.render(<SlideTrace puzzle={openParking} />));
+    for (let i = 0; i < 3; i++) await arrow("R", "ArrowRight");
+    expect(trace()).toEqual([{ carId: "R", delta: 3 }]);
+    await arrow("R", "ArrowLeft");
+    expect(trace()).toEqual([{ carId: "R", delta: 2 }]);
+    await arrow("R", "ArrowLeft");
+    await arrow("R", "ArrowLeft");
+    expect(trace()).toEqual([]);
+    for (let i = 0; i < 3; i++) await arrow("R", "ArrowRight");
+    await act(async () =>
+      box.querySelector<HTMLButtonElement>(".test-slide-undo")!.click(),
+    );
+    expect(trace()).toEqual([]); // Undo removes the whole combined move.
+  });
+
+  it("keeps separate moves when another car moved between them", async () => {
+    await act(async () => root.render(<SlideTrace puzzle={openParking} />));
+    await arrow("R", "ArrowRight");
+    await arrow("A", "ArrowUp");
+    await arrow("R", "ArrowRight");
+    expect(trace()).toEqual([
+      { carId: "R", delta: 1 },
+      { carId: "A", delta: -1 },
+      { carId: "R", delta: 1 },
+    ]);
+    await arrow("R", "ArrowLeft");
+    expect(trace()).toEqual([
+      { carId: "R", delta: 1 },
+      { carId: "A", delta: -1 },
+    ]);
+  });
+
+  it("validates a colliding step before changing a combined move", async () => {
+    const puzzle: SlideRound = {
+      ...openParking,
+      id: "blocked-input",
+      cars: [
+        openParking.cars[0],
+        { id: "A", x: 3, y: 1, length: 2, axis: "y" },
+      ],
+    };
+    await act(async () => root.render(<SlideTrace puzzle={puzzle} />));
+    await arrow("R", "ArrowRight");
+    expect(trace()).toEqual([{ carId: "R", delta: 1 }]);
+    await arrow("R", "ArrowRight");
+    expect(trace()).toEqual([{ carId: "R", delta: 1 }]);
+    await arrow("R", "ArrowLeft");
+    expect(trace()).toEqual([]);
+  });
+
   it("keeps a memory answer free of hidden target clues and caps selections", async () => {
     const change = vi.fn();
     await act(async () =>

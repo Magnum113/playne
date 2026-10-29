@@ -272,9 +272,19 @@ export function SlideBoard({
   } | null>(null);
   function move(carId: string, delta: number) {
     if (disabled || !delta) return;
-    const next = [...moves, { carId, delta }];
-    const result = replaySlideMoves(round, next);
+    // Check the actual step from the current position before merging its trace.
+    const candidate = [...moves, { carId, delta }];
+    const result = replaySlideMoves(round, candidate);
     if (result.valid) {
+      const previous = moves.at(-1);
+      const combined = (previous?.delta ?? 0) + delta;
+      const next =
+        previous?.carId === carId
+          ? combined === 0
+            ? moves.slice(0, -1)
+            : [...moves.slice(0, -1), { carId, delta: combined }]
+          : candidate;
+      if (!replaySlideMoves(round, next).valid) return;
       onChange(next);
       onMessage?.(
         result.solved
