@@ -1,5 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { api, useAuth, resultText } from "./account";
+import { geoModeName, validGeoMode } from "./geo";
+import { shadeModeName } from "./colorfle";
 import {
   OVERALL_GAMES,
   OVERALL_MAX_POINTS,
@@ -10,36 +12,119 @@ import {
 
 export function OverallContributions({ entry }: { entry: OverallEntry }) {
   return (
-    <details className="overall-breakdown">
-      <summary>{entry.gamesPlayed} из 5 игр</summary>
-      <div className="overall-breakdown-body">
-        <p>Вклад каждой игры · до 1000 баллов</p>
-        <ul>
-          {OVERALL_GAMES.map((game) => {
-            const part = entry.contributions.find((p) => p.game === game.id);
-            return (
-              <li key={game.id}>
-                <a
-                  href={
-                    part
-                      ? `/leaderboard/?game=${game.id}&mode=${part.mode}&period=all`
-                      : `/${game.id}/`
-                  }
-                >
+    <div className="overall-breakdown-body">
+      <p className="overall-breakdown-caption">
+        <strong>Баллы по играм</strong>
+        <span>До 1000 за каждую</span>
+      </p>
+      <ul className="overall-contributions">
+        {OVERALL_GAMES.map((game) => {
+          const part = entry.contributions.find((p) => p.game === game.id);
+          const mode =
+            part?.game === "geo" && validGeoMode(part.mode)
+              ? geoModeName(part.mode)
+              : part?.game === "colorfle"
+                ? shadeModeName(part.mode === "timed" ? "timed" : "classic")
+                : "";
+          return (
+            <li key={game.id}>
+              <a
+                className={part ? "" : "is-unplayed"}
+                href={
+                  part
+                    ? `/leaderboard/?game=${game.id}&mode=${part.mode}&period=all`
+                    : `/${game.id}/`
+                }
+                aria-label={`${game.name}. ${overallNumber(part?.points ?? 0)} из 1000 баллов. ${part ? `Рекорд: ${resultText(game.id, part.score)}. ${mode ? mode + ". " : ""}Открыть рейтинг` : "Не сыграно. Играть"}`}
+              >
+                <span className="overall-contribution-game">
                   {game.name}
-                </a>
-                <span>
-                  <small>
-                    {part ? resultText(game.id, part.score) : "Не сыграно"}
-                  </small>
-                  <strong>{overallNumber(part?.points ?? 0)}</strong>
+                  <span aria-hidden="true">↗</span>
                 </span>
-              </li>
-            );
-          })}
-        </ul>
+                <span className="overall-contribution-points">
+                  <strong>{overallNumber(part?.points ?? 0)}</strong>
+                  <small>/ 1000</small>
+                </span>
+                <span className="overall-contribution-record">
+                  {part
+                    ? `Рекорд: ${resultText(game.id, part.score)}`
+                    : "Не сыграно"}
+                </span>
+                {mode && (
+                  <span className="overall-contribution-mode">
+                    {mode.replace(
+                      "Достопримечательности",
+                      "Достопримеча\u00adтельности",
+                    )}
+                  </span>
+                )}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/** One semantic list and native disclosure work at every screen size. */
+export function OverallStandings({ entries }: { entries: OverallEntry[] }) {
+  return (
+    <div className="overall-standings">
+      <div className="overall-standings-heading" aria-hidden="true">
+        <span>Место</span>
+        <span>Игрок</span>
+        <span>Баллы</span>
+        <span />
       </div>
-    </details>
+      <ol className="overall-standings-list" aria-label="Общий рейтинг игроков">
+        {entries.map((entry, index) => (
+          <li key={index}>
+            <details
+              className={`overall-standing${entry.isMe ? " is-me" : ""}`}
+            >
+              <summary
+                aria-label={`Место ${entry.place}. ${entry.nickname}. ${overallNumber(entry.score)} баллов. ${entry.gamesPlayed} из 5 игр.${entry.isMe ? " Это ты." : ""} Результаты по играм`}
+              >
+                <span
+                  className={`overall-standing-place${entry.place <= 3 ? " is-top" : ""}`}
+                  aria-hidden="true"
+                >
+                  {entry.place}
+                </span>
+                <span className="overall-standing-player">
+                  <strong>
+                    {entry.nickname}
+                    {entry.isMe && <span className="overall-you">Ты</span>}
+                  </strong>
+                  <span>{entry.gamesPlayed} из 5 игр</span>
+                </span>
+                <strong className="overall-standing-score">
+                  {overallNumber(entry.score)}
+                </strong>
+                <svg
+                  className="overall-standing-chevron"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="m6 8 4 4 4-4"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </summary>
+              <OverallContributions entry={entry} />
+            </details>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 

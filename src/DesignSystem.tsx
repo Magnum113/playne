@@ -2,7 +2,7 @@ import { EmailConsent } from "./EmailPreferences";
 import { AccountBests } from "./AccountBests";
 import {
   TopFiveCard,
-  OverallContributions,
+  OverallStandings,
   OverallRules,
 } from "./OverallLeaderboard";
 import { type OverallBoard, type OverallEntry } from "./overall";
@@ -958,7 +958,7 @@ function Results() {
     mine: example,
     entries: [
       "Любопытный",
-      "Исследователь",
+      "Исследователь далёких городов и стран",
       "Твой ник",
       "Следопыт",
       "Игрок",
@@ -994,7 +994,11 @@ function Results() {
         <div className="ds-top-five-demo">
           <TopFiveCard data={top} />
         </div>
-        <OverallContributions entry={example} />
+        <p className="ds-note">
+          Нажми на игрока, чтобы раскрыть вклад каждой игры. Вся строка доступна
+          с клавиатуры.
+        </p>
+        <OverallStandings entries={top.entries.slice(0, 3)} />
         <OverallRules />
       </Sample>
       <Sample title="Разные единицы результата" source="resultText">

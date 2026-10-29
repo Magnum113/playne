@@ -166,72 +166,309 @@
   color: var(--muted);
   font-size: 14px;
 }
-.overall-table td {
-  vertical-align: top;
+.overall-ranking-panel {
+  padding: 16px;
+  scroll-margin-top: 24px;
 }
-.overall-breakdown {
-  margin-top: 8px;
+.overall-standings {
+  min-width: 0;
+  container: overall-standings / inline-size;
+}
+.overall-standings-heading,
+.overall-standing > summary {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 100px 20px;
+  align-items: center;
+  gap: 16px;
+  padding-inline: 16px;
+}
+.overall-standings-heading {
+  padding-block: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.overall-standings-heading > :nth-child(3) {
+  text-align: right;
+}
+.overall-standings-heading > :first-child {
+  text-align: center;
+}
+.overall-standings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.overall-standings-list > li + li {
+  border-top: 1px solid var(--line);
+}
+.overall-standing {
+  padding-block: 4px;
+}
+.overall-standing > summary {
+  min-height: 80px;
+  padding-block: 14px;
+  border-radius: 12px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--text);
+  transition: background-color var(--motion-fast);
+}
+.overall-standing > summary::-webkit-details-marker {
+  display: none;
+}
+.overall-standing > summary::marker {
+  content: "";
+}
+.overall-standing > summary:hover,
+.overall-standing[open] > summary {
+  background: var(--hover);
+}
+.overall-standing.is-me > summary {
+  background: var(--mint-tint);
+}
+.overall-standing > summary:focus-visible,
+.overall-contributions a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+.overall-standing-place {
+  display: grid;
+  place-items: center;
+  min-height: 36px;
+  color: var(--muted);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.overall-standing-place.is-top {
+  color: var(--purple);
+  font-weight: 650;
+}
+.overall-standing-player {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+.overall-standing-player > strong {
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.overall-standing-player > span {
   font-size: 12px;
   color: var(--muted);
 }
-.overall-breakdown > summary {
-  cursor: pointer;
-  width: fit-content;
-  min-height: 32px;
-  padding: 6px 0;
-}
-.overall-breakdown > summary:hover {
+.overall-you {
+  display: inline-block;
+  margin-inline-start: 8px;
+  font-size: 11px;
   color: var(--mint);
+  font-weight: 550;
+}
+.overall-standing-score {
+  text-align: right;
+  color: var(--mint);
+  font-size: 23px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.overall-standing-chevron {
+  color: var(--muted);
+  transition: transform var(--motion-fast);
+}
+.overall-standing[open] .overall-standing-chevron {
+  transform: rotate(180deg);
 }
 .overall-breakdown-body {
-  max-width: 440px;
-  margin: 10px 0;
-  padding: 14px;
-  border-radius: 12px;
+  margin: 8px 0 12px;
+  padding: 20px;
+  border-radius: 16px;
   background: var(--bg);
   color: var(--text);
 }
-.overall-breakdown-body > p {
-  margin: 0 0 8px;
+.overall-breakdown-caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0 0 16px;
   font-size: 12px;
+  line-height: 1.5;
   color: var(--muted);
 }
-.overall-breakdown ul {
+.overall-breakdown-caption strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.overall-contributions {
   list-style: none;
   padding: 0;
   margin: 0;
-}
-.overall-breakdown li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
-  padding: 8px 0;
 }
-.overall-breakdown li a {
+.overall-contributions > li {
+  min-width: 0;
+  display: flex;
+}
+.overall-contributions a {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-areas: "game" "points" "record" "mode";
+  grid-template-rows: auto auto auto 1fr;
+  gap: 6px;
+  align-content: start;
+  padding: 14px;
+  background: var(--panel);
+  border-radius: 12px;
   color: var(--text);
   text-decoration: none;
-  min-height: 32px;
+  transition: background-color var(--motion-fast);
+}
+.overall-contributions a:hover {
+  background: var(--hover);
+}
+.overall-contribution-game {
+  grid-area: game;
   display: flex;
-  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 600;
 }
-.overall-breakdown li a:hover {
-  color: var(--mint);
-  text-decoration: underline;
+.overall-contribution-game > span {
+  color: var(--muted);
+  font-weight: 400;
 }
-.overall-breakdown li > span {
-  text-align: right;
-  display: grid;
+.overall-contribution-points {
+  grid-area: points;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
   gap: 4px;
+  padding-block: 6px;
+  font-variant-numeric: tabular-nums;
 }
-.overall-breakdown small {
+.overall-contribution-points strong {
+  color: var(--mint);
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1.2;
+}
+.overall-contribution-points small {
   color: var(--muted);
   font-size: 11px;
-  white-space: normal;
+  white-space: nowrap;
 }
-.overall-breakdown strong {
-  font-variant-numeric: tabular-nums;
-  color: var(--mint);
+.overall-contribution-record {
+  grid-area: record;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.overall-contribution-mode {
+  grid-area: mode;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.is-unplayed .overall-contribution-record,
+.is-unplayed .overall-contribution-points strong {
+  color: var(--muted);
+}
+.overall-ranking-panel .my-rank {
+  background: var(--mint-tint);
+}
+@container overall-standings (max-width: 740px) {
+  .overall-contributions {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .overall-contributions a {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "game points" "record points" "mode points";
+    grid-template-rows: auto auto;
+    column-gap: 16px;
+    row-gap: 3px;
+    padding: 12px 14px;
+  }
+  .overall-contribution-game {
+    justify-content: flex-start;
+  }
+  .overall-contribution-points {
+    align-self: center;
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 3px;
+    padding: 0;
+  }
+  .overall-contribution-points strong {
+    font-size: 22px;
+  }
+}
+@container overall-standings (max-width: 520px) {
+  .overall-standings-heading,
+  .overall-standing > summary {
+    grid-template-columns: 24px minmax(0, 1fr) 68px 16px;
+    gap: 8px;
+    padding-inline: 6px;
+  }
+  .overall-standing > summary {
+    grid-template-areas:
+      "place name name chevron"
+      ". meta score score";
+    row-gap: 6px;
+  }
+  .overall-standing-place {
+    grid-area: place;
+    min-height: 0;
+    align-self: start;
+  }
+  .overall-standing-player {
+    display: contents;
+  }
+  .overall-standing-player > strong {
+    grid-area: name;
+  }
+  .overall-standing-player > span {
+    grid-area: meta;
+  }
+  .overall-standing-score {
+    grid-area: score;
+  }
+  .overall-standing-chevron {
+    grid-area: chevron;
+    align-self: start;
+  }
+  .overall-standings-heading > :first-child {
+    font-size: 0;
+  }
+  .overall-standings-heading > :nth-child(3) {
+    grid-column: 3 / -1;
+  }
+  .overall-standings-heading > :last-child {
+    display: none;
+  }
+  .overall-standing-player > strong {
+    font-size: 14px;
+  }
+  .overall-standing-score {
+    font-size: 20px;
+  }
+  .overall-standing-chevron {
+    width: 16px;
+    height: 16px;
+  }
+  .overall-breakdown-body {
+    padding: 12px;
+  }
 }
 .overall-rules {
   margin: 20px 0;
@@ -267,7 +504,7 @@
   .hub-catalog {
     gap: 16px;
   }
-  .overall-breakdown-body {
+  .overall-ranking-panel {
     padding: 10px;
   }
 }

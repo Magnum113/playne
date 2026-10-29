@@ -29,6 +29,163 @@ const board: OverallBoard = {
 };
 beforeEach(() => window.history.replaceState(null, "", "/leaderboard/"));
 describe("Overall leaderboard UI", () => {
+  it("resets expanded rows and returns focus to results after pagination", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.stubGlobal("fetch", (path: string) => {
+      const second = String(path).includes("page=2");
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            ...board,
+            total: 26,
+            page: second ? 2 : 1,
+            entries: [
+              {
+                ...entry,
+                nickname: second ? "Вторая страница" : "Первая страница",
+                place: second ? 26 : 1,
+              },
+            ],
+          }),
+        ),
+      );
+    });
+    const box = document.createElement("div");
+    document.body.append(box);
+    const root = createRoot(box);
+    const scroll = vi
+      .spyOn(Element.prototype, "scrollIntoView")
+      .mockImplementation(() => {});
+    try {
+      await act(async () => root.render(<LeaderboardPage />));
+      box.querySelector(".overall-standing")!.setAttribute("open", "");
+      await act(async () =>
+        box
+          .querySelector<HTMLButtonElement>(
+            ".rank-pagination button:last-child",
+          )!
+          .click(),
+      );
+      expect(
+        box.querySelector(".overall-standing summary")?.textContent,
+      ).toContain("Вторая страница");
+      expect(box.querySelector(".overall-standing[open]")).toBeNull();
+      expect(document.activeElement).toBe(
+        box.querySelector(".ranking-panel h2"),
+      );
+      expect(scroll).toHaveBeenCalledWith({
+        block: "start",
+        behavior: "instant",
+      });
+    } finally {
+      act(() => root.unmount());
+      box.remove();
+      scroll.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+  it("cancels pagination focus when another game is selected before the page loads", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    let resolvePage: (response: Response) => void = () => {};
+    let resolveGame: (response: Response) => void = () => {};
+    const fetch = vi.fn((path: string) => {
+      if (String(path).includes("game=naglaz")) {
+        return new Promise<Response>((resolve) => {
+          resolveGame = resolve;
+        });
+      }
+      if (String(path).includes("page=2")) {
+        return new Promise<Response>((resolve) => {
+          resolvePage = resolve;
+        });
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ ...board, total: 26 })),
+      );
+    });
+    vi.stubGlobal("fetch", fetch);
+    const box = document.createElement("div");
+    document.body.append(box);
+    const root = createRoot(box);
+    const scroll = vi
+      .spyOn(Element.prototype, "scrollIntoView")
+      .mockImplementation(() => {});
+    try {
+      await act(async () => root.render(<LeaderboardPage />));
+      await act(async () =>
+        box
+          .querySelector<HTMLButtonElement>(
+            ".rank-pagination button:last-child",
+          )!
+          .click(),
+      );
+      expect(
+        fetch.mock.calls.some(([path]) => String(path).includes("page=2")),
+      ).toBe(true);
+      expect(box.textContent).toContain("Загружаем рейтинг");
+      const gameButton = [
+        ...box.querySelectorAll<HTMLButtonElement>(".rank-games button"),
+      ].find((button) => button.textContent === "На глаз")!;
+      await act(async () => {
+        gameButton.focus();
+        gameButton.click();
+      });
+      expect(document.activeElement).toBe(gameButton);
+      await act(async () =>
+        resolveGame(
+          new Response(
+            JSON.stringify({
+              game: "naglaz",
+              mode: "classic",
+              period: "all",
+              page: 1,
+              total: 1,
+              mine: null,
+              entries: [
+                {
+                  nickname: "Игрок новой игры",
+                  score: 400,
+                  place: 1,
+                  rounds: [80, 80, 80, 80, 80],
+                  isMe: false,
+                },
+              ],
+            }),
+          ),
+        ),
+      );
+      expect(box.querySelector(".rank-table")?.textContent).toContain(
+        "Игрок новой игры",
+      );
+      expect(box.querySelector(".overall-standings")).toBeNull();
+      expect(document.activeElement).toBe(gameButton);
+      expect(scroll).not.toHaveBeenCalled();
+      await act(async () =>
+        resolvePage(
+          new Response(
+            JSON.stringify({
+              ...board,
+              total: 26,
+              page: 2,
+              entries: [{ ...entry, nickname: "Запоздалый игрок", place: 26 }],
+            }),
+          ),
+        ),
+      );
+      expect(box.querySelector(".rank-table")?.textContent).toContain(
+        "Игрок новой игры",
+      );
+      expect(box.textContent).not.toContain("Запоздалый игрок");
+      expect(gameButton.getAttribute("aria-pressed")).toBe("true");
+      expect(document.activeElement).toBe(gameButton);
+      expect(scroll).not.toHaveBeenCalled();
+    } finally {
+      act(() => root.unmount());
+      box.remove();
+      scroll.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
   it("does not reuse another board's response during switching or accept late responses", async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     let resolveGame: (response: Response) => void = () => {};
@@ -68,19 +225,19 @@ describe("Overall leaderboard UI", () => {
       );
     try {
       await act(async () => root.render(<LeaderboardPage />));
-      expect(box.querySelector(".overall-table")).toBeTruthy();
+      expect(box.querySelector(".overall-standings")).toBeTruthy();
       await act(async () => click("На глаз"));
       expect(box.querySelector(".rank-table")).toBeNull();
       expect(box.textContent).toContain("Загружаем рейтинг");
       await act(async () => resolveGame(gameResponse()));
       expect(box.querySelector(".rank-table")).toBeTruthy();
-      expect(box.querySelector(".overall-table")).toBeNull();
+      expect(box.querySelector(".overall-standings")).toBeNull();
       await act(async () => click("Общий"));
-      expect(box.querySelector(".overall-table")).toBeTruthy();
+      expect(box.querySelector(".overall-standings")).toBeTruthy();
       await act(async () => click("На глаз"));
       await act(async () => click("Общий"));
       await act(async () => resolveGame(gameResponse()));
-      expect(box.querySelector(".overall-table")).toBeTruthy();
+      expect(box.querySelector(".overall-standings")).toBeTruthy();
       expect(
         box.querySelector('.rank-games button[aria-pressed="true"]')
           ?.textContent,

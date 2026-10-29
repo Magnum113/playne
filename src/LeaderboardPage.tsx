@@ -8,12 +8,12 @@ import {
   type GeoMode,
 } from "./geo";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
-import { useEffect, useState } from "react";
-import { api, gameNames, resultText, AccountNav, type GameId } from "./account";
+import { useEffect, useRef, useState } from "react";
+import { api, gameNames, resultText, type GameId } from "./account";
 import { GameHeader } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 import { shadeModeName, type ShadeMode } from "./colorfle";
-import { OverallContributions, OverallRules } from "./OverallLeaderboard";
+import { OverallStandings, OverallRules } from "./OverallLeaderboard";
 import { overallNumber } from "./overall";
 type LeaderboardGame = GameId | "overall";
 const boardNames = { overall: "Общий", ...gameNames };
@@ -50,6 +50,19 @@ export default function LeaderboardPage() {
     data?.page === page &&
     (game === "overall" || (data?.mode === mode && data?.period === period));
   const waiting = loading || (!error && !currentBoard);
+  const panelRef = useRef<HTMLElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const pageFocusPending = useRef(false);
+  useEffect(() => {
+    if (waiting || !pageFocusPending.current) return;
+    pageFocusPending.current = false;
+    headingRef.current?.focus({ preventScroll: true });
+    panelRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+  }, [waiting]);
+  function changePage(next: number) {
+    pageFocusPending.current = true;
+    setPage(next);
+  }
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -80,6 +93,7 @@ export default function LeaderboardPage() {
     };
   }, [game, period, page, mode, retry]);
   function change(next: LeaderboardGame) {
+    pageFocusPending.current = false;
     const nextPeriod = next === "overall" ? "all" : period;
     setPeriod(nextPeriod);
     setGame(next);
@@ -95,6 +109,7 @@ export default function LeaderboardPage() {
     );
   }
   function chooseMode(next: GeoMode) {
+    pageFocusPending.current = false;
     setMode(next);
     setPage(1);
     window.history.replaceState(
@@ -111,7 +126,6 @@ export default function LeaderboardPage() {
           {e.nickname}
           {e.isMe && <span className="you-label">Ты</span>}
         </strong>
-        {game === "overall" && <OverallContributions entry={e} />}
         {game !== "circle" && game !== "overall" && (
           <small className="rank-rounds">
             {e.rounds.map((s: number, i: number) => (
@@ -230,6 +244,7 @@ export default function LeaderboardPage() {
               <button
                 aria-pressed={period === "week"}
                 onClick={() => {
+                  pageFocusPending.current = false;
                   setPeriod("week");
                   setPage(1);
                 }}
@@ -239,6 +254,7 @@ export default function LeaderboardPage() {
               <button
                 aria-pressed={period === "all"}
                 onClick={() => {
+                  pageFocusPending.current = false;
                   setPeriod("all");
                   setPage(1);
                 }}
@@ -253,8 +269,14 @@ export default function LeaderboardPage() {
               : "Один лучший результат на игрока"}
           </span>
         </div>
-        <section className="community-panel ranking-panel" aria-busy={waiting}>
-          <h2 className="sr-only">{boardNames[game]} — рейтинг</h2>
+        <section
+          ref={panelRef}
+          className={`community-panel ranking-panel${game === "overall" ? " overall-ranking-panel" : ""}`}
+          aria-busy={waiting}
+        >
+          <h2 ref={headingRef} className="sr-only" tabIndex={-1}>
+            {boardNames[game]} — рейтинг
+          </h2>
           {waiting ? (
             <p role="status">Загружаем рейтинг…</p>
           ) : error ? (
@@ -269,22 +291,24 @@ export default function LeaderboardPage() {
             </div>
           ) : data?.entries.length ? (
             <>
-              <table
-                className={`rank-table${game === "overall" ? " overall-table" : ""}`}
-              >
-                <thead>
-                  <tr>
-                    <th scope="col">Место</th>
-                    <th scope="col">Игрок</th>
-                    <th scope="col">
-                      {game === "overall" ? "Баллы" : "Результат"}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.entries.map((e: any, i: number) => entry(e, String(i)))}
-                </tbody>
-              </table>
+              {game === "overall" ? (
+                <OverallStandings entries={data.entries} />
+              ) : (
+                <table className="rank-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Место</th>
+                      <th scope="col">Игрок</th>
+                      <th scope="col">Результат</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.entries.map((e: any, i: number) =>
+                      entry(e, String(i)),
+                    )}
+                  </tbody>
+                </table>
+              )}
               {data.mine && !data.entries.some((e: any) => e.isMe) && (
                 <div className="my-rank">
                   <span>
@@ -300,7 +324,7 @@ export default function LeaderboardPage() {
               <div className="rank-pagination">
                 <button
                   disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
+                  onClick={() => changePage(page - 1)}
                 >
                   ← Назад
                 </button>
@@ -309,7 +333,7 @@ export default function LeaderboardPage() {
                 </span>
                 <button
                   disabled={page * 25 >= data.total}
-                  onClick={() => setPage((p) => p + 1)}
+                  onClick={() => changePage(page + 1)}
                 >
                   Дальше →
                 </button>
