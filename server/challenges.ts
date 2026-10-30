@@ -104,7 +104,9 @@ function metadata(
   const base = new URL(origin).origin;
   return {
     token: run.token,
-    url: `${base}/challenge/${run.token}`,
+    url: run.short_code
+      ? `${base}/c/${run.short_code}`
+      : `${base}/challenge/${run.token}`,
     imageUrl: `${base}/api/challenges/${run.token}/image.png`,
     game: run.game,
     gameName: names[run.game as ChallengeGame],
@@ -143,6 +145,16 @@ async function canManage(client: Queryable, run: any, viewer: Viewer) {
 const sourceColumns = `g.id,g.game,g.version,g.mode,g.challenge,g.score_units,g.completed_at,g.owner_id,
   jsonb_array_length(g.answers) AS answer_count,u.nickname`;
 
+async function tokenForCode(client: Queryable, code: string) {
+  if (!/^[A-Za-z0-9_-]{16}$/.test(code)) failure("Вызов не найден.");
+  const { rows } = await client.query(
+    "SELECT token FROM playne_challenges WHERE short_code=$1 AND revoked_at IS NULL",
+    [code],
+  );
+  if (!rows[0]) failure("Вызов не найден.");
+  return rows[0].token;
+}
+
 async function sharedSource(
   client: Queryable,
   token: unknown,
@@ -151,7 +163,7 @@ async function sharedSource(
 ) {
   if (!validToken(token)) failure("Вызов не найден.");
   const { rows } = await client.query(
-    `SELECT ${sourceColumns},c.token,c.revoked_at FROM playne_challenges c
+    `SELECT ${sourceColumns},c.token,c.short_code,c.revoked_at FROM playne_challenges c
     JOIN playne_games g ON g.id=c.run_id LEFT JOIN playne_users u ON u.id=g.owner_id
     WHERE c.token=$1 ${allowRevoked ? "" : "AND c.revoked_at IS NULL"}${lock ? " FOR SHARE OF c,g" : ""}`,
     [token],
@@ -260,19 +272,18 @@ export async function registerChallengeRoutes(
           failure("Партия не найдена.");
         supported(source);
         const token = randomBytes(32).toString("base64url");
+        const shortCode = randomBytes(12).toString("base64url");
         const shared = await client.query(
-          `INSERT INTO playne_challenges(token,run_id,created_by,browser_hash) VALUES($1,$2,$3,$4)
+          `INSERT INTO playne_challenges(token,run_id,created_by,browser_hash,short_code) VALUES($1,$2,$3,$4,$5)
         ON CONFLICT(run_id) DO UPDATE SET
+          short_code=CASE WHEN playne_challenges.revoked_at IS NULL THEN coalesce(playne_challenges.short_code,EXCLUDED.short_code) ELSE EXCLUDED.short_code END,
           token=CASE WHEN playne_challenges.revoked_at IS NULL THEN playne_challenges.token ELSE EXCLUDED.token END,
           created_at=CASE WHEN playne_challenges.revoked_at IS NULL THEN playne_challenges.created_at ELSE now() END,
-          revoked_at=NULL,created_by=EXCLUDED.created_by,browser_hash=EXCLUDED.browser_hash RETURNING token`,
-          [token, id, who.userId ?? null, who.browserHash],
+          revoked_at=NULL,created_by=EXCLUDED.created_by,browser_hash=EXCLUDED.browser_hash RETURNING token,short_code`,
+          [token, id, who.userId ?? null, who.browserHash, shortCode],
         );
         await client.query("COMMIT");
-        return metadata(
-          { ...source, token: shared.rows[0].token },
-          deps.origin,
-        );
+        return metadata({ ...source, ...shared.rows[0] }, deps.origin);
       } catch (error) {
         await client.query("ROLLBACK");
         throw error;
@@ -311,9 +322,14 @@ export async function registerChallengeRoutes(
       return reply.send(await renderChallengePng(data));
     },
   );
-  app.get("/challenge/:token", async (req, reply) => {
+  const landing = async (req: any, reply: any) => {
     const data = metadata(
-      await sharedSource(pool, (req.params as any).token),
+      await sharedSource(
+        pool,
+        req.params.code
+          ? await tokenForCode(pool, req.params.code)
+          : req.params.token,
+      ),
       deps.origin,
     );
     reply
@@ -325,5 +341,7 @@ export async function registerChallengeRoutes(
       )
       .type("text/html; charset=utf-8");
     return reply.send(challengeHtml(data));
-  });
+  };
+  app.get("/challenge/:token", landing);
+  app.get("/c/:code", landing);
 }

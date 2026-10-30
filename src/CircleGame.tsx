@@ -1,3 +1,4 @@
+import ShareResult from "./ShareResult";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { GuestSavedNotice, GuestTrialPrompt, useGuestTrial } from "./account";
@@ -294,7 +295,7 @@ export default function CircleGame() {
                     : "БЕЗ ЛИНЕЙКИ И ЦИРКУЛЯ"}
               </span>
             </div>
-            <div className="circle-feedback">
+            <div className={`circle-feedback${success ? " has-result" : ""}`}>
               <div
                 className={`circle-status${record ? " is-record" : ""}`}
                 id="circle-status"
@@ -309,18 +310,24 @@ export default function CircleGame() {
                 )}
                 {message}
               </div>
-              {(access.user || !success) && (
-                <button
-                  className="primary circle-retry"
-                  onClick={() => {
-                    clear();
-                    board.current?.focus({ preventScroll: true });
-                  }}
-                  disabled={drawing}
-                >
-                  Ещё раз <span aria-hidden="true">↻</span>
-                </button>
-              )}
+              <div className="circle-actions">
+                {(access.user || !success) && (
+                  <button
+                    className="primary circle-retry"
+                    onClick={() => {
+                      clear();
+                      board.current?.focus({ preventScroll: true });
+                    }}
+                    disabled={drawing}
+                  >
+                    Ещё раз <span aria-hidden="true">↻</span>
+                  </button>
+                )}
+                {success &&
+                  ["complete", "saved", "save-error"].includes(
+                    ranked.state?.status,
+                  ) && <ShareResult runId={ranked.state.id} />}
+              </div>
             </div>
             <div className="circle-legend" aria-hidden="true">
               {success ? (
@@ -336,6 +343,7 @@ export default function CircleGame() {
                 <span>Без таймера. Обведи точку одним движением.</span>
               )}
             </div>
+            {success && <SaveResult run={ranked} game="circle" hideShare />}
           </section>
         )}
         <RulesDialog
@@ -354,7 +362,6 @@ export default function CircleGame() {
             Рекорд хранится в этом браузере.
           </p>
         </RulesDialog>
-        {success && <SaveResult run={ranked} game="circle" />}
       </main>
       <footer className="circle-footer">
         <span>Одна попытка — несколько секунд.</span>

@@ -21,6 +21,7 @@ const db = process.env.TEST_DATABASE_URL;
   "Explicit friend challenges: PostgreSQL authority",
   () => {
     let admin: Pool, pool: Pool, app: Awaited<ReturnType<typeof buildApp>>;
+    let requestIp = 1;
     const origin = "https://challenges.test";
     const hash = (value: string) =>
       createHash("sha256").update(value).digest("hex");
@@ -31,7 +32,13 @@ const db = process.env.TEST_DATABASE_URL;
     const get = (url: string, cookie = "") =>
       app.inject({ url, headers: { cookie } });
     const post = (cookie: string, url: string, payload: any) =>
-      app.inject({ method: "POST", url, headers: { cookie, origin }, payload });
+      app.inject({
+        method: "POST",
+        remoteAddress: `127.0.0.${requestIp}`,
+        url,
+        headers: { cookie, origin },
+        payload,
+      });
     const guest = async () => cookies(await get("/api/me"));
     const game = (
       cookie: string,
@@ -184,6 +191,7 @@ const db = process.env.TEST_DATABASE_URL;
       );
     });
     beforeEach(async () => {
+      requestIp++;
       await pool.query(
         "TRUNCATE playne_users,playne_games,playne_guest_trials,playne_brain_days,playne_line_days,playne_brain_packs,playne_challenges CASCADE",
       );
@@ -317,6 +325,46 @@ const db = process.env.TEST_DATABASE_URL;
         );
       },
     );
+
+    it("publishes a stable short link with server-rendered previews while legacy links still work", async () => {
+      const author = await signed(),
+        run = await source(author.id);
+      const link = await share(author.cookie, run.id);
+      expect(new URL(link.url).pathname).toMatch(/^\/c\/[A-Za-z0-9_-]{16}$/);
+      expect((await share(author.cookie, run.id)).url).toBe(link.url);
+      const short = await get(new URL(link.url).pathname);
+      expect(short.statusCode).toBe(200);
+      expect(short.body).toContain(link.imageUrl);
+      expect(short.body).toContain(`challenge=${link.token}`);
+      expect(short.body).toContain(`property="og:url" content="${link.url}"`);
+      expect((await get(`/challenge/${link.token}`)).statusCode).toBe(200);
+      expect((await get("/c/" + "x".repeat(16))).statusCode).toBe(404);
+      await app.inject({
+        method: "DELETE",
+        url: `/api/challenges/${link.token}`,
+        headers: { origin, cookie: author.cookie },
+      });
+      expect((await get(new URL(link.url).pathname)).statusCode).toBe(404);
+      const fresh = await share(author.cookie, run.id);
+      expect(fresh.url).not.toBe(link.url);
+      expect((await get(new URL(fresh.url).pathname)).statusCode).toBe(200);
+    });
+    it("upgrades a legacy share on demand without breaking its original token", async () => {
+      const author = await signed(),
+        run = await source(author.id),
+        link = await share(author.cookie, run.id);
+      await pool.query(
+        "UPDATE playne_challenges SET short_code=NULL WHERE token=$1",
+        [link.token],
+      );
+      expect((await get(`/challenge/${link.token}`)).statusCode).toBe(200);
+      const upgraded = await share(author.cookie, run.id);
+      expect(upgraded.token).toBe(link.token);
+      expect(new URL(upgraded.url).pathname).toMatch(
+        /^\/c\/[A-Za-z0-9_-]{16}$/,
+      );
+      expect((await get(new URL(upgraded.url).pathname)).statusCode).toBe(200);
+    });
 
     it("shares only an explicitly selected completed result and rejects other accounts, incomplete and unsupported games", async () => {
       const owner = await signed(),

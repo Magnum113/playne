@@ -8,7 +8,7 @@ vi.mock("../src/account", () => ({
   api: (...args: unknown[]) => mock.api(...args),
 }));
 vi.mock("../src/ShareResult", () => ({
-  default: () => <button>Позвать друга</button>,
+  default: () => <button>Бросить вызов другу</button>,
 }));
 vi.mock("../src/ChallengeContext", () => ({
   default: () => <div>Вызов друга</div>,

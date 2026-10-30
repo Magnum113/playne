@@ -7,3 +7,5 @@ CREATE TABLE IF NOT EXISTS playne_challenges (
  revoked_at timestamptz
 );
 CREATE INDEX IF NOT EXISTS playne_comparison_owner ON playne_games(owner_id,game,(challenge->>'comparisonToken'),created_at) WHERE challenge->>'comparison'='true';
+ALTER TABLE playne_challenges ADD COLUMN IF NOT EXISTS short_code varchar(16);
+CREATE UNIQUE INDEX IF NOT EXISTS playne_challenges_short_code ON playne_challenges(short_code);

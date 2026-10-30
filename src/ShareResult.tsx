@@ -108,10 +108,11 @@ export default function ShareResult({ runId }: { runId?: string }) {
     <>
       <button
         className="secondary-button"
+        aria-label="Бросить вызов другу"
         onClick={() => void create()}
         disabled={loading}
       >
-        Позвать друга ↗
+        Бросить вызов ↗
       </button>
       <dialog
         className="share-dialog"
@@ -123,7 +124,7 @@ export default function ShareResult({ runId }: { runId?: string }) {
       >
         <div className="share-dialog-content">
           <div className="share-dialog-heading">
-            <h2 id={heading}>Позови друга</h2>
+            <h2 id={heading}>Кто побьёт твой результат?</h2>
             <button
               className="share-close"
               aria-label="Закрыть приглашение"

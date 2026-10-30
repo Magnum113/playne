@@ -158,4 +158,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS playne_email_one_reminder_day ON playne_email_
 CREATE INDEX IF NOT EXISTS playne_email_marketing_frequency ON playne_email_outbox(user_id,submitted_at DESC) WHERE kind IN('rank','reminder') AND submitted_at IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS playne_comparison_owner ON playne_games(owner_id,game,(challenge->>'comparisonToken'),created_at) WHERE challenge->>'comparison'='true';
+ALTER TABLE playne_challenges ADD COLUMN IF NOT EXISTS short_code varchar(16);
+CREATE UNIQUE INDEX IF NOT EXISTS playne_challenges_short_code ON playne_challenges(short_code);
 COMMIT;

@@ -1,7 +1,15 @@
 import { SaveResult as Status, type RankedRun, type GameId } from "./account";
 import ShareResult from "./ShareResult";
 import ChallengeContext from "./ChallengeContext";
-export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
+export function SaveResult({
+  run,
+  game,
+  hideShare = false,
+}: {
+  run: RankedRun;
+  game: GameId;
+  hideShare?: boolean;
+}) {
   const token =
     typeof window === "undefined"
       ? undefined
@@ -21,7 +29,7 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
           comparisonToken={run.comparisonToken}
         />
       )}
-      {complete && <ShareResult runId={run.state.id} />}
+      {complete && !hideShare && <ShareResult runId={run.state.id} />}
       {token && complete ? (
         <p className="save-result">
           Сравнение сохранено. Результат не меняет рейтинг.

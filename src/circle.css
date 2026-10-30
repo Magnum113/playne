@@ -291,3 +291,35 @@
     animation: none;
   }
 }
+
+.circle-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.circle-feedback.has-result {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.circle-feedback.has-result .circle-status {
+  text-align: center;
+}
+.circle-feedback.has-result .circle-actions > button {
+  flex: 1 1 160px;
+  min-height: var(--control-height);
+  justify-content: center;
+}
+.circle-play > .save-result,
+.circle-play > .challenge-context {
+  margin-top: 16px;
+}
+
+.circle-feedback.has-result .circle-actions {
+  align-items: stretch;
+}
+.circle-feedback.has-result .circle-actions > button {
+  height: auto;
+  align-self: stretch;
+}
