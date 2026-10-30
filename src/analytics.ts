@@ -62,6 +62,12 @@ export const BRAIN_GOALS = {
   practiceLevel: "brain_practice_level",
 } as const;
 
+export const PLAY_GOALS = {
+  todayGame: "playne_today_game",
+  nextGame: "playne_next_game",
+  weekOpen: "playne_week_open",
+} as const;
+
 export const ACCOUNT_GOALS = {
   loginStart: "account_yandex_login_start",
   loginSuccess: "account_yandex_login_success",
@@ -80,7 +86,8 @@ export type MetrikaGoal =
   | Values<typeof ACCOUNT_GOALS>
   | Values<typeof PRESSURE_GOALS>
   | Values<typeof LINE_GOALS>
-  | Values<typeof BRAIN_GOALS>;
+  | Values<typeof BRAIN_GOALS>
+  | Values<typeof PLAY_GOALS>;
 export type MetrikaParams = Record<string, string | number | boolean>;
 
 type MetrikaFunction = {

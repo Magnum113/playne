@@ -13,6 +13,7 @@ import { Pool } from "pg";
 import { LEADERBOARD_SQL } from "./leaderboard";
 import { overallLeaderboard } from "./overall";
 import { improvesPersonalRecord } from "./personal-record";
+import { registerPlayProgressRoutes } from "./play-progress";
 import { hintLinePath, lineMoscowDate } from "../src/line";
 import {
   isBrainGame,
@@ -245,6 +246,7 @@ export async function buildApp(
   }
   await registerEmailRoutes(app, pool, emailConfig, requireUser);
   await registerBrainRoutes(app, pool, owned, failure, browser, user);
+  await registerPlayProgressRoutes(app, pool, browser, user);
   app.get("/api/health", async () => {
     await pool.query("SELECT 1");
     return { ok: true, revision: config.revision };
@@ -1493,7 +1495,7 @@ export async function buildApp(
     await pool.query("DELETE FROM playne_auth_sessions WHERE expires_at<now()");
     await pool.query("DELETE FROM playne_oauth_states WHERE expires_at<now()");
     await pool.query(
-      "DELETE FROM playne_games WHERE published_at IS NULL AND expires_at<now() AND NOT(game IN('flash','rotate','slide','dispatch') AND mode='practice' AND owner_id IS NOT NULL AND completed_at IS NOT NULL)",
+      "DELETE FROM playne_games WHERE published_at IS NULL AND expires_at<now() AND NOT(owner_id IS NOT NULL AND completed_at IS NOT NULL)",
     );
     await pool.query(
       "DELETE FROM playne_guest_trials WHERE created_at<now()-interval '365 days'",

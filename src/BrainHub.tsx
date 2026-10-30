@@ -13,6 +13,7 @@ import {
 import "./brain-hub.css";
 import CategoryGlyph from "./CategoryGlyph";
 import { DailySpark } from "./HandDrawn";
+import PlayWeek from "./PlayWeek";
 
 export function BrainFeature() {
   return (
@@ -239,79 +240,15 @@ export default function BrainHub() {
             })}
           </div>
         </section>
-        <section className="brain-week" aria-labelledby="brain-week-title">
-          <div>
-            <p className="eyebrow">ПОНЕМНОГУ И РЕГУЛЯРНО</p>
-            <h2 id="brain-week-title">Три дня разминки за неделю</h2>
-            <p>
-              Закончи хотя бы одну задачу дня — день засчитается. Можно выбрать
-              любимую игру. Пропуск не стирает прошлые занятия.
-            </p>
-          </div>
-          <div className="brain-week-progress">
-            <p>
-              <strong>
-                {Math.min(
-                  progress?.goal.completedDays ?? 0,
-                  progress?.goal.days ?? 3,
-                )}
-              </strong>{" "}
-              / {progress?.goal.days ?? 3} дней на этой неделе
-            </p>
-            <div
-              className="brain-week-meter"
-              role="progressbar"
-              aria-label="Недельная цель: дни разминки"
-              aria-valuemin={0}
-              aria-valuemax={progress?.goal.days ?? 3}
-              aria-valuenow={Math.min(
-                progress?.goal.completedDays ?? 0,
-                progress?.goal.days ?? 3,
-              )}
-            >
-              <span
-                style={{
-                  width: `${Math.min(100, ((progress?.goal.completedDays ?? 0) / (progress?.goal.days ?? 3)) * 100)}%`,
-                }}
-              />
-            </div>
-            <ol
-              className="brain-calendar"
-              aria-label="Занятия за текущую неделю, с понедельника по воскресенье"
-            >
-              {week.map((day) => (
-                <li
-                  key={day.day}
-                  className={[
-                    day.gamesCompleted ? "is-complete" : "",
-                    day.isToday ? "is-today" : "",
-                    day.isFuture ? "is-future" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  aria-current={day.isToday ? "date" : undefined}
-                  title={`${brainDateLabel(day.day)}: ${day.isFuture ? "день ещё не наступил" : `${day.gamesCompleted} из 4 игр`}`}
-                >
-                  <span>{brainDateLabel(day.day, { weekday: "short" })}</span>
-                  <strong aria-hidden="true">
-                    {day.gamesCompleted
-                      ? "✓"
-                      : brainDateLabel(day.day, { day: "numeric" })}
-                  </strong>
-                  <span className="sr-only">
-                    {brainDateLabel(day.day)}:{" "}
-                    {day.isFuture
-                      ? "день ещё не наступил"
-                      : `завершено игр ${day.gamesCompleted}`}
-                  </span>
-                </li>
-              ))}
-            </ol>
-            <p className="brain-week-note">
-              Неделя — с понедельника по воскресенье, по Москве.
-            </p>
-          </div>
-        </section>
+        <PlayWeek
+          day={progress?.today.day ?? today}
+          days={week}
+          goal={progress?.goal}
+          milestones={progress?.milestones}
+          loading={loading}
+          error={error ? "Не удалось обновить неделю." : undefined}
+          onRetry={() => setRetry((value) => value + 1)}
+        />
         <section
           className="brain-practice"
           aria-labelledby="brain-practice-title"

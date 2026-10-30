@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import BrainGame from "../src/BrainGame";
 import {
   makeBrainChallenge,
+  brainMoscowDate,
   publicBrainRound,
   slideHint,
   type BrainGame as Game,
@@ -18,6 +19,12 @@ const mock = vi.hoisted(() => ({
   brainStart: vi.fn(),
   brainAnswer: vi.fn(),
   brainHint: vi.fn(),
+  api: vi.fn(),
+  progress: null as any,
+  rankedState: { status: "ready" } as {
+    status: "ready" | "saved" | "save-error";
+    message?: string;
+  },
   user: { id: "u", nickname: "Игрок" } as {
     id: string;
     nickname: string;
@@ -25,7 +32,9 @@ const mock = vi.hoisted(() => ({
 }));
 vi.mock("../src/account", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/account")>()),
-  useRankedRun: () => ({ ...mock, state: { status: "ready" } }),
+  api: (path: string) => mock.api(path),
+  useAuth: () => ({ user: mock.user, ready: true, loading: false, trials: {} }),
+  useRankedRun: () => ({ ...mock, state: mock.rankedState }),
   useGuestTrial: () => ({
     user: mock.user,
     ready: true,
@@ -37,7 +46,14 @@ vi.mock("../src/account", async (importOriginal) => ({
   AccountNav: () => <a href="/account/">Личный кабинет</a>,
   GuestSavedNotice: () => null,
   SaveResult: () => (
-    <div data-testid="public-save">Сохранение в публичный рейтинг</div>
+    <div data-testid="public-save">
+      Сохранение в публичный рейтинг
+      {!mock.user ? (
+        <button className="primary">Войти и продолжить</button>
+      ) : mock.rankedState.status === "save-error" ? (
+        <button className="primary">Повторить сохранение</button>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -70,6 +86,29 @@ beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
   mock.user = { id: "u", nickname: "Игрок" };
+  mock.rankedState = { status: "ready" };
+  const day = brainMoscowDate();
+  mock.progress = {
+    day,
+    weekStart: "2026-10-26",
+    last7Days: [],
+    week: [],
+    weeklyDays: 0,
+    goal: { days: 3, completedDays: 0 },
+    milestones: {
+      completedWeeks: 0,
+      activeDaysThisMonth: 0,
+      totalActiveDays: 0,
+      tenDayMonths: 0,
+    },
+    favorites: [],
+    daily: {},
+    recentCompletions: [],
+  };
+  mock.api.mockImplementation(async (path: string) => {
+    if (path === "/play/progress") return mock.progress;
+    throw new Error("Unexpected API request: " + path);
+  });
   box = document.createElement("div");
   document.body.append(box);
   root = createRoot(box);
@@ -97,6 +136,174 @@ describe("brain game orchestration", () => {
     };
   }
 
+  function progressForResult(confirmed = true) {
+    mock.progress = {
+      ...mock.progress,
+      day: "2026-10-29",
+      weeklyDays: 2,
+      goal: { days: 3, completedDays: 2 },
+      milestones: { ...mock.progress.milestones, completedWeeks: 1 },
+      daily: {
+        rotate: {
+          id: runId,
+          completed: true,
+          completedRounds: 5,
+          totalRounds: 5,
+        },
+        line: {
+          id: "12345678-1234-4234-8234-123456789015",
+          completed: false,
+          completedRounds: 2,
+          totalRounds: 5,
+        },
+      },
+      recentCompletions: confirmed
+        ? [{ id: runId, game: "rotate", completedAt: "2026-10-29T12:00:00Z" }]
+        : [],
+    };
+  }
+
+  it("shows server-confirmed day credit and one next unfinished task after a zero-score daily", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
+    progressForResult();
+    window.history.replaceState(null, "", `/brain/rotate/?result=${runId}`);
+    mock.resume.mockResolvedValue({
+      ...completedDaily(),
+      score: 0,
+      answers: Array.from({ length: 5 }, () => ({
+        same: false,
+        correctSame: true,
+        score: 0,
+      })),
+    });
+    await act(async () => root.render(<BrainGame game="rotate" />));
+    expect(box.querySelector(".brain-total strong")?.textContent).toBe("0");
+    expect(box.querySelector('[data-testid="public-save"]')).toBeTruthy();
+    expect(box.querySelector(".play-next")?.textContent).toContain(
+      "Сегодняшний день засчитан",
+    );
+    expect(box.querySelector(".play-next")?.textContent).toContain(
+      "2 / 3 дней",
+    );
+    expect(box.querySelectorAll(".play-next-milestone")).toHaveLength(1);
+    expect(box.querySelector(".play-next-milestone")?.textContent).toContain(
+      "Первая неделя",
+    );
+    expect(
+      box
+        .querySelector<HTMLAnchorElement>(".play-next a.primary")
+        ?.getAttribute("href"),
+    ).toBe("/one-line/");
+    expect(box.querySelector(".play-next a.primary")?.textContent).toContain(
+      "Продолжить",
+    );
+    expect(box.querySelectorAll(".brain-summary .primary")).toHaveLength(1);
+    expect(button("Ещё в практике →").classList.contains("primary")).toBe(
+      false,
+    );
+    expect(box.querySelector(".brain-gentle-goal")).toBeNull();
+    expect(mock.api).toHaveBeenCalledWith("/play/progress");
+    expect(mock.brainStart).not.toHaveBeenCalled();
+  });
+
+  it("does not credit a result before the progress API confirms its completion", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
+    progressForResult(false);
+    window.history.replaceState(null, "", `/brain/rotate/?result=${runId}`);
+    mock.resume.mockResolvedValue(completedDaily());
+    await act(async () => root.render(<BrainGame game="rotate" />));
+    expect(box.querySelector(".play-next")?.textContent).toContain(
+      "Твоя неделя в Playne",
+    );
+    expect(box.querySelector(".play-next")?.textContent).not.toContain(
+      "Сегодняшний день засчитан",
+    );
+    expect(box.querySelectorAll(".brain-summary .primary")).toHaveLength(1);
+  });
+
+  it("keeps private practice feedback and restart secondary to the next daily task", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
+    progressForResult();
+    const data = fixture("flash", "practice");
+    window.history.replaceState(null, "", `/brain/flash/?result=${runId}`);
+    mock.resume.mockResolvedValue({
+      ...data,
+      completed: true,
+      score: 500,
+      answers: Array.from({ length: 5 }, () => ({ score: 100 })),
+    });
+    await act(async () => root.render(<BrainGame game="flash" />));
+    expect(box.textContent).toContain("Результат практики сохранён");
+    expect(box.querySelector('[data-testid="public-save"]')).toBeNull();
+    expect(box.querySelectorAll(".brain-summary .primary")).toHaveLength(1);
+    expect(
+      box
+        .querySelector<HTMLAnchorElement>(".play-next a.primary")
+        ?.getAttribute("href"),
+    ).toBe("/one-line/");
+    expect(
+      box.querySelector('a[href*="leaderboard"][href*="practice"]'),
+    ).toBeNull();
+    expect(
+      button("Ещё в практике →").classList.contains("secondary-button"),
+    ).toBe(true);
+    await act(async () => button("Ещё в практике →").click());
+    expect(box.querySelector(".brain-welcome")).toBeTruthy();
+    expect(box.querySelector(".brain-difficulty-choice")).toBeTruthy();
+    expect(mock.begin).not.toHaveBeenCalled();
+  });
+
+  it.each(["2026-10-29", "2026-10-30"])(
+    "keeps retrying publication as the only primary action after a save error on %s",
+    async (day) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(`${day}T12:00:00Z`));
+      progressForResult();
+      mock.progress.day = day;
+      mock.rankedState = {
+        status: "save-error",
+        message: "Не удалось сохранить результат",
+      };
+      window.history.replaceState(null, "", `/brain/rotate/?result=${runId}`);
+      mock.resume.mockResolvedValue(completedDaily());
+      await act(async () => root.render(<BrainGame game="rotate" />));
+      expect(button("Повторить сохранение")).toBeTruthy();
+      expect(box.querySelector(".play-next a.primary")).toBeNull();
+      expect(box.querySelectorAll(".brain-summary .primary")).toHaveLength(1);
+      if (day === "2026-10-30")
+        expect(
+          button("Начать задачу дня").classList.contains("secondary-button"),
+        ).toBe(true);
+    },
+  );
+
+  it("keeps the saved result visible when progress fails and restores the next step on retry", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
+    progressForResult();
+    mock.api.mockRejectedValueOnce(new Error("Нет соединения"));
+    window.history.replaceState(null, "", `/brain/rotate/?result=${runId}`);
+    mock.resume.mockResolvedValue(completedDaily());
+    await act(async () => root.render(<BrainGame game="rotate" />));
+    expect(box.querySelector(".brain-total strong")?.textContent).toBe("500");
+    expect(box.querySelector('[data-testid="public-save"]')).toBeTruthy();
+    expect(box.querySelector(".play-next")?.textContent).not.toContain(
+      "Сегодняшний день засчитан",
+    );
+    expect(button("Обновить прогресс")).toBeTruthy();
+    expect(window.location.search).toBe(`?result=${runId}`);
+    await act(async () => button("Обновить прогресс").click());
+    expect(box.querySelector(".play-next")?.textContent).toContain(
+      "Сегодняшний день засчитан",
+    );
+    expect(box.querySelectorAll(".brain-summary .primary")).toHaveLength(1);
+    expect(mock.begin).not.toHaveBeenCalled();
+    expect(mock.brainStart).not.toHaveBeenCalled();
+  });
+
   it("keeps yesterday's result visible and starts today's pack only after a click", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-30T12:00:00Z"));
@@ -115,6 +322,8 @@ describe("brain game orchestration", () => {
       "2026-10-29",
     );
     expect(button("Начать задачу дня")).toBeTruthy();
+    expect(box.querySelectorAll(".brain-summary .primary")).toHaveLength(1);
+    expect(box.querySelector(".play-next a.primary")).toBeNull();
     expect(mock.begin).not.toHaveBeenCalled();
     expect(mock.brainStart).not.toHaveBeenCalled();
     await act(async () => button("Начать задачу дня").click());
@@ -160,6 +369,9 @@ describe("brain game orchestration", () => {
     expect(box.querySelector(".brain-total strong")?.textContent).toBe("500");
     expect(box.querySelector('[data-testid="public-save"]')).toBeTruthy();
     expect(button("Начать задачу дня")).toBeUndefined();
+    expect(button("Войти и продолжить")).toBeTruthy();
+    expect(box.querySelectorAll(".brain-summary .primary")).toHaveLength(1);
+    expect(box.querySelector(".play-next a.primary")).toBeNull();
     expect(mock.begin).not.toHaveBeenCalled();
   });
 
@@ -342,6 +554,8 @@ describe("brain game orchestration", () => {
     );
     expect(box.querySelector(".brain-rotation-correction")).toBeTruthy();
     expect(box.querySelector('[data-testid="public-save"]')).toBeNull();
+    expect(box.querySelector(".play-next")).toBeNull();
+    expect(mock.api).not.toHaveBeenCalled();
     await act(async () => button("Посмотреть итог →").click());
     expect(box.querySelector(".brain-total strong")?.textContent).toBe("500");
     expect(box.querySelector('[data-testid="public-save"]')).toBeTruthy();

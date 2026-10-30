@@ -6,6 +6,7 @@ import { GameIntro, GameStartAction } from "./GameIntro";
 import { ModeChoice, RoundDots, StatusMessage } from "./ui";
 import FooterLinks from "./FooterLinks";
 import BrainPreview from "./BrainPreview";
+import PlayNextStep from "./PlayNextStep";
 import {
   DispatchBoard,
   FlashBoard,
@@ -640,6 +641,8 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
       : false;
   const dailyResult = run?.mode !== "practice";
   const newDailyAvailable = dailyResult && !!run && run.challenge.day !== today;
+  const saveActionHasPriority =
+    dailyResult && (!access.user || ranked.state.status === "save-error");
   const flashCanAnswer =
     !timing?.revealUntil || now + timing.offset >= timing.revealUntil;
   function roundMetric(answer: any, roundIndex: number): string {
@@ -769,16 +772,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
             </ol>
             <p>{content.scoreText}</p>
             {dailyResult ? (
-              <>
-                <SaveResult run={ranked} game={game} />
-                <p className="brain-gentle-goal">
-                  {newDailyAvailable
-                    ? "Задача на сегодня уже готова."
-                    : "Новый набор появится завтра."}{" "}
-                  Можно выбрать три удобных дня на неделе — пропущенный день
-                  ничего не обнуляет.
-                </p>
-              </>
+              <SaveResult run={ranked} game={game} />
             ) : (
               <StatusMessage tone="success" title="Результат практики сохранён">
                 {access.user
@@ -786,10 +780,19 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                   : "Войди через Яндекс, чтобы добавить его в личную историю. Практика не меняет публичный и общий рейтинги."}
               </StatusMessage>
             )}
+            <PlayNextStep
+              game={game}
+              runId={run?.id}
+              hideAction={
+                (newDailyAvailable && !!access.user) || saveActionHasPriority
+              }
+            />
             <div className="brain-summary-actions">
               {newDailyAvailable && access.user && (
                 <button
-                  className="primary"
+                  className={
+                    saveActionHasPriority ? "secondary-button" : "primary"
+                  }
                   disabled={busy}
                   onClick={() => void begin("classic", 1)}
                 >
@@ -797,7 +800,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 </button>
               )}
               <button
-                className="primary"
+                className="secondary-button"
                 disabled={busy}
                 onClick={() => {
                   setMode("practice");
@@ -814,7 +817,6 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 Ещё в практике →
               </button>
               <a
-                className="secondary-button"
                 href={
                   dailyResult
                     ? `/leaderboard/?game=${game}&mode=classic`

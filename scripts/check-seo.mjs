@@ -134,7 +134,9 @@ try {
     }
     if (page.path === "/brain/") {
       assert(brainGames.every((game) => html.includes(`href="${game.path}"`)));
-      assert(text.includes("Три дня разминки") && text.includes("Практика"));
+      assert(
+        text.includes("Три дня игры за неделю") && text.includes("Практика"),
+      );
       assert(data["@graph"].some((x) => x["@type"] === "CollectionPage"));
     }
     if (page.path === "/pressure/") {

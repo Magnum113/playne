@@ -541,7 +541,7 @@ const db = process.env.TEST_DATABASE_URL;
       });
       expect(progress.today.results.rotate).toBeNull();
       expect(progress.last7Days).toHaveLength(7);
-      expect(progress.weeklyDays).toBe(0);
+      expect(progress.weeklyDays).toBe(1);
       expect(
         (await get(await guest(), "/api/brain/progress")).json().history,
       ).toEqual([]);
@@ -616,8 +616,8 @@ const db = process.env.TEST_DATABASE_URL;
         dispatch: 1,
       });
       expect(progress.history).toHaveLength(30);
-      expect(progress.last7Days.at(-1).gamesCompleted).toBe(0);
-      expect(progress.goal).toEqual({ days: 3, completedDays: 0 });
+      expect(progress.last7Days.at(-1).gamesCompleted).toBe(2);
+      expect(progress.goal).toEqual({ days: 3, completedDays: 1 });
       expect(JSON.stringify(progress)).not.toContain('"cells"');
       for (const game of BRAIN_GAMES) {
         for (let attempt = 0; attempt < 2; attempt++)
@@ -633,7 +633,7 @@ const db = process.env.TEST_DATABASE_URL;
       const daily = (await get(player.cookie, "/api/brain/progress")).json();
       expect(daily.last7Days.at(-1)).toMatchObject({
         gamesCompleted: 4,
-        score: 400,
+        score: 750,
       });
       expect(daily.weeklyDays).toBe(1);
       expect(daily.goal).toEqual({ days: 3, completedDays: 1 });

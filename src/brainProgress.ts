@@ -1,4 +1,5 @@
 import type { BrainGameId } from "./brainContent";
+import type { PlayProgress } from "./playProgress";
 
 export type BrainProgress = {
   today: {
@@ -12,6 +13,7 @@ export type BrainProgress = {
   };
   last7Days: { day: string; gamesCompleted: number; score: number }[];
   weeklyDays: number;
+  milestones?: PlayProgress["milestones"];
   goal: { days: number; completedDays: number };
   suggestedLevels: Partial<Record<BrainGameId, number>>;
   history: {

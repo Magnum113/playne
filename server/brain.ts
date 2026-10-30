@@ -11,6 +11,7 @@ import {
   type BrainChallenge,
 } from "../src/brain";
 import { lineMoscowDate } from "../src/line";
+import { readPlayActivity, readPlayMilestones } from "./play-progress";
 export const BRAIN_GAMES = ["flash", "rotate", "slide", "dispatch"] as const;
 export const isBrainGame = (game: unknown): game is BrainGame =>
   typeof game === "string" && (BRAIN_GAMES as readonly string[]).includes(game);
@@ -312,17 +313,11 @@ export async function registerBrainRoutes(
   app.get("/api/brain/progress", async (req: any, reply: any) => {
     const b = browser(req, reply),
       signed = await user(req);
-    const day = lineMoscowDate(),
-      now = new Date(day + "T12:00:00Z");
-    const monday = new Date(now);
-    monday.setUTCDate(monday.getUTCDate() - ((now.getUTCDay() + 6) % 7));
-    const weekStart = monday.toISOString().slice(0, 10);
-    const rollingStart = new Date(now);
-    rollingStart.setUTCDate(rollingStart.getUTCDate() - 6);
+    const day = lineMoscowDate();
     const own = signed
       ? "owner_id=$2"
       : "id IN(SELECT run_id FROM playne_guest_trials WHERE browser_hash=$2)";
-    const [records, activity] = await Promise.all([
+    const [records, activity, milestones] = await Promise.all([
       pool.query(
         `WITH own AS (
         SELECT id,game,mode,challenge->>'day' AS day,challenge->>'difficulty' AS difficulty,answers,score_units,completed_at,created_at,
@@ -335,19 +330,8 @@ export async function registerBrainRoutes(
         ORDER BY created_at DESC,id`,
         [BRAIN_GAMES, signed?.id ?? b, day],
       ),
-      pool.query(
-        `WITH daily AS (
-        SELECT game,to_char(completed_at AT TIME ZONE 'Europe/Moscow','YYYY-MM-DD') AS day,max(score_units) AS score_units
-        FROM playne_games WHERE game=ANY($1::text[]) AND ${own} AND mode='classic' AND completed_at>=($3::date AT TIME ZONE 'Europe/Moscow') AND completed_at<(($4::date+1) AT TIME ZONE 'Europe/Moscow')
-        GROUP BY 1,2
-        ) SELECT day,count(*)::int AS games_completed,sum(score_units)/10.0 AS score FROM daily GROUP BY day`,
-        [
-          BRAIN_GAMES,
-          signed?.id ?? b,
-          rollingStart.toISOString().slice(0, 10),
-          day,
-        ],
-      ),
+      readPlayActivity(pool, { browserHash: b, userId: signed?.id }, day),
+      readPlayMilestones(pool, { browserHash: b, userId: signed?.id }, day),
     ]);
     const completed = records.rows.filter((r: any) => r.completed_at);
     const todayResults = Object.fromEntries(
@@ -371,20 +355,7 @@ export async function registerBrainRoutes(
         ];
       }),
     );
-    const last7Days = Array.from({ length: 7 }, (_, index) => {
-      const d = new Date(now);
-      d.setUTCDate(d.getUTCDate() - 6 + index);
-      const date = d.toISOString().slice(0, 10);
-      const entry = activity.rows.find((item: any) => item.day === date);
-      return {
-        day: date,
-        gamesCompleted: entry?.games_completed ?? 0,
-        score: Number(entry?.score ?? 0),
-      };
-    });
-    const weeklyDays = activity.rows.filter(
-      (entry: any) => entry.day >= weekStart && entry.day <= day,
-    ).length;
+    const { last7Days, weeklyDays } = activity;
     const suggestedLevels = Object.fromEntries(
       BRAIN_GAMES.map((game) => {
         const practice = completed.filter(
@@ -417,6 +388,7 @@ export async function registerBrainRoutes(
       last7Days,
       weeklyDays,
       goal: { days: 3, completedDays: weeklyDays },
+      milestones,
       suggestedLevels,
       history: completed.slice(0, 30).map((r: any) => ({
         id: r.id,

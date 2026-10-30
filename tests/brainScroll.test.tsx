@@ -11,8 +11,10 @@ import {
 import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import BrainGame from "../src/BrainGame";
+import { playProgressFixture } from "./playProgressFixture";
 import {
   makeBrainChallenge,
+  brainMoscowDate,
   publicBrainRound,
   slideHint,
   type BrainDifficulty,
@@ -29,9 +31,16 @@ const mock = vi.hoisted(() => ({
   brainStart: vi.fn(),
   brainAnswer: vi.fn(),
   brainHint: vi.fn(),
+  api: vi.fn(),
 }));
 vi.mock("../src/account", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/account")>()),
+  api: (path: string) => mock.api(path),
+  useAuth: () => ({
+    user: { id: "scroll-player", nickname: "Игрок" },
+    ready: true,
+    loading: false,
+  }),
   useRankedRun: () => ({ ...mock, state: { status: "ready" } }),
   useGuestTrial: () => ({
     user: { id: "scroll-player", nickname: "Игрок" },
@@ -76,6 +85,7 @@ function fixture(
 let box: HTMLDivElement, root: Root;
 let scroll: MockInstance<Element["scrollIntoView"]>;
 let focus: MockInstance<HTMLElement["focus"]>;
+let network: MockInstance<typeof fetch>;
 const button = (text: string) =>
   [...box.querySelectorAll<HTMLButtonElement>("button")].find(
     (b) => b.textContent?.trim() === text,
@@ -131,6 +141,12 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.resetAllMocks();
+  mock.api.mockImplementation(async (path: string) => {
+    if (path === "/play/progress")
+      return playProgressFixture({ day: brainMoscowDate() });
+    throw new Error("Unexpected API request in scroll test: " + path);
+  });
+  network = vi.spyOn(globalThis, "fetch");
   localStorage.clear();
   window.history.replaceState(null, "", "/brain/");
   scroll = vi
@@ -142,11 +158,17 @@ beforeEach(() => {
   root = createRoot(box);
 });
 afterEach(() => {
-  act(() => root.unmount());
-  box.remove();
-  vi.useRealTimers();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
+  try {
+    for (const [path] of mock.api.mock.calls)
+      expect(path).toBe("/play/progress");
+    expect(network).not.toHaveBeenCalled();
+  } finally {
+    act(() => root.unmount());
+    box.remove();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  }
 });
 
 describe("brain round scroll and focus", () => {
@@ -362,6 +384,7 @@ describe("brain round scroll and focus", () => {
     );
     expect(scroll).toHaveBeenCalledTimes(1);
     expectTarget(box.querySelector(".brain-summary")!);
+    expect(mock.api).toHaveBeenCalledWith("/play/progress");
     expect(mock.brainStart).not.toHaveBeenCalled();
     await act(async () => vi.advanceTimersByTime(31_000));
     expect(scroll).toHaveBeenCalledTimes(1);

@@ -18,6 +18,7 @@ import RandomGame from "./RandomGame";
 import RecordCelebration from "./RecordCelebration";
 import CategoryGlyph from "./CategoryGlyph";
 import useCardMotion from "./useCardMotion";
+import TodayPlay from "./TodayPlay";
 
 function Arrow() {
   return (
@@ -89,6 +90,7 @@ export default function Hub() {
             </div>
           </div>
           <RecordCelebration />
+          <TodayPlay />
           <div className="hub-catalog">
             <HubTopFive />
             <div className="game-cards">
