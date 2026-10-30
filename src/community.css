@@ -640,6 +640,86 @@
   margin-top: 16px;
   min-height: 44px;
 }
+.email-reminders-form {
+  display: grid;
+  gap: 16px;
+  max-width: 520px;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.email-reminders-form h3,
+.email-reminders-form p {
+  margin: 0;
+}
+.email-reminder-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.email-reminder-toggle input {
+  appearance: auto;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 3px 0 0;
+  accent-color: var(--mint);
+}
+.email-reminders-form fieldset {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.email-reminders-form legend {
+  margin-bottom: 10px;
+  padding: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.email-day-options {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.email-day-options label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  font-size: 13px;
+  cursor: pointer;
+}
+.email-day-options input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.email-day-options label:has(input:checked) {
+  background: var(--mint-tint);
+  border-color: var(--mint);
+  color: var(--mint);
+  font-weight: 700;
+}
+.email-day-options label:has(input:focus-visible) {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: 2px;
+}
+.email-day-options label:has(input:disabled) {
+  opacity: 0.6;
+}
+.email-reminders-form > .secondary-button {
+  justify-self: start;
+}
 .email-action {
   border-color: var(--purple);
 }

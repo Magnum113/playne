@@ -464,7 +464,7 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
               aria-busy={busy}
             >
               <h3>Напоминания</h3>
-              <label>
+              <label className="email-reminder-toggle">
                 <input
                   type="checkbox"
                   checked={reminders.enabled}
@@ -477,27 +477,29 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
               </label>
               <fieldset disabled={busy}>
                 <legend>Дни недели</legend>
-                {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map(
-                  (day, index) => (
-                    <label key={day}>
-                      <input
-                        type="checkbox"
-                        checked={reminders.days.includes(index + 1)}
-                        onChange={(e) =>
-                          setReminders({
-                            ...reminders,
-                            days: e.target.checked
-                              ? [...reminders.days, index + 1].sort()
-                              : reminders.days.filter(
-                                  (value) => value !== index + 1,
-                                ),
-                          })
-                        }
-                      />
-                      {day}
-                    </label>
-                  ),
-                )}
+                <div className="email-day-options">
+                  {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map(
+                    (day, index) => (
+                      <label key={day}>
+                        <input
+                          type="checkbox"
+                          checked={reminders.days.includes(index + 1)}
+                          onChange={(e) =>
+                            setReminders({
+                              ...reminders,
+                              days: e.target.checked
+                                ? [...reminders.days, index + 1].sort()
+                                : reminders.days.filter(
+                                    (value) => value !== index + 1,
+                                  ),
+                            })
+                          }
+                        />
+                        <span>{day}</span>
+                      </label>
+                    ),
+                  )}
+                </div>
               </fieldset>
               <TextField
                 id={id + "-time"}
@@ -513,10 +515,7 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
                   setReminders({ ...reminders, time: e.target.value })
                 }
               />
-              <p>
-                Не пишем с 21:00 до 10:00. Все письма вместе — не чаще одного за
-                24 часа и трёх за 7 дней.
-              </p>
+              <p>Выбери время с 10:00 до 20:59.</p>
               <button
                 className="secondary-button"
                 disabled={busy || !reminders.days.length}
