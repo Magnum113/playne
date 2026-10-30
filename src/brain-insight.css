@@ -71,8 +71,8 @@
 .brain-insight summary:focus-visible,
 .brain-insight a:focus-visible,
 .brain-insight button:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 3px;
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
 }
 @media (max-width: 380px) {
   .brain-insight-more {

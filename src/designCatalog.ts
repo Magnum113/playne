@@ -304,6 +304,8 @@ export const componentInventory = [
     "GuidePage.tsx · PressureAbout.tsx · LineAbout.tsx",
     "content",
   ],
+  ["Личный разбор результата", "BrainInsight.tsx · brain-insight.css", "results"],
+  ["Вызов другу и общая ссылка", "ShareResult.tsx · ChallengeContext.tsx · challenge.css", "overlays"],
   ["Общий футер со всеми ссылками", "FooterLinks.tsx", "content"],
   [
     "Векторные силуэты и растровые маски",

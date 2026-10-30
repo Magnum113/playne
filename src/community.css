@@ -771,3 +771,5 @@
   margin-bottom: 12px;
   color: var(--muted);
 }
+
+.policy-main h1 { font-size: clamp(28px, 5vw, 52px); overflow-wrap: anywhere; }

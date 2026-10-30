@@ -148,6 +148,7 @@ export default function ShareResult({ runId }: { runId?: string }) {
                 Ссылка для друга
               </label>
               <input
+                className="ui-input"
                 id={heading + "-url"}
                 ref={link}
                 readOnly

@@ -37,7 +37,7 @@
   overscroll-behavior: contain;
 }
 .share-dialog::backdrop {
-  background: #10191bd0;
+  background: var(--overlay-backdrop);
 }
 .share-dialog-content {
   padding: 24px;
@@ -74,16 +74,6 @@
   font-size: 13px;
   line-height: 1.5;
 }
-.share-dialog input {
-  width: 100%;
-  min-height: 44px;
-  border: 1px solid var(--field-border);
-  border-radius: var(--radius-control);
-  padding: 12px;
-  color: var(--text);
-  background: var(--bg);
-  font-size: 13px;
-}
 .share-actions {
   display: flex;
   flex-wrap: wrap;
@@ -92,7 +82,7 @@
 }
 .share-actions > button {
   flex: 1 1 auto;
-  min-height: 48px;
+  min-height: var(--control-size);
   justify-content: center;
 }
 .share-revoke {
@@ -114,3 +104,5 @@
     flex-direction: column;
   }
 }
+
+.share-actions > .primary { min-height: var(--control-height); }

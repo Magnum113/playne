@@ -7,7 +7,7 @@ export default function PolicyPage({ terms = false }: { terms?: boolean }) {
         Перейти к содержанию
       </a>
       <GameHeader />
-      <main id="policy-main" className="community-main">
+      <main id="policy-main" className="community-main policy-main">
         <p className="eyebrow">PLAYNE</p>
         <h1>{terms ? "Правила сайта" : "Конфиденциальность"}</h1>
         <article className="community-panel">
