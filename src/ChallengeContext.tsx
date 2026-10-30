@@ -1,3 +1,4 @@
+import { reachGoal, SHARE_GOALS, trackChallengeResult } from "./analytics";
 import ChallengeComparison from "./ChallengeComparison";
 import { useEffect, useState } from "react";
 import { api } from "./account";
@@ -59,14 +60,28 @@ export default function ChallengeContext({
         }
       })
       .catch(() => {
-        if (active) setFailed(key);
+        if (active) {
+          setFailed(key);
+          reachGoal(SHARE_GOALS.error, { game, stage: "load" });
+        }
       });
     return () => {
       active = false;
     };
   }, [token, game, key]);
-  if (!token) return null;
   const data = snapshot?.key === key ? snapshot.data : null;
+  const matched =
+    !!data &&
+    (comparisonToken === token ||
+      (data.mode === "classic" &&
+        runMode === "classic" &&
+        runDay === data.day));
+  const referenceScore = data?.score;
+  useEffect(() => {
+    if (completed && matched && runId && referenceScore !== undefined)
+      trackChallengeResult(runId, game, score ?? 0, referenceScore);
+  }, [completed, matched, runId, referenceScore, game, score]);
+  if (!token) return null;
   if (failed === key)
     return (
       <aside className="challenge-context" role="status">
@@ -80,9 +95,6 @@ export default function ChallengeContext({
         Загружаем вызов…
       </aside>
     );
-  const matched =
-    comparisonToken === token ||
-    (data.mode === "classic" && runMode === "classic" && runDay === data.day);
   if (completed && !matched)
     return (
       <aside className="challenge-context">
@@ -109,6 +121,7 @@ export default function ChallengeContext({
           <a
             className="secondary-button challenge-inline-retry"
             href={challengeRetryPath(data, runId)}
+            onClick={() => reachGoal(SHARE_GOALS.retryClicked, { game })}
           >
             Попробовать ещё ↻
           </a>

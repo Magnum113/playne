@@ -82,6 +82,7 @@ export function createRankedQueue(
   options: {
     storage?: Storage;
     onPublished?: (run: ServerRun, score: number) => void;
+    onCompleted?: (run: ServerRun, score: number) => void;
     onUnauthorized?: () => void;
     onRecordResult?: (
       run: ServerRun,
@@ -320,6 +321,7 @@ export function createRankedQueue(
           );
           p.results[task.index] = result;
           p.tasks.shift();
+          const wasCompleted = p.completed;
           p.completed = !!result.completed;
           p.published = !!result.published;
           if (typeof result.private === "boolean")
@@ -331,6 +333,8 @@ export function createRankedQueue(
             id: p.run!.id,
             score: p.score,
           });
+          if (p.completed && !wasCompleted)
+            options.onCompleted?.(p.run!, p.score ?? 0);
           if (p.completed) recordResult(p, result);
           if (p.published) options.onPublished?.(p.run!, p.score ?? 0);
         }

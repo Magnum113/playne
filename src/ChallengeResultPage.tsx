@@ -6,6 +6,7 @@ import {
   type PublicChallenge,
 } from "./challenges";
 import type { ServerRun } from "./rankedQueue";
+import { reachGoal, SHARE_GOALS, trackChallengeResult } from "./analytics";
 import ChallengeComparison from "./ChallengeComparison";
 import ShareResult from "./ShareResult";
 import FooterLinks from "./FooterLinks";
@@ -20,9 +21,15 @@ export default function ChallengeResultPage({
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
+    trackChallengeResult(
+      run.id,
+      reference.game,
+      run.score ?? 0,
+      reference.score,
+    );
     heading.current?.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "instant" });
-  }, [run.id]);
+  }, [run.id, run.score, reference.game, reference.score]);
   const score = run.score ?? 0;
   const title =
     score > reference.score
@@ -47,7 +54,13 @@ export default function ChallengeResultPage({
           </h1>
           <ChallengeComparison reference={reference} score={score} />
           <div className="challenge-result-actions">
-            <a className="primary" href={challengeRetryPath(reference, run.id)}>
+            <a
+              className="primary"
+              href={challengeRetryPath(reference, run.id)}
+              onClick={() =>
+                reachGoal(SHARE_GOALS.retryClicked, { game: reference.game })
+              }
+            >
               Попробовать ещё <span aria-hidden="true">↻</span>
             </a>
             <ShareResult runId={run.id} />

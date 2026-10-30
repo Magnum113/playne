@@ -32,6 +32,11 @@ export default function ShareResult({ runId }: { runId?: string }) {
     [],
   );
   if (!runId) return null;
+  const slug =
+    typeof window === "undefined"
+      ? undefined
+      : window.location.pathname.split("/").filter(Boolean).at(-1);
+  const game = slug === "one-line" ? "line" : (slug ?? "unknown");
   async function create() {
     dialog.current?.showModal();
     setMessage("");
@@ -47,8 +52,10 @@ export default function ShareResult({ runId }: { runId?: string }) {
         reachGoal(SHARE_GOALS.created, { game: value.game });
       }
     } catch {
-      if (current === request.current)
+      if (current === request.current) {
+        reachGoal(SHARE_GOALS.error, { game, stage: "create" });
         setMessage("Не удалось подготовить ссылку. Попробуй ещё раз.");
+      }
     } finally {
       if (current === request.current) setBusy(false);
     }
@@ -60,9 +67,10 @@ export default function ShareResult({ runId }: { runId?: string }) {
       await navigator.clipboard.writeText(data.url);
       if (current !== request.current) return;
       setMessage("Ссылка скопирована");
-      reachGoal(SHARE_GOALS.copied, { game: data.game });
+      reachGoal(SHARE_GOALS.copied, { game: data.game, method: "clipboard" });
     } catch {
       if (current !== request.current) return;
+      reachGoal(SHARE_GOALS.error, { game: data.game, stage: "copy" });
       link.current?.focus();
       link.current?.select();
       setMessage("Выделили ссылку — скопируй её вручную.");
@@ -84,8 +92,12 @@ export default function ShareResult({ runId }: { runId?: string }) {
       reachGoal(SHARE_GOALS.sent, { game: data.game });
     } catch (e) {
       if (current !== request.current) return;
-      if (!(e instanceof Error && e.name === "AbortError"))
+      if (e instanceof Error && e.name === "AbortError") {
+        reachGoal(SHARE_GOALS.cancelled, { game: data.game });
+      } else {
+        reachGoal(SHARE_GOALS.error, { game: data.game, stage: "share" });
         setMessage("Поделиться не получилось. Можно скопировать ссылку.");
+      }
     }
   }
   async function revoke() {
@@ -96,9 +108,11 @@ export default function ShareResult({ runId }: { runId?: string }) {
       await api(`/challenges/${data.token}`, "DELETE");
       if (current !== request.current) return;
       setSnapshot(null);
+      reachGoal(SHARE_GOALS.revoked, { game: data.game });
       setMessage("Ссылка отключена");
     } catch {
       if (current !== request.current) return;
+      reachGoal(SHARE_GOALS.error, { game: data.game, stage: "revoke" });
       setMessage("Не удалось отключить ссылку. Попробуй ещё раз.");
     } finally {
       if (current === request.current) setBusy(false);
@@ -109,13 +123,16 @@ export default function ShareResult({ runId }: { runId?: string }) {
       <button
         className="secondary-button"
         aria-label="Бросить вызов другу"
-        onClick={() => void create()}
+        onClick={() => {
+          reachGoal(SHARE_GOALS.opened, { game });
+          void create();
+        }}
         disabled={loading}
       >
         Бросить вызов ↗
       </button>
       <dialog
-        className="share-dialog"
+        className="share-dialog ym-hide-content"
         ref={dialog}
         aria-labelledby={heading}
         onClick={(event) => {
@@ -155,6 +172,12 @@ export default function ShareResult({ runId }: { runId?: string }) {
                 readOnly
                 value={data.url}
                 onFocus={(e) => e.currentTarget.select()}
+                onCopy={() =>
+                  reachGoal(SHARE_GOALS.copied, {
+                    game: data.game,
+                    method: "manual",
+                  })
+                }
               />
               <div className="share-actions">
                 {typeof navigator !== "undefined" &&

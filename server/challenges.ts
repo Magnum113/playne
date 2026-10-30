@@ -9,6 +9,10 @@ import {
   type ChallengeStart,
   type PublicChallenge,
 } from "../src/challenges";
+import {
+  challengeAnalyticsCsp,
+  challengeAnalyticsScript,
+} from "./challenge-analytics";
 import { renderChallengePng, challengeHtml } from "./challenge-preview";
 
 type Queryable = Pick<Pool, "query">;
@@ -325,6 +329,12 @@ export async function registerChallengeRoutes(
       return reply.send(await renderChallengePng(data));
     },
   );
+  app.get("/api/challenges/analytics.js", async (_req, reply) => {
+    return reply
+      .header("Cache-Control", "public, max-age=300")
+      .type("application/javascript; charset=utf-8")
+      .send(challengeAnalyticsScript);
+  });
   const landing = async (req: any, reply: any) => {
     const data = metadata(
       await sharedSource(
@@ -338,10 +348,7 @@ export async function registerChallengeRoutes(
     reply
       .header("Cache-Control", "no-store")
       .header("X-Robots-Tag", "noindex, nofollow, noarchive")
-      .header(
-        "Content-Security-Policy",
-        "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
-      )
+      .header("Content-Security-Policy", challengeAnalyticsCsp)
       .type("text/html; charset=utf-8");
     return reply.send(challengeHtml(data));
   };

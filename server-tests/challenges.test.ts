@@ -900,6 +900,17 @@ const db = process.env.TEST_DATABASE_URL;
       expect(page.statusCode).toBe(200);
       expect(page.headers["cache-control"]).toBe("no-store");
       expect(page.headers["x-robots-tag"]).toContain("noindex");
+      expect(page.headers["content-security-policy"]).toContain(
+        "script-src 'self' https://mc.yandex.ru",
+      );
+      expect(page.body).toContain('src="/api/challenges/analytics.js" defer');
+      const analytics = await get("/api/challenges/analytics.js");
+      expect(analytics.statusCode).toBe(200);
+      expect(analytics.headers["content-type"]).toContain(
+        "application/javascript",
+      );
+      expect(analytics.body).toContain("playne_challenge_landing");
+      expect(analytics.body).not.toContain(link.token);
       expect(page.body).toContain('property="og:image"');
       expect(page.body).toContain(link.imageUrl);
       expect(page.body).toContain("Сможешь повторить?");

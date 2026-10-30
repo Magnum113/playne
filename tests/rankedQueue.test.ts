@@ -33,6 +33,27 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("durable result synchronization", () => {
+  it("signals completion only for a freshly acknowledged result, not a restored result", async () => {
+    const completed = vi.fn();
+    const q = createRankedQueue(
+      async () => ({
+        completed: true,
+        published: false,
+        private: true,
+        score: 88,
+      }),
+      { storage: storage(), onCompleted: completed },
+    );
+    queues.push(q);
+    const issued = { ...run("circle"), private: true };
+    const key = q.add(issued, "circle");
+    q.enqueue(key, 0, { points: [] });
+    await q.drain(key);
+    expect(completed).toHaveBeenCalledExactlyOnceWith(issued, 88);
+    q.add({ ...issued, completed: true, score: 88 }, "circle");
+    await q.drain(key);
+    expect(completed).toHaveBeenCalledTimes(1);
+  });
   it("restores a timed color answer after network loss and discards only an expired choice update", async () => {
     const saved = storage();
     const failed = queue(async () => {

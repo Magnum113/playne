@@ -18,7 +18,14 @@ import {
   type GeoMode,
   type GeoPoint,
 } from "./geo";
-import { ACCOUNT_GOALS, reachGoal, type MetrikaParams } from "./analytics";
+import {
+  ACCOUNT_GOALS,
+  reachGoal,
+  trackChallengeStart,
+  trackChallengeComplete,
+  SHARE_GOALS,
+  type MetrikaParams,
+} from "./analytics";
 import {
   createContext,
   useContext,
@@ -103,6 +110,7 @@ let refreshAuth: () => Promise<void> = async () => {};
 const rankedQueue = createRankedQueue(api, {
   onUnauthorized: () => void refreshAuth(),
   onRecordResult: rememberPersonalRecord,
+  onCompleted: trackChallengeComplete,
   onPublished: (run, score) =>
     trackPublished(run.id, {
       game: run.game,
@@ -238,8 +246,7 @@ export const useAuth = () => useContext(AuthContext);
 export function useGuestTrial<G extends GameId = GameId>(game?: G) {
   const auth = useAuth();
   const trial = (game ? auth.trials[game] : undefined) as
-    | GuestTrial<G>
-    | undefined;
+    GuestTrial<G> | undefined;
   const query =
     typeof window === "undefined"
       ? null
@@ -483,8 +490,14 @@ export function useRankedRun<G extends GameId>(game: G) {
             game === "naglaz" ? pairs.map((pair) => pair.id) : undefined,
         }),
       )
-      .then((data) => activate(data, generation))
+      .then((data) => {
+        if (current.current === active && challenge && data && !data.completed)
+          trackChallengeStart(data, !!auth.user);
+        return activate(data, generation);
+      })
       .catch((e) => {
+        if (challenge && current.current === active)
+          reachGoal(SHARE_GOALS.error, { game, stage: "start" });
         if (e instanceof ApiError && e.status === 403) void auth.refresh();
         if (alive.current && current.current === active)
           setState({
@@ -670,11 +683,7 @@ export function useRankedRun<G extends GameId>(game: G) {
     },
     state,
     mode: (current.current.mode ?? "classic") as G extends
-      | "line"
-      | "flash"
-      | "rotate"
-      | "slide"
-      | "dispatch"
+      "line" | "flash" | "rotate" | "slide" | "dispatch"
       ? GameMode
       : GeoMode,
     begin,

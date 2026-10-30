@@ -63,9 +63,21 @@ export const BRAIN_GOALS = {
 } as const;
 
 export const SHARE_GOALS = {
+  opened: "playne_challenge_dialog_open",
   created: "playne_challenge_created",
   copied: "playne_challenge_copied",
   sent: "playne_challenge_shared",
+  cancelled: "playne_challenge_share_cancelled",
+  error: "playne_challenge_error",
+  revoked: "playne_challenge_revoked",
+  landing: "playne_challenge_landing",
+  accepted: "playne_challenge_accept",
+  started: "playne_challenge_start",
+  completed: "playne_challenge_complete",
+  resultViewed: "playne_challenge_result_view",
+  retryClicked: "playne_challenge_retry_click",
+  retryStarted: "playne_challenge_retry_start",
+  retryCompleted: "playne_challenge_retry_complete",
 } as const;
 
 export const PLAY_GOALS = {
@@ -83,6 +95,17 @@ export const ACCOUNT_GOALS = {
   logout: "account_logout",
 } as const;
 
+export const BRAIN_GAME_GOALS = {
+  flashStart: "flash_game_start",
+  flashComplete: "flash_game_complete",
+  rotateStart: "rotate_game_start",
+  rotateComplete: "rotate_game_complete",
+  slideStart: "slide_game_start",
+  slideComplete: "slide_game_complete",
+  dispatchStart: "dispatch_game_start",
+  dispatchComplete: "dispatch_game_complete",
+} as const;
+
 type Values<T> = T[keyof T];
 export type MetrikaGoal =
   | Values<typeof METRIKA_GOALS>
@@ -94,7 +117,8 @@ export type MetrikaGoal =
   | Values<typeof LINE_GOALS>
   | Values<typeof BRAIN_GOALS>
   | Values<typeof PLAY_GOALS>
-  | Values<typeof SHARE_GOALS>;
+  | Values<typeof SHARE_GOALS>
+  | Values<typeof BRAIN_GAME_GOALS>;
 export type MetrikaParams = Record<string, string | number | boolean>;
 
 type MetrikaFunction = {
@@ -131,13 +155,13 @@ export function initMetrika() {
 
   window.ym(METRIKA_COUNTER_ID, "init", {
     ssr: true,
-    webvisor: true,
+    webvisor: !new URLSearchParams(window.location.search).has("challenge"),
     clickmap: true,
     ecommerce: "dataLayer",
-    referrer: document.referrer,
-    url: location.href,
+    referrer: analyticsUrl(document.referrer),
+    url: analyticsUrl(window.location.href),
     accurateTrackBounce: true,
-    trackLinks: true,
+    trackLinks: !new URLSearchParams(window.location.search).has("challenge"),
   });
 }
 
@@ -145,7 +169,131 @@ export function reachGoal(goal: MetrikaGoal, params?: MetrikaParams) {
   if (typeof window === "undefined") return;
   try {
     window.ym?.(METRIKA_COUNTER_ID, "reachGoal", goal, params);
+    if (
+      (goal === BRAIN_GOALS.gameStart || goal === BRAIN_GOALS.gameComplete) &&
+      ["flash", "rotate", "slide", "dispatch"].includes(String(params?.game))
+    ) {
+      const event = `${params!.game}_game_${goal === BRAIN_GOALS.gameStart ? "start" : "complete"}`;
+      window.ym?.(METRIKA_COUNTER_ID, "reachGoal", event, params);
+    }
   } catch {
     // Analytics must never interrupt a player's action.
   }
+}
+
+// Keep campaign attribution while dropping private runs, invitations and login links.
+export const ANALYTICS_CAMPAIGN_KEYS = [
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_content",
+  "utm_term",
+  "yclid",
+  "gclid",
+] as const;
+export function analyticsUrl(value: string): string {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    const path = /^\/(c|challenge)\//.test(url.pathname)
+      ? "/challenge/"
+      : url.pathname;
+    const query = new URLSearchParams();
+    for (const key of ANALYTICS_CAMPAIGN_KEYS) {
+      const value = url.searchParams.get(key);
+      if (value) query.set(key, value);
+    }
+    return url.origin + path + (query.size ? "?" + query : "");
+  } catch {
+    return "";
+  }
+}
+
+const once = new Set<string>();
+export function reachGoalOnce(
+  goal: MetrikaGoal,
+  key: string,
+  params?: MetrikaParams,
+) {
+  if (typeof window === "undefined" || !window.ym) return;
+  const storageKey = `playne:analytics:${goal}:${key}`;
+  if (once.has(storageKey)) return;
+  try {
+    if (window.sessionStorage.getItem(storageKey)) return;
+  } catch {
+    /* storage may be blocked */
+  }
+  once.add(storageKey);
+  try {
+    window.sessionStorage.setItem(storageKey, "1");
+  } catch {
+    /* best effort */
+  }
+  reachGoal(goal, params);
+}
+
+const activeChallenges = new Map<string, MetrikaParams>();
+export function trackChallengeStart(
+  run: {
+    id: string;
+    game: string;
+    mode?: string;
+    completed?: boolean;
+    challenge: { retryOf?: string };
+  },
+  auth: boolean,
+) {
+  if (run.completed) return;
+  const params = {
+    game: run.game,
+    mode: run.mode ?? "classic",
+    attempt_kind: run.challenge.retryOf ? "retry" : "first",
+    player: auth ? "account" : "guest",
+  };
+  activeChallenges.set(run.id, params);
+  try {
+    window.sessionStorage.setItem(
+      `playne:challenge-analytics:${run.id}`,
+      JSON.stringify(params),
+    );
+  } catch {
+    /* best effort */
+  }
+  reachGoalOnce(SHARE_GOALS.started, run.id, params);
+  if (run.challenge.retryOf)
+    reachGoalOnce(SHARE_GOALS.retryStarted, run.id, params);
+}
+export function trackChallengeComplete(run: { id: string }, score: number) {
+  let params = activeChallenges.get(run.id);
+  try {
+    params ??=
+      JSON.parse(
+        window.sessionStorage.getItem(`playne:challenge-analytics:${run.id}`) ??
+          "null",
+      ) ?? undefined;
+  } catch {
+    /* best effort */
+  }
+  if (!params) return;
+  reachGoalOnce(SHARE_GOALS.completed, run.id, { ...params, score });
+  if (params.attempt_kind === "retry")
+    reachGoalOnce(SHARE_GOALS.retryCompleted, run.id, { ...params, score });
+}
+export function trackChallengeResult(
+  runId: string,
+  game: string,
+  score: number,
+  referenceScore: number,
+) {
+  reachGoalOnce(SHARE_GOALS.resultViewed, runId, {
+    game,
+    score,
+    reference_score: referenceScore,
+    outcome:
+      score > referenceScore
+        ? "win"
+        : score === referenceScore
+          ? "tie"
+          : "behind",
+  });
 }
