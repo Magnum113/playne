@@ -294,6 +294,9 @@ describe("brain game orchestration", () => {
       "Сегодняшний день засчитан",
     );
     expect(button("Обновить прогресс")).toBeTruthy();
+    expect(
+      box.querySelector(".play-next [role=status]")?.textContent,
+    ).toContain("Не удалось обновить прогресс");
     expect(window.location.search).toBe(`?result=${runId}`);
     await act(async () => button("Обновить прогресс").click());
     expect(box.querySelector(".play-next")?.textContent).toContain(

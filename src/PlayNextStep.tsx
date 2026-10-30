@@ -26,9 +26,12 @@ export default function PlayNextStep({
       <div className="play-next">
         <a href="/brain/">К заданиям дня →</a>
         {error && (
-          <button className="text-button" onClick={refresh}>
-            Обновить прогресс
-          </button>
+          <>
+            <p role="status">Не удалось обновить прогресс. Попробуй ещё раз.</p>
+            <button className="text-button" onClick={refresh}>
+              Обновить прогресс
+            </button>
+          </>
         )}
       </div>
     );
@@ -73,9 +76,19 @@ export default function PlayNextStep({
         </a>
       )}
       {error && (
-        <button className="text-button" onClick={refresh}>
-          Обновить прогресс
-        </button>
+        <>
+          <p role="status">
+            Не удалось обновить прогресс. Показаны последние данные.
+          </p>
+          <button
+            className="text-button"
+            onClick={refresh}
+            disabled={loading}
+            aria-busy={loading}
+          >
+            Обновить прогресс
+          </button>
+        </>
       )}
     </section>
   );

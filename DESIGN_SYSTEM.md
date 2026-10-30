@@ -36,6 +36,7 @@
 | Запуск | `SiteHeader.tsx`, `GameIntro.tsx`, `game-start.css` | Шапка, название, рекорд выбранного режима, запуск/продолжение/вход |
 | Результаты | `ResultStatus.tsx`, `AccountBests.tsx`, `OverallLeaderboard.tsx` | Состояние сохранения, личные рекорды, вклад игр и общий рейтинг |
 | Авторизация и данные | `account.tsx`, `rankedQueue.ts`, `EmailPreferences.tsx` | Запросы, сохранение и повтор, гостевая партия, отдельное согласие на письма |
+| Активность | `PlayWeek.tsx`, `TodayPlay.tsx`, `PlayNextStep.tsx` | Недельная цель, постоянные достижения, рекомендации и следующий шаг |
 | Движение | `useCardMotion.ts`, `RandomGame.tsx`, `RecordCelebration.tsx` | Управляемые превью, случайная игра, редкое поздравление с рекордом |
 | Документация | `DesignSystem.tsx`, `DesignNavigation.tsx`, `designCatalog.ts`, `designGuidance.ts` | Живые примеры, поиск, принципы, реестр и контракты |
 

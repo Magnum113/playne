@@ -56,6 +56,16 @@ export const tokenGroups = [
 // The source paths identify the production components used by these examples.
 export const componentInventory = [
   [
+    "Недельная цель, календарь и постоянные достижения",
+    "PlayWeek.tsx · ActivityExamples.tsx",
+    "results",
+  ],
+  [
+    "Рекомендации дня и следующий шаг после игры",
+    "TodayPlay.tsx · PlayNextStep.tsx · play-progress.css",
+    "cards",
+  ],
+  [
     "Принципы, критерии приёмки и правила применения",
     "designGuidance.ts",
     "contracts",

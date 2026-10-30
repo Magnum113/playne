@@ -19,6 +19,7 @@ import {
 import { TextField, FieldFeedback } from "./FormField";
 import { RulesDialog } from "./RulesDialog";
 import DesignNavigation from "./DesignNavigation";
+import ActivityExamples from "./ActivityExamples";
 import { DesignPrinciples, ComponentContracts } from "./DesignPrinciplesPanel";
 import { GameIntro, GameRecord, GameStartAction } from "./GameIntro";
 import {
@@ -1871,6 +1872,12 @@ export default function DesignSystem() {
               </Sample>
             </Section>
             <Section id="results">
+              <Sample
+                title="Активность за неделю"
+                source="PlayWeek.tsx · настоящий компонент с вымышленными данными"
+              >
+                <ActivityExamples />
+              </Sample>
               <Sample
                 title="Вход после гостевой партии"
                 source="ResultStatus.tsx · GuestTrialPanel"

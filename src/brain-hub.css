@@ -218,8 +218,9 @@ a.brain-card:hover {
 .brain-calendar strong {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: min(32px, 100%);
+  height: auto;
+  aspect-ratio: 1;
   background: var(--panel);
   border: 1px solid var(--line-strong);
   border-radius: 50%;
