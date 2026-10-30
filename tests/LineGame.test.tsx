@@ -322,7 +322,7 @@ describe("one-line completed-party recovery", () => {
     expect(container.querySelector(".line-total strong")?.textContent).toBe(
       "450",
     );
-    expect(container.textContent).toContain("Ты впереди на 50 очков");
+    expect(container.textContent).toContain("Ты впереди!");
     expect(container.querySelector('[data-testid="save-result"]')).toBeNull();
   });
   it("keeps an unfinished result at welcome until the user explicitly resumes that exact run", async () => {

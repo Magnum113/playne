@@ -682,7 +682,7 @@ describe("brain game orchestration", () => {
     expect(mock.begin).not.toHaveBeenCalled();
     expect(mock.brainStart).not.toHaveBeenCalled();
     expect(box.querySelector(".brain-total strong")?.textContent).toBe("450");
-    expect(box.textContent).toContain("Ты впереди на 50 очков");
+    expect(box.textContent).toContain("Ты впереди!");
     expect(box.querySelector('[data-testid="public-save"]')).toBeNull();
   });
   it("does not start an incomplete challenge result automatically and resumes that exact run on click", async () => {

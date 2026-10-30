@@ -51,3 +51,6 @@ export const challengeScore = (
     : data.game === "pressure"
       ? `${data.score} очков`
       : `${data.score} / ${data.maxScore}`;
+
+export const challengeRetryPath = (reference: PublicChallenge, id: string) =>
+  `${challengePath(reference.game)}?challenge=${encodeURIComponent(reference.token)}&retry=${encodeURIComponent(id)}${["naglaz", "circle", "pressure"].includes(reference.game) ? "" : "&mode=" + encodeURIComponent(reference.mode)}`;

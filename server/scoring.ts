@@ -384,7 +384,7 @@ export function safeReturn(value: unknown) {
   for (const [key, item] of url.searchParams) {
     if (keys.has(key)) return "/account/";
     keys.add(key);
-    if (key === "claim" || key === "saved") {
+    if (key === "claim" || key === "saved" || key === "retry") {
       if (
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
           item,
@@ -412,5 +412,6 @@ export function safeReturn(value: unknown) {
         return "/account/";
     } else return "/account/";
   }
+  if (keys.has("retry") && !keys.has("challenge")) return "/account/";
   return value;
 }

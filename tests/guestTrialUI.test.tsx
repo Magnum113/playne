@@ -318,3 +318,16 @@ describe("guest party entry", () => {
     expect(box.textContent).toContain("сохранить результат в рейтинг");
   });
 });
+it("lets a consumed guest start an explicit challenge retry without unlocking ordinary play", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    `/colorfle/?challenge=${"a".repeat(43)}&retry=${id}`,
+  );
+  const start = await render({
+    user: null,
+    trials: { colorfle: { id, completed: true, mode: "classic" } },
+  });
+  act(() => box.querySelector("button")!.click());
+  expect(start).toHaveBeenCalledTimes(1);
+});

@@ -565,6 +565,12 @@ export async function buildApp(
       )
         failure("Некорректный каталог сравнений");
       const challengeToken = (req.body as any)?.challenge;
+      const retryFrom = (req.body as any)?.retry;
+      if (
+        retryFrom !== undefined &&
+        (!uuid(retryFrom) || challengeToken === undefined)
+      )
+        failure("Некорректная повторная попытка", 400);
       let mode =
         challengeToken !== undefined
           ? "classic"
@@ -607,11 +613,76 @@ export async function buildApp(
                 game,
                 config.origin,
                 lineDay,
+                retryFrom !== undefined,
               );
         if (shared) {
           mode = shared.mode;
           if (shared.kind === "comparison")
             difficulty = shared.challenge.difficulty ?? 1;
+        }
+        if (retryFrom !== undefined) {
+          if (shared?.kind !== "comparison") failure("Вызов недоступен", 404);
+          const previous = (
+            await client.query("SELECT * FROM playne_games WHERE id=$1", [
+              retryFrom,
+            ])
+          ).rows[0];
+          const manages =
+            previous &&
+            (previous.owner_id
+              ? previous.owner_id === u?.id
+              : previous.browser_hash === b);
+          const matches =
+            previous &&
+            (previous.challenge.comparisonToken === challengeToken ||
+              (["line", "flash", "rotate", "slide", "dispatch"].includes(
+                game,
+              ) &&
+                previous.mode === "classic" &&
+                previous.challenge.day === shared.reference.day));
+          if (
+            !manages ||
+            previous.game !== game ||
+            !previous.completed_at ||
+            !matches
+          )
+            failure("Результат вызова не найден", 404);
+          await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+            `challenge-retry:${u?.id ?? b}:${retryFrom}`,
+          ]);
+          let run = (
+            await client.query(
+              "SELECT * FROM playne_games WHERE game=$1 AND (owner_id=$2 OR (owner_id IS NULL AND browser_hash=$3)) AND challenge->>'comparisonToken'=$4 AND challenge->>'retryOf'=$5 AND (completed_at IS NOT NULL OR expires_at>now()) ORDER BY created_at LIMIT 1",
+              [game, u?.id ?? null, b, challengeToken, retryFrom],
+            )
+          ).rows[0];
+          if (!run)
+            run = (
+              await client.query(
+                "INSERT INTO playne_games(browser_hash,owner_id,game,challenge,version,mode,expires_at) VALUES($1,$2,$3,$4,$5,$6,now()+interval '365 days') RETURNING *",
+                [
+                  b,
+                  u?.id ?? null,
+                  game,
+                  JSON.stringify({ ...shared.challenge, retryOf: retryFrom }),
+                  shared.version,
+                  shared.mode,
+                ],
+              )
+            ).rows[0];
+          await client.query("COMMIT");
+          return {
+            id: run.id,
+            game,
+            version: run.version,
+            mode: run.mode,
+            challenge: publicChallenge(game, run.challenge),
+            answers: run.answers,
+            completed: !!run.completed_at,
+            published: false,
+            private: true,
+            score: run.score_units === null ? null : run.score_units / 10,
+          };
         }
         // Claims/publication take this lock before the run and account/day locks.
         // Daily starts use the same order, including adoption of a guest attempt.

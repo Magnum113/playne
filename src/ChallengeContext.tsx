@@ -1,8 +1,10 @@
+import ChallengeComparison from "./ChallengeComparison";
 import { useEffect, useState } from "react";
 import { api } from "./account";
 import {
   challengePath,
   challengeScore,
+  challengeRetryPath,
   type PublicChallenge,
   type ChallengeGame,
 } from "./challenges";
@@ -28,6 +30,7 @@ export default function ChallengeContext({
   runDay,
   runMode,
   comparisonToken,
+  runId,
 }: {
   game: ChallengeGame;
   token?: string;
@@ -36,6 +39,7 @@ export default function ChallengeContext({
   runDay?: string;
   runMode?: string;
   comparisonToken?: string;
+  runId?: string;
 }) {
   const key = `${game}:${token}`;
   const [snapshot, setSnapshot] = useState<{
@@ -90,28 +94,37 @@ export default function ChallengeContext({
         </p>
       </aside>
     );
-  const difference = Math.round(((score ?? 0) - data.score) * 10) / 10;
-  const n = Math.abs(difference);
-  const unit = game === "circle" ? "п.п." : n % 10 === 1 && n % 100 !== 11 ? "очко" : [2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100) ? "очка" : "очков";
+  if (completed)
+    return (
+      <aside className="challenge-comparison-inline" aria-label="Вызов друга">
+        <strong className="challenge-inline-heading">
+          {(score ?? 0) > data.score
+            ? "Ты впереди!"
+            : score === data.score
+              ? "Ничья"
+              : "Друг впереди"}
+        </strong>
+        <ChallengeComparison reference={data} score={score ?? 0} />
+        {runId && (
+          <a
+            className="secondary-button challenge-inline-retry"
+            href={challengeRetryPath(data, runId)}
+          >
+            Попробовать ещё ↻
+          </a>
+        )}
+      </aside>
+    );
   return (
     <aside className="challenge-context" aria-label="Вызов друга">
       <span className="challenge-mark" aria-hidden="true">
         ↗
       </span>
       <div>
-        <strong>
-          {completed
-            ? difference > 0
-              ? `Ты впереди на ${difference} ${unit}`
-              : difference === 0
-                ? "Ничья"
-                : `До результата друга — ${-difference} ${unit}`
-            : `Вызов от ${data.nickname}`}
-        </strong>
+        <strong>Вызов от {data.nickname}</strong>
         <p>
-          {completed
-            ? `Ты: ${game === "circle" || game === "pressure" ? challengeScore({ ...data, score: score ?? 0 }) : score} · ${data.nickname}: ${challengeScore(data)}`
-            : `${challengeScore(data)} · ${data.isTodayDaily ? "Сегодняшняя задача дня" : "Те же задания, отдельное сравнение"}`}
+          {challengeScore(data)} ·{" "}
+          {data.isTodayDaily ? "Сегодняшняя задача дня" : "Те же задания"}
         </p>
       </div>
     </aside>

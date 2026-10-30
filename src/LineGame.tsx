@@ -27,7 +27,12 @@ import { PlayneEmailOffer } from "./EmailPreferences";
 
 type Mode = "classic" | "practice";
 type Phase =
-  "welcome" | "ready" | "playing" | "checking" | "round-result" | "finished";
+  | "welcome"
+  | "ready"
+  | "playing"
+  | "checking"
+  | "round-result"
+  | "finished";
 type Saved = {
   id: string;
   mode: Mode;
@@ -556,6 +561,7 @@ export default function LineGame() {
             <ChallengeContext
               game="line"
               token={challengeToken ?? run?.challenge.comparisonToken}
+              runId={run?.id}
               completed
               runDay={run?.challenge.day}
               runMode={run?.mode}

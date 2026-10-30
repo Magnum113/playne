@@ -25,6 +25,7 @@ export function SaveResult({
           game={game}
           token={token}
           completed
+          runId={run.state.id}
           score={run.state.score}
           comparisonToken={run.comparisonToken}
         />

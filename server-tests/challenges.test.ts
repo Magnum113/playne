@@ -326,6 +326,129 @@ const db = process.env.TEST_DATABASE_URL;
       },
     );
 
+    it("retries an owned completed comparison with fresh state, idempotency and unchanged rankings", async () => {
+      const author = await signed(),
+        player = await signed(),
+        original = await source(author.id, "rotate"),
+        link = await share(author.cookie, original.id);
+      const first = (await game(player.cookie, "rotate", link.token)).json();
+      await finishRotate(player.cookie, first);
+      const retry = () =>
+        post(player.cookie, "/api/games", {
+          game: "rotate",
+          challenge: link.token,
+          retry: first.id,
+        });
+      const responses = await Promise.all([retry(), retry()]);
+      expect(responses.map((r) => r.statusCode)).toEqual([200, 200]);
+      const second = responses[0].json();
+      expect(responses[1].json().id).toBe(second.id);
+      expect(second.id).not.toBe(first.id);
+      expect(second).toMatchObject({
+        private: true,
+        completed: false,
+        answers: [],
+      });
+      expect(second.challenge.states).toEqual({});
+      expect(second.challenge.comparisonToken).toBe(link.token);
+      expect(
+        (await get(`/api/games/${first.id}`, player.cookie)).json(),
+      ).toMatchObject({ completed: true, score: 500 });
+      await finishRotate(player.cookie, second);
+      expect(
+        (
+          await post(player.cookie, `/api/games/${second.id}/publish`, {})
+        ).json(),
+      ).toMatchObject({ private: true, record: { improved: false } });
+      expect((await get("/api/leaderboard?game=overall")).json().total).toBe(0);
+      const third = (
+        await post(player.cookie, "/api/games", {
+          game: "rotate",
+          challenge: link.token,
+          retry: second.id,
+        })
+      ).json();
+      expect(third.id).not.toBe(second.id);
+    });
+    it("lets a guest retry and share privately while keeping the ordinary trial consumed", async () => {
+      const author = await signed(),
+        original = await source(author.id),
+        link = await share(author.cookie, original.id),
+        cookie = await guest(),
+        stranger = await guest();
+      const first = (await game(cookie, "line", link.token)).json();
+      await finishLine(cookie, first);
+      expect(
+        (
+          await post(stranger, "/api/games", {
+            game: "line",
+            challenge: link.token,
+            retry: first.id,
+          })
+        ).statusCode,
+      ).toBe(404);
+      const response = await post(cookie, "/api/games", {
+        game: "line",
+        challenge: link.token,
+        retry: first.id,
+      });
+      expect(response.statusCode).toBe(200);
+      const second = response.json();
+      expect(
+        (
+          await post(cookie, "/api/games", {
+            game: "line",
+            challenge: link.token,
+            retry: second.id,
+          })
+        ).statusCode,
+      ).toBe(404);
+      await finishLine(cookie, second);
+      expect((await share(cookie, second.id)).game).toBe("line");
+      expect((await game(cookie, "line")).statusCode).toBe(403);
+      expect(
+        (await get(`/api/games/${second.id}`, cookie)).json(),
+      ).toMatchObject({ private: true, published: false, completed: true });
+      expect(
+        (
+          await post(cookie, "/api/games", {
+            game: "line",
+            challenge: link.token,
+            retry: "bad",
+          })
+        ).statusCode,
+      ).toBe(400);
+    });
+    it("replays a completed daily reference as private practice without reserving a second day", async () => {
+      const author = await signed(),
+        player = await signed(),
+        original = await source(author.id, "line", "classic", lineMoscowDate()),
+        link = await share(author.cookie, original.id);
+      const daily = (await game(player.cookie, "line", link.token)).json();
+      await finishLine(player.cookie, daily);
+      const response = await post(player.cookie, "/api/games", {
+        game: "line",
+        challenge: link.token,
+        retry: daily.id,
+      });
+      expect(response.statusCode).toBe(200);
+      const retry = response.json();
+      expect(retry).toMatchObject({
+        private: true,
+        mode: "practice",
+        answers: [],
+      });
+      expect(retry.challenge.puzzles).toEqual(daily.challenge.puzzles);
+      expect(
+        (
+          await pool.query(
+            "SELECT count(*)::int AS n FROM playne_line_days WHERE owner_id=$1",
+            [player.id],
+          )
+        ).rows[0].n,
+      ).toBe(1);
+    });
+
     it("publishes a stable short link with server-rendered previews while legacy links still work", async () => {
       const author = await signed(),
         run = await source(author.id);

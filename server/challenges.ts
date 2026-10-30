@@ -132,6 +132,8 @@ function metadata(
 
 async function canManage(client: Queryable, run: any, viewer: Viewer) {
   if (run.owner_id) return run.owner_id === viewer.userId;
+  if (privateComparison(run) && run.browser_hash === viewer.browserHash)
+    return true;
   return (
     (
       await client.query(
@@ -142,7 +144,7 @@ async function canManage(client: Queryable, run: any, viewer: Viewer) {
   );
 }
 
-const sourceColumns = `g.id,g.game,g.version,g.mode,g.challenge,g.score_units,g.completed_at,g.owner_id,
+const sourceColumns = `g.id,g.browser_hash,g.game,g.version,g.mode,g.challenge,g.score_units,g.completed_at,g.owner_id,
   jsonb_array_length(g.answers) AS answer_count,u.nickname`;
 
 async function tokenForCode(client: Queryable, code: string) {
@@ -181,13 +183,14 @@ export async function resolveChallengeStart(
   game: string,
   origin: string,
   today = lineMoscowDate(),
+  forceComparison = false,
 ): Promise<ChallengeStart> {
   // A successful read authorizes this start. Holding the source run lock here
   // would invert the application's publication/day lock order.
   const source = await sharedSource(client, token);
   const reference = metadata(source, origin, today);
   if (reference.game !== game) failure("Вызов относится к другой игре.", 400);
-  if (reference.isTodayDaily)
+  if (reference.isTodayDaily && !forceComparison)
     return { kind: "daily", mode: "classic", reference };
   if (!["line", "flash", "rotate", "slide", "dispatch"].includes(source.game)) {
     const challenge = structuredClone(source.challenge);

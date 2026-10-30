@@ -47,7 +47,12 @@ const useGameLayoutEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 type Phase =
-  "welcome" | "ready" | "playing" | "checking" | "round-result" | "finished";
+  | "welcome"
+  | "ready"
+  | "playing"
+  | "checking"
+  | "round-result"
+  | "finished";
 type Answer =
   | { cells: number[] }
   | { same: boolean }
@@ -820,6 +825,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
             <ChallengeContext
               game={game}
               token={challengeToken ?? run?.challenge.comparisonToken}
+              runId={run?.id}
               completed
               runDay={run?.challenge.day}
               runMode={run?.mode}

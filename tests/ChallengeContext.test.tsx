@@ -88,7 +88,7 @@ describe("same-task friend challenge context", () => {
       );
       await render();
       expect(box.textContent).toContain(
-        today ? "Сегодняшняя задача дня" : "Те же задания, отдельное сравнение",
+        today ? "Сегодняшняя задача дня" : "Те же задания",
       );
       expect(mock.api).toHaveBeenCalledTimes(1);
     },
@@ -111,9 +111,9 @@ describe("same-task friend challenge context", () => {
     expect(box.textContent).not.toContain("Вызов от");
   });
   it.each([
-    { score: 450, reference: 400, text: "Ты впереди на 50 очков" },
+    { score: 450, reference: 400, text: "Ты впереди!" },
     { score: 400, reference: 400, text: "Ничья" },
-    { score: 350, reference: 400, text: "До результата друга — 50 очков" },
+    { score: 350, reference: 400, text: "Друг впереди" },
     { score: 500, reference: 500, text: "Ничья" },
   ])(
     "compares saved results honestly at $score vs $reference",
@@ -128,9 +128,10 @@ describe("same-task friend challenge context", () => {
         runMode: "classic",
       });
       expect(box.querySelector("strong")?.textContent).toBe(example.text);
-      expect(box.querySelector("p")?.textContent).toBe(
-        `Ты: ${example.score} · Друг: ${example.reference} / 500`,
-      );
+      const players = box.querySelectorAll(".challenge-player-score");
+      expect(players[0].textContent).toBe(`${example.score} / 500`);
+      expect(players[1].textContent).toBe(`${example.reference} / 500`);
+      expect(box.querySelectorAll('[role="meter"]')).toHaveLength(2);
     },
   );
   it("does not compare a score from another daily pack smuggled into the result URL", async () => {
@@ -162,9 +163,7 @@ describe("same-task friend challenge context", () => {
       runMode: "practice",
       comparisonToken: "invite",
     });
-    expect(box.querySelector("strong")?.textContent).toBe(
-      "Ты впереди на 50 очков",
-    );
+    expect(box.querySelector("strong")?.textContent).toBe("Ты впереди!");
     await render({
       game: "flash",
       token: "invite",

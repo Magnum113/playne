@@ -240,10 +240,17 @@ export function useGuestTrial<G extends GameId = GameId>(game?: G) {
   const trial = (game ? auth.trials[game] : undefined) as
     | GuestTrial<G>
     | undefined;
+  const query =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search);
+  const retrying =
+    /^[0-9a-f-]{36}$/i.test(query?.get("retry") ?? "") &&
+    /^[A-Za-z0-9_-]{43}$/.test(query?.get("challenge") ?? "");
   return {
     ...auth,
     trial,
-    blocked: !auth.user && !!trial?.completed,
+    blocked: !auth.user && !!trial?.completed && !retrying,
     resume: !auth.user && !!trial && !trial.completed,
   };
 }
@@ -253,8 +260,10 @@ export function guestLoginReturn(game: GameId, id?: string, mode?: GameMode) {
     typeof window === "undefined"
       ? null
       : new URLSearchParams(window.location.search).get("challenge");
-  if (challenge && /^[A-Za-z0-9_-]{43}$/.test(challenge))
-    return `/${game === "line" ? "one-line" : isBrain(game) ? "brain/" + game : game}/?challenge=${challenge}`;
+  if (challenge && /^[A-Za-z0-9_-]{43}$/.test(challenge)) {
+    const retry = new URLSearchParams(window.location.search).get("retry");
+    return `/${game === "line" ? "one-line" : isBrain(game) ? "brain/" + game : game}/?challenge=${challenge}${retry && /^[0-9a-f-]{36}$/i.test(retry) ? "&retry=" + retry : ""}`;
+  }
   if (id) params.set("saved", id);
   if (
     mode &&
@@ -346,6 +355,11 @@ export function AccountNav() {
 export class RankedSyncError extends Error {}
 export function useRankedRun<G extends GameId>(game: G) {
   const auth = useGuestTrial(game);
+  const retryFrom = useRef(
+    typeof window === "undefined"
+      ? undefined
+      : new URLSearchParams(window.location.search).get("retry") || undefined,
+  );
   const invite = useRef(
     typeof window === "undefined"
       ? undefined
@@ -386,6 +400,11 @@ export function useRankedRun<G extends GameId>(game: G) {
       ["complete", "saved"].includes(state.status) &&
       !["line", "flash", "rotate", "slide", "dispatch"].includes(game)
     ) {
+      window.dispatchEvent(
+        new CustomEvent("playne:challenge-completed", {
+          detail: { game, token: invite.current, id: state.id },
+        }),
+      );
       window.history.replaceState(
         null,
         "",
@@ -451,7 +470,12 @@ export function useRankedRun<G extends GameId>(game: G) {
           game,
           mode,
           ...(isBrain(game) ? { difficulty } : {}),
-          ...(challenge ? { challenge } : {}),
+          ...(challenge
+            ? {
+                challenge,
+                ...(retryFrom.current ? { retry: retryFrom.current } : {}),
+              }
+            : {}),
           geoRulesVersion: game === "geo" ? GEO_SCORE_VERSION : undefined,
           pressureRulesVersion:
             game === "pressure" ? PRESSURE_RULES_VERSION : undefined,
