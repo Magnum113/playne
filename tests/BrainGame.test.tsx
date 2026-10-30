@@ -348,6 +348,9 @@ describe("brain game orchestration", () => {
   });
 
   it("reuses a failed hint request after reload without losing the route", async () => {
+    // Reload the same daily attempt; the fixture belongs to October 29.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
     const data = fixture("slide");
     const round = data.privateChallenge.rounds[0] as SlideRound;
     const hint = slideHint(round, []);
