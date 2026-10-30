@@ -56,6 +56,11 @@ export const tokenGroups = [
 // The source paths identify the production components used by these examples.
 export const componentInventory = [
   [
+    "Рейтинг игры рядом с итогами: топ-5, своё место, обновление",
+    "GameLeaderboard.tsx · GameResultLayout.tsx · GameRankingExamples.tsx",
+    "results",
+  ],
+  [
     "Компактная подписка и вход в футере",
     "FooterSignup.tsx · FooterSignupExamples.tsx · FooterLinks.tsx",
     "content",

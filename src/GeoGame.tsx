@@ -1,4 +1,5 @@
 import { useGameViewport } from "./useGameViewport";
+import GameResultLayout from "./GameResultLayout";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
@@ -1074,64 +1075,70 @@ export default function GeoGame() {
           </section>
         )}
         {phase === "finished" && (
-          <section className="geo-summary" ref={result} tabIndex={-1}>
-            <p className="eyebrow">
-              ТВОЙ РЕЗУЛЬТАТ · {geoModeName(mode).toUpperCase()}
-            </p>
-            <h2>
-              {geoPoints(total)}
-              <span> из 500</span>
-            </h2>
-            <p>
-              {total >= 20000
-                ? "Ты отлично ориентируешься. Проверим ещё пять мест?"
-                : "Партия закончена. Сыграешь ещё?"}
-            </p>
-            <div className="geo-summary-stats">
-              <span>
-                Рекорд <strong>{geoPoints(stats.best)} / 500</strong>
-              </span>
-              <span>
-                Партий сыграно <strong>{stats.played}</strong>
-              </span>
-            </div>
-            <ol className="geo-recap">
-              {answers.map((item) => (
-                <li key={item.location.id}>
-                  <div>
-                    <strong>{item.location.name}</strong>
-                    <span>
-                      {item.location.country} ·{" "}
-                      {item.distance === null
-                        ? "Точка не выбрана"
-                        : geoDistance(item.distance)}
-                      {item.timedOut ? " · Время вышло" : ""}
-                    </span>
-                  </div>
-                  <b>
-                    {geoPoints(item.score)}
-                    <span> / 100</span>
-                  </b>
-                </li>
-              ))}
-            </ol>
-            {access.user && (
-              <button className="primary" onClick={() => void start(true)}>
-                Играть ещё <span aria-hidden="true">↗</span>
+          <GameResultLayout
+            game="geo"
+            mode={mode}
+            refreshKey={ranked.state.status === "saved" ? ranked.state.id : ""}
+          >
+            <section className="geo-summary" ref={result} tabIndex={-1}>
+              <p className="eyebrow">
+                ТВОЙ РЕЗУЛЬТАТ · {geoModeName(mode).toUpperCase()}
+              </p>
+              <h2>
+                {geoPoints(total)}
+                <span> из 500</span>
+              </h2>
+              <p>
+                {total >= 20000
+                  ? "Ты отлично ориентируешься. Проверим ещё пять мест?"
+                  : "Партия закончена. Сыграешь ещё?"}
+              </p>
+              <div className="geo-summary-stats">
+                <span>
+                  Рекорд <strong>{geoPoints(stats.best)} / 500</strong>
+                </span>
+                <span>
+                  Партий сыграно <strong>{stats.played}</strong>
+                </span>
+              </div>
+              <ol className="geo-recap">
+                {answers.map((item) => (
+                  <li key={item.location.id}>
+                    <div>
+                      <strong>{item.location.name}</strong>
+                      <span>
+                        {item.location.country} ·{" "}
+                        {item.distance === null
+                          ? "Точка не выбрана"
+                          : geoDistance(item.distance)}
+                        {item.timedOut ? " · Время вышло" : ""}
+                      </span>
+                    </div>
+                    <b>
+                      {geoPoints(item.score)}
+                      <span> / 100</span>
+                    </b>
+                  </li>
+                ))}
+              </ol>
+              {access.user && (
+                <button className="primary" onClick={() => void start(true)}>
+                  Играть ещё <span aria-hidden="true">↗</span>
+                </button>
+              )}
+              <button
+                className="text-button"
+                onClick={() => {
+                  setPhase("welcome");
+                  deadlineRef.current = null;
+                  setDeadline(null);
+                }}
+              >
+                Выбрать другой режим
               </button>
-            )}
-            <button
-              className="text-button"
-              onClick={() => {
-                setPhase("welcome");
-                deadlineRef.current = null;
-                setDeadline(null);
-              }}
-            >
-              Выбрать другой режим
-            </button>
-            <SaveResult run={ranked} game="geo" />
-          </section>
+              <SaveResult run={ranked} game="geo" />
+            </section>
+          </GameResultLayout>
         )}
         {(phase === "welcome" || phase === "finished") && <GeoAbout />}
       </main>

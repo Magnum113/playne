@@ -292,11 +292,7 @@ export function loginToPlay(game: GameId, id?: string, mode?: GameMode) {
   );
 }
 export function GuestSavedNotice({ game }: { game: GameId }) {
-  const { user, trial } = useGuestTrial(game);
-  const saved =
-    typeof window === "undefined"
-      ? null
-      : new URLSearchParams(window.location.search).get("saved");
+  const { user } = useGuestTrial(game);
   const auth =
     typeof window === "undefined"
       ? null
@@ -309,11 +305,7 @@ export function GuestSavedNotice({ game }: { game: GameId }) {
           : "Не удалось завершить вход. Результат сохранён — попробуй ещё раз."}
       </p>
     );
-  return user && trial?.published && saved === trial.id ? (
-    <p className="guest-saved-notice" role="status">
-      Результат сохранён в рейтинг. Можно играть дальше.
-    </p>
-  ) : null;
+  return null;
 }
 export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
   const { user, trial, ready, loading, refresh } = useGuestTrial(game);

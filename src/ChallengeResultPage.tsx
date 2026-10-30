@@ -10,6 +10,7 @@ import { reachGoal, SHARE_GOALS, trackChallengeResult } from "./analytics";
 import ChallengeComparison from "./ChallengeComparison";
 import ShareResult from "./ShareResult";
 import FooterLinks from "./FooterLinks";
+import GameResultLayout from "./GameResultLayout";
 import "./challenge.css";
 
 export default function ChallengeResultPage({
@@ -44,29 +45,33 @@ export default function ChallengeResultPage({
         <a className="challenge-game-link" href={challengePath(reference.game)}>
           ← {reference.gameName}
         </a>
-        <section
-          className="challenge-results-panel"
-          aria-labelledby="challenge-result-title"
-        >
-          <p className="eyebrow">ВЫЗОВ ДРУГА</p>
-          <h1 id="challenge-result-title" tabIndex={-1} ref={heading}>
-            {title}
-          </h1>
-          <ChallengeComparison reference={reference} score={score} />
-          <div className="challenge-result-actions">
-            <a
-              className="primary"
-              href={challengeRetryPath(reference, run.id)}
-              onClick={() =>
-                reachGoal(SHARE_GOALS.retryClicked, { game: reference.game })
-              }
-            >
-              Попробовать ещё <span aria-hidden="true">↻</span>
-            </a>
-            <ShareResult runId={run.id} />
-          </div>
-          <p className="challenge-retry-note">Те же задания. Новая попытка.</p>
-        </section>
+        <GameResultLayout game={reference.game} mode={reference.mode}>
+          <section
+            className="challenge-results-panel"
+            aria-labelledby="challenge-result-title"
+          >
+            <p className="eyebrow">ВЫЗОВ ДРУГА</p>
+            <h1 id="challenge-result-title" tabIndex={-1} ref={heading}>
+              {title}
+            </h1>
+            <ChallengeComparison reference={reference} score={score} />
+            <div className="challenge-result-actions">
+              <a
+                className="primary"
+                href={challengeRetryPath(reference, run.id)}
+                onClick={() =>
+                  reachGoal(SHARE_GOALS.retryClicked, { game: reference.game })
+                }
+              >
+                Попробовать ещё <span aria-hidden="true">↻</span>
+              </a>
+              <ShareResult runId={run.id} />
+            </div>
+            <p className="challenge-retry-note">
+              Те же задания. Новая попытка.
+            </p>
+          </section>
+        </GameResultLayout>
       </main>
       <FooterLinks />
     </div>

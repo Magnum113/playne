@@ -6,6 +6,7 @@ import { GameHeader } from "./SiteHeader";
 import { GameIntro, GameStartAction } from "./GameIntro";
 import { ModeChoice, RoundDots, StatusMessage } from "./ui";
 import FooterLinks from "./FooterLinks";
+import GameResultLayout from "./GameResultLayout";
 import BrainPreview from "./BrainPreview";
 import PlayNextStep from "./PlayNextStep";
 import {
@@ -795,111 +796,117 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
             </div>
           </section>
         ) : phase === "finished" ? (
-          <section className="brain-summary" ref={summary}>
-            <p className="eyebrow">
-              {dailyResult
-                ? `ЗАДАЧА ДНЯ · ${run?.challenge.day}`
-                : `ПРАКТИКА · ${brainDifficultyOptions[(run?.challenge.difficulty ?? 1) - 1]?.label}`}
-            </p>
-            <h2 ref={heading} tabIndex={-1}>
-              Пять раундов позади.
-            </h2>
-            <p className="brain-total">
-              <strong>
-                {run?.score ??
-                  answers.reduce((sum, a) => sum + (a.score ?? 0), 0)}
-              </strong>
-              <span>/ 500 очков</span>
-            </p>
-            <ol className="brain-result-list">
-              {answers.map((answer, i) => (
-                <li key={i}>
-                  <span>Раунд {i + 1}</span>
-                  <span>{roundMetric(answer, i)}</span>
-                  <strong>{answer.score} / 100</strong>
-                </li>
-              ))}
-            </ol>
-            <BrainInsight game={game} runId={run?.id} />
-            <ChallengeContext
-              game={game}
-              token={challengeToken ?? run?.challenge.comparisonToken}
-              runId={run?.id}
-              completed
-              runDay={run?.challenge.day}
-              runMode={run?.mode}
-              comparisonToken={run?.challenge.comparisonToken}
-              score={run?.score}
-            />
-            {dailyResult ? (
-              <SaveResult run={ranked} game={game} />
-            ) : (
-              <>
-                <StatusMessage tone="success" title="Практика сохранена">
-                  {access.user
-                    ? "В личной истории, без влияния на рейтинг."
-                    : "Войди, чтобы сохранить её в аккаунте."}
-                </StatusMessage>
-              </>
-            )}
-            <PlayNextStep
-              game={game}
-              runId={run?.id}
-              hideAction={
-                (newDailyAvailable && !!access.user) || saveActionHasPriority
-              }
-            />
-            <div className="brain-summary-actions">
-              <ShareResult runId={run?.id} />
-              {newDailyAvailable && access.user && (
-                <button
-                  className={
-                    saveActionHasPriority ? "secondary-button" : "primary"
-                  }
-                  disabled={busy}
-                  onClick={() => void begin("classic", 1)}
-                >
-                  {busy ? "Готовим задания…" : "Начать задачу дня"}
-                </button>
+          <GameResultLayout
+            game={game}
+            mode={mode}
+            refreshKey={ranked.state.status === "saved" ? ranked.state.id : ""}
+          >
+            <section className="brain-summary" ref={summary}>
+              <p className="eyebrow">
+                {dailyResult
+                  ? `ЗАДАЧА ДНЯ · ${run?.challenge.day}`
+                  : `ПРАКТИКА · ${brainDifficultyOptions[(run?.challenge.difficulty ?? 1) - 1]?.label}`}
+              </p>
+              <h2 ref={heading} tabIndex={-1}>
+                Пять раундов позади.
+              </h2>
+              <p className="brain-total">
+                <strong>
+                  {run?.score ??
+                    answers.reduce((sum, a) => sum + (a.score ?? 0), 0)}
+                </strong>
+                <span>/ 500 очков</span>
+              </p>
+              <ol className="brain-result-list">
+                {answers.map((answer, i) => (
+                  <li key={i}>
+                    <span>Раунд {i + 1}</span>
+                    <span>{roundMetric(answer, i)}</span>
+                    <strong>{answer.score} / 100</strong>
+                  </li>
+                ))}
+              </ol>
+              <BrainInsight game={game} runId={run?.id} />
+              <ChallengeContext
+                game={game}
+                token={challengeToken ?? run?.challenge.comparisonToken}
+                runId={run?.id}
+                completed
+                runDay={run?.challenge.day}
+                runMode={run?.mode}
+                comparisonToken={run?.challenge.comparisonToken}
+                score={run?.score}
+              />
+              {dailyResult ? (
+                <SaveResult run={ranked} game={game} />
+              ) : (
+                <>
+                  <StatusMessage tone="success" title="Практика сохранена">
+                    {access.user
+                      ? "В личной истории, без влияния на рейтинг."
+                      : "Войди, чтобы сохранить её в аккаунте."}
+                  </StatusMessage>
+                </>
               )}
-              <button
-                className="secondary-button"
-                disabled={busy}
-                onClick={() => {
-                  setMode("practice");
-                  setPhase("welcome");
-                  setError("");
-                  setMessage("");
-                  reachGoal(BRAIN_GOALS.gameRestart, {
-                    game,
-                    mode: "practice",
-                    difficulty,
-                  });
-                }}
-              >
-                Ещё в практике →
-              </button>
-              <a
-                href={
-                  dailyResult
-                    ? `/leaderboard/?game=${game}&mode=classic`
-                    : `/account/${access.user || !run ? "" : `?claim=${run.id}`}`
+              <PlayNextStep
+                game={game}
+                runId={run?.id}
+                hideAction={
+                  (newDailyAvailable && !!access.user) || saveActionHasPriority
                 }
-              >
-                {dailyResult ? "Рейтинг задачи дня" : "Личная история"}
-              </a>
-              <a href="/brain/">Выбрать другую игру →</a>
-            </div>
-            {newDailyAvailable &&
-              (error || ranked.state.status === "error") && (
-                <p className="brain-error" role="alert">
-                  {error ||
-                    (ranked.state.status === "error"
-                      ? ranked.state.message
-                      : "")}
-                </p>
-              )}
-          </section>
+              />
+              <div className="brain-summary-actions">
+                <ShareResult runId={run?.id} />
+                {newDailyAvailable && access.user && (
+                  <button
+                    className={
+                      saveActionHasPriority ? "secondary-button" : "primary"
+                    }
+                    disabled={busy}
+                    onClick={() => void begin("classic", 1)}
+                  >
+                    {busy ? "Готовим задания…" : "Начать задачу дня"}
+                  </button>
+                )}
+                <button
+                  className="secondary-button"
+                  disabled={busy}
+                  onClick={() => {
+                    setMode("practice");
+                    setPhase("welcome");
+                    setError("");
+                    setMessage("");
+                    reachGoal(BRAIN_GOALS.gameRestart, {
+                      game,
+                      mode: "practice",
+                      difficulty,
+                    });
+                  }}
+                >
+                  Ещё в практике →
+                </button>
+                <a
+                  href={
+                    dailyResult
+                      ? `/leaderboard/?game=${game}&mode=classic`
+                      : `/account/${access.user || !run ? "" : `?claim=${run.id}`}`
+                  }
+                >
+                  {dailyResult ? "Рейтинг задачи дня" : "Личная история"}
+                </a>
+                <a href="/brain/">Выбрать другую игру →</a>
+              </div>
+              {newDailyAvailable &&
+                (error || ranked.state.status === "error") && (
+                  <p className="brain-error" role="alert">
+                    {error ||
+                      (ranked.state.status === "error"
+                        ? ranked.state.message
+                        : "")}
+                  </p>
+                )}
+            </section>
+          </GameResultLayout>
         ) : (
           <section
             className="brain-stage"

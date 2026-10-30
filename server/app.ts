@@ -1598,8 +1598,10 @@ export async function buildApp(
     const period = q.period ?? "all";
     if (!["all", "week"].includes(period)) failure("Неизвестный период");
     const page = Number(q.page ?? 1);
+    const limit = Number(q.limit ?? 25);
     if (!Number.isInteger(page) || page < 1 || page > 10000)
       failure("Некорректная страница");
+    if (![5, 25].includes(limit)) failure("Некорректный размер страницы");
     const u = await user(req);
     const mode =
       q.game === "geo" || q.game === "colorfle" || q.game === "line"
@@ -1619,8 +1621,8 @@ export async function buildApp(
     const [entries, count, mine] = await Promise.all([
       pool.query(
         base +
-          " SELECT id,nickname,score,place,answers,version FROM ranked ORDER BY score DESC,completed_at,id LIMIT 25 OFFSET $5",
-        [...params, (page - 1) * 25],
+          " SELECT id,nickname,score,place,answers,version FROM ranked ORDER BY score DESC,completed_at,id LIMIT $5 OFFSET $6",
+        [...params, limit, (page - 1) * limit],
       ),
       pool.query(base + " SELECT count(*)::int AS count FROM ranked", params),
       u
@@ -1651,6 +1653,7 @@ export async function buildApp(
       mode,
       period,
       page,
+      limit,
       total: count.rows[0].count,
       entries: entries.rows.map(project),
       mine: mine.rows[0] ? project(mine.rows[0]) : null,

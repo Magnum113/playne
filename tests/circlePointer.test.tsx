@@ -15,7 +15,11 @@ const access = vi.hoisted(() => ({
   blocked: false,
   resume: false,
 }));
-const ranked = vi.hoisted(() => ({ begin: vi.fn(), submit: vi.fn() }));
+const ranked = vi.hoisted(() => ({
+  state: { status: "idle" },
+  begin: vi.fn(),
+  submit: vi.fn(),
+}));
 vi.mock("../src/ShareResult", () => ({ default: () => null }));
 vi.mock("../src/GameResult", () => ({ SaveResult: () => null }));
 vi.mock("../src/account", () => ({

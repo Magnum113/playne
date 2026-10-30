@@ -1,4 +1,5 @@
 import { useGameViewport } from "./useGameViewport";
+import GameResultLayout from "./GameResultLayout";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
@@ -605,55 +606,61 @@ export default function PressureGame() {
             </ol>
           </section>
         ) : state.phase === "finished" && resultVisible ? (
-          <section className="pressure-result" ref={outcome} tabIndex={-1}>
-            <p className="eyebrow">ПОПЫТКА ЗАВЕРШЕНА</p>
-            <h2>
-              {state.cleared}
-              <span> {pressScoreWord(state.cleared)}</span>
-            </h2>
-            <p className="pressure-result-lead">{state.reason}</p>
-            {state.reason && (
-              <div className="pressure-explanation">
-                <span>УРОВЕНЬ {state.index + 1}</span>
-                <h3>{level.prompt}</h3>
-                {level.display && (
-                  <p className="pressure-result-display">{level.display}</p>
-                )}
-                <p>{level.explanation}</p>
+          <GameResultLayout
+            game="pressure"
+            refreshKey={ranked.state.status === "saved" ? ranked.state.id : ""}
+          >
+            <section className="pressure-result" ref={outcome} tabIndex={-1}>
+              <p className="eyebrow">ПОПЫТКА ЗАВЕРШЕНА</p>
+              <h2>
+                {state.cleared}
+                <span> {pressScoreWord(state.cleared)}</span>
+              </h2>
+              <p className="pressure-result-lead">{state.reason}</p>
+              {state.reason && (
+                <div className="pressure-explanation">
+                  <span>УРОВЕНЬ {state.index + 1}</span>
+                  <h3>{level.prompt}</h3>
+                  {level.display && (
+                    <p className="pressure-result-display">{level.display}</p>
+                  )}
+                  <p>{level.explanation}</p>
+                </div>
+              )}
+              <div className="pressure-result-stats">
+                <span>
+                  Лучший результат{" "}
+                  <strong>{formatPressScore(stats.best)}</strong>
+                </span>
+                <span>
+                  Попыток <strong>{stats.played}</strong>
+                </span>
               </div>
-            )}
-            <div className="pressure-result-stats">
-              <span>
-                Лучший результат <strong>{formatPressScore(stats.best)}</strong>
-              </span>
-              <span>
-                Попыток <strong>{stats.played}</strong>
-              </span>
-            </div>
-            {access.user && (
-              <button
-                className="primary"
-                disabled={loading}
-                onClick={() => void begin()}
-              >
-                {loading ? "Готовим задания…" : "Попробовать ещё"}{" "}
-                <span aria-hidden="true">↗</span>
-              </button>
-            )}
-            {access.user && (
-              <p className="pressure-new-deck">
-                Следующая попытка — новые задания и порядок.
-              </p>
-            )}
-            {online ? (
-              <SaveResult run={ranked} game="pressure" />
-            ) : (
-              <p className="pressure-offline">
-                Рекорд сохранён на этом устройстве. Для общего рейтинга начни
-                игру при подключении к серверу.
-              </p>
-            )}
-          </section>
+              {access.user && (
+                <button
+                  className="primary"
+                  disabled={loading}
+                  onClick={() => void begin()}
+                >
+                  {loading ? "Готовим задания…" : "Попробовать ещё"}{" "}
+                  <span aria-hidden="true">↗</span>
+                </button>
+              )}
+              {access.user && (
+                <p className="pressure-new-deck">
+                  Следующая попытка — новые задания и порядок.
+                </p>
+              )}
+              {online ? (
+                <SaveResult run={ranked} game="pressure" />
+              ) : (
+                <p className="pressure-offline">
+                  Рекорд сохранён на этом устройстве. Для общего рейтинга начни
+                  игру при подключении к серверу.
+                </p>
+              )}
+            </section>
+          </GameResultLayout>
         ) : (
           <section
             className={`pressure-play${succeeding ? " pressure-level-clear" : ""}${failing ? " pressure-level-failed" : ""}`}

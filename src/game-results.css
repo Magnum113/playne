@@ -1,0 +1,118 @@
+.game-result-layout,
+.game-result-main {
+  display: contents;
+}
+.summary > .result-rules-link.text-button {
+  display: flex;
+  width: fit-content;
+  min-height: 44px;
+  align-items: center;
+  margin: 24px auto 0;
+  font-size: 12px;
+  color: var(--muted);
+  opacity: 0.96;
+}
+.summary > .primary + .secondary-button {
+  margin-top: 12px;
+}
+.result-rules-link.text-button:hover,
+.result-rules-link.text-button:focus-visible {
+  opacity: 1;
+}
+.game-leaderboard {
+  text-align: left;
+}
+.game-leaderboard .top-five-heading h2 {
+  font-size: 16px;
+  letter-spacing: -0.3px;
+  line-height: 1.4;
+  margin: 0;
+}
+.game-leaderboard .top-five-heading > div > span {
+  font-size: 11px;
+}
+.game-leaderboard .top-five-score {
+  font-size: 16px;
+}
+.game-leaderboard .top-five-list li:not(.is-loading) {
+  animation: none;
+}
+.game-rank-you {
+  display: block;
+  color: var(--mint);
+  font-size: 11px;
+}
+.game-rank-gap {
+  color: var(--muted);
+  text-align: center;
+  letter-spacing: 5px;
+  padding: 6px 0;
+}
+.game-leaderboard .game-rank-mine li.is-me .top-five-place {
+  color: var(--muted);
+  font-weight: 400;
+}
+.save-result.is-saved {
+  border-top: 0;
+  padding-top: 0;
+}
+@media (min-width: 1100px) {
+  .game-result-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    align-items: start;
+    gap: 28px;
+    margin: 32px auto 64px;
+    max-width: 1120px;
+  }
+  .game-result-main {
+    display: block;
+    min-width: 0;
+  }
+  .shade-game-region > .game-result-layout {
+    margin-top: 0;
+  }
+  .game-result-main
+    > :is(
+      .summary,
+      .brain-summary,
+      .line-summary,
+      .pressure-result,
+      .geo-summary,
+      .challenge-results-panel
+    ) {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
+  .circle-result-layout {
+    margin-block: 0;
+  }
+  .circle-result-layout .circle-play {
+    width: 100%;
+  }
+  .game-result-aside {
+    min-width: 0;
+  }
+  .game-result-layout .save-result.is-saved {
+    display: none;
+  }
+  .game-result-main .shade-play-area.is-finished {
+    display: block;
+  }
+  .game-result-main .shade-play-area.is-finished .shade-board {
+    display: none;
+  }
+  .game-result-main .shade-play-area.is-finished .shade-result {
+    max-width: none;
+  }
+  .challenge-page .challenge-results-main:has(.game-result-layout) {
+    max-width: 1120px;
+  }
+}
+@media (min-width: 1100px) and (min-height: 650px) {
+  .game-result-aside {
+    position: sticky;
+    top: 16px;
+  }
+}

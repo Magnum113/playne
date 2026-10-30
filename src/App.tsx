@@ -1,4 +1,5 @@
 import { useGameViewport } from "./useGameViewport";
+import GameResultLayout from "./GameResultLayout";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
@@ -463,64 +464,69 @@ export default function App() {
           </section>
         )}
         {screen === "summary" && (
-          <section className="summary" ref={playRegion}>
-            <p className="eyebrow">ПЯТЬ СРАВНЕНИЙ ПОЗАДИ</p>
-            <h1 ref={heading} tabIndex={-1}>
-              Результат
-            </h1>
-            <div className="final-score">
-              {total}
-              <span> / 500</span>
-            </div>
-            {oldBest > 0 && total > oldBest ? (
-              <p className="record">Новый рекорд</p>
-            ) : (
-              <p className="best">
-                Лучший результат на этом устройстве: {best}
-              </p>
-            )}
-            <div className="result-list">
-              {results.map((r, i) => {
-                const p = rounds[i],
-                  o = objects[p.target];
-                return (
-                  <div className="result-row" key={r.pairId}>
-                    <span className="result-number">0{i + 1}</span>
-                    <svg
-                      viewBox={`0 0 ${o.width} ${o.height}`}
-                      className="result-icon"
-                      aria-hidden="true"
-                    >
-                      <Silhouette object={o} />
-                    </svg>
-                    <div className="result-description">
-                      <h2>{o.name}</h2>
-                      <p>{errorLabel(r.guess, o.size)}</p>
+          <GameResultLayout
+            game="naglaz"
+            refreshKey={ranked.state.status === "saved" ? ranked.state.id : ""}
+          >
+            <section className="summary" ref={playRegion}>
+              <p className="eyebrow">ПЯТЬ СРАВНЕНИЙ ПОЗАДИ</p>
+              <h1 ref={heading} tabIndex={-1}>
+                Результат
+              </h1>
+              <div className="final-score">
+                {total}
+                <span> / 500</span>
+              </div>
+              {oldBest > 0 && total > oldBest ? (
+                <p className="record">Новый рекорд</p>
+              ) : (
+                <p className="best">
+                  Лучший результат на этом устройстве: {best}
+                </p>
+              )}
+              <div className="result-list">
+                {results.map((r, i) => {
+                  const p = rounds[i],
+                    o = objects[p.target];
+                  return (
+                    <div className="result-row" key={r.pairId}>
+                      <span className="result-number">0{i + 1}</span>
+                      <svg
+                        viewBox={`0 0 ${o.width} ${o.height}`}
+                        className="result-icon"
+                        aria-hidden="true"
+                      >
+                        <Silhouette object={o} />
+                      </svg>
+                      <div className="result-description">
+                        <h2>{o.name}</h2>
+                        <p>{errorLabel(r.guess, o.size)}</p>
+                      </div>
+                      <strong>
+                        {r.points}
+                        <small> / 100</small>
+                      </strong>
                     </div>
-                    <strong>
-                      {r.points}
-                      <small> / 100</small>
-                    </strong>
-                  </div>
-                );
-              })}
-            </div>
-            {access.user && (
-              <button className="primary" onClick={() => start("restart")}>
-                Играть ещё <Arrow />
+                  );
+                })}
+              </div>
+              {access.user && (
+                <button className="primary" onClick={() => start("restart")}>
+                  Играть ещё <Arrow />
+                </button>
+              )}
+              <SaveResult run={ranked} game="naglaz" />
+              <button
+                className="text-button result-rules-link"
+                onClick={() => {
+                  setScreen("start");
+                  window.scrollTo({ top: 0, behavior: "instant" });
+                }}
+              >
+                К правилам игры
               </button>
-            )}
-            <button
-              className="text-button"
-              onClick={() => {
-                setScreen("start");
-                window.scrollTo({ top: 0, behavior: "instant" });
-              }}
-            >
-              К правилам игры
-            </button>
-            <SaveResult run={ranked} game="naglaz" />
-          </section>
+            </section>
+          </GameResultLayout>
         )}
       </main>
       <footer>

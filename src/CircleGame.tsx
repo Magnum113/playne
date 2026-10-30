@@ -1,4 +1,5 @@
 import { useGameViewport } from "./useGameViewport";
+import GameResultLayout from "./GameResultLayout";
 import ShareResult from "./ShareResult";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
@@ -223,150 +224,163 @@ export default function CircleGame() {
         {access.ready && access.blocked && !success && (
           <p className="guest-trial-caption">Первая попытка уже сыграна.</p>
         )}
-        {access.loading ? (
-          <p role="status">Проверяем доступ…</p>
-        ) : !access.ready ? null : access.blocked && !success ? (
-          <section className="circle-guest-access" aria-label="Продолжить игру">
-            <GuestTrialPrompt game="circle" />
-          </section>
-        ) : (
-          <section
-            className="circle-play"
-            ref={playRegion}
-            aria-label="Нарисовать круг"
-          >
-            <div
-              className={`circle-surface${drawing ? " is-drawing" : ""}${success ? " has-result" : ""}`}
+        <GameResultLayout
+          game="circle"
+          refreshKey={ranked.state.status === "saved" ? ranked.state.id : ""}
+        >
+          {access.loading ? (
+            <p role="status">Проверяем доступ…</p>
+          ) : !access.ready ? null : access.blocked && !success ? (
+            <section
+              className="circle-guest-access"
+              aria-label="Продолжить игру"
             >
-              <svg
-                ref={board}
-                className="circle-board"
-                viewBox="0 0 600 600"
-                role="img"
-                tabIndex={0}
-                aria-label="Поле для рисования круга вокруг центральной точки"
-                aria-describedby="circle-instructions circle-status"
-                onPointerDown={begin}
-                onPointerMove={append}
-                onPointerUp={finish}
-                onPointerCancel={interrupt}
-                onLostPointerCapture={interrupt}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") clear();
-                }}
+              <GuestTrialPrompt game="circle" />
+            </section>
+          ) : (
+            <section
+              className="circle-play"
+              ref={playRegion}
+              aria-label="Нарисовать круг"
+            >
+              <div
+                className={`circle-surface${drawing ? " is-drawing" : ""}${success ? " has-result" : ""}`}
               >
-                {success && (
-                  <circle
-                    className="circle-guide"
-                    cx="300"
-                    cy="300"
-                    r={success.radius}
-                  />
-                )}
-                {!success && (
-                  <>
+                <svg
+                  ref={board}
+                  className="circle-board"
+                  viewBox="0 0 600 600"
+                  role="img"
+                  tabIndex={0}
+                  aria-label="Поле для рисования круга вокруг центральной точки"
+                  aria-describedby="circle-instructions circle-status"
+                  onPointerDown={begin}
+                  onPointerMove={append}
+                  onPointerUp={finish}
+                  onPointerCancel={interrupt}
+                  onLostPointerCapture={interrupt}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") clear();
+                  }}
+                >
+                  {success && (
                     <circle
-                      className="circle-center-ring"
+                      className="circle-guide"
                       cx="300"
                       cy="300"
-                      r="12"
+                      r={success.radius}
                     />
-                    <circle className="circle-center" cx="300" cy="300" r="4" />
-                  </>
+                  )}
+                  {!success && (
+                    <>
+                      <circle
+                        className="circle-center-ring"
+                        cx="300"
+                        cy="300"
+                        r="12"
+                      />
+                      <circle
+                        className="circle-center"
+                        cx="300"
+                        cy="300"
+                        r="4"
+                      />
+                    </>
+                  )}
+                  {path && (
+                    <path
+                      className={`circle-stroke${result && !result.valid ? " invalid" : ""}`}
+                      d={path}
+                    />
+                  )}
+                  {success && (
+                    <g className="circle-score" aria-hidden="true">
+                      <text
+                        x="300"
+                        y="300"
+                        dominantBaseline="middle"
+                        textAnchor="middle"
+                        fontSize={Math.min(72, success.radius * 0.5)}
+                      >
+                        {circlePercent(success.score)}
+                      </text>
+                      <text
+                        className="circle-score-caption"
+                        x="300"
+                        y={300 + Math.min(72, success.radius * 0.5) * 0.8}
+                        textAnchor="middle"
+                        fontSize={Math.min(18, success.radius * 0.18)}
+                      >
+                        точность
+                      </text>
+                    </g>
+                  )}
+                </svg>
+                {!drawing && !path && !result && (
+                  <div className="circle-prompt" aria-hidden="true">
+                    <span>Начни с любой стороны</span>
+                    <span>и замкни круг вокруг точки</span>
+                  </div>
                 )}
-                {path && (
-                  <path
-                    className={`circle-stroke${result && !result.valid ? " invalid" : ""}`}
-                    d={path}
-                  />
-                )}
-                {success && (
-                  <g className="circle-score" aria-hidden="true">
-                    <text
-                      x="300"
-                      y="300"
-                      dominantBaseline="middle"
-                      textAnchor="middle"
-                      fontSize={Math.min(72, success.radius * 0.5)}
-                    >
-                      {circlePercent(success.score)}
-                    </text>
-                    <text
-                      className="circle-score-caption"
-                      x="300"
-                      y={300 + Math.min(72, success.radius * 0.5) * 0.8}
-                      textAnchor="middle"
-                      fontSize={Math.min(18, success.radius * 0.18)}
-                    >
-                      точность
-                    </text>
-                  </g>
-                )}
-              </svg>
-              {!drawing && !path && !result && (
-                <div className="circle-prompt" aria-hidden="true">
-                  <span>Начни с любой стороны</span>
-                  <span>и замкни круг вокруг точки</span>
+                <span className="circle-field-label" aria-hidden="true">
+                  {drawing
+                    ? "РИСУЕМ"
+                    : success
+                      ? "ТВОЙ КРУГ"
+                      : "БЕЗ ЛИНЕЙКИ И ЦИРКУЛЯ"}
+                </span>
+              </div>
+              <div className={`circle-feedback${success ? " has-result" : ""}`}>
+                <div
+                  className={`circle-status${record ? " is-record" : ""}`}
+                  id="circle-status"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {success && (
+                    <span className="sr-only">
+                      Точность {circlePercent(success.score)}.{" "}
+                    </span>
+                  )}
+                  {message}
                 </div>
-              )}
-              <span className="circle-field-label" aria-hidden="true">
-                {drawing
-                  ? "РИСУЕМ"
-                  : success
-                    ? "ТВОЙ КРУГ"
-                    : "БЕЗ ЛИНЕЙКИ И ЦИРКУЛЯ"}
-              </span>
-            </div>
-            <div className={`circle-feedback${success ? " has-result" : ""}`}>
-              <div
-                className={`circle-status${record ? " is-record" : ""}`}
-                id="circle-status"
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                {success && (
-                  <span className="sr-only">
-                    Точность {circlePercent(success.score)}.{" "}
-                  </span>
-                )}
-                {message}
+                <div className="circle-actions">
+                  {(access.user || !success) && (
+                    <button
+                      className="primary circle-retry"
+                      onClick={() => {
+                        clear();
+                        board.current?.focus({ preventScroll: true });
+                      }}
+                      disabled={drawing}
+                    >
+                      Ещё раз <span aria-hidden="true">↻</span>
+                    </button>
+                  )}
+                  {canShare && ranked.state && (
+                    <ShareResult runId={ranked.state.id} />
+                  )}
+                </div>
               </div>
-              <div className="circle-actions">
-                {(access.user || !success) && (
-                  <button
-                    className="primary circle-retry"
-                    onClick={() => {
-                      clear();
-                      board.current?.focus({ preventScroll: true });
-                    }}
-                    disabled={drawing}
-                  >
-                    Ещё раз <span aria-hidden="true">↻</span>
-                  </button>
-                )}
-                {canShare && ranked.state && (
-                  <ShareResult runId={ranked.state.id} />
+              <div className="circle-legend" aria-hidden="true">
+                {success ? (
+                  <>
+                    <span>
+                      <i /> Твоя линия
+                    </span>
+                    <span>
+                      <i className="ideal" /> Идеальный круг
+                    </span>
+                  </>
+                ) : (
+                  <span>Без таймера. Обведи точку одним движением.</span>
                 )}
               </div>
-            </div>
-            <div className="circle-legend" aria-hidden="true">
-              {success ? (
-                <>
-                  <span>
-                    <i /> Твоя линия
-                  </span>
-                  <span>
-                    <i className="ideal" /> Идеальный круг
-                  </span>
-                </>
-              ) : (
-                <span>Без таймера. Обведи точку одним движением.</span>
-              )}
-            </div>
-            {success && <SaveResult run={ranked} game="circle" hideShare />}
-          </section>
-        )}
+              {success && <SaveResult run={ranked} game="circle" hideShare />}
+            </section>
+          )}
+        </GameResultLayout>
         <RulesDialog
           dialogRef={rules}
           className="color-rules-dialog"

@@ -39,6 +39,7 @@ import {
 } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 import FooterSignupExamples from "./FooterSignupExamples";
+import GameRankingExamples from "./GameRankingExamples";
 import { ModeChoice, RoundDots, StatusMessage } from "./ui";
 import { SizePreview, CirclePreview, ColorPreview } from "./Hub";
 import GeoPreview from "./GeoPreview";
@@ -1149,7 +1150,6 @@ function Results() {
             ))}
           </div>
           <div className="save-result">
-            <p>Результат сохранён в рейтинг.</p>
             <a href="/leaderboard/">Рейтинг игры →</a>
           </div>
         </div>
@@ -1875,6 +1875,16 @@ export default function DesignSystem() {
               </Sample>
             </Section>
             <Section id="results">
+              <Sample
+                title="Рейтинг справа от результата"
+                source="GameLeaderboard.tsx · GameResultLayout.tsx"
+              >
+                <p className="ds-note">
+                  На десктопе — справа от итогов, в «Круге» — постоянно. Пять
+                  строк и своё место без дублирования. Данные демонстрационные.
+                </p>
+                <GameRankingExamples />
+              </Sample>
               <Sample
                 title="Активность за неделю"
                 source="PlayWeek.tsx · настоящий компонент с вымышленными данными"

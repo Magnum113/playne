@@ -1,4 +1,5 @@
 import { useGameViewport } from "./useGameViewport";
+import GameResultLayout from "./GameResultLayout";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
@@ -557,146 +558,157 @@ export default function ColorfleGame() {
                 </button>
               </div>
             )}
-            <div className="shade-play-area">
-              <section className="shade-board" aria-label="Сравнение цветов">
-                <Swatch
-                  label="Образец"
-                  color={state.targets[round]}
-                  showHex={!!answer}
-                />
-                <Swatch
-                  label={answer ? "Твой ответ" : "Твой выбор"}
-                  color={answer?.choice ?? state.draft}
-                  empty={answer?.noChoice}
-                  hint={
-                    answer?.noChoice
-                      ? "Не выбран"
-                      : !answer && !state.touched
-                        ? "Пока не выбран"
-                        : undefined
-                  }
-                />
-              </section>
-              {phase === "picking" ? (
-                <>
-                  <Palette
-                    value={state.draft}
-                    onChange={(color) => {
-                      if (
-                        timed &&
-                        (!state.deadline || Date.now() >= state.deadline)
-                      )
-                        return;
-                      dispatch({ type: "pick", color });
-                      if (timed) {
-                        if (Date.now() - lastChoiceSent.current >= 500)
-                          syncChoice();
-                        else if (!pendingChoice.current)
-                          pendingChoice.current = setTimeout(
-                            () => {
-                              pendingChoice.current = null;
-                              syncChoice();
-                            },
-                            500 - (Date.now() - lastChoiceSent.current),
-                          );
-                      }
-                    }}
+            <GameResultLayout
+              game="colorfle"
+              mode={mode}
+              enabled={phase === "finished"}
+              refreshKey={
+                ranked.state.status === "saved" ? ranked.state.id : ""
+              }
+            >
+              <div
+                className={`shade-play-area${phase === "finished" ? " is-finished" : ""}`}
+              >
+                <section className="shade-board" aria-label="Сравнение цветов">
+                  <Swatch
+                    label="Образец"
+                    color={state.targets[round]}
+                    showHex={!!answer}
                   />
-                  <div className="shade-actions">
-                    <button
-                      className="primary"
-                      disabled={!state.touched || (timed && !state.deadline)}
-                      onClick={() => dispatch({ type: "submit" })}
-                    >
-                      Проверить <span aria-hidden="true">→</span>
-                    </button>
-                    <span>
-                      {timed
-                        ? "Когда время истечёт, ответ засчитается сам"
-                        : "Один ответ на каждый раунд"}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <section
-                  className="shade-result"
-                  ref={result}
-                  tabIndex={-1}
-                  aria-live="polite"
-                >
-                  <p className="eyebrow">
-                    {phase === "finished"
-                      ? "ТВОЙ РЕЗУЛЬТАТ"
-                      : "РЕЗУЛЬТАТ РАУНДА"}
-                  </p>
-                  <h2>
-                    {phase === "finished"
-                      ? `${total} из ${ROUND_COUNT * 100}`
-                      : `${answer.score} из 100`}
-                  </h2>
-                  <p>
-                    {phase === "finished"
-                      ? "Все пять цветов пройдены."
-                      : "Сравни образец со своим ответом. Чем ближе цвета, тем больше очков."}
-                  </p>
-                  {answer?.timedOut && (
-                    <p>
-                      {answer.noChoice
-                        ? "Время вышло. Цвет не выбран — 0 очков."
-                        : "Время вышло. Засчитан последний выбранный оттенок."}
-                    </p>
-                  )}
-                  {phase === "finished" ? (
-                    <>
-                      <div className="shade-final-stats">
-                        <span>
-                          Лучший результат{" "}
-                          <strong>
-                            {state.stats.best} / {ROUND_COUNT * 100}
-                          </strong>
-                        </span>
-                        <span>
-                          Партий сыграно <strong>{state.stats.played}</strong>
-                        </span>
-                      </div>
-                      <div className="shade-round-scores">
-                        {state.answers.map((item, i) => (
-                          <span key={i}>
-                            {i + 1}: {item.score}
-                          </span>
-                        ))}
-                      </div>
-                      {access.user && (
-                        <button
-                          className="primary"
-                          onClick={() => {
-                            void beginOnline(true);
-                          }}
-                        >
-                          Играть ещё →
-                        </button>
-                      )}
-                      {access.user && (
-                        <button
-                          className="text-button shade-other-mode"
-                          onClick={() => dispatch({ type: "menu" })}
-                        >
-                          Выбрать другой режим
-                        </button>
-                      )}
-                      <SaveResult run={ranked} game="colorfle" />
-                    </>
-                  ) : (
-                    <button
-                      className="primary"
-                      onClick={() => dispatch({ type: "next" })}
-                    >
-                      Следующий цвет →
-                    </button>
-                  )}
+                  <Swatch
+                    label={answer ? "Твой ответ" : "Твой выбор"}
+                    color={answer?.choice ?? state.draft}
+                    empty={answer?.noChoice}
+                    hint={
+                      answer?.noChoice
+                        ? "Не выбран"
+                        : !answer && !state.touched
+                          ? "Пока не выбран"
+                          : undefined
+                    }
+                  />
                 </section>
-              )}
-            </div>
+                {phase === "picking" ? (
+                  <>
+                    <Palette
+                      value={state.draft}
+                      onChange={(color) => {
+                        if (
+                          timed &&
+                          (!state.deadline || Date.now() >= state.deadline)
+                        )
+                          return;
+                        dispatch({ type: "pick", color });
+                        if (timed) {
+                          if (Date.now() - lastChoiceSent.current >= 500)
+                            syncChoice();
+                          else if (!pendingChoice.current)
+                            pendingChoice.current = setTimeout(
+                              () => {
+                                pendingChoice.current = null;
+                                syncChoice();
+                              },
+                              500 - (Date.now() - lastChoiceSent.current),
+                            );
+                        }
+                      }}
+                    />
+                    <div className="shade-actions">
+                      <button
+                        className="primary"
+                        disabled={!state.touched || (timed && !state.deadline)}
+                        onClick={() => dispatch({ type: "submit" })}
+                      >
+                        Проверить <span aria-hidden="true">→</span>
+                      </button>
+                      <span>
+                        {timed
+                          ? "Когда время истечёт, ответ засчитается сам"
+                          : "Один ответ на каждый раунд"}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <section
+                    className="shade-result"
+                    ref={result}
+                    tabIndex={-1}
+                    aria-live="polite"
+                  >
+                    <p className="eyebrow">
+                      {phase === "finished"
+                        ? "ТВОЙ РЕЗУЛЬТАТ"
+                        : "РЕЗУЛЬТАТ РАУНДА"}
+                    </p>
+                    <h2>
+                      {phase === "finished"
+                        ? `${total} из ${ROUND_COUNT * 100}`
+                        : `${answer.score} из 100`}
+                    </h2>
+                    <p>
+                      {phase === "finished"
+                        ? "Все пять цветов пройдены."
+                        : "Сравни образец со своим ответом. Чем ближе цвета, тем больше очков."}
+                    </p>
+                    {answer?.timedOut && (
+                      <p>
+                        {answer.noChoice
+                          ? "Время вышло. Цвет не выбран — 0 очков."
+                          : "Время вышло. Засчитан последний выбранный оттенок."}
+                      </p>
+                    )}
+                    {phase === "finished" ? (
+                      <>
+                        <div className="shade-final-stats">
+                          <span>
+                            Лучший результат{" "}
+                            <strong>
+                              {state.stats.best} / {ROUND_COUNT * 100}
+                            </strong>
+                          </span>
+                          <span>
+                            Партий сыграно <strong>{state.stats.played}</strong>
+                          </span>
+                        </div>
+                        <div className="shade-round-scores">
+                          {state.answers.map((item, i) => (
+                            <span key={i}>
+                              {i + 1}: {item.score}
+                            </span>
+                          ))}
+                        </div>
+                        {access.user && (
+                          <button
+                            className="primary"
+                            onClick={() => {
+                              void beginOnline(true);
+                            }}
+                          >
+                            Играть ещё →
+                          </button>
+                        )}
+                        {access.user && (
+                          <button
+                            className="text-button shade-other-mode"
+                            onClick={() => dispatch({ type: "menu" })}
+                          >
+                            Выбрать другой режим
+                          </button>
+                        )}
+                        <SaveResult run={ranked} game="colorfle" />
+                      </>
+                    ) : (
+                      <button
+                        className="primary"
+                        onClick={() => dispatch({ type: "next" })}
+                      >
+                        Следующий цвет →
+                      </button>
+                    )}
+                  </section>
+                )}
+              </div>
+            </GameResultLayout>
           </div>
         )}
       </main>

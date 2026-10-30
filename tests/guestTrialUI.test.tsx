@@ -200,7 +200,7 @@ describe("guest party entry", () => {
       user: { id: "user", nickname: "Игрок" },
       trials: { colorfle: { id, completed: true, published: true } },
     });
-    expect(box.textContent).toContain("Результат сохранён в рейтинг");
+    expect(box.textContent).not.toContain("Результат сохранён в рейтинг");
     expect(box.querySelector("button")!.textContent).toContain("Начать игру");
     expect(window.location.search).not.toContain("auth=success");
   });

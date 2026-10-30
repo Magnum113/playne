@@ -104,6 +104,45 @@ const db = process.env.TEST_DATABASE_URL;
       result.contributions.find((p: any) => p.game === "pressure").points,
     ).toBe(500);
   });
+  it("returns five individual-game leaders and the current player's true rank below them, preserving ties and default pagination", async () => {
+    const ids: string[] = [];
+    for (const [i, score] of [99, 98, 97, 96, 95, 94, 94].entries()) {
+      const owner = await addUser(`Игрок ${i + 1}`);
+      ids.push(owner);
+      await run(owner, "circle", score);
+    }
+    await run(ids[6], "pressure", 1000);
+    const session = randomBytes(32).toString("base64url");
+    await pool.query(
+      "INSERT INTO playne_auth_sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '1 hour')",
+      [createHash("sha256").update(session).digest("hex"), ids[6]],
+    );
+    const result = (
+      await app.inject({
+        url: "/api/leaderboard?game=circle&limit=5",
+        headers: { cookie: `playne_session=${session}` },
+      })
+    ).json();
+    expect(result).toMatchObject({
+      game: "circle",
+      limit: 5,
+      total: 7,
+      mine: { place: 6, score: 94, isMe: true },
+    });
+    expect(result.entries).toHaveLength(5);
+    expect(result.entries.every((entry: any) => !entry.isMe)).toBe(true);
+    expect(
+      (await app.inject("/api/leaderboard?game=circle&limit=5&page=2"))
+        .json()
+        .entries.map((entry: any) => entry.place),
+    ).toEqual([6, 6]);
+    expect(
+      (await app.inject("/api/leaderboard?game=circle")).json().entries,
+    ).toHaveLength(7);
+    expect(
+      (await app.inject("/api/leaderboard?game=circle&limit=6")).statusCode,
+    ).toBe(400);
+  });
   it("includes historical and zero scores, with no weekly reset", async () => {
     const a = await addUser("Ноль"),
       b = await addUser("Рекорд");

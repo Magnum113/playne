@@ -1,4 +1,5 @@
 import { useGameViewport } from "./useGameViewport";
+import GameResultLayout from "./GameResultLayout";
 import { RulesDialog } from "./RulesDialog";
 import { useEffect, useRef, useState } from "react";
 import { GameHeader } from "./SiteHeader";
@@ -531,72 +532,78 @@ export default function LineGame() {
             </section>
           </>
         ) : phase === "finished" ? (
-          <section className="line-summary" ref={playRegion}>
-            <p className="eyebrow">
-              {mode === "classic"
-                ? `ПОЛЯ ДНЯ · ${run?.challenge.day ?? lineMoscowDate()}`
-                : "ПРАКТИКА ЗАВЕРШЕНА"}
-            </p>
-            <h2 ref={heading} tabIndex={-1}>
-              Пять маршрутов найдены.
-            </h2>
-            <p className="line-total">
-              <strong>{run?.score ?? 0}</strong>
-              <span>/ 500 очков</span>
-            </p>
-            <ol className="line-results">
-              {answers.map((a, i) => (
-                <li key={i}>
-                  <span>Поле {i + 1}</span>
-                  <span>
-                    {clock(a.elapsedMs)} · подсказок: {a.hints}
-                  </span>
-                  <strong>{a.score} / 100</strong>
-                </li>
-              ))}
-            </ol>
-            <p>
-              {mode === "classic"
-                ? "Первая попытка дня завершена. Новый набор появится в полночь по Москве. Можно продолжить в практике."
-                : "Результат практики учитывается в её отдельном рейтинге. Общий рейтинг меняют только поля дня."}
-            </p>
-            <ChallengeContext
-              game="line"
-              token={challengeToken ?? run?.challenge.comparisonToken}
-              runId={run?.id}
-              completed
-              runDay={run?.challenge.day}
-              runMode={run?.mode}
-              comparisonToken={run?.challenge.comparisonToken}
-              score={run?.score}
-            />
-            {run?.private || run?.challenge.comparison ? (
-              <>
-                <p className="save-result">
-                  Результат сравнения сохранён отдельно от рейтинга.
-                </p>
-              </>
-            ) : (
-              <SaveResult run={ranked} game="line" />
-            )}
-            <ShareResult runId={run?.id} />
-            {access.user && (
-              <button
-                className="primary"
-                disabled={busy}
-                onClick={() => {
-                  reachGoal(LINE_GOALS.gameRestart, { mode: "practice" });
-                  void begin("practice");
-                }}
-              >
-                {busy ? "Готовим поля…" : "Играть в практике →"}
-              </button>
-            )}
-            {error && <p role="status">{error}</p>}
-            <a className="text-button" href="/leaderboard/?game=overall">
-              Общий рейтинг →
-            </a>
-          </section>
+          <GameResultLayout
+            game="line"
+            mode={mode}
+            refreshKey={ranked.state.status === "saved" ? ranked.state.id : ""}
+          >
+            <section className="line-summary" ref={playRegion}>
+              <p className="eyebrow">
+                {mode === "classic"
+                  ? `ПОЛЯ ДНЯ · ${run?.challenge.day ?? lineMoscowDate()}`
+                  : "ПРАКТИКА ЗАВЕРШЕНА"}
+              </p>
+              <h2 ref={heading} tabIndex={-1}>
+                Пять маршрутов найдены.
+              </h2>
+              <p className="line-total">
+                <strong>{run?.score ?? 0}</strong>
+                <span>/ 500 очков</span>
+              </p>
+              <ol className="line-results">
+                {answers.map((a, i) => (
+                  <li key={i}>
+                    <span>Поле {i + 1}</span>
+                    <span>
+                      {clock(a.elapsedMs)} · подсказок: {a.hints}
+                    </span>
+                    <strong>{a.score} / 100</strong>
+                  </li>
+                ))}
+              </ol>
+              <p>
+                {mode === "classic"
+                  ? "Первая попытка дня завершена. Новый набор появится в полночь по Москве. Можно продолжить в практике."
+                  : "Результат практики учитывается в её отдельном рейтинге. Общий рейтинг меняют только поля дня."}
+              </p>
+              <ChallengeContext
+                game="line"
+                token={challengeToken ?? run?.challenge.comparisonToken}
+                runId={run?.id}
+                completed
+                runDay={run?.challenge.day}
+                runMode={run?.mode}
+                comparisonToken={run?.challenge.comparisonToken}
+                score={run?.score}
+              />
+              {run?.private || run?.challenge.comparison ? (
+                <>
+                  <p className="save-result">
+                    Результат сравнения сохранён отдельно от рейтинга.
+                  </p>
+                </>
+              ) : (
+                <SaveResult run={ranked} game="line" />
+              )}
+              <ShareResult runId={run?.id} />
+              {access.user && (
+                <button
+                  className="primary"
+                  disabled={busy}
+                  onClick={() => {
+                    reachGoal(LINE_GOALS.gameRestart, { mode: "practice" });
+                    void begin("practice");
+                  }}
+                >
+                  {busy ? "Готовим поля…" : "Играть в практике →"}
+                </button>
+              )}
+              {error && <p role="status">{error}</p>}
+              <a className="text-button" href="/leaderboard/?game=overall">
+                Общий рейтинг →
+              </a>
+            </section>
+          </GameResultLayout>
         ) : (
           <section
             className="line-play"
