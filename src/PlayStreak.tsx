@@ -96,14 +96,6 @@ export default function PlayStreak({ revision }: { revision?: string }) {
         </button>
       )}
       <div className="streak-personal-bottom">
-        <details>
-          <summary>Как считаем</summary>
-          <p>
-            Одна завершённая партия в любой игре — один день. Практика и вызовы
-            тоже считаются. День заканчивается в полночь по Москве. После
-            пропуска начинается новая серия; личный рекорд сохраняется.
-          </p>
-        </details>
         <a href="/leaderboard/?game=streak">Рейтинг серий →</a>
       </div>
       {!user && (

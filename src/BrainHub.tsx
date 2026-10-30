@@ -290,36 +290,6 @@ export default function BrainHub() {
             })}
           </div>
         </section>
-        <section
-          className="brain-score-info"
-          aria-labelledby="brain-ranking-title"
-        >
-          <div>
-            <p className="eyebrow">ОДНА КАТЕГОРИЯ В ОБЩЕМ ЗАЧЁТЕ</p>
-            <h2 id="brain-ranking-title">Четыре игры — до 1000 баллов</h2>
-            <p>
-              Лучший дневной результат каждой игры даёт до 250 баллов. Вместе
-              они образуют одну категорию «Разминка для ума» в общем рейтинге
-              Playne. Практика остаётся в личной истории.
-            </p>
-          </div>
-          <a className="primary" href="/leaderboard/?game=brain">
-            Рейтинг разминки →
-          </a>
-        </section>
-        <section
-          className="brain-explain"
-          aria-labelledby="brain-explain-title"
-        >
-          <h2 id="brain-explain-title">Смотри на конкретный прогресс</h2>
-          <p>
-            Во «Вспышке» — запомненные клетки, в «Повороте» — верные сравнения,
-            в «Передвинь» — ходы до выхода, в «Диспетчере» — доставленные
-            поезда. Это показатели игровых задач: здесь интересно практиковаться
-            и находить более удачный способ решения.
-          </p>
-          <a href="/guides/brain/">Как устроены игры и очки →</a>
-        </section>
       </main>
       <footer className="community-footer">
         <FooterLinks />

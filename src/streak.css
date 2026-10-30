@@ -139,12 +139,6 @@
   width: 16px;
   height: 20px;
 }
-.streak-board-note {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
-  margin: 16px 0 0;
-}
 .streak-empty {
   color: var(--muted);
   font-size: 14px;
@@ -295,18 +289,6 @@
   font-size: 12px;
   line-height: 1.6;
 }
-.streak-personal-bottom details {
-  flex: 1;
-  min-width: 0;
-}
-.streak-personal-bottom summary {
-  cursor: pointer;
-  color: var(--muted);
-}
-.streak-personal-bottom details p {
-  margin: 10px 0 0;
-  color: var(--muted);
-}
 .streak-personal-bottom a {
   color: var(--mint);
   white-space: nowrap;
@@ -344,15 +326,6 @@
   flex-wrap: wrap;
   font-size: 13px;
   color: var(--muted);
-}
-.streak-ranking-rules {
-  margin-top: 24px;
-  font-size: 14px;
-  color: var(--muted);
-  line-height: 1.7;
-}
-.streak-ranking-rules summary {
-  cursor: pointer;
 }
 .today-streak {
   display: inline-flex;
@@ -419,11 +392,6 @@
   }
 }
 
-.streak-personal-bottom summary {
-  min-height: 44px;
-  display: list-item;
-  align-content: center;
-}
 .streak-personal-bottom > a {
   min-height: 44px;
   display: inline-flex;

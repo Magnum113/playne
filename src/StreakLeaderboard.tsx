@@ -179,7 +179,6 @@ export function StreakBoardCard({ compact = false }: { compact?: boolean }) {
           </button>
         </nav>
       )}
-      <p className="streak-board-note">Любая игра. Один день — один огонёк.</p>
     </section>
   );
 }
@@ -205,16 +204,6 @@ export default function StreakLeaderboardPage() {
           <PlayStreak />
           <StreakBoardCard />
         </div>
-        <details className="streak-ranking-rules">
-          <summary>Как попасть в рейтинг</summary>
-          <p>
-            Заверши партию и сохрани результат в рейтинге любой игры. Затем
-            продлевай серию в любом режиме: практика и вызовы тоже считаются.
-            Равные серии делят место. Сегодняшний день можно засчитать до
-            полуночи по Москве. После пропуска серия начинается заново, а личный
-            рекорд сохраняется.
-          </p>
-        </details>
       </main>
       <FooterLinks />
     </div>

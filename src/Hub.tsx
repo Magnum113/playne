@@ -79,7 +79,6 @@ export default function Hub() {
               </h1>
               <p>
                 Проверь глазомер, реакцию и знание мира.
-                <br /> Первая партия в каждой игре — без входа.
                 <br />
                 <a className="hub-brain-shortcut" href="#brain-games">
                   Разминка для ума каждый день →

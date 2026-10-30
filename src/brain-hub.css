@@ -41,9 +41,7 @@
   margin-bottom: 16px;
 }
 .brain-section-heading h2,
-.brain-week h2,
-.brain-score-info h2,
-.brain-explain h2 {
+.brain-week h2 {
   font-size: clamp(25px, 3vw, 36px);
   line-height: 1.15;
   letter-spacing: -0.045em;
@@ -173,8 +171,7 @@ a.brain-card:hover {
   border-radius: var(--radius-panel);
   padding: 32px;
 }
-.brain-week p,
-.brain-score-info p {
+.brain-week p {
   font-size: 14px;
   line-height: 1.7;
   color: var(--muted);
@@ -279,36 +276,6 @@ a.brain-card:hover {
   grid-column: 2;
   grid-row: 1 / 3;
   align-self: center;
-}
-.brain-score-info {
-  padding: 32px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 32px;
-  background: var(--purple-tint);
-  margin: 48px 0;
-}
-.brain-score-info > div {
-  max-width: 680px;
-}
-.brain-score-info .primary {
-  flex-shrink: 0;
-  text-decoration: none;
-}
-.brain-explain {
-  max-width: 780px;
-  padding-block: 12px 40px;
-}
-.brain-explain p {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.8;
-}
-.brain-explain > a {
-  font-size: 13px;
 }
 .rank-brain-games {
   display: flex;
@@ -415,12 +382,6 @@ a.brain-card:hover {
   }
   .brain-practice-links {
     grid-template-columns: 1fr;
-  }
-  .brain-score-info {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 22px;
-    gap: 16px;
   }
   .brain-feature {
     margin-top: 36px;
