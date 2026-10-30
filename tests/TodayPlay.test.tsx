@@ -40,7 +40,7 @@ const primary = () =>
   box.querySelector<HTMLAnchorElement>(
     ".play-choice:not(.play-choice-secondary)",
   );
-const week = () => box.querySelector(".play-week-link");
+const streak = () => box.querySelector(".today-play-streak");
 const retry = () => box.querySelector<HTMLButtonElement>(".play-refresh")!;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -73,18 +73,25 @@ describe("TodayPlay with server-owned progress", () => {
     expect(box.querySelector("section")?.getAttribute("aria-busy")).toBe(
       "true",
     );
-    expect(week()).toBeNull();
+    expect(streak()).toBeNull();
     expect(box.querySelectorAll(".play-choice")).toHaveLength(0);
     expect(box.textContent).not.toContain("0 / 3");
     await act(async () =>
       request.resolve(
         playProgressFixture({
           goal: { days: 3, completedDays: 2 },
+          streak: {
+            current: 7,
+            best: 12,
+            playedToday: true,
+            lastDay: "2026-10-30",
+          },
           daily: { slide: dailyRunFixture("slide") },
         }),
       ),
     );
-    expect(week()?.textContent).toContain("2 / 3");
+    expect(streak()?.textContent).toBe("7");
+    expect(box.querySelector(".play-week-link")).toBeNull();
     expect(primary()?.getAttribute("href")).toBe("/brain/slide/");
     expect(primary()?.textContent).toContain("Продолжить");
     expect(box.querySelectorAll(".play-choice")).toHaveLength(2);
@@ -98,6 +105,12 @@ describe("TodayPlay with server-owned progress", () => {
       .mockResolvedValueOnce(
         playProgressFixture({
           goal: { days: 3, completedDays: 2 },
+          streak: {
+            current: 7,
+            best: 12,
+            playedToday: true,
+            lastDay: "2026-10-30",
+          },
           favorites: [favorite("pressure")],
         }),
       );
@@ -105,12 +118,12 @@ describe("TodayPlay with server-owned progress", () => {
     const links = [...box.querySelectorAll<HTMLAnchorElement>(".play-choice")];
     expect(links).toHaveLength(2);
     expect(links[0].href).not.toBe(links[1].href);
-    expect(week()).toBeNull();
+    expect(streak()).toBeNull();
     expect(box.textContent).not.toContain("0 / 3");
     expect(retry()?.textContent).toContain("Обновить рекомендации");
     await act(async () => retry().click());
     expect(primary()?.getAttribute("href")).toBe("/pressure/");
-    expect(week()?.textContent).toContain("2 / 3");
+    expect(streak()?.textContent).toBe("7");
     expect(retry()).toBeNull();
     expect(mock.api).toHaveBeenCalledTimes(2);
   });
@@ -121,16 +134,22 @@ describe("TodayPlay with server-owned progress", () => {
       .mockResolvedValueOnce(
         playProgressFixture({
           goal: { days: 3, completedDays: 3 },
+          streak: {
+            current: 8,
+            best: 12,
+            playedToday: true,
+            lastDay: "2026-10-30",
+          },
           favorites: [favorite("pressure")],
         }),
       )
       .mockReturnValueOnce(next.promise);
     await render();
-    expect(week()?.textContent).toContain("3 / 3");
+    expect(streak()?.textContent).toBe("8");
     expect(primary()?.getAttribute("href")).toBe("/pressure/");
     mock.user = { id: "b" };
     await render();
-    expect(week()).toBeNull();
+    expect(streak()).toBeNull();
     expect(primary()).toBeNull();
     expect(box.textContent).not.toContain("3 / 3");
     expect(box.textContent).not.toContain("0 / 3");
@@ -138,11 +157,17 @@ describe("TodayPlay with server-owned progress", () => {
       next.resolve(
         playProgressFixture({
           goal: { days: 3, completedDays: 1 },
+          streak: {
+            current: 6,
+            best: 12,
+            playedToday: true,
+            lastDay: "2026-10-30",
+          },
           favorites: [favorite("geo")],
         }),
       ),
     );
-    expect(week()?.textContent).toContain("1 / 3");
+    expect(streak()?.textContent).toBe("6");
     expect(primary()?.getAttribute("href")).toBe("/geo/");
   });
 
@@ -159,6 +184,12 @@ describe("TodayPlay with server-owned progress", () => {
       current.resolve(
         playProgressFixture({
           goal: { days: 3, completedDays: 1 },
+          streak: {
+            current: 6,
+            best: 12,
+            playedToday: true,
+            lastDay: "2026-10-30",
+          },
           favorites: [favorite("geo")],
         }),
       ),
@@ -167,11 +198,17 @@ describe("TodayPlay with server-owned progress", () => {
       old.resolve(
         playProgressFixture({
           goal: { days: 3, completedDays: 3 },
+          streak: {
+            current: 8,
+            best: 12,
+            playedToday: true,
+            lastDay: "2026-10-30",
+          },
           favorites: [favorite("pressure")],
         }),
       ),
     );
-    expect(week()?.textContent).toContain("1 / 3");
+    expect(streak()?.textContent).toBe("6");
     expect(primary()?.getAttribute("href")).toBe("/geo/");
     expect(box.textContent).not.toContain("3 / 3");
   });
@@ -191,6 +228,12 @@ describe("TodayPlay with server-owned progress", () => {
         playProgressFixture({
           favorites: [favorite("geo")],
           goal: { days: 3, completedDays: 2 },
+          streak: {
+            current: 7,
+            best: 12,
+            playedToday: true,
+            lastDay: "2026-10-30",
+          },
         }),
       ),
     );
@@ -199,11 +242,17 @@ describe("TodayPlay with server-owned progress", () => {
         playProgressFixture({
           favorites: [favorite("pressure")],
           goal: { days: 3, completedDays: 1 },
+          streak: {
+            current: 6,
+            best: 12,
+            playedToday: true,
+            lastDay: "2026-10-30",
+          },
         }),
       ),
     );
     expect(primary()?.getAttribute("href")).toBe("/geo/");
-    expect(week()?.textContent).toContain("2 / 3");
+    expect(streak()?.textContent).toBe("7");
   });
 
   it("waits for authentication to settle before requesting personal recommendations", async () => {
@@ -211,7 +260,7 @@ describe("TodayPlay with server-owned progress", () => {
     mock.api.mockResolvedValue(playProgressFixture());
     await render();
     expect(mock.api).not.toHaveBeenCalled();
-    expect(week()).toBeNull();
+    expect(streak()).toBeNull();
     expect(primary()).toBeNull();
     mock.authLoading = false;
     await render();
@@ -230,6 +279,12 @@ describe("TodayPlay with server-owned progress", () => {
             day: "2026-10-29",
             favorites: [favorite("pressure")],
             goal: { days: 3, completedDays: 2 },
+            streak: {
+              current: 7,
+              best: 12,
+              playedToday: true,
+              lastDay: "2026-10-30",
+            },
           }),
         )
         .mockReturnValueOnce(next.promise);
@@ -243,7 +298,7 @@ describe("TodayPlay with server-owned progress", () => {
         else vi.advanceTimersByTime(30_000);
       });
       expect(mock.api).toHaveBeenCalledTimes(2);
-      expect(week()).toBeNull();
+      expect(streak()).toBeNull();
       expect(primary()).toBeNull();
       expect(box.textContent).toContain("30 октября");
       expect(box.textContent).not.toContain("0 / 3");
@@ -252,12 +307,18 @@ describe("TodayPlay with server-owned progress", () => {
           playProgressFixture({
             day: "2026-10-30",
             goal: { days: 3, completedDays: 2 },
+            streak: {
+              current: 7,
+              best: 12,
+              playedToday: true,
+              lastDay: "2026-10-30",
+            },
             daily: { rotate: dailyRunFixture("rotate") },
           }),
         ),
       );
       expect(primary()?.getAttribute("href")).toBe("/brain/rotate/");
-      expect(week()?.textContent).toContain("2 / 3");
+      expect(streak()?.textContent).toBe("7");
     },
   );
 
@@ -266,11 +327,17 @@ describe("TodayPlay with server-owned progress", () => {
       playProgressFixture({
         day: "2026-10-29",
         goal: { days: 3, completedDays: 3 },
+        streak: {
+          current: 8,
+          best: 12,
+          playedToday: true,
+          lastDay: "2026-10-30",
+        },
         favorites: [favorite("pressure")],
       }),
     );
     await render();
-    expect(week()).toBeNull();
+    expect(streak()).toBeNull();
     expect(retry()).toBeTruthy();
     expect(box.textContent).not.toContain("3 / 3");
     expect(primary()?.getAttribute("href")).not.toBe("/pressure/");

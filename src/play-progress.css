@@ -26,32 +26,35 @@
   letter-spacing: -0.8px;
   line-height: 1.15;
 }
-.play-week-link {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 3px 14px;
+.today-play-heading > div {
+  min-width: 0;
+}
+.today-play-streak {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex: none;
+  gap: 6px;
+  min-width: 44px;
   min-height: 44px;
-  color: var(--text);
+  padding: 0 4px;
+  border-radius: var(--radius-control);
+  color: var(--muted);
   text-decoration: none;
 }
-.play-week-link > span:first-child {
-  font-size: 12px;
-  color: var(--muted);
+.today-play-streak.is-active {
+  color: var(--orange);
 }
-.play-week-link strong {
-  grid-column: 1;
+.today-play-streak:hover {
+  background: var(--hover);
+}
+.today-play-streak strong {
   font-size: 20px;
   font-variant-numeric: tabular-nums;
 }
-.play-week-link strong span {
-  font-size: 13px;
-  font-weight: 400;
-}
-.play-week-link > span:last-child {
-  grid-column: 2;
-  grid-row: 1 / 3;
-  color: var(--mint);
+.today-play-streak .streak-flame {
+  width: 20px;
+  height: 24px;
 }
 .play-choices {
   display: grid;
@@ -254,9 +257,6 @@
   }
   .today-play-heading {
     gap: 14px;
-  }
-  .today-play h2 {
-    max-width: 180px;
   }
   .play-choice {
     padding: 18px;

@@ -4,7 +4,13 @@ import { usePlayProgress } from "./usePlayProgress";
 import { useAuth } from "./account";
 import "./streak.css";
 
-export default function PlayStreak({ revision }: { revision?: string }) {
+export default function PlayStreak({
+  revision,
+  showRankingLink = true,
+}: {
+  revision?: string;
+  showRankingLink?: boolean;
+}) {
   const { data, loading, error, refresh } = usePlayProgress(revision);
   const { user } = useAuth();
   const streak = data?.streak;
@@ -95,9 +101,11 @@ export default function PlayStreak({ revision }: { revision?: string }) {
           Обновить прогресс
         </button>
       )}
-      <div className="streak-personal-bottom">
-        <a href="/leaderboard/?game=streak">Рейтинг серий →</a>
-      </div>
+      {showRankingLink && (
+        <div className="streak-personal-bottom">
+          <a href="/leaderboard/?game=streak">Рейтинг серий →</a>
+        </div>
+      )}
       {!user && (
         <p className="streak-guest">
           <a href="/account/">Войди</a>, чтобы сохранить серию в аккаунте.

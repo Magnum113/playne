@@ -161,30 +161,18 @@ export default function TodayPlay() {
             Сегодня в Playne<span className="brand-dot">.</span>
           </h2>
         </div>
-        {data && (
+        {data?.streak && (
           <a
-            className="play-week-link"
-            href="/brain/#play-week"
-            onClick={() => reachGoal(PLAY_GOALS.weekOpen, { source: "home" })}
+            className={`today-play-streak${data.streak.current > 0 ? " is-active" : ""}`}
+            href="/leaderboard/?game=streak"
+            aria-label={`Ударная серия: ${streakDays(data.streak.current)}`}
+            title={`Ударная серия: ${streakDays(data.streak.current)}`}
           >
-            <span>Эта неделя</span>
-            <strong>
-              {Math.min(data.goal.completedDays, data.goal.days)} /{" "}
-              {data.goal.days} <span>дня</span>
-            </strong>
-            <span aria-hidden="true">↗</span>
+            <StreakFlame active={data.streak.current > 0} />
+            <strong aria-hidden="true">{data.streak.current}</strong>
           </a>
         )}
       </div>
-      {data?.streak && (
-        <a className="today-streak" href="/leaderboard/?game=streak">
-          <StreakFlame active={data.streak.current > 0} />
-          {data.streak.current > 0
-            ? `${streakDays(data.streak.current)} подряд`
-            : "Зажги свою серию"}
-          {data.streak.playedToday && <span> · сегодня ✓</span>}
-        </a>
-      )}
       {loading && !data ? (
         <div className="play-choices play-choices-loading" role="status">
           <span>Подбираем игры…</span>

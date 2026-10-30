@@ -201,7 +201,7 @@ export default function StreakLeaderboardPage() {
           Одна законченная игра в день — и серия растёт.
         </p>
         <div className="streak-page-grid">
-          <PlayStreak />
+          <PlayStreak showRankingLink={false} />
           <StreakBoardCard />
         </div>
       </main>
