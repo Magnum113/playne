@@ -1,3 +1,4 @@
+import { useGameViewport } from "./useGameViewport";
 import { RulesDialog } from "./RulesDialog";
 import { useEffect, useRef, useState } from "react";
 import { GameHeader } from "./SiteHeader";
@@ -77,6 +78,7 @@ const modes = [
 ];
 
 export default function LineGame() {
+  const playRegion = useRef<HTMLElement>(null);
   const ranked = useRankedRun("line");
   const [challengeToken] = useState(readChallengeToken);
   const access = useGuestTrial("line");
@@ -224,9 +226,10 @@ export default function LineGame() {
       heading.current?.focus({ preventScroll: true });
     if (phase === "playing") {
       heading.current?.focus({ preventScroll: true });
-      heading.current?.scrollIntoView({ block: "start", behavior: "instant" });
     }
   }, [phase]);
+
+  useGameViewport(playRegion, phase === "welcome" ? null : `${phase}:${index}`);
 
   function openRules() {
     rules.current?.showModal();
@@ -529,7 +532,7 @@ export default function LineGame() {
             </section>
           </>
         ) : phase === "finished" ? (
-          <section className="line-summary">
+          <section className="line-summary" ref={playRegion}>
             <p className="eyebrow">
               {mode === "classic"
                 ? `ПОЛЯ ДНЯ · ${run?.challenge.day ?? lineMoscowDate()}`
@@ -597,7 +600,11 @@ export default function LineGame() {
             </a>
           </section>
         ) : (
-          <section className="line-play" aria-label="Игра Одной линией">
+          <section
+            className="line-play"
+            ref={playRegion}
+            aria-label="Игра Одной линией"
+          >
             <div className="line-topline">
               <span>
                 {mode === "classic"

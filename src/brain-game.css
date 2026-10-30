@@ -265,6 +265,32 @@
   touch-action: none;
   user-select: none;
 }
+@media (min-width: 900px) and (max-height: 960px) {
+  .brain-stage {
+    padding: 24px;
+  }
+  .brain-stage .progress-dots {
+    margin-block: 14px;
+  }
+  .brain-stage .brain-play-heading {
+    margin-block: 18px 16px;
+  }
+  .brain-stage .brain-parking {
+    width: min(100%, max(264px, calc(100svh - 540px)));
+  }
+  .brain-stage .brain-board-note {
+    margin-block: 10px;
+  }
+  .brain-stage .brain-slide-actions {
+    margin-top: 14px;
+  }
+  .brain-stage .brain-confirm {
+    margin-top: 16px;
+  }
+  .brain-stage .brain-railway {
+    max-width: min(640px, max(400px, calc((100svh - 560px) * 2)));
+  }
+}
 .brain-parking-grid {
   position: absolute;
   inset: 0;

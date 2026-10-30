@@ -56,6 +56,11 @@ export const tokenGroups = [
 // The source paths identify the production components used by these examples.
 export const componentInventory = [
   [
+    "Поле и кнопки в видимой области при старте и смене раунда",
+    "useGameViewport.ts · BrainGame.tsx",
+    "gameplay",
+  ],
+  [
     "Серия в шапке: огонь, число, загрузка и ошибка",
     "HeaderStreak.tsx · HeaderStreakLink · SiteHeader.tsx",
     "navigation",

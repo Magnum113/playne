@@ -1,3 +1,4 @@
+import { useGameViewport } from "./useGameViewport";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
@@ -200,6 +201,7 @@ function Rules() {
   );
 }
 export default function ColorfleGame() {
+  const playRegion = useRef<HTMLDivElement>(null);
   const access = useGuestTrial("colorfle");
   const ranked = useRankedRun("colorfle");
   const [state, update] = useReducer(shadeReducer, undefined, () => {
@@ -398,14 +400,11 @@ export default function ColorfleGame() {
   }, [timed, phase, state.deadline, round]);
   useEffect(() => saveShadeSession(state), [state]);
   useEffect(() => {
-    if (phase === "reveal" || phase === "finished") result.current?.focus();
+    if (phase === "reveal" || phase === "finished")
+      result.current?.focus({ preventScroll: true });
   }, [phase, round]);
-  useEffect(() => {
-    if (phase === "picking" && round > 0)
-      document
-        .querySelector(".shade-status")
-        ?.scrollIntoView({ block: "start", behavior: "instant" });
-  }, [round, phase]);
+  useGameViewport(playRegion, phase === "welcome" ? null : `${phase}:${round}`);
+
   return (
     <div className="app color-app">
       <a className="skip-link" href="#color-main">
@@ -508,7 +507,7 @@ export default function ColorfleGame() {
             </div>
           </section>
         ) : (
-          <>
+          <div className="shade-game-region" ref={playRegion}>
             <div className="shade-status">
               <div>
                 <span className="eyebrow">
@@ -698,7 +697,7 @@ export default function ColorfleGame() {
                 </section>
               )}
             </div>
-          </>
+          </div>
         )}
       </main>
       <footer className="color-footer">

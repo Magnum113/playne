@@ -1,3 +1,4 @@
+import { useGameViewport } from "./useGameViewport";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
@@ -179,6 +180,11 @@ export default function PressureGame() {
     generation = useRef(0);
   const runSeed = useRef(0),
     recentVariants = useRef<string[]>([]);
+  const playRegion = useRef<HTMLElement>(null);
+  useGameViewport(
+    playRegion,
+    state.phase === "welcome" || state.phase === "finished" ? null : "playing",
+  );
   const level = state.deck[state.index],
     playing = state.phase === "playing";
   function update(next: BoardState) {
@@ -367,7 +373,6 @@ export default function PressureGame() {
   useEffect(() => {
     if (state.phase !== "countdown") return;
     setCountdown(3);
-    window.scrollTo({ top: 0, behavior: "instant" });
     let n = 3;
     const t = setInterval(() => {
       n--;
@@ -652,6 +657,7 @@ export default function PressureGame() {
         ) : (
           <section
             className={`pressure-play${succeeding ? " pressure-level-clear" : ""}${failing ? " pressure-level-failed" : ""}`}
+            ref={playRegion}
             aria-label="Игровое поле"
           >
             <div className="pressure-topline">

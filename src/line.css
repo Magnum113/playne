@@ -111,6 +111,17 @@
   max-width: 456px;
   margin: auto;
 }
+@media (min-width: 900px) and (max-height: 850px) {
+  .line-board-wrap {
+    max-width: min(456px, max(308px, calc(100svh - 420px)));
+  }
+  .line-play .progress-dots {
+    margin-block: 16px;
+  }
+  .line-play-heading {
+    margin-block: 16px;
+  }
+}
 .line-board {
   display: grid;
   grid-template-columns: repeat(var(--line-cols), minmax(0, 1fr));

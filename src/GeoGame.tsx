@@ -1,3 +1,4 @@
+import { useGameViewport } from "./useGameViewport";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
@@ -124,6 +125,8 @@ export default function GeoGame() {
   const guessRef = useRef<GeoPoint | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [error, setError] = useState("");
+  const playRegion = useRef<HTMLDivElement>(null);
+  useGameViewport(playRegion, phase === "guessing" ? `round:${round}` : null);
   const panoNode = useRef<HTMLDivElement>(null),
     mapNode = useRef<HTMLDivElement>(null);
   const panorama = useRef<google.maps.StreetViewPanorama | null>(null);
@@ -873,6 +876,7 @@ export default function GeoGame() {
           </div>
         )}
         <div
+          ref={playRegion}
           className={`geo-stage ${active ? "" : "geo-stage-hidden"} ${mapOpen ? "geo-map-open" : ""} ${phase === "reveal" ? "geo-revealed" : ""}`}
           inert={!active}
         >

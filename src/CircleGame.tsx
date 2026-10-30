@@ -1,3 +1,4 @@
+import { useGameViewport } from "./useGameViewport";
 import ShareResult from "./ShareResult";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
@@ -33,6 +34,7 @@ export default function CircleGame() {
   const scoredAttempt = useRef(false);
   const board = useRef<SVGSVGElement>(null);
   const rules = useRef<HTMLDialogElement>(null);
+  const playRegion = useRef<HTMLElement>(null);
   const [analytics] = useState(createCircleTracker);
 
   function clear() {
@@ -158,6 +160,9 @@ export default function CircleGame() {
     }
   }
   const success = result?.valid ? result : null;
+  const canShare =
+    !!success &&
+    ["complete", "saved", "save-error"].includes(ranked.state?.status ?? "");
   const message = drawing
     ? "Продолжай линию и вернись к началу."
     : result && !result.valid
@@ -171,6 +176,19 @@ export default function CircleGame() {
               ? "Ещё один круг?"
               : "Круг готов."
         : "Зажми мышь или веди пальцем по полю.";
+
+  useGameViewport(
+    playRegion,
+    access.ready &&
+      !access.loading &&
+      !drawing &&
+      (!access.blocked || !!success)
+      ? result
+        ? `result:${canShare}`
+        : "ready"
+      : null,
+    ".circle-legend",
+  );
 
   return (
     <div className="app circle-app">
@@ -212,7 +230,11 @@ export default function CircleGame() {
             <GuestTrialPrompt game="circle" />
           </section>
         ) : (
-          <section className="circle-play" aria-label="Нарисовать круг">
+          <section
+            className="circle-play"
+            ref={playRegion}
+            aria-label="Нарисовать круг"
+          >
             <div
               className={`circle-surface${drawing ? " is-drawing" : ""}${success ? " has-result" : ""}`}
             >
@@ -323,10 +345,9 @@ export default function CircleGame() {
                     Ещё раз <span aria-hidden="true">↻</span>
                   </button>
                 )}
-                {success &&
-                  ["complete", "saved", "save-error"].includes(
-                    ranked.state?.status,
-                  ) && <ShareResult runId={ranked.state.id} />}
+                {canShare && ranked.state && (
+                  <ShareResult runId={ranked.state.id} />
+                )}
               </div>
             </div>
             <div className="circle-legend" aria-hidden="true">

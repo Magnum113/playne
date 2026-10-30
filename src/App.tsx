@@ -1,3 +1,4 @@
+import { useGameViewport } from "./useGameViewport";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
@@ -117,6 +118,7 @@ function Hero() {
 export default function App() {
   const access = useGuestTrial("naglaz");
   const ranked = useRankedRun("naglaz");
+  const playRegion = useRef<HTMLElement>(null);
   const [screen, setScreen] = useState<"start" | "game" | "summary">("start");
   const [rounds, setRounds] = useState<Pair[]>([]);
   const [index, setIndex] = useState(0);
@@ -152,8 +154,12 @@ export default function App() {
     else dialog.current?.close();
   }, [help]);
   useEffect(() => {
-    if (screen !== "start") heading.current?.focus();
+    if (screen !== "start") heading.current?.focus({ preventScroll: true });
   }, [screen, index]);
+  useGameViewport(
+    playRegion,
+    screen === "start" ? null : `${screen}:${index}:${revealed}`,
+  );
   function openHelp() {
     reachGoal(METRIKA_GOALS.rulesOpen, { screen });
     setHelp(true);
@@ -188,7 +194,6 @@ export default function App() {
     setOldBest(best);
     setTouched(false);
     setScreen("game");
-    window.scrollTo({ top: 0 });
   }
   function change(value: number) {
     if (!locked.current) {
@@ -237,7 +242,6 @@ export default function App() {
       setBest(newBest);
       saveBest(newBest);
       setScreen("summary");
-      window.scrollTo({ top: 0 });
     } else {
       setIndex((i) => i + 1);
       setRatio(0.45 + Math.random() * 0.55);
@@ -319,7 +323,7 @@ export default function App() {
           </>
         )}
         {screen === "game" && reference && target && (
-          <section className="game-screen">
+          <section className="game-screen" ref={playRegion}>
             <div className="game-top">
               <div className="round-status">
                 <span className="eyebrow">РАУНД {index + 1} ИЗ 5</span>
@@ -459,7 +463,7 @@ export default function App() {
           </section>
         )}
         {screen === "summary" && (
-          <section className="summary">
+          <section className="summary" ref={playRegion}>
             <p className="eyebrow">ПЯТЬ СРАВНЕНИЙ ПОЗАДИ</p>
             <h1 ref={heading} tabIndex={-1}>
               Результат
@@ -510,7 +514,7 @@ export default function App() {
               className="text-button"
               onClick={() => {
                 setScreen("start");
-                window.scrollTo({ top: 0 });
+                window.scrollTo({ top: 0, behavior: "instant" });
               }}
             >
               К правилам игры
