@@ -11,6 +11,8 @@ import {
   type BrainProgress,
 } from "./brainProgress";
 import "./brain-hub.css";
+import CategoryGlyph from "./CategoryGlyph";
+import { DailySpark } from "./HandDrawn";
 
 export function BrainFeature() {
   return (
@@ -26,6 +28,7 @@ export function BrainFeature() {
           </p>
           <h2 id="brain-feature-title">
             Разминка для ума<span className="brand-dot">.</span>
+            <DailySpark />
           </h2>
         </div>
         <a href="/brain/">Вся разминка и мой прогресс ↗</a>
@@ -41,7 +44,20 @@ export function BrainFeature() {
             key={game.id}
             href={game.path}
           >
-            <span className="brain-card-skill">{game.skill}</span>
+            <span className="brain-card-skill">
+              <CategoryGlyph
+                kind={
+                  game.id === "flash"
+                    ? "memory"
+                    : game.id === "rotate"
+                      ? "space"
+                      : game.id === "slide"
+                        ? "planning"
+                        : "attention"
+                }
+              />
+              {game.skill}
+            </span>
             <BrainPreview game={game.id} />
             <h3>{game.name}</h3>
             <p>{game.tagline}</p>

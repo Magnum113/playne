@@ -1,5 +1,6 @@
 import { validHSV } from "./colorfle";
 import type { GameId, GameMode } from "./account";
+import type { RecordReceipt } from "./recordCelebrationState";
 
 export type ServerRun<G extends GameId = GameId> = {
   id: string;
@@ -82,6 +83,11 @@ export function createRankedQueue(
     storage?: Storage;
     onPublished?: (run: ServerRun, score: number) => void;
     onUnauthorized?: () => void;
+    onRecordResult?: (
+      run: ServerRun,
+      score: number,
+      receipt: RecordReceipt,
+    ) => void;
   } = {},
 ) {
   const records = new Map<string, Pending>(),
@@ -93,6 +99,14 @@ export function createRankedQueue(
   const storage = () =>
     options.storage ??
     (typeof localStorage === "undefined" ? undefined : localStorage);
+  function recordResult(p: Pending, result: any) {
+    if (!p.run || !result.record || typeof p.score !== "number") return;
+    try {
+      options.onRecordResult?.(p.run, p.score, result.record);
+    } catch {
+      /* Optional homepage feedback cannot fail a saved answer. */
+    }
+  }
   function load() {
     if (loaded) return;
     loaded = true;
@@ -317,6 +331,7 @@ export function createRankedQueue(
             id: p.run!.id,
             score: p.score,
           });
+          if (p.completed) recordResult(p, result);
           if (p.published) options.onPublished?.(p.run!, p.score ?? 0);
         }
         if (p.completed && !p.published && !p.run?.private && userId) {
@@ -326,6 +341,7 @@ export function createRankedQueue(
             "POST",
             {},
           );
+          recordResult(p, saved);
           if (saved.private) {
             p.run!.private = true;
             p.published = false;

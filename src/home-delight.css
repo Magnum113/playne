@@ -1,0 +1,148 @@
+.marker-word {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+  white-space: nowrap;
+}
+.marker-word > svg {
+  position: absolute;
+  z-index: -1;
+  width: 103%;
+  height: 0.3em;
+  left: -1%;
+  bottom: -0.14em;
+  overflow: visible;
+  pointer-events: none;
+}
+.marker-word path,
+.daily-spark path {
+  fill: none;
+  stroke: var(--mint);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.daily-spark {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  vertical-align: middle;
+  margin-left: 10px;
+  pointer-events: none;
+}
+.daily-spark path {
+  stroke: var(--orange);
+  stroke-width: 2;
+}
+.hub-intro-copy {
+  min-width: 0;
+}
+.hub-intro-copy > p:not(.eyebrow) {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.hub-intro-random {
+  flex: 0 1 304px;
+  width: 100%;
+  min-width: 230px;
+  margin-bottom: 4px;
+}
+.hub-intro-random .random-game {
+  max-width: none;
+}
+.card-category,
+.brain-card-skill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-category .category-glyph,
+.brain-card-skill .category-glyph {
+  margin-inline-end: 0;
+}
+
+/* Only promotional controls have the raised surface; gameplay hit areas stay stable. */
+.tactile,
+.game-card .card-play,
+.brain-feature .brain-card-link {
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--purple) 70%, var(--panel));
+  transition:
+    background-color 140ms ease,
+    box-shadow 120ms ease;
+}
+.brain-feature .brain-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  align-self: flex-start;
+  padding: 9px 14px;
+  border-radius: var(--radius-control);
+  background: var(--purple-soft);
+  color: var(--button-text);
+}
+.tactile:active:not(:disabled),
+.tactile[data-preview-state="active"],
+.game-card:active .card-play,
+.brain-feature .brain-card:active .brain-card-link {
+  box-shadow: 0 0 0 color-mix(in srgb, var(--purple) 70%, var(--panel));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .has-drawn.marker-word path {
+    animation: hand-draw 800ms 120ms ease-out backwards;
+  }
+  .has-drawn.daily-spark path {
+    animation: hand-draw 650ms ease-out backwards;
+  }
+  .tactile,
+  .game-card .card-play,
+  .brain-feature .brain-card-link {
+    transition:
+      background-color 140ms ease,
+      box-shadow 120ms ease,
+      transform 120ms ease;
+  }
+  .tactile:active:not(:disabled),
+  .tactile[data-preview-state="active"],
+  .game-card:active .card-play,
+  .brain-feature .brain-card:active .brain-card-link {
+    transform: translateY(3px);
+  }
+}
+@keyframes hand-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@media (max-width: 700px) {
+  .hub-intro-random {
+    margin: 20px 0 0;
+    min-width: 0;
+  }
+  .hub-intro-copy > p:not(.eyebrow) {
+    font-size: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub .game-card-live:hover,
+  .hub .game-card-live:active,
+  .ds-app .game-card-live:hover,
+  .ds-app .game-card-live:active,
+  .brain-feature .brain-card:hover {
+    transform: none;
+  }
+  .ds-app .tactile[data-preview-state="active"] {
+    transform: none;
+  }
+}
+@media (forced-colors: active) {
+  .tactile,
+  .game-card .card-play,
+  .brain-feature .brain-card-link {
+    border: 1px solid ButtonText;
+  }
+}

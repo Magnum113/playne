@@ -1,0 +1,144 @@
+.random-game {
+  width: 100%;
+  max-width: 340px;
+  min-width: 0;
+}
+.random-game-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-inner);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--line);
+  transition: background-color 160ms, box-shadow 160ms, transform 160ms;
+}
+.random-game-button:hover:not(:disabled) {
+  background: var(--hover);
+}
+.random-game-button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--line);
+}
+.random-game-button:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+.random-game-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.random-game-copy strong {
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.random-game-copy > span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.random-game-arrow {
+  margin-left: auto;
+  color: var(--mint);
+  font-size: 21px;
+  flex: none;
+}
+.random-game-stack {
+  position: relative;
+  display: block;
+  flex: 0 0 68px;
+  height: 58px;
+}
+.random-game-tile {
+  position: absolute;
+  width: 38px;
+  height: 47px;
+  top: 5px;
+  left: 15px;
+  overflow: visible;
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+.random-game-tile rect {
+  fill: currentColor;
+}
+.random-game-tile path,
+.random-game-tile circle {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.random-game-tile-back {
+  color: var(--orange);
+  transform: translateX(-13px) rotate(-16deg);
+}
+.random-game-tile-middle {
+  color: var(--mint);
+  transform: translateX(13px) rotate(16deg);
+}
+.random-game-tile-front {
+  color: var(--purple);
+}
+.random-game-status {
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.random-game-status:not(:has(a)) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.random-game-status a {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--mint);
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .is-shuffling .random-game-tile-back {
+    animation: random-tile-back 620ms cubic-bezier(.3, .1, .3, 1) both;
+  }
+  .is-shuffling .random-game-tile-middle {
+    animation: random-tile-middle 620ms cubic-bezier(.3, .1, .3, 1) both;
+  }
+  .is-shuffling .random-game-tile-front {
+    animation: random-tile-front 620ms cubic-bezier(.3, .1, .3, 1) both;
+  }
+}
+@keyframes random-tile-back {
+  40% { transform: translate(-23px, -8px) rotate(-28deg); }
+  75% { transform: translate(2px, 1px) rotate(5deg); }
+}
+@keyframes random-tile-middle {
+  40% { transform: translate(23px, -4px) rotate(30deg); }
+  75% { transform: translate(-3px, 1px) rotate(-4deg); }
+}
+@keyframes random-tile-front {
+  40% { transform: translateY(8px) rotate(-9deg); }
+  75% { transform: translateY(-4px) rotate(5deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .random-game-button { transition: none; }
+  .random-game-button:active:not(:disabled) { transform: none; }
+}
+@media (forced-colors: active) {
+  .random-game-button { border-color: ButtonText; box-shadow: none; }
+  .random-game-tile { stroke: CanvasText; }
+  .random-game-tile rect { fill: Canvas; }
+}

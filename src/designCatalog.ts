@@ -7,6 +7,7 @@ export const designSections = [
   ["forms", "Поля и выбор"],
   ["navigation", "Навигация"],
   ["cards", "Карточки игр"],
+  ["motion", "Движение и реакции"],
   ["gameplay", "Игровые компоненты"],
   ["results", "Результаты и рейтинг"],
   ["overlays", "Модальные окна"],
@@ -52,6 +53,23 @@ export const tokenGroups = [
 
 // The source paths identify the production components used by these examples.
 export const componentInventory = [
+  [
+    "Живые обложки и реакции значков навыков",
+    "useCardMotion.ts · GamePreviews.tsx · CategoryGlyph.tsx",
+    "motion",
+  ],
+  ["Случайная игра: перемешивание стопки", "RandomGame.tsx", "motion"],
+  ["Рисованное подчёркивание и звезда дня", "HandDrawn.tsx", "motion"],
+  [
+    "Тактильные кнопки и неподвижная область нажатия",
+    "home-delight.css · .tactile",
+    "motion",
+  ],
+  [
+    "Поздравление с новым рекордом",
+    "RecordCelebration.tsx · recordCelebrationState.ts",
+    "motion",
+  ],
   [
     "Гостевая партия, продолжение, вход и сохранение",
     "account.tsx · GameIntro.tsx",

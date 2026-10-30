@@ -94,6 +94,7 @@ for (const id of [
   "forms",
   "navigation",
   "cards",
+  "motion",
   "gameplay",
   "results",
   "overlays",
@@ -111,5 +112,5 @@ assert(
 );
 assert(!html.includes('placeholder="TODO"'));
 console.log(
-  `Design system checks passed: 16 sections, unique IDs and ${textPairs.length * 2 + 8} colour-pair checks in both themes.`,
+  `Design system checks passed: 17 sections, unique IDs and ${textPairs.length * 2 + 8} colour-pair checks in both themes.`,
 );

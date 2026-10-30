@@ -1,0 +1,310 @@
+/* Finite illustrations explain each game. The controller runs only one card. */
+.category-glyph {
+  flex: none;
+  vertical-align: -3px;
+  margin-inline-end: 7px;
+  overflow: visible;
+}
+.preview-landmark-focus {
+  opacity: 0;
+}
+.preview-size-object,
+.preview-rotate-shape,
+.glyph-detail {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.preview-size-object {
+  transform-origin: center bottom;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .is-preview-playing .preview-size-object {
+    animation: preview-size 2400ms cubic-bezier(0.22, 0.68, 0.3, 1) both;
+  }
+  .is-preview-playing :is(.preview-circle-line, .preview-line-path) {
+    stroke-dasharray: 1;
+    animation: preview-draw 2400ms ease-in-out both;
+  }
+  .is-preview-playing .preview-circle-tip {
+    animation: preview-tip 2400ms ease both;
+  }
+  .is-preview-playing .preview-shade-picker {
+    animation: preview-shade 2400ms ease-in-out both;
+  }
+  .is-preview-playing .preview-geo-pin {
+    animation: preview-pin 2400ms cubic-bezier(0.22, 0.68, 0.3, 1) both;
+  }
+  .is-preview-playing .preview-geo-route {
+    animation: preview-route 2400ms linear both;
+  }
+  .is-preview-playing .preview-landmark-focus {
+    animation: preview-landmark 2400ms ease-in-out both;
+  }
+  .is-preview-playing .preview-pressure-button {
+    animation: preview-press 2400ms ease both;
+  }
+  .is-preview-playing .preview-pressure-cursor {
+    animation: preview-cursor 2400ms ease both;
+  }
+  .is-preview-playing .preview-memory-cell {
+    animation: preview-memory 1800ms ease both;
+  }
+  .is-preview-playing .preview-rotate-shape {
+    animation: preview-rotate 2400ms ease-in-out both;
+  }
+  .is-preview-playing .preview-slide-block {
+    animation: preview-slide-block 2400ms ease-in-out both;
+  }
+  .is-preview-playing .preview-slide-exit {
+    animation: preview-slide-exit 2400ms ease-in-out both;
+  }
+  .is-preview-playing .preview-dispatch-train {
+    animation: preview-train 2400ms linear both;
+  }
+  .is-preview-playing
+    :is(.category-glyph-logic, .category-glyph-space)
+    .glyph-detail {
+    animation: glyph-turn 900ms ease-in-out both;
+  }
+  .is-preview-playing .category-glyph-reaction .glyph-detail {
+    animation: glyph-spark 900ms ease-in-out both;
+  }
+  .is-preview-playing .glyph-memory-cell {
+    animation: glyph-memory 900ms ease both;
+  }
+  .is-preview-playing .glyph-memory-cell:nth-child(2) {
+    animation-delay: 90ms;
+  }
+  .is-preview-playing .glyph-memory-cell:nth-child(3) {
+    animation-delay: 180ms;
+  }
+  .is-preview-playing .glyph-memory-cell:nth-child(4) {
+    animation-delay: 270ms;
+  }
+}
+@keyframes preview-size {
+  0%,
+  12% {
+    transform: scale(0.64);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  85%,
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes preview-draw {
+  0%,
+  10% {
+    stroke-dashoffset: 1;
+  }
+  85%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes preview-tip {
+  0%,
+  75% {
+    opacity: 0;
+  }
+  90%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes preview-shade {
+  0%,
+  12% {
+    transform: translate(-34px, 29px);
+    fill: #4e2c8e;
+  }
+  50% {
+    transform: translate(12px, -9px);
+    fill: #9876d9;
+  }
+  85%,
+  100% {
+    transform: translate(0, 0);
+    fill: #7954c5;
+  }
+}
+@keyframes preview-pin {
+  0% {
+    transform: translateY(-18px);
+    opacity: 0.4;
+  }
+  25% {
+    transform: translateY(3px);
+    opacity: 1;
+  }
+  40%,
+  100% {
+    transform: translateY(0);
+  }
+}
+@keyframes preview-route {
+  0% {
+    stroke-dashoffset: 44;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes preview-landmark {
+  0% {
+    opacity: 0;
+    transform: translateX(-88px);
+  }
+  12%,
+  25% {
+    opacity: 1;
+    transform: translateX(-88px);
+  }
+  42%,
+  55% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  72%,
+  85% {
+    opacity: 1;
+    transform: translateX(98px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(98px);
+  }
+}
+@keyframes preview-press {
+  0%,
+  30%,
+  52%,
+  76%,
+  100% {
+    transform: translateY(0);
+  }
+  40%,
+  68% {
+    transform: translateY(6px);
+  }
+}
+@keyframes preview-cursor {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  28%,
+  76% {
+    transform: translate(-44px, -26px);
+  }
+}
+@keyframes preview-memory {
+  0%,
+  15% {
+    fill: var(--hover);
+  }
+  40%,
+  55%,
+  100% {
+    fill: var(--mint);
+  }
+  75% {
+    fill: var(--hover);
+  }
+}
+@keyframes preview-rotate {
+  0%,
+  10%,
+  100% {
+    transform: rotate(0);
+  }
+  48%,
+  70% {
+    transform: rotate(-90deg);
+  }
+}
+@keyframes preview-slide-block {
+  0%,
+  8%,
+  100% {
+    transform: translateY(0);
+  }
+  27%,
+  83% {
+    transform: translateY(-37px);
+  }
+}
+@keyframes preview-slide-exit {
+  0%,
+  27%,
+  100% {
+    transform: translateX(0);
+  }
+  64%,
+  76% {
+    transform: translateX(148px);
+  }
+  92% {
+    transform: translateX(0);
+  }
+}
+@keyframes preview-train {
+  0%,
+  8% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+  48% {
+    transform: translate(166px, 0);
+  }
+  72% {
+    transform: translate(241px, -74px);
+    opacity: 1;
+  }
+  86% {
+    transform: translate(286px, -74px);
+    opacity: 0;
+  }
+  87% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+}
+@keyframes glyph-turn {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(90deg);
+  }
+}
+@keyframes glyph-spark {
+  0%,
+  100% {
+    transform: scale(1);
+    fill: transparent;
+  }
+  45% {
+    transform: scale(1.15);
+    fill: currentColor;
+  }
+}
+@keyframes glyph-memory {
+  0%,
+  100% {
+    fill: transparent;
+  }
+  40%,
+  65% {
+    fill: currentColor;
+  }
+}

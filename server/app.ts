@@ -12,6 +12,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { Pool } from "pg";
 import { LEADERBOARD_SQL } from "./leaderboard";
 import { overallLeaderboard } from "./overall";
+import { improvesPersonalRecord } from "./personal-record";
 import { hintLinePath, lineMoscowDate } from "../src/line";
 import {
   isBrainGame,
@@ -1166,6 +1167,22 @@ export async function buildApp(
       const run = await owned(req, reply, (req.params as any).id, c, true);
       // Idempotent retry returns the originally accepted answer, never changes it.
       if (input.index < run.answers.length) {
+        const recordViewer = run.completed_at ? await user(req, c) : null;
+        const record = run.completed_at
+          ? {
+              improved:
+                (!run.owner_id || run.owner_id === recordViewer?.id) &&
+                !privateBrain(run) &&
+                (await improvesPersonalRecord(
+                  c,
+                  run,
+                  run.score_units,
+                  run.owner_id,
+                )),
+              completedAt: new Date(run.completed_at).toISOString(),
+              ownerId: run.owner_id,
+            }
+          : undefined;
         await c.query("COMMIT");
         return {
           answer: run.answers[input.index],
@@ -1173,6 +1190,7 @@ export async function buildApp(
           completed: !!run.completed_at,
           published: !!run.published_at,
           score: run.score_units === null ? null : run.score_units / 10,
+          ...(record ? { record } : {}),
         };
       }
       if (run.completed_at || input.index !== run.answers.length)
@@ -1217,6 +1235,19 @@ export async function buildApp(
         await claimBrainDay(c, run, viewer.id);
       }
       const publish = shouldOwn && !privateBrain(run);
+      // Finishing through the original browser does not transfer an owned run
+      // when the player has switched accounts or their session has expired.
+      const recordOwnerId = shouldOwn ? viewer.id : run.owner_id;
+      const record = complete
+        ? {
+            improved:
+              (!recordOwnerId || recordOwnerId === viewer?.id) &&
+              !privateBrain(run) &&
+              (await improvesPersonalRecord(c, run, units!, recordOwnerId)),
+            completedAt: new Date().toISOString(),
+            ownerId: recordOwnerId,
+          }
+        : undefined;
       const before =
         publish && !run.published_at
           ? await notificationSnapshot(c, run.game, run.mode)
@@ -1229,8 +1260,8 @@ export async function buildApp(
         publish && run.game === "geo"
           ? { places: run.challenge.places, mode: run.mode }
           : run.challenge;
-      await c.query(
-        "UPDATE playne_games SET answers=$1,score_units=$2,completed_at=CASE WHEN $3 THEN now() ELSE NULL END,owner_id=CASE WHEN $8 THEN $6 ELSE owner_id END,published_at=CASE WHEN $5 THEN coalesce(published_at,now()) ELSE published_at END,challenge=$7 WHERE id=$4",
+      const updated = await c.query(
+        "UPDATE playne_games SET answers=$1,score_units=$2,completed_at=CASE WHEN $3 THEN now() ELSE NULL END,owner_id=CASE WHEN $8 THEN $6 ELSE owner_id END,published_at=CASE WHEN $5 THEN coalesce(published_at,now()) ELSE published_at END,challenge=$7 WHERE id=$4 RETURNING completed_at",
         [
           JSON.stringify(savedAnswers),
           units,
@@ -1242,6 +1273,10 @@ export async function buildApp(
           shouldOwn,
         ],
       );
+      if (record)
+        record.completedAt = new Date(
+          updated.rows[0].completed_at,
+        ).toISOString();
       if (complete)
         await c.query(
           "UPDATE playne_guest_trials SET consumed_at=coalesce(consumed_at,now()) WHERE run_id=$1",
@@ -1265,6 +1300,7 @@ export async function buildApp(
         published: publish || !!run.published_at,
         ...(isBrainGame(run.game) ? { private: privateBrain(run) } : {}),
         score: units === null ? null : units / 10,
+        ...(record ? { record } : {}),
       };
     } catch (e) {
       await c.query("ROLLBACK");
@@ -1291,8 +1327,22 @@ export async function buildApp(
           [u.id, run.id],
         );
         await c.query("COMMIT");
-        return { ok: true, private: true, score: run.score_units / 10 };
+        return {
+          ok: true,
+          private: true,
+          score: run.score_units / 10,
+          record: {
+            improved: false,
+            completedAt: new Date(run.completed_at).toISOString(),
+            ownerId: u.id,
+          },
+        };
       }
+      const record = {
+        improved: await improvesPersonalRecord(c, run, run.score_units, u.id),
+        completedAt: new Date(run.completed_at).toISOString(),
+        ownerId: u.id,
+      };
       const before = !run.published_at
         ? await notificationSnapshot(c, run.game, run.mode)
         : [];
@@ -1314,6 +1364,7 @@ export async function buildApp(
       return {
         ok: true,
         score: geoProjection(run, geoViewerVersion(req)).score_units / 10,
+        record,
       };
     } catch (e) {
       await c.query("ROLLBACK");

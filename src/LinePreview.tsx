@@ -25,6 +25,8 @@ export default function LinePreview() {
         </g>
       ))}
       <polyline
+        className="preview-line-path"
+        pathLength="1"
         points={LINE_INTRO_PATH.map(
           (c) => `${92 + (c % 3) * 70},${62 + Math.floor(c / 3) * 70}`,
         ).join(" ")}

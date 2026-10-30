@@ -21,6 +21,7 @@ export default function GeoPreview() {
         fill="none"
       />
       <path
+        className="preview-geo-route"
         d="M129 115c23-1 30 30 58 25s38-35 80-37"
         fill="none"
         stroke="var(--purple)"
@@ -36,13 +37,15 @@ export default function GeoPreview() {
         stroke="var(--panel)"
         strokeWidth="3"
       />
-      <path
-        d="M286 52c-17 0-29 12-29 28 0 22 29 43 29 43s29-21 29-43c0-16-12-28-29-28Z"
-        fill="var(--purple-soft)"
-        stroke="var(--panel)"
-        strokeWidth="3"
-      />
-      <circle cx="286" cy="80" r="10" fill="var(--panel)" />
+      <g className="preview-geo-pin">
+        <path
+          d="M286 52c-17 0-29 12-29 28 0 22 29 43 29 43s29-21 29-43c0-16-12-28-29-28Z"
+          fill="var(--purple-soft)"
+          stroke="var(--panel)"
+          strokeWidth="3"
+        />
+        <circle cx="286" cy="80" r="10" fill="var(--panel)" />
+      </g>
     </svg>
   );
 }

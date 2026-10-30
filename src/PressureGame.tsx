@@ -91,18 +91,21 @@ export function PressurePreview() {
         transform="rotate(-90 210 94)"
       />
       <circle cx="210" cy="101" r="57" fill="var(--purple)" opacity=".2" />
-      <circle cx="210" cy="93" r="57" fill="var(--purple-soft)" />
-      <text
-        x="210"
-        y="100"
-        textAnchor="middle"
-        fill="#292133"
-        fontSize="21"
-        fontWeight="650"
-      >
-        ЖМИ
-      </text>
+      <g className="preview-pressure-button">
+        <circle cx="210" cy="93" r="57" fill="var(--purple-soft)" />
+        <text
+          x="210"
+          y="100"
+          textAnchor="middle"
+          fill="#292133"
+          fontSize="21"
+          fontWeight="650"
+        >
+          ЖМИ
+        </text>
+      </g>
       <path
+        className="preview-pressure-cursor"
         d="m285 133 23 18-13 3-6 13Z"
         fill="var(--panel)"
         stroke="var(--mint)"

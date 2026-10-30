@@ -6,6 +6,7 @@ import {
   type ServerRun,
 } from "./rankedQueue";
 import { YandexLogin, TopTenEmailOffer } from "./EmailPreferences";
+import { rememberPersonalRecord } from "./recordCelebrationState";
 import { SHADE_SCORE_VERSION } from "./colorfle";
 import { PRESSURE_RULES_VERSION, formatPressScore } from "./pressure";
 import { pairs } from "./data";
@@ -100,6 +101,7 @@ export function trackPublished(id: string, params: MetrikaParams) {
 let refreshAuth: () => Promise<void> = async () => {};
 const rankedQueue = createRankedQueue(api, {
   onUnauthorized: () => void refreshAuth(),
+  onRecordResult: rememberPersonalRecord,
   onPublished: (run, score) =>
     trackPublished(run.id, {
       game: run.game,

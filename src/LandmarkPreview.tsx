@@ -34,6 +34,14 @@ export default function LandmarkPreview() {
         />
         <path d="m265 99 44-30 44 30ZM275 75l34-25 34 25ZM293 51l16-21 16 21Z" />
       </g>
+      <path
+        className="preview-landmark-focus"
+        d="M169 64V51h15m53 0h15v13m0 82v14h-15m-53 0h-15v-14"
+        fill="none"
+        stroke="var(--purple)"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

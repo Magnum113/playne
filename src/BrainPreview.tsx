@@ -22,6 +22,14 @@ export default function BrainPreview({ game }: { game: BrainGameId }) {
           {Array.from({ length: 16 }, (_, i) => (
             <rect
               key={i}
+              className={
+                [1, 4, 6, 10, 15].includes(i)
+                  ? "preview-memory-cell"
+                  : undefined
+              }
+              style={{
+                animationDelay: `${[1, 4, 6, 10, 15].indexOf(i) * 90}ms`,
+              }}
               x={111 + (i % 4) * 51}
               y={30 + Math.floor(i / 4) * 51}
               width="45"
@@ -52,32 +60,34 @@ export default function BrainPreview({ game }: { game: BrainGameId }) {
                 rx="24"
                 fill={n ? "var(--mint-tint)" : "var(--purple-tint)"}
               />
-              {(n
-                ? [
-                    [0, 0],
-                    [1, 0],
-                    [2, 0],
-                    [0, 1],
-                    [0, 2],
-                  ]
-                : [
-                    [0, 0],
-                    [0, 1],
-                    [0, 2],
-                    [1, 2],
-                    [2, 2],
-                  ]
-              ).map(([x, y], i) => (
-                <rect
-                  key={i}
-                  x={x * 35}
-                  y={y * 35 + 10}
-                  width="32"
-                  height="32"
-                  rx="5"
-                  fill={n ? "var(--mint)" : "var(--purple)"}
-                />
-              ))}
+              <g className={n ? "preview-rotate-shape" : undefined}>
+                {(n
+                  ? [
+                      [0, 0],
+                      [1, 0],
+                      [2, 0],
+                      [0, 1],
+                      [0, 2],
+                    ]
+                  : [
+                      [0, 0],
+                      [0, 1],
+                      [0, 2],
+                      [1, 2],
+                      [2, 2],
+                    ]
+                ).map(([x, y], i) => (
+                  <rect
+                    key={i}
+                    x={x * 35}
+                    y={y * 35 + 10}
+                    width="32"
+                    height="32"
+                    rx="5"
+                    fill={n ? "var(--mint)" : "var(--purple)"}
+                  />
+                ))}
+              </g>
             </g>
           ))}
           <path
@@ -106,30 +116,33 @@ export default function BrainPreview({ game }: { game: BrainGameId }) {
               <path d={`M99 ${18 + n * 37}h222`} />
             </g>
           ))}
+          <g className="preview-slide-exit">
+            <rect
+              x="103"
+              y="96"
+              width="66"
+              height="29"
+              rx="8"
+              fill="var(--danger)"
+            />
+            <text
+              x="136"
+              y="116"
+              textAnchor="middle"
+              fontFamily="inherit"
+              fontSize="17"
+              fontWeight="700"
+              fill="var(--panel)"
+            >
+              R
+            </text>
+          </g>
           <rect
-            x="103"
-            y="96"
-            width="66"
-            height="29"
-            rx="8"
-            fill="var(--danger)"
-          />
-          <text
-            x="136"
-            y="116"
-            textAnchor="middle"
-            fontFamily="inherit"
-            fontSize="17"
-            fontWeight="700"
-            fill="var(--panel)"
-          >
-            R
-          </text>
-          <rect
+            className="preview-slide-block"
             x="177"
             y="59"
             width="29"
-            height="103"
+            height="66"
             rx="8"
             fill="var(--purple)"
           />
@@ -237,25 +250,27 @@ export default function BrainPreview({ game }: { game: BrainGameId }) {
               {t}
             </text>
           ))}
-          <rect
-            x="58"
-            y="111"
-            width="43"
-            height="34"
-            rx="10"
-            fill="var(--mint)"
-          />
-          <text
-            x="79"
-            y="134"
-            textAnchor="middle"
-            fill="var(--panel)"
-            stroke="none"
-            fontSize="18"
-            fontWeight="700"
-          >
-            A
-          </text>
+          <g className="preview-dispatch-train">
+            <rect
+              x="58"
+              y="111"
+              width="43"
+              height="34"
+              rx="10"
+              fill="var(--mint)"
+            />
+            <text
+              x="79"
+              y="134"
+              textAnchor="middle"
+              fill="var(--panel)"
+              stroke="none"
+              fontSize="18"
+              fontWeight="700"
+            >
+              A
+            </text>
+          </g>
         </g>
       )}
     </svg>

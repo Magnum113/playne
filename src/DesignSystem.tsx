@@ -6,6 +6,11 @@ import {
   OverallRules,
 } from "./OverallLeaderboard";
 import { type OverallBoard, type OverallEntry } from "./overall";
+import RandomGame from "./RandomGame";
+import RecordCelebration from "./RecordCelebration";
+import CategoryGlyph, { type CategoryKind } from "./CategoryGlyph";
+import { MarkerWord, DailySpark } from "./HandDrawn";
+import useCardMotion from "./useCardMotion";
 import { GuestTrialPrompt } from "./account";
 import { GameIntro, GameRecord, GameStartAction } from "./GameIntro";
 import {
@@ -475,6 +480,7 @@ const gameCards = [
   {
     name: "На глаз",
     label: "ГЛАЗОМЕР",
+    kind: "size" as CategoryKind,
     path: "/naglaz/",
     description: "Сравни размеры предметов.",
     Preview: SizePreview,
@@ -483,6 +489,7 @@ const gameCards = [
   {
     name: "Круг",
     label: "ТОЧНОСТЬ",
+    kind: "circle" as CategoryKind,
     path: "/circle/",
     description: "Нарисуй круг одним движением.",
     Preview: CirclePreview,
@@ -491,6 +498,7 @@ const gameCards = [
   {
     name: "Оттенок",
     label: "ЧУВСТВО ЦВЕТА",
+    kind: "color" as CategoryKind,
     path: "/colorfle/",
     description: "Подбери цвет на палитре.",
     Preview: ColorPreview,
@@ -499,6 +507,7 @@ const gameCards = [
   {
     name: "Где я?",
     label: "ГЕОГРАФИЯ",
+    kind: "geo" as CategoryKind,
     path: "/geo/",
     description: "Угадай место по панораме.",
     Preview: GeoPreview,
@@ -507,6 +516,7 @@ const gameCards = [
   {
     name: "Достопримечательности",
     label: "ЗНАМЕНИТЫЕ МЕСТА",
+    kind: "landmark" as CategoryKind,
     path: "/geo/?mode=landmarks",
     description: "Найди известные места на карте.",
     Preview: LandmarkPreview,
@@ -515,6 +525,7 @@ const gameCards = [
   {
     name: "Жми",
     label: "ВНИМАТЕЛЬНОСТЬ",
+    kind: "reaction" as CategoryKind,
     path: "/pressure/",
     description: "Следуй правилу. Не ошибись.",
     Preview: PressurePreview,
@@ -523,6 +534,7 @@ const gameCards = [
   {
     name: "Одной линией",
     label: "ЛОГИКА И МАРШРУТЫ",
+    kind: "line" as CategoryKind,
     path: "/one-line/",
     description: "Соедини числа и заполни каждую клетку.",
     Preview: LinePreview,
@@ -1326,7 +1338,99 @@ function EmailConsentDemo() {
     />
   );
 }
+
+function MotionExamples() {
+  const [drawing, setDrawing] = useState(0);
+  const [pressed, setPressed] = useState(false);
+  return (
+    <>
+      <p className="ds-note">
+        Движение объясняет действие. Обложки выше проигрывают один короткий
+        эпизод при наведении или фокусе. На сенсорном экране — по очереди, один
+        раз при появлении. Системная настройка уменьшения движения отключает эти
+        эффекты.
+      </p>
+      <div className="ds-grid">
+        <Sample title="Случайная игра" source="RandomGame.tsx">
+          <RandomGame demo />
+          <p className="ds-note">
+            В каталоге после перемешивания открывается игра. Здесь — ссылка на
+            выбранную игру.
+          </p>
+        </Sample>
+        <Sample title="Рисованные акценты" source="HandDrawn.tsx">
+          <div key={drawing} className="ds-marker-demo">
+            Во что <MarkerWord>сыграем?</MarkerWord>
+            <DailySpark />
+          </div>
+          <button
+            className="secondary-button"
+            onClick={() => setDrawing((n) => n + 1)}
+          >
+            Повторить рисунок
+          </button>
+          <p className="ds-note">
+            Подчёркивание и звезда рисуются один раз при появлении в области
+            просмотра.
+          </p>
+        </Sample>
+        <Sample title="Ощутимое нажатие" source=".tactile · .card-play">
+          <button className="primary tactile" onClick={() => setPressed(true)}>
+            Играть <span aria-hidden="true">→</span>
+          </button>
+          <p className="ds-note" role="status">
+            {pressed
+              ? "Нажатие сработало."
+              : "Нажми мышью, пальцем или клавишей пробела."}
+          </p>
+          <p className="ds-note">
+            Основание высотой 3 px. При нажатии поверхность опускается; размер
+            области нажатия остаётся прежним.
+          </p>
+        </Sample>
+        <Sample title="Реакции значков" source="CategoryGlyph.tsx">
+          <div className="ds-glyphs">
+            {(
+              [
+                ["memory", "Память"],
+                ["logic", "Логика"],
+                ["reaction", "Реакция"],
+              ] as const
+            ).map(([kind, label]) => (
+              <button
+                key={kind}
+                className="secondary-button game-card ds-glyph-button"
+                type="button"
+              >
+                <CategoryGlyph kind={kind} />
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="ds-note">
+            Наведи курсор или перейди клавишей Tab: у каждого навыка свой
+            короткий жест.
+          </p>
+        </Sample>
+        <Sample title="Новый рекорд" source="RecordCelebration.tsx" wide>
+          <RecordCelebration demo />
+          <p className="ds-note">
+            Показывается на главной один раз после улучшения результата. Демо не
+            меняет рекорды и не отправляет результат.
+          </p>
+        </Sample>
+      </div>
+      <p className="ds-note">
+        Контур Топ‑5 — в разделе <a href="#results">«Результаты и рейтинг»</a>:
+        медленный оборот за 9 секунд, пауза при наведении и фокусе. При
+        уменьшении движения контур неподвижен.
+      </p>
+    </>
+  );
+}
+
 export default function DesignSystem() {
+  const motionRef = useCardMotion<HTMLElement>();
   const rules = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
   const inventory = componentInventory.filter((row) =>
@@ -1341,7 +1445,7 @@ export default function DesignSystem() {
         Перейти к компонентам
       </a>
       <GameHeader ranking />
-      <main id="ds-main" className="ds-main">
+      <main id="ds-main" className="ds-main" ref={motionRef}>
         <div className="ds-hero">
           <div>
             <p className="eyebrow">PLAYNE · ДИЗАЙН-СИСТЕМА</p>
@@ -1572,14 +1676,25 @@ export default function DesignSystem() {
               </p>
               <div className="game-cards ds-game-cards">
                 {gameCards.map(
-                  ({ name, label, path, description, Preview, detail }) => (
+                  ({
+                    name,
+                    label,
+                    kind,
+                    path,
+                    description,
+                    Preview,
+                    detail,
+                  }) => (
                     <a
                       key={name}
                       className={`game-card game-card-live${path.includes("landmarks") ? " landmark-card" : ""}`}
                       href={path}
                     >
                       <div className="card-topline">
-                        <span className="card-category">{label}</span>
+                        <span className="card-category">
+                          <CategoryGlyph kind={kind} />
+                          {label}
+                        </span>
                       </div>
                       <Preview />
                       <div className="card-copy">
@@ -1603,6 +1718,9 @@ export default function DesignSystem() {
               </div>
             </Section>
             <BrainFeature />
+            <Section id="motion">
+              <MotionExamples />
+            </Section>
             <Section id="gameplay">
               <Sample
                 title="Старт игры и личный рекорд"
