@@ -217,7 +217,7 @@ export function TopFiveCard({
 }) {
   return (
     <section
-      className="top-five"
+      className={`top-five${!loading && !error && data?.entries.length ? " has-leaders" : ""}`}
       aria-label="Топ-5 общего рейтинга"
       aria-busy={loading}
     >

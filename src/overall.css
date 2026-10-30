@@ -18,11 +18,65 @@
   font-size: clamp(19px, 8cqi, 26px);
 }
 .top-five {
+  position: relative;
   min-width: 0;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
   background: var(--panel);
+}
+@property --top-five-orbit {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 45deg;
+}
+/* Keep the panel and focus rings still; only its decorative border moves. */
+@supports (mask-composite: exclude) {
+  .top-five.has-leaders::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    padding: 2px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: conic-gradient(
+      from var(--top-five-orbit),
+      transparent 0deg 220deg,
+      color-mix(in srgb, var(--mint) 35%, transparent) 275deg,
+      var(--mint) 310deg,
+      var(--purple-soft) 340deg,
+      transparent 360deg
+    );
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .top-five::before {
+      animation: top-five-orbit 9s linear infinite;
+    }
+    .top-five:focus-within::before {
+      animation-play-state: paused;
+    }
+  }
+  @media (hover: hover) {
+    .top-five:hover::before {
+      animation-play-state: paused;
+    }
+  }
+}
+@media (forced-colors: active) {
+  .top-five::before {
+    display: none;
+    animation: none;
+  }
+  .top-five {
+    border-color: CanvasText;
+  }
+}
+@keyframes top-five-orbit {
+  to {
+    --top-five-orbit: 405deg;
+  }
 }
 .top-five-heading {
   display: flex;
