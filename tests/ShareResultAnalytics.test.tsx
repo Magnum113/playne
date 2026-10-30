@@ -85,7 +85,7 @@ it("counts successful copying, but no false share on native cancellation or a cl
     /private-token|private-run|private details|https:/,
   );
 });
-it("records native completion and revocation only after success", async () => {
+it("records native completion only after success", async () => {
   Object.defineProperty(navigator, "share", {
     configurable: true,
     value: vi.fn().mockResolvedValue(undefined),
@@ -93,7 +93,5 @@ it("records native completion and revocation only after success", async () => {
   await act(async () => root.render(<ShareResult runId="run2" />));
   await click("Бросить вызов");
   await click("Поделиться");
-  await click("Отключить ссылку");
   expect(events()).toContain("playne_challenge_shared");
-  expect(events()).toContain("playne_challenge_revoked");
 });

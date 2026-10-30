@@ -100,24 +100,6 @@ export default function ShareResult({ runId }: { runId?: string }) {
       }
     }
   }
-  async function revoke() {
-    if (!data) return;
-    const current = request.current;
-    setBusy(true);
-    try {
-      await api(`/challenges/${data.token}`, "DELETE");
-      if (current !== request.current) return;
-      setSnapshot(null);
-      reachGoal(SHARE_GOALS.revoked, { game: data.game });
-      setMessage("Ссылка отключена");
-    } catch {
-      if (current !== request.current) return;
-      reachGoal(SHARE_GOALS.error, { game: data.game, stage: "revoke" });
-      setMessage("Не удалось отключить ссылку. Попробуй ещё раз.");
-    } finally {
-      if (current === request.current) setBusy(false);
-    }
-  }
   return (
     <>
       <button
@@ -203,13 +185,6 @@ export default function ShareResult({ runId }: { runId?: string }) {
                   Скопировать ссылку
                 </button>
               </div>
-              <button
-                className="text-button share-revoke"
-                onClick={() => void revoke()}
-                disabled={busy}
-              >
-                Отключить ссылку
-              </button>
             </>
           ) : (
             <>

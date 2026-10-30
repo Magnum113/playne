@@ -213,34 +213,6 @@ describe("explicit result sharing", () => {
     expect(mock.api).toHaveBeenCalledTimes(2);
     expect(box.querySelector("img")).not.toBeNull();
   });
-  it("revokes the link only after an explicit action and allows a fresh invitation", async () => {
-    mock.api
-      .mockResolvedValueOnce(value())
-      .mockResolvedValueOnce({ ok: true })
-      .mockResolvedValueOnce(value("new-token"));
-    await render();
-    await click("Бросить вызов ↗");
-    await click("Отключить ссылку");
-    expect(mock.api).toHaveBeenLastCalledWith(
-      "/challenges/shared-one",
-      "DELETE",
-    );
-    expect(box.querySelector("img")).toBeNull();
-    expect(box.textContent).toContain("Ссылка отключена");
-    await click("Подготовить ссылку");
-    expect(box.querySelector("input")!.value).toContain("new-token");
-  });
-  it("keeps the active link available when revocation fails", async () => {
-    mock.api
-      .mockResolvedValueOnce(value())
-      .mockRejectedValueOnce(new Error("offline"));
-    await render();
-    await click("Бросить вызов ↗");
-    await click("Отключить ссылку");
-    expect(box.textContent).toContain("Не удалось отключить ссылку");
-    expect(box.querySelector("input")!.value).toBe(value().url);
-    expect(button("Отключить ссылку").disabled).toBe(false);
-  });
   it("ignores a late create response after identity and run change", async () => {
     const old = deferred<PublicChallenge>();
     mock.api
@@ -256,23 +228,6 @@ describe("explicit result sharing", () => {
     await act(async () => old.resolve(value("private-old")));
     expect(box.querySelector("input")!.value).toContain("new-account");
     expect(box.textContent).not.toContain("private-old");
-  });
-  it("does not let a pending revocation erase the next account's new invitation", async () => {
-    const old = deferred<unknown>();
-    mock.api
-      .mockResolvedValueOnce(value())
-      .mockReturnValueOnce(old.promise)
-      .mockResolvedValueOnce(value("new-account"));
-    await render();
-    await click("Бросить вызов ↗");
-    await click("Отключить ссылку");
-    mock.user = { id: "two" };
-    await render("run-two");
-    await click("Бросить вызов ↗");
-    expect(box.querySelector("input")?.value).toContain("new-account");
-    await act(async () => old.resolve({ ok: true }));
-    expect(box.querySelector("input")?.value).toContain("new-account");
-    expect(box.textContent).not.toContain("Ссылка отключена");
   });
   it.each(["copy", "share"] as const)(
     "ignores a late %s failure after the invitation scope has changed",

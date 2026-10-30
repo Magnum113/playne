@@ -85,10 +85,6 @@
   min-height: var(--control-size);
   justify-content: center;
 }
-.share-revoke {
-  margin-top: 16px;
-  font-size: 13px;
-}
 .share-status {
   font-size: 13px;
   color: var(--mint);
