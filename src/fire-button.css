@@ -17,9 +17,9 @@
 .fire-button-effect {
   position: absolute;
   left: -21px;
-  top: -65px;
+  top: -51px;
   width: calc(100% + 42px);
-  height: calc(100% + 100px);
+  height: calc(100% + 90px);
   z-index: 0;
   pointer-events: none;
 }

@@ -166,7 +166,7 @@ export const componentInventory = [
   ],
   ["Кнопки: вторичная, текстовая, опасное действие", "ui.css", "actions"],
   [
-    "Вызов другу: кадровое пламя и единое нажатие",
+    "Вызов другу: цельный огненный контур и единое нажатие",
     "FireButton.tsx · buttonFire.ts · fire-button.css",
     "actions",
   ],
