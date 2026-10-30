@@ -1,3 +1,4 @@
+import { RulesDialog } from "./RulesDialog";
 import { useEffect, useRef, useState } from "react";
 import { GameHeader } from "./SiteHeader";
 import { GameIntro, GameStartAction } from "./GameIntro";
@@ -20,7 +21,12 @@ import "./line.css";
 
 type Mode = "classic" | "practice";
 type Phase =
-  "welcome" | "ready" | "playing" | "checking" | "round-result" | "finished";
+  | "welcome"
+  | "ready"
+  | "playing"
+  | "checking"
+  | "round-result"
+  | "finished";
 type Saved = {
   id: string;
   mode: Mode;
@@ -607,20 +613,13 @@ export default function LineGame() {
         <LineAbout />
       </main>
       <FooterLinks />
-      <dialog
+      <RulesDialog
+        dialogRef={rules}
         className="line-rules-dialog"
-        ref={rules}
-        aria-labelledby="line-dialog-title"
+        title="Одной линией"
+        titleId="line-dialog-title"
+        eyebrow="ПРАВИЛА ИГРЫ"
       >
-        <button
-          className="close-button"
-          aria-label="Закрыть правила"
-          onClick={() => rules.current?.close()}
-        >
-          ×
-        </button>
-        <p className="eyebrow">ПРАВИЛА ИГРЫ</p>
-        <h2 id="line-dialog-title">Одной линией</h2>
         <LinePreview />
         <ol>
           {lineRules.map((r) => (
@@ -637,10 +636,7 @@ export default function LineGame() {
         </p>
         <p>{lineDailyText}</p>
         <p>{linePracticeText}</p>
-        <button className="primary" onClick={() => rules.current?.close()}>
-          Понятно
-        </button>
-      </dialog>
+      </RulesDialog>
     </div>
   );
 }

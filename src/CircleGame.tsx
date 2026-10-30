@@ -1,3 +1,4 @@
+import { RulesDialog } from "./RulesDialog";
 import { GuestSavedNotice, GuestTrialPrompt, useGuestTrial } from "./account";
 import { GameIntro } from "./GameIntro";
 import { useRankedRun, SaveResult } from "./account";
@@ -200,9 +201,7 @@ export default function CircleGame() {
           </p>
         )}
         {access.ready && access.blocked && !success && (
-          <p className="guest-trial-caption">
-            Первая попытка уже сыграна.
-          </p>
+          <p className="guest-trial-caption">Первая попытка уже сыграна.</p>
         )}
         {access.loading ? (
           <p role="status">Проверяем доступ…</p>
@@ -338,21 +337,12 @@ export default function CircleGame() {
             </div>
           </section>
         )}
-        <dialog
-          ref={rules}
+        <RulesDialog
+          dialogRef={rules}
           className="color-rules-dialog"
-          aria-labelledby="circle-rules-title"
+          title="Как играть в «Круг»"
+          titleId="circle-rules-title"
         >
-          <div className="dialog-top">
-            <h2 id="circle-rules-title">Как играть в «Круг»</h2>
-            <button
-              className="close-button"
-              aria-label="Закрыть правила"
-              onClick={() => rules.current?.close()}
-            >
-              ×
-            </button>
-          </div>
           <p>
             Чем ровнее расстояние от линии до точки, тем выше результат. Круг
             нужно замкнуть: обведи точку один раз и отпусти. Размер круга и
@@ -362,10 +352,7 @@ export default function CircleGame() {
             Пунктир после попытки показывает идеальный круг твоего размера.
             Рекорд хранится в этом браузере.
           </p>
-          <button className="primary" onClick={() => rules.current?.close()}>
-            Понятно
-          </button>
-        </dialog>
+        </RulesDialog>
         {success && <SaveResult run={ranked} game="circle" />}
       </main>
       <footer className="circle-footer">

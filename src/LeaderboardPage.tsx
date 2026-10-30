@@ -180,7 +180,7 @@ export default function LeaderboardPage() {
         <p className="community-intro">
           Общий зачёт и рекорды по играм. Найди своё место.
         </p>
-        <div className="rank-games" aria-label="Выбор игры">
+        <div className="rank-games" role="group" aria-label="Выбор игры">
           {Object.entries(boardNames)
             .filter(([id]) => !isBrain(id))
             .map(([id, name]) => (
@@ -195,7 +195,11 @@ export default function LeaderboardPage() {
             ))}
         </div>
         {brainSelected && (
-          <div className="rank-brain-games" aria-label="Игра разминки">
+          <div
+            className="rank-brain-games"
+            role="group"
+            aria-label="Игра разминки"
+          >
             <button
               aria-pressed={game === "brain"}
               onClick={() => change("brain")}
@@ -216,6 +220,7 @@ export default function LeaderboardPage() {
         {game === "colorfle" && (
           <div
             className="rank-period geo-rank-modes"
+            role="group"
             aria-label="Режим Оттенка"
           >
             {(["classic", "timed"] as ShadeMode[]).map((option) => (
@@ -232,6 +237,7 @@ export default function LeaderboardPage() {
         {game === "line" && (
           <div
             className="rank-period geo-rank-modes"
+            role="group"
             aria-label="Режим Одной линией"
           >
             {(["classic", "practice"] as const).map((option) => (
@@ -247,7 +253,11 @@ export default function LeaderboardPage() {
         )}
         {game === "geo" && (
           <div className="geo-ranking-filters">
-            <div className="rank-period geo-rank-modes" aria-label="Места">
+            <div
+              className="rank-period geo-rank-modes"
+              role="group"
+              aria-label="Места"
+            >
               {([false, true] as const).map((landmarks) => (
                 <button
                   key={String(landmarks)}
@@ -269,6 +279,7 @@ export default function LeaderboardPage() {
             {!geoIsLandmarks(geoMode) && (
               <div
                 className="rank-period geo-rank-modes"
+                role="group"
                 aria-label="Перемещение"
               >
                 {([false, true] as const).map((moving) => (
@@ -284,7 +295,11 @@ export default function LeaderboardPage() {
                 ))}
               </div>
             )}
-            <div className="rank-period geo-rank-modes" aria-label="Время">
+            <div
+              className="rank-period geo-rank-modes"
+              role="group"
+              aria-label="Время"
+            >
               {([false, true] as const).map((timed) => (
                 <button
                   key={String(timed)}
@@ -313,7 +328,11 @@ export default function LeaderboardPage() {
               баллов
             </span>
           ) : (
-            <div className="rank-period" aria-label="Период рейтинга">
+            <div
+              className="rank-period"
+              role="group"
+              aria-label="Период рейтинга"
+            >
               <button
                 aria-pressed={period === "week"}
                 onClick={() => {

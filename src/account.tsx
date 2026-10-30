@@ -7,6 +7,7 @@ import {
 } from "./rankedQueue";
 import { YandexLogin, TopTenEmailOffer } from "./EmailPreferences";
 import { rememberPersonalRecord } from "./recordCelebrationState";
+import { GuestTrialPanel, ResultStatus } from "./ResultStatus";
 import { SHADE_SCORE_VERSION } from "./colorfle";
 import { PRESSURE_RULES_VERSION, formatPressScore } from "./pressure";
 import { pairs } from "./data";
@@ -237,8 +238,7 @@ export const useAuth = () => useContext(AuthContext);
 export function useGuestTrial<G extends GameId = GameId>(game?: G) {
   const auth = useAuth();
   const trial = (game ? auth.trials[game] : undefined) as
-    | GuestTrial<G>
-    | undefined;
+    GuestTrial<G> | undefined;
   return {
     ...auth,
     trial,
@@ -294,13 +294,7 @@ export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
   const { user, trial, ready, loading, refresh } = useGuestTrial(game);
   if (user) return null;
   return (
-    <div className="guest-trial-prompt">
-      <h2>Сыграем ещё?</h2>
-      <p>
-        {isBrain(game) && trial?.mode === "practice"
-          ? "Войди через Яндекс, чтобы играть дальше и сохранить практику в личной истории."
-          : "Войди через Яндекс, чтобы играть дальше и сохранить результат в рейтинг."}
-      </p>
+    <GuestTrialPanel practice={isBrain(game) && trial?.mode === "practice"}>
       <YandexLogin
         disabled={loading}
         source="guest_party"
@@ -314,7 +308,7 @@ export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
           Проверить соединение
         </button>
       )}
-    </div>
+    </GuestTrialPanel>
   );
 }
 export function AccountNav() {
@@ -608,11 +602,7 @@ export function useRankedRun<G extends GameId>(game: G) {
   return {
     state,
     mode: (current.current.mode ?? "classic") as G extends
-      | "line"
-      | "flash"
-      | "rotate"
-      | "slide"
-      | "dispatch"
+      "line" | "flash" | "rotate" | "slide" | "dispatch"
       ? GameMode
       : GeoMode,
     begin,
@@ -717,61 +707,39 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
     );
   }
   if (s.status === "idle")
-    return (
-      <div className="save-result">
-        <p>Восстанавливаем сохранение результата…</p>
-        <a href={ranking}>Рейтинг игры →</a>
-      </div>
-    );
+    return <ResultStatus state="restoring" ranking={ranking} />;
   if (["loading", "checking", "ready"].includes(s.status))
-    return (
-      <div className="save-result" role="status">
-        Проверяем результат для рейтинга…
-      </div>
-    );
+    return <ResultStatus state="checking" />;
   if (s.status === "error")
     return (
-      <div className="save-result">
-        <p role="status">{s.message}</p>
-        <button className="text-button" onClick={run.retry}>
-          Повторить проверку
-        </button>
-      </div>
+      <ResultStatus
+        state="check-error"
+        message={s.message}
+        onRetry={run.retry}
+      />
     );
   if (!loading && !user && ["complete", "save-error"].includes(s.status))
     return <GuestTrialPrompt game={game} id={s.id} />;
   const waiting =
     loading || s.status === "saving" || (s.status === "complete" && !!user);
   return (
-    <div className="save-result">
-      <p role="status">
-        {s.status === "saved"
-          ? "Результат сохранён в рейтинг."
-          : waiting
-            ? "Сохраняем результат в рейтинг…"
-            : s.status === "save-error"
-              ? (s.message ??
-                "Результат сохранён в браузере. Повторяем отправку в рейтинг…")
-              : "Войди через Яндекс, чтобы сохранить этот результат в рейтинг."}
-      </p>
-      <div>
-        {!waiting &&
-          s.status !== "saved" &&
-          (user ? (
-            <button className="primary" onClick={run.retrySave}>
-              Повторить сохранение
-            </button>
-          ) : (
-            <button className="primary" onClick={login}>
-              Войти и сохранить
-            </button>
-          ))}
-        <a href={ranking}>Рейтинг игры →</a>
-      </div>
+    <ResultStatus
+      state={s.status === "saved" ? "saved" : waiting ? "saving" : "save-error"}
+      message={s.status !== "saved" && !waiting ? s.message : undefined}
+      ranking={ranking}
+      onRetry={
+        !waiting && s.status !== "saved" && user ? run.retrySave : undefined
+      }
+    >
+      {!waiting && s.status !== "saved" && !user && (
+        <button className="primary" onClick={login}>
+          Войти и сохранить
+        </button>
+      )}
       {s.status === "saved" && user && (
         <TopTenEmailOffer game={game} mode={run.mode} />
       )}
-    </div>
+    </ResultStatus>
   );
 }
 export const resultText = (

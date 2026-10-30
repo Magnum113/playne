@@ -11,7 +11,15 @@ import RecordCelebration from "./RecordCelebration";
 import CategoryGlyph, { type CategoryKind } from "./CategoryGlyph";
 import { MarkerWord, DailySpark } from "./HandDrawn";
 import useCardMotion from "./useCardMotion";
-import { GuestTrialPrompt } from "./account";
+import {
+  GuestTrialPanel,
+  ResultStatus,
+  type ResultStatusKind,
+} from "./ResultStatus";
+import { TextField, FieldFeedback } from "./FormField";
+import { RulesDialog } from "./RulesDialog";
+import DesignNavigation from "./DesignNavigation";
+import { DesignPrinciples, ComponentContracts } from "./DesignPrinciplesPanel";
 import { GameIntro, GameRecord, GameStartAction } from "./GameIntro";
 import {
   useCallback,
@@ -74,7 +82,9 @@ function Section({
     <section className="ds-section" id={id} aria-labelledby={`${id}-title`}>
       <div className="ds-section-heading">
         <span>{String(index + 1).padStart(2, "0")}</span>
-        <h2 id={`${id}-title`}>{designSections[index][1]}</h2>
+        <h2 id={`${id}-title`} tabIndex={-1}>
+          {designSections[index][1]}
+        </h2>
       </div>
       {children}
     </section>
@@ -101,16 +111,17 @@ function Sample({
     </div>
   );
 }
-function Tokens() {
+function useTokenValues(tokens: readonly string[]) {
   const [values, setValues] = useState<Record<string, string>>({});
+  const names = tokens.join(" ");
   useEffect(() => {
     const read = () => {
       const css = getComputedStyle(document.documentElement);
       setValues(
         Object.fromEntries(
-          tokenGroups.flatMap((g) =>
-            g.tokens.map((t) => [t, css.getPropertyValue(t).trim()]),
-          ),
+          names
+            .split(" ")
+            .map((token) => [token, css.getPropertyValue(token).trim()]),
         ),
       );
     };
@@ -121,7 +132,13 @@ function Tokens() {
       attributeFilter: ["data-theme"],
     });
     return () => observer.disconnect();
-  }, []);
+  }, [names]);
+  return values;
+}
+function Tokens() {
+  const values = useTokenValues(
+    tokenGroups.flatMap((group) => [...group.tokens]),
+  );
   return (
     <>
       {tokenGroups.map((group) => (
@@ -142,6 +159,55 @@ function Tokens() {
         </div>
       ))}
     </>
+  );
+}
+const spacingTokens = [1, 2, 3, 4, 5, 6, 8, 12, 16].map(
+  (step) => `--space-${step}`,
+);
+const radiusTokens = [
+  ["--radius-control", "Кнопка и поле"],
+  ["--radius-inner", "Вложенная карточка"],
+  ["--radius-panel", "Карточка и окно"],
+  ["--radius-large", "Большой блок"],
+] as const;
+function LayoutTokens() {
+  const values = useTokenValues([
+    ...spacingTokens,
+    ...radiusTokens.map(([token]) => token),
+  ]);
+  return (
+    <div className="ds-grid">
+      <Sample
+        title="Шаг отступов"
+        source="design-tokens.css · действующие значения"
+      >
+        <div className="ds-spacing">
+          {spacingTokens.map((token) => (
+            <div key={token}>
+              <span>
+                <code>{token}</code>
+                <small>{values[token]}</small>
+              </span>
+              <i style={{ width: `var(${token})` }} />
+            </div>
+          ))}
+        </div>
+      </Sample>
+      <Sample
+        title="Скругления"
+        source="design-tokens.css · действующие значения"
+      >
+        <div className="ds-radius-list">
+          {radiusTokens.map(([token, title]) => (
+            <div key={token} style={{ borderRadius: `var(${token})` }}>
+              <strong>{values[token] || "Из токена"}</strong>
+              <span>{title}</span>
+              <code>{token}</code>
+            </div>
+          ))}
+        </div>
+      </Sample>
+    </div>
   );
 }
 function ButtonExamples() {
@@ -292,7 +358,10 @@ function Forms() {
     [size, setSize] = useState(70);
   return (
     <div className="ds-grid">
-      <Sample title="Поле с подсказкой и ошибкой" source=".nickname-form">
+      <Sample
+        title="Поле с подсказкой и ошибкой"
+        source="FormField.tsx · TextField"
+      >
         <form
           className="nickname-form"
           noValidate
@@ -305,9 +374,9 @@ function Forms() {
             if (!valid) e.currentTarget.querySelector("input")?.focus();
           }}
         >
-          <label htmlFor="ds-nickname">Ник в рейтинге</label>
-          <input
+          <TextField
             id="ds-nickname"
+            label="Ник в рейтинге"
             autoComplete="off"
             placeholder="Например, Любопытный"
             value={nickname}
@@ -316,22 +385,16 @@ function Forms() {
               setSaved(false);
               setError("");
             }}
-            aria-invalid={!!error}
-            aria-describedby="ds-nickname-hint ds-nickname-error"
+            hint="От 2 до 40 символов. Данные остаются только в этом примере."
+            error={error}
             maxLength={40}
           />
-          <p id="ds-nickname-hint">
-            От 2 до 40 символов. Данные остаются только в этом примере.
-          </p>
-          <p id="ds-nickname-error" className="error" role="alert">
-            {error}
-          </p>
           <button type="submit" className="primary">
             Сохранить ник
           </button>
-          <p className="account-message" role="status">
-            {saved ? "Ник сохранён в примере." : ""}
-          </p>
+          <FieldFeedback
+            message={saved ? "Ник сохранён в примере." : undefined}
+          />
         </form>
       </Sample>
       <Sample title="Выбор режима" source="ModeChoice">
@@ -414,7 +477,7 @@ function Navigation() {
     [page, setPage] = useState(1);
   return (
     <>
-      <div className="rank-games" aria-label="Пример выбора игры">
+      <div className="rank-games" role="group" aria-label="Пример выбора игры">
         {[
           "Общий",
           "На глаз",
@@ -444,7 +507,11 @@ function Navigation() {
         {game === "Общий" ? (
           <span>За всё время</span>
         ) : (
-          <div className="rank-period" aria-label="Пример выбора периода">
+          <div
+            className="rank-period"
+            role="group"
+            aria-label="Пример выбора периода"
+          >
             {["Неделя", "Всё время"].map((name) => (
               <button
                 key={name}
@@ -916,27 +983,24 @@ function GeoModes() {
   );
 }
 function SaveStates() {
-  const [state, setState] = useState("guest");
-  const labels: Record<string, string> = {
-    guest: "Войди, чтобы сохранить этот результат в рейтинг.",
-    checking: "Проверяем результат…",
-    saving: "Сохраняем результат…",
-    error: "Не удалось отправить результат. Он сохранён на устройстве.",
-    saved: "Результат сохранён в рейтинг.",
-  };
+  const [state, setState] = useState<ResultStatusKind>("checking");
   return (
     <>
       <div
         className="rank-period ds-save-tabs"
+        role="group"
         aria-label="Пример сохранения результата"
       >
-        {[
-          ["guest", "Гость"],
-          ["checking", "Проверка"],
-          ["saving", "Отправка"],
-          ["error", "Ошибка"],
-          ["saved", "Сохранено"],
-        ].map(([id, label]) => (
+        {(
+          [
+            ["restoring", "Восстановление"],
+            ["checking", "Проверка"],
+            ["saving", "Отправка"],
+            ["check-error", "Ошибка проверки"],
+            ["save-error", "Ошибка отправки"],
+            ["saved", "Сохранено"],
+          ] as const
+        ).map(([id, label]) => (
           <button
             key={id}
             aria-pressed={state === id}
@@ -946,22 +1010,33 @@ function SaveStates() {
           </button>
         ))}
       </div>
-      <div className="save-result" role="status">
-        <p>{labels[state]}</p>
-        <div>
-          {state === "guest" && (
-            <a className="primary" href="/account/">
-              Войти и сохранить
-            </a>
-          )}
-          {state === "error" && (
-            <button className="text-button" onClick={() => setState("saved")}>
-              Попробовать ещё раз
-            </button>
-          )}
-          <a href="/leaderboard/">Рейтинг игры →</a>
-        </div>
-      </div>
+      <ResultStatus
+        state={state}
+        ranking="/leaderboard/"
+        onRetry={state.endsWith("error") ? () => setState("saving") : undefined}
+      />
+      <p className="ds-note">
+        Пример без отправки данных. Повтор переводит его в ожидание; успешное
+        сохранение выбери отдельной кнопкой.
+      </p>
+    </>
+  );
+}
+function GuestPromptDemo() {
+  const [notice, setNotice] = useState("");
+  return (
+    <>
+      <GuestTrialPanel>
+        <button
+          className="primary yandex-login"
+          onClick={() => setNotice("Это пример. Вход в Яндекс не открывается.")}
+        >
+          Войти и продолжить <span aria-hidden="true">→</span>
+        </button>
+      </GuestTrialPanel>
+      <p className="ds-note" role="status">
+        {notice || "Демонстрация: кнопка не открывает авторизацию."}
+      </p>
     </>
   );
 }
@@ -1002,7 +1077,7 @@ function Results() {
       nickname,
       place: i + 1,
       isMe: i === 2,
-      score: 4361 + (2 - i) * 100,
+      score: example.score + (2 - i) * 100,
       contributions: example.contributions.map((p) =>
         p.game === "naglaz"
           ? {
@@ -1214,21 +1289,11 @@ function Dialogs() {
       <p role="status" className="ds-live-note">
         {notice}
       </p>
-      <dialog
-        ref={rules}
-        className="color-rules-dialog"
-        aria-labelledby="ds-rules-title"
+      <RulesDialog
+        dialogRef={rules}
+        title="Как играть"
+        titleId="ds-rules-title"
       >
-        <div className="dialog-top">
-          <h2 id="ds-rules-title">Как играть</h2>
-          <button
-            className="color-dialog-close"
-            aria-label="Закрыть правила"
-            onClick={() => rules.current?.close()}
-          >
-            ×
-          </button>
-        </div>
         <p>Каждая игра начинается с короткого правила.</p>
         <ol>
           <li>Прочитай условие.</li>
@@ -1238,10 +1303,7 @@ function Dialogs() {
         <p className="help-meta">
           Это пример модального окна. Партия не запускается.
         </p>
-        <button className="primary" onClick={() => rules.current?.close()}>
-          Понятно
-        </button>
-      </dialog>
+      </RulesDialog>
       <dialog
         ref={confirmation}
         className="color-rules-dialog"
@@ -1455,8 +1517,8 @@ export default function DesignSystem() {
               собран <span>Playne.</span>
             </h1>
             <p>
-              Цвета, шрифты, кнопки и игровые экраны. Рабочие примеры из сайта в
-              одном месте.
+              Принципы, рабочие компоненты и правила их применения. Один
+              источник для всех игр.
             </p>
           </div>
           <div className="ds-hero-meta">
@@ -1474,17 +1536,11 @@ export default function DesignSystem() {
           </div>
         </div>
         <div className="ds-layout">
-          <aside className="ds-sidebar">
-            <nav aria-label="Разделы дизайн-системы">
-              {designSections.map(([id, title], i) => (
-                <a key={id} href={`#${id}`}>
-                  <span>{String(i + 1).padStart(2, "0")}</span>
-                  {title}
-                </a>
-              ))}
-            </nav>
-          </aside>
+          <DesignNavigation />
           <div className="ds-content">
+            <Section id="principles">
+              <DesignPrinciples />
+            </Section>
             <Section id="foundations">
               <p className="ds-note">
                 Общие переменные берутся из <code>design-tokens.css</code>.
@@ -1567,33 +1623,7 @@ export default function DesignSystem() {
               </dl>
             </Section>
             <Section id="layout">
-              <div className="ds-grid">
-                <Sample title="Шаг отступов" source="--space-*">
-                  <div className="ds-spacing">
-                    {[4, 8, 12, 16, 20, 24, 32, 48, 64].map((n) => (
-                      <div key={n}>
-                        <span>{n} px</span>
-                        <i style={{ width: `${n * 3}px` }} />
-                      </div>
-                    ))}
-                  </div>
-                </Sample>
-                <Sample title="Скругления" source="--radius-*">
-                  <div className="ds-radius-list">
-                    {[
-                      [12, "Кнопка и поле"],
-                      [16, "Вложенная карточка"],
-                      [24, "Карточка и окно"],
-                      [28, "Большой блок"],
-                    ].map(([n, title]) => (
-                      <div key={n} style={{ borderRadius: `${n}px` }}>
-                        <strong>{n} px</strong>
-                        <span>{title}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Sample>
-              </div>
+              <LayoutTokens />
               <dl className="ds-spec-list">
                 <div>
                   <dt>Контейнер</dt>
@@ -1605,9 +1635,9 @@ export default function DesignSystem() {
                 <div>
                   <dt>Действия</dt>
                   <dd>
-                    Основная кнопка — минимум 52 px высотой. Иконки — область
-                    нажатия 44 × 44 px. Расстояние между соседними действиями —
-                    8–16 px.
+                    Основная кнопка — минимум 52 px высотой; компактное действие
+                    на карте — 48 px. Иконки — область нажатия 44 × 44 px.
+                    Расстояние между соседними действиями — 8–16 px.
                   </dd>
                 </div>
                 <div>
@@ -1743,23 +1773,16 @@ export default function DesignSystem() {
                   onStart={() => rules.current?.showModal()}
                   caption="Одинаковая кнопка запуска на стартовых экранах."
                 />
-                <dialog
-                  ref={rules}
-                  className="color-rules-dialog"
-                  aria-labelledby="ds-start-rules"
+                <RulesDialog
+                  dialogRef={rules}
+                  title="Начальный экран"
+                  titleId="ds-start-rules"
                 >
-                  <h2 id="ds-start-rules">Начальный экран</h2>
                   <p>
                     Рекорд зависит от выбранного режима. Здесь показаны варианты
                     его отображения.
                   </p>
-                  <button
-                    className="primary"
-                    onClick={() => rules.current?.close()}
-                  >
-                    Понятно
-                  </button>
-                </dialog>
+                </RulesDialog>
               </Sample>
               <div className="ds-sample">
                 <div className="ds-sample-title">
@@ -1850,14 +1873,14 @@ export default function DesignSystem() {
             <Section id="results">
               <Sample
                 title="Вход после гостевой партии"
-                source="account.tsx · GuestTrialPrompt"
+                source="ResultStatus.tsx · GuestTrialPanel"
               >
                 <p className="ds-note">
                   Гостю доступна полная партия каждой игры. После неё следующая
                   попытка требует входа через Яндекс. Завершённый результат
                   сохраняется автоматически после входа.
                 </p>
-                <GuestTrialPrompt game="naglaz" />
+                <GuestPromptDemo />
               </Sample>
               <Sample
                 title="Добровольные письма"
@@ -1872,7 +1895,7 @@ export default function DesignSystem() {
               <Results />
               <Sample
                 title="Сохранение результата: все состояния"
-                source="account.tsx · .save-result"
+                source="ResultStatus.tsx · тот же компонент в игре"
               >
                 <SaveStates />
               </Sample>
@@ -1958,8 +1981,9 @@ export default function DesignSystem() {
                     <details>
                       <summary>Нужно регистрироваться?</summary>
                       <p>
-                        Играть можно гостем. Вход нужен, чтобы сохранить
-                        результат в общем рейтинге.
+                        Первая партия каждой игры — без входа. Дальше нужен
+                        бесплатный вход через Яндекс; результат сохранится в
+                        рейтинге.
                       </p>
                     </details>
                     <details>
@@ -1977,6 +2001,9 @@ export default function DesignSystem() {
             </Section>
             <Section id="artwork">
               <Artwork />
+            </Section>
+            <Section id="contracts">
+              <ComponentContracts />
             </Section>
             <Section id="inventory">
               <label className="ds-field-label" htmlFor="ds-search">
@@ -2008,7 +2035,28 @@ export default function DesignSystem() {
               </div>
             </Section>
             <Section id="audit">
+              <p className="ds-note">
+                Обновлено 30 октября 2026. Ниже — выполненные изменения;
+                критерии будущих проверок находятся в разделе «Правила
+                компонентов».
+              </p>
               <ol className="ds-audit">
+                <li>
+                  <h3>Общий код вместо отдельных демонстраций</h3>
+                  <p>
+                    Поля, ошибки, состояния сохранения и правила игры используют
+                    одни компоненты в каталоге и продукте. Значения отступов и
+                    радиусов читаются из действующих токенов.
+                  </p>
+                </li>
+                <li>
+                  <h3>Понятная навигация по системе</h3>
+                  <p>
+                    Поиск доступен в оглавлении, текущий раздел выделен. На
+                    телефоне оглавление раскрывается по запросу; переход
+                    сохраняет видимость заголовка и передаёт ему фокус.
+                  </p>
+                </li>
                 <li>
                   <h3>Общая шапка и управление</h3>
                   <p>
@@ -2018,7 +2066,7 @@ export default function DesignSystem() {
                   </p>
                 </li>
                 <li>
-                  <h3>Семь вкладок рейтинга</h3>
+                  <h3>Навигация по играм и режимам</h3>
                   <p>
                     Основной каталог, разминка и рейтинг перестраиваются по
                     доступной ширине. У «Одной линией» больше места для длинного
@@ -2061,10 +2109,10 @@ export default function DesignSystem() {
                 </li>
               </ol>
               <p className="ds-note">
-                Каталог показывает все собственные компоненты Playne. Элементы
-                интерфейса сторонних карт и страницы входа Яндекса остаются у
-                соответствующих сервисов. Полную проверку скринридером этот
-                каталог не заменяет.
+                Каталог показывает общие компоненты и игровые примеры Playne.
+                Элементы интерфейса сторонних карт и страницы входа Яндекса
+                остаются у соответствующих сервисов. Полную проверку
+                скринридером этот каталог не заменяет.
               </p>
             </Section>
           </div>

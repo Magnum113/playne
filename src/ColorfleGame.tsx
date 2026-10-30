@@ -1,3 +1,4 @@
+import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
 import { GameIntro, GameStartAction } from "./GameIntro";
 import { ModeChoice, RoundDots } from "./ui";
@@ -704,26 +705,14 @@ export default function ColorfleGame() {
         <a href="/">Все игры Playne ↗</a>
         <FooterLinks />
       </footer>
-      <dialog
+      <RulesDialog
+        dialogRef={rules}
         className="color-rules-dialog"
-        ref={rules}
-        aria-labelledby="color-rules-title"
+        title="Как играть в «Оттенок»"
+        titleId="color-rules-title"
       >
-        <div className="dialog-top">
-          <h2 id="color-rules-title">Как играть в «Оттенок»</h2>
-          <button
-            className="color-dialog-close"
-            aria-label="Закрыть правила"
-            onClick={() => rules.current?.close()}
-          >
-            ×
-          </button>
-        </div>
         <Rules />
-        <button className="primary" onClick={() => rules.current?.close()}>
-          Понятно
-        </button>
-      </dialog>
+      </RulesDialog>
     </div>
   );
 }

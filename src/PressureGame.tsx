@@ -1,3 +1,4 @@
+import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
 import { GameIntro, GameStartAction } from "./GameIntro";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
@@ -818,26 +819,14 @@ export default function PressureGame() {
         <a href="/">Все игры Playne ↗</a>
         <FooterLinks />
       </footer>
-      <dialog
-        ref={rules}
+      <RulesDialog
+        dialogRef={rules}
         className="color-rules-dialog"
-        aria-labelledby="pressure-rules-title"
+        title="Как играть в «Жми»"
+        titleId="pressure-rules-title"
       >
-        <div className="dialog-top">
-          <h2 id="pressure-rules-title">Как играть в «Жми»</h2>
-          <button
-            className="color-dialog-close"
-            aria-label="Закрыть правила"
-            onClick={() => rules.current?.close()}
-          >
-            ×
-          </button>
-        </div>
         <Rules />
-        <button className="primary" onClick={() => rules.current?.close()}>
-          Понятно
-        </button>
-      </dialog>
+      </RulesDialog>
     </div>
   );
 }

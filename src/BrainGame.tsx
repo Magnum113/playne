@@ -1,3 +1,4 @@
+import { RulesDialog } from "./RulesDialog";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ApiError, SaveResult, useGuestTrial, useRankedRun } from "./account";
 import type { ServerRun } from "./rankedQueue";
@@ -39,7 +40,12 @@ const useGameLayoutEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 type Phase =
-  "welcome" | "ready" | "playing" | "checking" | "round-result" | "finished";
+  | "welcome"
+  | "ready"
+  | "playing"
+  | "checking"
+  | "round-result"
+  | "finished";
 type Answer =
   | { cells: number[] }
   | { same: boolean }
@@ -1131,20 +1137,13 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
         </section>
       </main>
       <FooterLinks />
-      <dialog
+      <RulesDialog
+        dialogRef={rules}
         className="brain-rules-dialog"
-        ref={rules}
-        aria-labelledby="brain-dialog-title"
+        title={content.name}
+        titleId="brain-dialog-title"
+        eyebrow="ПРАВИЛА ИГРЫ"
       >
-        <button
-          className="close-button"
-          aria-label="Закрыть правила"
-          onClick={() => rules.current?.close()}
-        >
-          ×
-        </button>
-        <p className="eyebrow">ПРАВИЛА ИГРЫ</p>
-        <h2 id="brain-dialog-title">{content.name}</h2>
         <BrainPreview game={game} />
         <ol>
           {content.rules.map((rule) => (
@@ -1154,10 +1153,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
         <p>{content.scoreText}</p>
         <p>{brainDailyText}</p>
         <p>{brainPracticeText}</p>
-        <button className="primary" onClick={() => rules.current?.close()}>
-          Понятно
-        </button>
-      </dialog>
+      </RulesDialog>
     </div>
   );
 }

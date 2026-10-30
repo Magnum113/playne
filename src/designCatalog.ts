@@ -1,4 +1,5 @@
 export const designSections = [
+  ["principles", "Принципы Playne"],
   ["foundations", "Цвета и темы"],
   ["type", "Типографика"],
   ["layout", "Размеры и отступы"],
@@ -14,6 +15,7 @@ export const designSections = [
   ["feedback", "Состояния"],
   ["content", "Текст и футер"],
   ["artwork", "Все иллюстрации"],
+  ["contracts", "Правила компонентов"],
   ["inventory", "Состав системы"],
   ["audit", "Что исправлено"],
 ] as const;
@@ -53,6 +55,18 @@ export const tokenGroups = [
 
 // The source paths identify the production components used by these examples.
 export const componentInventory = [
+  [
+    "Принципы, критерии приёмки и правила применения",
+    "designGuidance.ts",
+    "contracts",
+  ],
+  ["Общие правила и закрытие модальных окон", "RulesDialog.tsx", "overlays"],
+  ["Поля, связанные подсказки и локальные ошибки", "FormField.tsx", "forms"],
+  [
+    "Проверка, отправка, ошибка и сохранение результата",
+    "ResultStatus.tsx",
+    "results",
+  ],
   [
     "Живые обложки и реакции значков навыков",
     "useCardMotion.ts · GamePreviews.tsx · CategoryGlyph.tsx",

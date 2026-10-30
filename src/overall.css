@@ -190,7 +190,7 @@
   color: var(--mint);
 }
 .top-five a:focus-visible {
-  outline: 3px solid var(--focus);
+  outline: var(--focus-width) solid var(--focus);
   outline-offset: -3px;
 }
 @media (min-width: 1100px) {
@@ -282,7 +282,7 @@
 }
 .overall-standing > summary:focus-visible,
 .overall-contributions a:focus-visible {
-  outline: 3px solid var(--focus);
+  outline: var(--focus-width) solid var(--focus);
   outline-offset: -3px;
 }
 .overall-standing-place {

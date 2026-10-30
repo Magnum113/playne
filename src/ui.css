@@ -1,6 +1,5 @@
 /* Shared interface details. Game-specific canvases and gesture hit areas keep their own rules. */
-.ui-input,
-.nickname-form input {
+.ui-input {
   width: 100%;
   min-width: 0;
   min-height: var(--control-height);
@@ -12,10 +11,48 @@
   font: inherit;
   font-size: var(--text-body);
 }
-.ui-input::placeholder,
-.nickname-form input::placeholder {
+.ui-input::placeholder {
   color: var(--muted);
   opacity: 1;
+}
+.ui-field {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+}
+.ui-field > label {
+  color: var(--text);
+  font-size: var(--text-control);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.ui-field-hint,
+.ui-field-error,
+.ui-field-message {
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.ui-field-hint {
+  color: var(--muted);
+}
+.ui-field-error {
+  color: var(--danger);
+}
+.ui-field-message,
+.community-panel > .ui-field-message {
+  color: var(--mint);
+}
+.ui-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.account-delete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
 }
 .secondary-button,
 .danger-button {
@@ -28,7 +65,7 @@
   padding: 12px 18px;
   min-height: var(--control-size);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-control);
   font-weight: 550;
   background: var(--panel);
   color: var(--text);
@@ -123,16 +160,11 @@ button:disabled {
 .primary[data-preview-state="active"] {
   transform: scale(0.96);
 }
+/* One focus contract. Game boards may use an inset offset to avoid clipping. */
 :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible,
-.primary[data-preview-state="focus"],
-.community-main button:focus-visible,
-.community-main a:focus-visible,
-.nickname-form input:focus-visible,
-.save-result button:focus-visible,
-.geo-main button:focus-visible,
-.geo-main a:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 4px;
+.primary[data-preview-state="focus"] {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
 }
 .account-nav,
 .hub-header nav a.account-nav {
@@ -163,6 +195,7 @@ button:disabled {
   border-radius: 50%;
 }
 dialog,
+.rules-dialog,
 .color-rules-dialog,
 .geo-rules-dialog {
   border-radius: var(--radius-panel);
@@ -171,6 +204,47 @@ dialog,
   overflow-y: auto;
   overscroll-behavior: contain;
   box-shadow: var(--dialog-shadow);
+}
+dialog::backdrop {
+  background: var(--overlay-backdrop);
+  backdrop-filter: blur(5px);
+}
+.rules-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.rules-dialog > .dialog-top,
+.rules-dialog-actions {
+  flex: none;
+}
+.rules-dialog-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-inline: 4px;
+  margin-inline: -4px;
+}
+.rules-dialog-content:focus-visible {
+  outline-offset: -3px;
+}
+.rules-dialog-content > :first-child {
+  margin-top: 0;
+}
+.rules-dialog-content > :last-child {
+  margin-bottom: 0;
+}
+.rules-dialog-heading {
+  min-width: 0;
+}
+.rules-dialog-heading .eyebrow {
+  margin: 0 0 var(--space-2);
+}
+.rules-dialog-actions {
+  margin-top: var(--space-6);
+}
+.rules-dialog-actions > .primary {
+  min-height: var(--control-height);
 }
 .dialog-top {
   align-items: flex-start;
@@ -200,7 +274,6 @@ dialog,
     )
     center / 100% 23px no-repeat;
 }
-.nickname-form input[aria-invalid="true"],
 .ui-input[aria-invalid="true"] {
   border-color: var(--danger);
   box-shadow: 0 0 0 1px var(--danger);
@@ -253,58 +326,92 @@ dialog,
 .geo-dots .active {
   background: var(--purple);
 }
-.shade-mode-choice label.selected,
-.geo-mode-choice label.selected {
+/* ModeChoice: shared visuals and states; only available column width varies. */
+.mode-choice {
+  container-type: inline-size;
+  min-inline-size: 0;
+  border: 0;
+  padding: 0;
+  margin: var(--space-6) 0;
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--choice-min-width, 180px)), 1fr)
+  );
+  gap: var(--space-3);
+  text-align: left;
+}
+.mode-choice legend {
+  padding: 0;
+  margin-bottom: var(--space-3);
+  color: var(--muted);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.mode-choice label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: 76px;
+  padding: var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-inner);
+  background: var(--panel);
+  cursor: pointer;
+}
+.mode-choice label.selected {
   background: var(--purple-tint);
   border-color: var(--purple);
 }
-.shade-mode-choice label,
-.geo-mode-choice label {
-  min-width: 0;
-  border-radius: var(--radius-inner);
-}
-.shade-mode-choice input,
-.geo-mode-choice input {
+.mode-choice input {
+  appearance: auto;
+  flex: 0 0 var(--choice-indicator-size);
+  width: var(--choice-indicator-size);
+  height: var(--choice-indicator-size);
+  margin: 1px 0 0;
   accent-color: var(--purple);
-  flex: none;
 }
-.shade-mode-choice:disabled label,
-.geo-mode-choice:disabled label {
+.mode-choice:disabled label,
+.mode-choice label:has(input:disabled) {
   opacity: 0.55;
   cursor: not-allowed;
 }
-.shade-mode-choice label:has(input:focus-visible),
-.geo-mode-choice label:has(input:focus-visible) {
-  outline: 3px solid var(--focus);
-  outline-offset: 3px;
+.mode-choice label:has(input:focus-visible) {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
 }
-.shade-mode-choice input:focus-visible,
-.geo-mode-choice input:focus-visible {
+.mode-choice input:focus-visible {
   outline: none;
 }
-.shade-mode-choice small,
-.geo-mode-choice small {
-  display: block;
-  color: var(--muted);
-}
-/* Choose columns from the available component width, including nested samples. */
-.geo-mode-choice {
-  min-inline-size: 0;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-}
-.shade-mode-choice {
-  min-inline-size: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
-}
-.shade-mode-choice label > span,
-.geo-mode-choice label > span {
+.mode-choice label > span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.shade-mode-choice strong,
-.geo-mode-choice strong {
+.mode-choice strong {
+  display: block;
+  font-size: var(--text-control);
   line-height: 1.4;
+}
+.mode-choice small {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-label);
+  line-height: 1.5;
+}
+@container (max-width: 260px) {
+  .mode-choice label {
+    gap: var(--space-1);
+    padding-inline: var(--space-2);
+  }
+}
+.geo-mode-choice {
+  --choice-min-width: 240px;
+}
+.shade-mode-choice {
+  max-width: 450px;
 }
 .account-history li,
 .my-rank {
@@ -314,6 +421,15 @@ dialog,
   min-width: 0;
   flex: 1 1 160px;
   overflow-wrap: anywhere;
+}
+.save-result > p {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+}
+.save-result > p > .ui-spinner {
+  margin-top: 0.2em;
 }
 .save-result a.primary {
   color: var(--button-text);
@@ -382,16 +498,11 @@ h3[id] {
   }
 }
 @media (forced-colors: active) {
-  :where(
-    button,
-    a,
-    input,
-    select,
-    textarea,
-    summary,
-    [tabindex]
-  ):focus-visible {
-    outline: 3px solid Highlight;
+  :root,
+  :root[data-theme="dark"],
+  [data-theme-scope] {
+    --focus: Highlight;
+    --field-border: ButtonText;
   }
   .primary,
   .secondary-button,

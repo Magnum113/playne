@@ -1,3 +1,4 @@
+import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
 import { GameIntro, GameStartAction } from "./GameIntro";
 import { RoundDots } from "./ui";
@@ -168,8 +169,8 @@ export default function App() {
     if (ranked.state.status === "loading") return;
     const online = await ranked.begin();
     if (!online) return;
-    const nextRounds: Pair[] = online.challenge.pairIds.map((id: string) =>
-      pairs.find((p) => p.id === id)!,
+    const nextRounds: Pair[] = online.challenge.pairIds.map(
+      (id: string) => pairs.find((p) => p.id === id)!,
     );
     setRounds(nextRounds);
     const recovered: Result[] = (online.answers ?? []).map((a, i) => ({
@@ -523,33 +524,14 @@ export default function App() {
         <span className="footer-detail">Размеры — из открытых источников</span>
         <FooterLinks />
       </footer>
-      <dialog
-        ref={dialog}
+      <RulesDialog
+        dialogRef={dialog}
+        title="Как играть"
+        titleId="help-title"
+        onClose={() => setHelp(false)}
         onCancel={() => setHelp(false)}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            const r = e.currentTarget.getBoundingClientRect();
-            if (
-              e.clientX < r.left ||
-              e.clientX > r.right ||
-              e.clientY < r.top ||
-              e.clientY > r.bottom
-            )
-              setHelp(false);
-          }
-        }}
-        aria-labelledby="help-title"
+        actionLabel={screen === "game" ? "Вернуться к игре" : "Закрыть правила"}
       >
-        <div className="dialog-top">
-          <h2 id="help-title">Как играть</h2>
-          <button
-            className="close-button"
-            aria-label="Закрыть правила"
-            onClick={() => setHelp(false)}
-          >
-            ×
-          </button>
-        </div>
         <p>Подбери размер предмета рядом с ориентиром.</p>
         <ol>
           <li>Посмотри на бирюзовый предмет. Его размер указан под полем.</li>
@@ -562,10 +544,7 @@ export default function App() {
           </li>
         </ol>
         <p className="help-meta">5 раундов · до 100 очков за каждый</p>
-        <button className="primary" onClick={() => setHelp(false)}>
-          {screen === "game" ? "Вернуться к игре" : "Закрыть правила"}
-        </button>
-      </dialog>
+      </RulesDialog>
     </div>
   );
 }

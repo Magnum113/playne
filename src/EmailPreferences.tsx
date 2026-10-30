@@ -1,4 +1,5 @@
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { TextField, FieldFeedback } from "./FormField";
 import { api, useAuth } from "./account";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { getEmailAction } from "./emailNavigation";
@@ -112,8 +113,10 @@ export function YandexLogin({
         />
       )}
       <button
+        type="button"
         className="primary yandex-login"
         disabled={disabled || busy}
+        aria-busy={busy}
         onClick={() => void login()}
       >
         {busy
@@ -185,8 +188,10 @@ export function EmailAction() {
       {!done &&
         (action ? (
           <button
+            type="button"
             className="primary"
             disabled={busy}
+            aria-busy={busy}
             onClick={() => void submit()}
           >
             {busy
@@ -227,8 +232,10 @@ export function EmailPreferences() {
     [data, setData] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
+    [addressError, setAddressError] = useState(""),
     [message, setMessage] = useState("");
   const id = useId();
+  const addressInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (window.location.hash === "#email-settings")
       document
@@ -242,11 +249,25 @@ export function EmailPreferences() {
       .catch((e) => setError(e.message));
   }, []);
   async function save(enabled: boolean) {
+    if (busy) return;
+    setAddressError("");
+    if (
+      enabled &&
+      addressInput.current &&
+      !addressInput.current.validity.valid
+    ) {
+      setAddressError(
+        address.trim()
+          ? "Введи корректный email, например name@example.ru."
+          : "Введи электронную почту.",
+      );
+      addressInput.current.focus();
+      return;
+    }
     if (enabled && (!checked || !data)) {
       setError("Подтверди согласие на письма и обработку email.");
       return;
     }
-    if (busy) return;
     setBusy(true);
     setError("");
     setMessage("");
@@ -306,27 +327,39 @@ export function EmailPreferences() {
                 : "Подписка выключена."}
           </p>
           <form
+            noValidate
+            aria-busy={busy}
             onSubmit={(e) => {
               e.preventDefault();
               void save(true);
             }}
             className="email-settings-form"
           >
-            <label htmlFor={id}>Электронная почта</label>
-            <input
+            <TextField
               id={id}
+              label="Электронная почта"
+              inputRef={addressInput}
               className="ym-hide-content ym-disable-keys"
               type="email"
               autoComplete="email"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                setAddressError("");
+                setError("");
+                setMessage("");
+              }}
               required
               maxLength={254}
+              disabled={busy}
+              error={addressError}
+              hint={
+                settings.yandexEmail &&
+                address.trim().toLowerCase() === settings.yandexEmail
+                  ? "Адрес из Яндекса. Подтверждать не нужно."
+                  : undefined
+              }
             />
-            {settings.yandexEmail &&
-              address.trim().toLowerCase() === settings.yandexEmail && (
-                <p>Адрес из Яндекса. Подтверждать не нужно.</p>
-              )}
             {(!settings.enabled ||
               address.trim().toLowerCase() !== settings.email) && (
               <>
@@ -339,6 +372,7 @@ export function EmailPreferences() {
                 <button
                   className="primary"
                   disabled={busy || !checked || !data}
+                  aria-busy={busy}
                 >
                   {busy
                     ? "Сохраняем…"
@@ -354,20 +388,17 @@ export function EmailPreferences() {
       )}
       {settings && (settings.enabled || settings.pending) && (
         <button
+          type="button"
           className="text-button"
           disabled={busy}
+          aria-busy={busy}
           onClick={() => void save(false)}
         >
           Отключить письма
         </button>
       )}
+      <FieldFeedback message={message} error={settings ? error : undefined} />
       {settings?.reportAvailable && <EmailExperimentReport />}
-      {message && <p role="status">{message}</p>}
-      {settings && error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
     </section>
   );
 }
@@ -439,9 +470,11 @@ function EmailExperimentReport() {
       <h3>Тест оформления A/B/C</h3>
       <p>Статистика доступна только владельцу сайта.</p>
       <button
+        type="button"
         className="text-button"
         onClick={() => void load()}
         disabled={busy}
+        aria-busy={busy}
       >
         {busy
           ? "Загружаем…"

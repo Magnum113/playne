@@ -432,11 +432,6 @@
 .geo-rules-dialog {
   max-width: 620px;
   width: calc(100% - 32px);
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  padding: 28px;
-  background: var(--panel);
-  color: var(--text);
 }
 .geo-rules-copy p,
 .geo-rules-copy li {
@@ -458,14 +453,6 @@
   background: var(--bg);
   color: var(--text);
   font-size: 26px;
-}
-.geo-rules-dialog .primary {
-  margin-top: 24px;
-}
-.geo-main button:focus-visible,
-.geo-main a:focus-visible {
-  outline: 3px solid var(--mint);
-  outline-offset: 4px;
 }
 .geo-result:focus,
 .geo-summary:focus,
@@ -705,54 +692,6 @@
   }
 }
 
-.geo-mode-choice {
-  border: 0;
-  padding: 0;
-  margin: 24px 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-.geo-mode-choice legend {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-.geo-mode-choice label {
-  display: flex;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  background: var(--bg);
-  border-radius: 14px;
-  cursor: pointer;
-  min-height: 76px;
-  align-items: flex-start;
-}
-.geo-mode-choice label.selected {
-  border-color: var(--purple);
-  background: var(--purple-tint);
-}
-.geo-mode-choice input {
-  accent-color: var(--mint);
-  width: 18px;
-  height: 18px;
-  margin: 3px 0 0;
-  flex: none;
-}
-.geo-mode-choice strong {
-  display: block;
-  font-size: 14px;
-}
-.geo-mode-choice small {
-  margin-top: 6px;
-  font-size: 12px;
-  line-height: 1.5;
-}
-.geo-mode-choice label:focus-within {
-  outline: 3px solid var(--mint);
-  outline-offset: 3px;
-}
 .geo-status .geo-status-meta {
   display: flex;
   align-items: center;
@@ -794,9 +733,6 @@
   margin-bottom: 16px;
 }
 @media (max-width: 650px) {
-  .geo-mode-choice {
-    grid-template-columns: 1fr;
-  }
   .geo-status .geo-status-meta {
     gap: 8px;
     max-width: 55%;
@@ -832,7 +768,7 @@
   background: var(--hover);
 }
 .geo-return-start:focus-visible {
-  outline: 3px solid var(--mint);
+  outline: var(--focus-width) solid var(--focus);
   outline-offset: 3px;
 }
 @media (max-width: 650px) {
@@ -866,7 +802,7 @@
   border-radius: 10px;
 }
 .geo-playing .header .geo-playing-help:focus-visible {
-  outline: 3px solid var(--mint);
+  outline: var(--focus-width) solid var(--focus);
   outline-offset: 3px;
 }
 .geo-playing .header .geo-playing-help .question {
@@ -993,24 +929,25 @@
 .geo-playing .geo-map-hint {
   display: none;
 }
+/* Compact primary: keep more space for the panorama and map on small screens. */
 .geo-playing .geo-map-tools > .geo-map-answer {
   width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  min-height: 48px;
+  min-height: var(--control-compact);
   padding: 12px 16px;
   background: var(--purple-soft);
-  color: #17131e;
+  color: var(--button-text);
   border: 1px solid transparent;
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-control);
   line-height: 20px;
   text-decoration: none;
   font-weight: 600;
 }
-.geo-playing .geo-map-answer:hover {
-  background: #cbb8fb;
+.geo-playing .geo-map-answer:hover:not(:disabled) {
+  background: var(--button-hover);
 }
 .geo-playing .geo-map-open .geo-map-panel {
   inset: 16px;

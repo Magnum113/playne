@@ -47,7 +47,7 @@ export function ModeChoice<T extends string>({
 }) {
   const name = useId();
   return (
-    <fieldset className={className} disabled={disabled}>
+    <fieldset className={`mode-choice ${className}`} disabled={disabled}>
       <legend>{legend}</legend>
       {options.map((option) => (
         <label

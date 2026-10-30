@@ -69,7 +69,7 @@
   outline: none;
 }
 .circle-board:focus-visible {
-  outline: 2px solid var(--purple);
+  outline: var(--focus-width) solid var(--focus);
   outline-offset: -5px;
   border-radius: 23px;
 }
@@ -196,8 +196,8 @@
   min-height: 48px;
 }
 .circle-rules summary:focus-visible {
-  outline: 2px solid var(--purple);
-  outline-offset: 4px;
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
 }
 .circle-rules p {
   color: var(--muted);

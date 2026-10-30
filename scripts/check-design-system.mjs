@@ -41,6 +41,7 @@ const textPairs = [
   ["--muted", "--panel"],
   ["--muted", "--hover"],
   ["--muted", "--purple-tint"],
+  ["--muted", "--mint-tint"],
   ["--mint", "--bg"],
   ["--mint", "--mint-tint"],
   ["--purple", "--bg"],
@@ -85,7 +86,8 @@ assert.equal(
   ids.length,
   "Design system must not duplicate element or SVG IDs",
 );
-for (const id of [
+const sectionIds = [
+  "principles",
   "foundations",
   "type",
   "layout",
@@ -101,9 +103,11 @@ for (const id of [
   "feedback",
   "content",
   "artwork",
+  "contracts",
   "inventory",
   "audit",
-]) {
+];
+for (const id of sectionIds) {
   assert(ids.includes(id), `Missing catalog section: ${id}`);
 }
 assert(
@@ -112,5 +116,5 @@ assert(
 );
 assert(!html.includes('placeholder="TODO"'));
 console.log(
-  `Design system checks passed: 17 sections, unique IDs and ${textPairs.length * 2 + 8} colour-pair checks in both themes.`,
+  `Design system checks passed: ${sectionIds.length} sections, unique IDs and ${textPairs.length * 2 + 8} colour-pair checks in both themes.`,
 );

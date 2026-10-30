@@ -34,6 +34,8 @@
   --danger: #b03434;
   --danger-tint: #fae7e4;
   --focus: var(--mint);
+  --focus-width: 3px;
+  --focus-offset: 4px;
   --field-border: #7b8985;
   --button-text: #17131e;
   --button-hover: #cbb8fb;
@@ -53,11 +55,16 @@
   --radius-pill: 999px;
   --control-size: 44px;
   --control-height: 52px;
+  --control-compact: 48px;
+  --choice-indicator-size: 18px;
   --text-body: 16px;
+  --text-control: 14px;
+  --text-label: 12px;
   --text-caption: 13px;
   --motion-fast: 150ms;
   --motion-medium: 240ms;
   --motion-game: 700ms;
+  --overlay-backdrop: #0b0f13b8;
   --dialog-shadow: 0 20px 80px #0005;
   color: var(--text);
   background: var(--bg);

@@ -165,4 +165,95 @@ describe("Email entry safety", () => {
     );
     expect(box.textContent).toContain("Письма отключены.");
   });
+  it("associates a missing address with its field and does not send a subscription", async () => {
+    const remote = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            available: true,
+            email: "",
+            enabled: false,
+            pending: false,
+            verified: false,
+          }),
+        ),
+    );
+    vi.stubGlobal("fetch", remote);
+    await act(async () => root.render(<EmailPreferences />));
+    act(() =>
+      box.querySelector<HTMLInputElement>("input[type=checkbox]")!.click(),
+    );
+    act(() =>
+      box.querySelectorAll<HTMLInputElement>("input[type=checkbox]")[1].click(),
+    );
+    await act(async () => {
+      box
+        .querySelector("form")!
+        .dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+    });
+    const input = box.querySelector<HTMLInputElement>("input[type=email]")!;
+    expect(input.classList.contains("ui-input")).toBe(true);
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(
+      document.getElementById(input.getAttribute("aria-describedby")!)
+        ?.textContent,
+    ).toBe("Введи электронную почту.");
+    expect(document.activeElement).toBe(input);
+    expect(remote).toHaveBeenCalledTimes(1);
+  });
+  it("links the trusted address hint and exposes pending saves without marking request errors as invalid email", async () => {
+    let complete!: (response: Response) => void;
+    const remote = vi.fn(async (_: any, options: any) =>
+      options?.method === "POST"
+        ? new Promise<Response>((resolve) => {
+            complete = resolve;
+          })
+        : new Response(
+            JSON.stringify({
+              available: true,
+              email: "qa@example.com",
+              yandexEmail: "qa@example.com",
+              enabled: false,
+              pending: false,
+              verified: true,
+            }),
+          ),
+    );
+    vi.stubGlobal("fetch", remote);
+    await act(async () => root.render(<EmailPreferences />));
+    const input = box.querySelector<HTMLInputElement>("input[type=email]")!;
+    expect(
+      document.getElementById(input.getAttribute("aria-describedby")!)
+        ?.textContent,
+    ).toContain("Адрес из Яндекса");
+    act(() =>
+      box.querySelector<HTMLInputElement>("input[type=checkbox]")!.click(),
+    );
+    act(() =>
+      box.querySelectorAll<HTMLInputElement>("input[type=checkbox]")[1].click(),
+    );
+    await act(async () => {
+      box
+        .querySelector("form")!
+        .dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+    });
+    expect(box.querySelector("form")?.getAttribute("aria-busy")).toBe("true");
+    expect(input.disabled).toBe(true);
+    await act(async () => {
+      complete(
+        new Response(JSON.stringify({ error: "Сервис временно недоступен." }), {
+          status: 503,
+        }),
+      );
+    });
+    expect(box.querySelector("form")?.getAttribute("aria-busy")).toBe("false");
+    expect(input.hasAttribute("aria-invalid")).toBe(false);
+    expect(box.querySelector("[role=alert]")?.textContent).toBe(
+      "Сервис временно недоступен.",
+    );
+  });
 });

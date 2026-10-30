@@ -57,8 +57,7 @@
 .shade-round-scores span { padding: 6px 10px; border-radius: 8px; background: var(--hover); font-size: 13px; }
 .color-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 30px 0 50px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
 .color-footer > a { margin-left: auto; }
-.color-rules-dialog { max-width: 540px; width: calc(100% - 28px); border: 1px solid var(--line); border-radius: 20px; background: var(--panel); color: var(--text); padding: 24px; box-shadow: 0 18px 70px #0005; }
-.color-rules-dialog::backdrop { background: #1119; }
+.color-rules-dialog { max-width: 540px; width: calc(100% - 32px); }
 .dialog-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .dialog-top h2 { margin: 0; font-size: 22px; }
 .color-dialog-close { border: 0; background: var(--hover); width: 36px; height: 36px; border-radius: 50%; font-size: 23px; }
@@ -69,13 +68,6 @@
 @media (max-width: 700px) { .color-main { padding-top: 22px; } .color-heading { margin-bottom: 24px; } .color-heading h1 { font-size: 37px; } .shade-welcome { margin-top: 10px; padding: 24px; gap: 24px; } .shade-swatch-card { padding: 9px; border-radius: 16px; } .shade-swatch { height: clamp(150px, 42vw, 220px); border-radius: 10px; } .shade-value { font-size: 11px; } .shade-picker { padding: 17px; margin-top: 18px; } .shade-picker-heading { display: block; } .shade-picker-heading span { display: block; margin-top: 5px; } .shade-square { height: 275px; } .shade-actions { flex-direction: column; gap: 10px; } .shade-result { margin-top: 18px; } .color-footer > a { margin-left: 0; } }
 @media (max-width: 390px) { .shade-board { gap: 8px; } .shade-swatch { height: 145px; } .shade-value span { display: none; } .shade-status { align-items: flex-start; } .shade-status > div:first-child { display: block; } .shade-dots { margin-top: 9px; } }
 
-.shade-mode-choice { border: 0; padding: 0; margin: 26px 0; max-width: 450px; display: flex; gap: 12px; text-align: left; }
-.shade-mode-choice legend { padding: 0; color: var(--muted); font-size: 13px; margin-bottom: 12px; }
-.shade-mode-choice label { flex: 1; display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 14px; padding: 16px; cursor: pointer; background: var(--panel); }
-.shade-mode-choice label.selected { border-color: var(--purple); background: var(--hover); }
-.shade-mode-choice input { margin: 0; accent-color: var(--purple); width: 17px; height: 17px; flex-shrink: 0; }
-.shade-mode-choice strong { font-size: 14px; display: block; }
-.shade-mode-choice small { font-size: 12px; margin-top: 6px; line-height: 1.4; }
 .shade-status-right { display: flex; align-items: center; gap: 24px; }
 .shade-timer { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--purple); white-space: nowrap; }
 .shade-timer.urgent { color: #b74627; }
@@ -86,10 +78,8 @@
   .shade-status { flex-wrap: wrap; gap: 12px; }
   .shade-status-right { margin-left: auto; gap: 14px; }
   .shade-timer { font-size: 19px; }
-  .shade-mode-choice label { padding: 13px 10px; gap: 8px; }
 }
 @media (max-width: 360px) {
-  .shade-mode-choice { flex-direction: column; }
   .shade-status-right { width: 100%; justify-content: space-between; }
 }
 @media (max-width: 700px) {

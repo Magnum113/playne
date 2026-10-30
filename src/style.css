@@ -25,12 +25,6 @@ button:disabled {
   cursor: default;
   opacity: 0.35;
 }
-button:focus-visible,
-a:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--text);
-  outline-offset: 5px;
-}
 h1:focus {
   outline: none;
 }
@@ -647,10 +641,6 @@ dialog {
   max-height: calc(100dvh - 32px);
   box-shadow: 0 20px 90px #0008;
 }
-dialog::backdrop {
-  background: #0b0f13b8;
-  backdrop-filter: blur(5px);
-}
 .dialog-top {
   display: flex;
   justify-content: space-between;
@@ -1160,11 +1150,6 @@ footer .playne-brand svg[data-playne-mark] {
   background: var(--hover);
   border-color: var(--purple);
 }
-.destroy-link:focus-visible,
-.destroy-badge:focus-visible {
-  outline: 2px solid var(--purple);
-  outline-offset: 4px;
-}
 .destroy-badge {
   display: inline-flex;
   align-items: center;
@@ -1420,9 +1405,7 @@ footer .playne-brand svg[data-playne-mark] {
   display: none;
 }
 .faq-items summary:focus-visible {
-  outline: 2px solid var(--purple);
-  outline-offset: 5px;
-  border-radius: 4px;
+  border-radius: var(--space-1);
 }
 .faq-items summary span {
   font-size: 22px;
@@ -1470,7 +1453,7 @@ footer .playne-brand svg[data-playne-mark] {
     gap: 10px;
   }
   .card-copy p {
-    font-size: 12px;
+    font-size: var(--text-caption);
   }
   .card-copy br {
     display: none;

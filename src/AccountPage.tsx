@@ -1,11 +1,13 @@
 import { YandexLogin, EmailAction, EmailPreferences } from "./EmailPreferences";
 import { geoModeName, type GeoMode } from "./geo";
 import { AccountBests } from "./AccountBests";
+import { TextField, FieldFeedback } from "./FormField";
 import { shadeModeName } from "./colorfle";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   api,
+  ApiError,
   useAuth,
   gameNames,
   resultText,
@@ -21,15 +23,26 @@ export default function AccountPage() {
     [pending, setPending] = useState<any>(null),
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
-    [busy, setBusy] = useState(false),
+    [nicknameBusy, setNicknameBusy] = useState(false),
+    [nicknameError, setNicknameError] = useState(""),
+    [nicknameRequestError, setNicknameRequestError] = useState(""),
+    [nicknameMessage, setNicknameMessage] = useState(""),
+    [deleteBusy, setDeleteBusy] = useState(false),
+    [deleteError, setDeleteError] = useState(""),
+    [confirmationError, setConfirmationError] = useState(""),
+    [logoutBusy, setLogoutBusy] = useState(false),
     [savingClaim, setSavingClaim] = useState(false),
     [deleting, setDeleting] = useState(false),
     [confirmation, setConfirmation] = useState("");
+  const accountBusy = nicknameBusy || deleteBusy || logoutBusy;
   const claim = new URLSearchParams(
     typeof window === "undefined" ? "" : window.location.search,
   ).get("claim");
   const validClaim = claim && /^[0-9a-f-]{36}$/.test(claim) ? claim : null;
   const publishing = useRef<string | null>(null);
+  const nicknameInput = useRef<HTMLInputElement>(null);
+  const confirmationInput = useRef<HTMLInputElement>(null);
+  const deleteToggle = useRef<HTMLButtonElement>(null);
   const authError = new URLSearchParams(
     typeof window === "undefined" ? "" : window.location.search,
   ).get("auth");
@@ -41,6 +54,12 @@ export default function AccountPage() {
         .catch((e) => setError(e.message));
     }
   }, [user?.id]);
+  useEffect(() => {
+    if (deleting) confirmationInput.current?.focus();
+  }, [deleting]);
+  useEffect(() => {
+    if (nicknameError && !nicknameBusy) nicknameInput.current?.focus();
+  }, [nicknameError, nicknameBusy]);
   useEffect(() => {
     if (validClaim)
       void api(`/games/${validClaim}`)
@@ -68,19 +87,27 @@ export default function AccountPage() {
   }, [user?.id, validClaim, pending?.completed, pending?.published]);
   async function save(e: FormEvent) {
     e.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    setMessage("");
+    if (accountBusy) return;
+    setNicknameError("");
+    setNicknameRequestError("");
+    setNicknameMessage("");
+    if (nickname.trim().length < 2 || nickname.trim().length > 40) {
+      setNicknameError("Введи от 2 до 40 символов.");
+      nicknameInput.current?.focus();
+      return;
+    }
+    setNicknameBusy(true);
     try {
       await api("/me", "PATCH", { nickname });
       await refresh();
-      setMessage("Ник сохранён.");
+      setNicknameMessage("Ник сохранён.");
       reachGoal(ACCOUNT_GOALS.nicknameSaved);
     } catch (e) {
-      setError((e as Error).message);
+      if (e instanceof ApiError && e.status === 400) {
+        setNicknameError(e.message);
+      } else setNicknameRequestError((e as Error).message);
     } finally {
-      setBusy(false);
+      setNicknameBusy(false);
     }
   }
   async function publish() {
@@ -177,26 +204,43 @@ export default function AccountPage() {
           <>
             <section className="community-panel">
               <h2>Твой ник</h2>
-              <form onSubmit={save} className="nickname-form">
-                <label htmlFor="nickname">Имя в рейтинге</label>
-                <input
+              <form
+                onSubmit={save}
+                className="nickname-form"
+                noValidate
+                aria-busy={nicknameBusy}
+              >
+                <TextField
                   id="nickname"
+                  label="Имя в рейтинге"
+                  inputRef={nicknameInput}
                   name="nickname"
                   autoComplete="nickname"
                   value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
+                  onChange={(e) => {
+                    setNickname(e.target.value);
+                    setNicknameError("");
+                    setNicknameRequestError("");
+                    setNicknameMessage("");
+                  }}
                   minLength={2}
                   maxLength={40}
                   required
-                  aria-describedby="nickname-hint account-message"
+                  disabled={accountBusy}
+                  error={nicknameError}
+                  hint="Этот ник будет виден всем в рейтинге. От 2 до 40 символов. Можно использовать своё имя или придумать другое."
                 />
-                <p id="nickname-hint">
-                  Этот ник будет виден всем в рейтинге. От 2 до 40 символов.
-                  Можно использовать своё имя или придумать другое.
-                </p>
-                <button className="primary" disabled={busy}>
-                  {busy ? "Сохраняем…" : "Сохранить ник"}
+                <button
+                  className="primary"
+                  disabled={accountBusy}
+                  aria-busy={nicknameBusy}
+                >
+                  {nicknameBusy ? "Сохраняем…" : "Сохранить ник"}
                 </button>
+                <FieldFeedback
+                  error={nicknameRequestError}
+                  message={nicknameMessage}
+                />
               </form>
             </section>
             <EmailPreferences key={user.id} />
@@ -278,20 +322,37 @@ export default function AccountPage() {
             </section>
             <section className="account-delete">
               <button
+                ref={deleteToggle}
+                type="button"
                 className="text-button"
-                onClick={() => setDeleting(!deleting)}
+                aria-expanded={deleting}
+                aria-controls="delete-account-form"
+                disabled={accountBusy}
+                onClick={() => {
+                  setDeleting(!deleting);
+                  setConfirmation("");
+                  setConfirmationError("");
+                  setDeleteError("");
+                }}
               >
                 Удалить аккаунт
               </button>
               {deleting && (
                 <form
+                  id="delete-account-form"
+                  noValidate
+                  aria-busy={deleteBusy}
                   onSubmit={(e) => {
                     e.preventDefault();
+                    if (accountBusy) return;
+                    setDeleteError("");
                     if (confirmation !== "УДАЛИТЬ") {
-                      setError("Введи УДАЛИТЬ для подтверждения.");
+                      setConfirmationError("Введи УДАЛИТЬ для подтверждения.");
+                      confirmationInput.current?.focus();
                       return;
                     }
-                    setBusy(true);
+                    setConfirmationError("");
+                    setDeleteBusy(true);
                     void api("/account/delete", "POST", {
                       confirmation: "delete",
                     })
@@ -300,28 +361,52 @@ export default function AccountPage() {
                         setData(null);
                         setPending(null);
                         setDeleting(false);
+                        setError("");
                         setMessage("Аккаунт и результаты удалены.");
                       })
-                      .catch((e) => setError(e.message))
-                      .finally(() => setBusy(false));
+                      .catch((e) => setDeleteError(e.message))
+                      .finally(() => setDeleteBusy(false));
                   }}
                 >
-                  <p>
-                    Аккаунт и опубликованные результаты будут удалены без
-                    возможности восстановления.
-                  </p>
-                  <label htmlFor="delete-account">
-                    Введи УДАЛИТЬ для подтверждения
-                  </label>
-                  <input
+                  <TextField
                     id="delete-account"
+                    label="Введи УДАЛИТЬ для подтверждения"
+                    hint="Аккаунт и опубликованные результаты будут удалены без возможности восстановления."
+                    inputRef={confirmationInput}
                     value={confirmation}
-                    onChange={(e) => setConfirmation(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmation(e.target.value);
+                      setConfirmationError("");
+                      setDeleteError("");
+                    }}
                     autoComplete="off"
+                    disabled={accountBusy}
+                    error={confirmationError}
                   />
-                  <button className="text-button" disabled={busy}>
-                    Удалить аккаунт и результаты
-                  </button>
+                  <div className="account-delete-actions">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={accountBusy}
+                      onClick={() => {
+                        setDeleting(false);
+                        setConfirmation("");
+                        setConfirmationError("");
+                        setDeleteError("");
+                        deleteToggle.current?.focus();
+                      }}
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      className="danger-button"
+                      disabled={accountBusy}
+                      aria-busy={deleteBusy}
+                    >
+                      {deleteBusy ? "Удаляем…" : "Удалить аккаунт и результаты"}
+                    </button>
+                  </div>
+                  <FieldFeedback error={deleteError} />
                 </form>
               )}
             </section>
@@ -329,18 +414,24 @@ export default function AccountPage() {
               <span>Вход через Яндекс ID</span>
               <button
                 className="text-button"
+                disabled={accountBusy}
+                aria-busy={logoutBusy}
                 onClick={() => {
+                  if (accountBusy) return;
+                  setLogoutBusy(true);
                   void api("/auth/logout", "POST", {})
                     .then(refresh)
                     .then(() => {
                       setData(null);
+                      setError("");
                       setMessage("Вы вышли из аккаунта.");
                       reachGoal(ACCOUNT_GOALS.logout);
                     })
-                    .catch((e) => setError(e.message));
+                    .catch((e) => setError(e.message))
+                    .finally(() => setLogoutBusy(false));
                 }}
               >
-                Выйти из аккаунта
+                {logoutBusy ? "Выходим…" : "Выйти из аккаунта"}
               </button>
             </div>
           </>
