@@ -1,3 +1,4 @@
+import PlayStreak from "./PlayStreak";
 import { YandexLogin, EmailAction, EmailPreferences } from "./EmailPreferences";
 import { geoModeName, type GeoMode } from "./geo";
 import { AccountBests } from "./AccountBests";
@@ -243,6 +244,7 @@ export default function AccountPage() {
                 />
               </form>
             </section>
+            <PlayStreak />
             <EmailPreferences key={user.id} />
             {pending?.completed && (
               <section className="community-panel">

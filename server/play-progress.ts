@@ -1,21 +1,14 @@
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import type { PlayDay, PlayProgress } from "../src/playProgress";
+import { playOwnership } from "./play-owner";
+import { readPlayStreak, readStreakLeaderboard } from "./play-streaks";
 import { lineMoscowDate } from "../src/line";
 
 type Viewer = { browserHash: string; userId?: string };
 type Queryable = Pick<Pool, "query">;
 const dailyGames = ["line", "flash", "rotate", "slide", "dispatch"];
 const zone = "Europe/Moscow";
-
-function ownership(viewer: Viewer) {
-  return {
-    sql: viewer.userId
-      ? "g.owner_id=$1"
-      : "g.id IN(SELECT run_id FROM playne_guest_trials WHERE browser_hash=$1)",
-    id: viewer.userId ?? viewer.browserHash,
-  };
-}
 
 function shiftDay(day: string, offset: number) {
   const date = new Date(`${day}T12:00:00Z`);
@@ -34,7 +27,7 @@ export async function readPlayActivity(
   viewer: Viewer,
   day = lineMoscowDate(),
 ) {
-  const own = ownership(viewer);
+  const own = playOwnership(viewer);
   const { rows } = await pool.query(
     `WITH per_game AS (
       SELECT game,to_char(completed_at AT TIME ZONE '${zone}','YYYY-MM-DD') AS day,
@@ -57,7 +50,9 @@ export async function readPlayActivity(
     };
   };
   const start = weekStart(day);
-  const last7Days = Array.from({ length: 7 }, (_, i) => entry(shiftDay(day, i - 6)));
+  const last7Days = Array.from({ length: 7 }, (_, i) =>
+    entry(shiftDay(day, i - 6)),
+  );
   const week = Array.from({ length: 7 }, (_, i) => entry(shiftDay(start, i)));
   const weeklyDays = week.filter((date) => date.gamesCompleted > 0).length;
   return { weekStart: start, last7Days, week, weeklyDays };
@@ -68,7 +63,7 @@ export async function readPlayMilestones(
   viewer: Viewer,
   day = lineMoscowDate(),
 ): Promise<PlayProgress["milestones"]> {
-  const own = ownership(viewer);
+  const own = playOwnership(viewer);
   const { rows } = await pool.query(
     `WITH active_days AS (
         SELECT DISTINCT (completed_at AT TIME ZONE '${zone}')::date AS day
@@ -102,33 +97,36 @@ export async function readPlayProgress(
   now = new Date(),
 ): Promise<PlayProgress> {
   const day = lineMoscowDate(now);
-  const own = ownership(viewer);
-  const [activity, milestones, favorites, daily, recent] = await Promise.all([
-    readPlayActivity(pool, viewer, day),
-    readPlayMilestones(pool, viewer, day),
-    pool.query(
-      `SELECT game,count(*)::int AS completed_runs,max(completed_at) AS last_completed_at
+  const own = playOwnership(viewer);
+  const [activity, milestones, favorites, daily, recent, streak] =
+    await Promise.all([
+      readPlayActivity(pool, viewer, day),
+      readPlayMilestones(pool, viewer, day),
+      pool.query(
+        `SELECT game,count(*)::int AS completed_runs,max(completed_at) AS last_completed_at
       FROM playne_games g WHERE ${own.sql} AND completed_at>=$2::timestamptz-interval '30 days'
         AND completed_at<=$2::timestamptz
       GROUP BY game ORDER BY completed_runs DESC,last_completed_at DESC,game`,
-      [own.id, now.toISOString()],
-    ),
-    pool.query(
-      `SELECT DISTINCT ON(game) id,game,completed_at,jsonb_array_length(answers) AS completed_rounds
+        [own.id, now.toISOString()],
+      ),
+      pool.query(
+        `SELECT DISTINCT ON(game) id,game,completed_at,jsonb_array_length(answers) AS completed_rounds
       FROM playne_games g WHERE ${own.sql} AND game=ANY($2::text[])
         AND mode='classic' AND challenge->>'day'=$3
       ORDER BY game,created_at DESC,id`,
-      [own.id, dailyGames, day],
-    ),
-    pool.query(
-      `SELECT id,game,completed_at FROM playne_games g WHERE ${own.sql}
+        [own.id, dailyGames, day],
+      ),
+      pool.query(
+        `SELECT id,game,completed_at FROM playne_games g WHERE ${own.sql}
         AND completed_at IS NOT NULL AND completed_at<=$2::timestamptz
       ORDER BY completed_at DESC,id LIMIT 32`,
-      [own.id, now.toISOString()],
-    ),
-  ]);
+        [own.id, now.toISOString()],
+      ),
+      readPlayStreak(pool, viewer, day),
+    ]);
   return {
     day,
+    streak,
     ...activity,
     goal: { days: 3, completedDays: activity.weeklyDays },
     milestones,
@@ -137,12 +135,17 @@ export async function readPlayProgress(
       completedRuns: Number(row.completed_runs),
       lastCompletedAt: new Date(row.last_completed_at).toISOString(),
     })),
-    daily: Object.fromEntries(daily.rows.map((row) => [row.game, {
-      id: row.id,
-      completed: !!row.completed_at,
-      completedRounds: Number(row.completed_rounds),
-      totalRounds: 5,
-    }])),
+    daily: Object.fromEntries(
+      daily.rows.map((row) => [
+        row.game,
+        {
+          id: row.id,
+          completed: !!row.completed_at,
+          completedRounds: Number(row.completed_rounds),
+          totalRounds: 5,
+        },
+      ]),
+    ),
     recentCompletions: recent.rows.map((row) => ({
       id: row.id,
       game: row.game,
@@ -157,6 +160,23 @@ export async function registerPlayProgressRoutes(
   browser: (req: any, reply: any) => string,
   user: (req: any) => Promise<{ id: string } | null>,
 ) {
+  app.get("/api/play/streaks", async (req, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const query = req.query as Record<string, string>;
+    const page = query.page === undefined ? 1 : Number(query.page);
+    const limit = query.limit === undefined ? 5 : Number(query.limit);
+    if (
+      !Number.isSafeInteger(page) ||
+      page < 1 ||
+      page > 10000 ||
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > 50
+    )
+      return reply.code(400).send({ error: "Некорректная страница рейтинга" });
+    const signed = await user(req);
+    return readStreakLeaderboard(pool, signed?.id ?? null, page, limit);
+  });
   app.get("/api/play/progress", async (req, reply) => {
     reply.header("Cache-Control", "no-store");
     const browserHash = browser(req, reply);

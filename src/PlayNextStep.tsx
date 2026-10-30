@@ -1,3 +1,6 @@
+import StreakFlame from "./StreakFlame";
+import { streakDays } from "./playStreaks";
+import "./streak.css";
 import type { BrainGameId } from "./brainContent";
 import { brainMoscowDate } from "./brain";
 import { nextDaily, playCatalog, playMilestone } from "./playSuggestions";
@@ -52,6 +55,13 @@ export default function PlayNextStep({
           дней
         </span>
       </div>
+      {data.streak && data.streak.current > 0 && (
+        <p className="play-next-streak">
+          <StreakFlame animated />
+          {streakDays(data.streak.current)} подряд
+          {data.streak.playedToday ? " · огонь горит" : " · продли сегодня"}
+        </p>
+      )}
       {milestone && (
         <p className="play-next-milestone">
           <span aria-hidden="true">✓</span> {milestone}

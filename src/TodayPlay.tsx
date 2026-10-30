@@ -1,3 +1,6 @@
+import StreakFlame from "./StreakFlame";
+import { streakDays } from "./playStreaks";
+import "./streak.css";
 import BrainPreview from "./BrainPreview";
 import LinePreview from "./LinePreview";
 import type { GameId } from "./account";
@@ -173,6 +176,15 @@ export default function TodayPlay() {
           </a>
         )}
       </div>
+      {data?.streak && (
+        <a className="today-streak" href="/leaderboard/?game=streak">
+          <StreakFlame active={data.streak.current > 0} />
+          {data.streak.current > 0
+            ? `${streakDays(data.streak.current)} подряд`
+            : "Зажги свою серию"}
+          {data.streak.playedToday && <span> · сегодня ✓</span>}
+        </a>
+      )}
       {loading && !data ? (
         <div className="play-choices play-choices-loading" role="status">
           <span>Подбираем игры…</span>

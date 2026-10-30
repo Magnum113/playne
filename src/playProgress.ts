@@ -10,6 +10,7 @@ export const DAILY_PLAY_GAMES = [
 export type DailyPlayGame = (typeof DAILY_PLAY_GAMES)[number];
 export type PlayDay = { day: string; gamesCompleted: number; score: number };
 export type PlayProgress = {
+  streak: import("./playStreaks").PlayStreak;
   day: string;
   weekStart: string;
   last7Days: PlayDay[];

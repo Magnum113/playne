@@ -228,6 +228,46 @@ const NOW = new Date("2026-10-30T12:00:00Z");
     expect(after.recentCompletions.every((entry: any) => entry.completedAt === "2026-10-29T10:00:00.000Z")).toBe(true);
   });
 
+  it("merges unclaimed guest comparisons on login without publishing them or exposing claimed days after logout", async () => {
+    const cookie = await guest();
+    const browserHash = hash(/playne_guest=([^;]+)/.exec(cookie)![1]);
+    const ids = [];
+    for (const date of ["2026-10-29T10:00:00Z", "2026-10-30T10:00:00Z"])
+      ids.push(await run({ browserHash, game: "circle", completedAt: date }));
+    await pool.query(
+      "UPDATE playne_games SET challenge=challenge || '{\"comparison\":true}'::jsonb WHERE id=ANY($1::uuid[])",
+      [ids],
+    );
+    const before = (await get(cookie)).json();
+    expect(before.streak).toMatchObject({
+      current: 2,
+      best: 2,
+      playedToday: true,
+    });
+    const login = await get(
+      cookie,
+      "/api/auth/yandex/start?return=%2Fbrain%2F",
+    );
+    const state = new URL(login.headers.location!).searchParams.get("state");
+    const callback = await get(
+      cookie,
+      `/api/auth/yandex/callback?state=${state}&code=test`,
+    );
+    const after = (await get(cookies(callback))).json();
+    expect(after.streak).toEqual(before.streak);
+    const rows = (
+      await pool.query(
+        "SELECT owner_id,published_at FROM playne_games WHERE id=ANY($1::uuid[])",
+        [ids],
+      )
+    ).rows;
+    expect(rows.every((row) => !!row.owner_id && !row.published_at)).toBe(true);
+    expect((await get(cookie)).json().streak.current).toBe(0);
+    expect(
+      (await get(cookies(callback), "/api/play/streaks")).json().total,
+    ).toBe(0);
+  });
+
   it("keeps expired unpublished account completions and milestones through startup cleanup, deleting incomplete and guest runs", async () => {
     const player = await signed();
     const retained: string[] = [];

@@ -468,6 +468,12 @@ export async function buildApp(
             [userId, trial.id],
           );
         }
+        // Private retries are not guest trials. Preserve their activity on sign-in
+        // while keeping every comparison outside public score leaderboards.
+        await client.query(
+          "UPDATE playne_games SET owner_id=$1 WHERE owner_id IS NULL AND browser_hash=$2 AND completed_at IS NOT NULL AND challenge->>'comparison'='true'",
+          [userId, flow.browser_hash],
+        );
         // A guest can finish several games before signing in. Snapshot each board once.
         const claims = (
           await client.query(
@@ -1440,7 +1446,7 @@ export async function buildApp(
             }
           : run.challenge;
       const updated = await c.query(
-        "UPDATE playne_games SET answers=$1,score_units=$2,completed_at=CASE WHEN $3 THEN now() ELSE NULL END,owner_id=CASE WHEN $8 THEN $6 ELSE owner_id END,published_at=CASE WHEN $5 THEN coalesce(published_at,now()) ELSE published_at END,challenge=$7 WHERE id=$4 RETURNING completed_at",
+        "UPDATE playne_games SET answers=$1,score_units=$2,completed_at=CASE WHEN $3 THEN now() ELSE NULL END,expires_at=CASE WHEN $3 AND $6::uuid IS NULL THEN greatest(expires_at,now()+interval '365 days') ELSE expires_at END,owner_id=CASE WHEN $8 THEN $6 ELSE owner_id END,published_at=CASE WHEN $5 THEN coalesce(published_at,now()) ELSE published_at END,challenge=$7 WHERE id=$4 RETURNING completed_at",
         [
           JSON.stringify(savedAnswers),
           units,

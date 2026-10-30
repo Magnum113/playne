@@ -7,6 +7,7 @@ import {
   geoModeFor,
   type GeoMode,
 } from "./geo";
+import StreakLeaderboardPage from "./StreakLeaderboard";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -38,6 +39,12 @@ function modeForGame(game: LeaderboardGame, value: unknown): GameMode {
 }
 
 export default function LeaderboardPage() {
+  const streak =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("game") === "streak";
+  return streak ? <StreakLeaderboardPage /> : <ScoreLeaderboardPage />;
+}
+function ScoreLeaderboardPage() {
   const query =
     typeof window === "undefined"
       ? null
@@ -180,6 +187,9 @@ export default function LeaderboardPage() {
         <p className="community-intro">
           Общий зачёт и рекорды по играм. Найди своё место.
         </p>
+        <a className="today-streak" href="/leaderboard/?game=streak">
+          Ударные серии ↗
+        </a>
         <div className="rank-games" role="group" aria-label="Выбор игры">
           {Object.entries(boardNames)
             .filter(([id]) => !isBrain(id))

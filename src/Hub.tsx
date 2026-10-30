@@ -19,6 +19,7 @@ import RecordCelebration from "./RecordCelebration";
 import CategoryGlyph from "./CategoryGlyph";
 import useCardMotion from "./useCardMotion";
 import TodayPlay from "./TodayPlay";
+import { StreakBoardCard } from "./StreakLeaderboard";
 
 function Arrow() {
   return (
@@ -92,7 +93,10 @@ export default function Hub() {
           <RecordCelebration />
           <TodayPlay />
           <div className="hub-catalog">
-            <HubTopFive />
+            <aside className="hub-leaderboards" aria-label="Рейтинги Playne">
+              <HubTopFive />
+              <StreakBoardCard compact />
+            </aside>
             <div className="game-cards">
               <a
                 className="game-card game-card-live"

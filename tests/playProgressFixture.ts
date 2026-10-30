@@ -35,6 +35,7 @@ export function playProgressFixture(
     );
   });
   return {
+    streak: { current: 0, best: 0, playedToday: false, lastDay: null },
     day,
     weekStart: monday.toISOString().slice(0, 10),
     week,
