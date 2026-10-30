@@ -47,12 +47,7 @@ const useGameLayoutEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 type Phase =
-  | "welcome"
-  | "ready"
-  | "playing"
-  | "checking"
-  | "round-result"
-  | "finished";
+  "welcome" | "ready" | "playing" | "checking" | "round-result" | "finished";
 type Answer =
   | { cells: number[] }
   | { same: boolean }
@@ -173,6 +168,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
     game: BrainGameId;
     promise: Promise<ServerRun | null>;
   } | null>(null);
+  const resultToResume = useRef<string | null>(null);
   const startsTracked = useRef(new Set<string>());
   const beginning = useRef(false);
   const elapsed = timing
@@ -253,6 +249,24 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
       hintRequest: hintRequest.current ?? undefined,
     });
   }, [game, run, phase, index, cells, moves, actions, flashSeen, pending]);
+  useEffect(() => {
+    const token = challengeToken ?? run?.challenge.comparisonToken;
+    if (!run?.completed || !token) return;
+    window.history.replaceState(
+      null,
+      "",
+      challengeQuery(
+        `${content.path}?result=${encodeURIComponent(run.id)}`,
+        token,
+      ),
+    );
+  }, [
+    run?.completed,
+    run?.id,
+    challengeToken,
+    run?.challenge.comparisonToken,
+    content.path,
+  ]);
   useGameLayoutEffect(() => {
     if (["ready", "playing", "round-result", "finished"].includes(phase)) {
       heading.current?.focus({ preventScroll: true });
@@ -279,8 +293,11 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
         setRun(data);
         setMode(data.mode === "practice" ? "practice" : "classic");
         setDifficulty(data.challenge.difficulty ?? 1);
-        if (data.completed) setPhase("finished");
-        else {
+        if (data.completed) {
+          resultToResume.current = null;
+          setPhase("finished");
+        } else {
+          resultToResume.current = data.id;
           const next = Math.min(data.answers?.length ?? 0, 4);
           const previous = readSaved(game);
           writeSaved(game, {
@@ -434,18 +451,20 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
     setBusy(true);
     setError("");
     const previous = readSaved(game);
-    const restoreId = challengeToken
-      ? undefined
-      : access.resume
-        ? access.trial?.id
-        : previous &&
-            !previous.completed &&
-            previous.mode === chosen &&
-            (chosen === "classic"
-              ? previous.day === brainMoscowDate()
-              : previous.difficulty === selectedDifficulty)
-          ? previous.id
-          : undefined;
+    const restoreId =
+      resultToResume.current ??
+      (challengeToken
+        ? undefined
+        : access.resume
+          ? access.trial?.id
+          : previous &&
+              !previous.completed &&
+              previous.mode === chosen &&
+              (chosen === "classic"
+                ? previous.day === brainMoscowDate()
+                : previous.difficulty === selectedDifficulty)
+            ? previous.id
+            : undefined);
     try {
       let data: ServerRun | null;
       try {
@@ -463,6 +482,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
         data = await ranked.begin(chosen, selectedDifficulty, challengeToken);
       }
       if (!data) return;
+      resultToResume.current = null;
       if (
         !Array.isArray(data.challenge?.rounds) ||
         data.challenge.rounds.length !== 5 ||

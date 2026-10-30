@@ -21,6 +21,7 @@ const mock = vi.hoisted(() => ({
   brainHint: vi.fn(),
   api: vi.fn(),
   progress: null as any,
+  blocked: false,
   rankedState: { status: "ready" } as {
     status: "ready" | "saved" | "save-error";
     message?: string;
@@ -39,7 +40,7 @@ vi.mock("../src/account", async (importOriginal) => ({
     user: mock.user,
     ready: true,
     loading: false,
-    blocked: false,
+    blocked: mock.blocked,
     resume: false,
     refresh: vi.fn(),
   }),
@@ -86,6 +87,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
   mock.user = { id: "u", nickname: "Игрок" };
+  mock.blocked = false;
   mock.rankedState = { status: "ready" };
   const day = brainMoscowDate();
   mock.progress = {
@@ -555,41 +557,166 @@ describe("brain game orchestration", () => {
     ).toBeNull();
   });
 
-  it("keeps the fifth round correction visible before showing the total", async () => {
-    const data = fixture("rotate");
-    const prior = Array.from({ length: 4 }, () => ({
-      same: true,
-      correctSame: true,
-      score: 100,
-    }));
-    mock.begin.mockResolvedValue({ ...data, answers: prior });
-    mock.brainStart.mockResolvedValue({
-      round: data.challenge.rounds[4],
-      startedAt: Date.now(),
-      serverNow: Date.now(),
-      hints: 0,
-    });
-    mock.brainAnswer.mockResolvedValue({
+  it.each([undefined, "last-round-invite"])(
+    "keeps the fifth round correction visible and persists completed challenge %s before the total",
+    async (token) => {
+      const data = fixture("rotate");
+      if (token) {
+        window.history.replaceState(
+          null,
+          "",
+          `/brain/rotate/?challenge=${token}`,
+        );
+        const normalRead = mock.api.getMockImplementation()!;
+        mock.api.mockImplementation(async (path) =>
+          path === `/challenges/${token}`
+            ? {
+                game: "rotate",
+                nickname: "Друг",
+                score: 400,
+                mode: "classic",
+                day: data.challenge.day,
+                isTodayDaily: false,
+              }
+            : normalRead(path),
+        );
+      }
+      const prior = Array.from({ length: 4 }, () => ({
+        same: true,
+        correctSame: true,
+        score: 100,
+      }));
+      mock.begin.mockResolvedValue({ ...data, answers: prior });
+      mock.brainStart.mockResolvedValue({
+        round: data.challenge.rounds[4],
+        startedAt: Date.now(),
+        serverNow: Date.now(),
+        hints: 0,
+      });
+      mock.brainAnswer.mockResolvedValue({
+        ...data,
+        completed: true,
+        score: 500,
+        answers: [...prior, { same: true, correctSame: true, score: 100 }],
+      });
+      await act(async () => root.render(<BrainGame game="rotate" />));
+      await act(async () => button("Начать игру→").click());
+      await act(async () => button("Начать раунд →").click());
+      await act(async () =>
+        box
+          .querySelector<HTMLButtonElement>(".brain-binary-controls button")!
+          .click(),
+      );
+      expect(box.querySelector(".brain-rotation-correction")).toBeTruthy();
+      expect(box.querySelector('[data-testid="public-save"]')).toBeNull();
+      expect(box.querySelector(".play-next")).toBeNull();
+      expect(
+        mock.api.mock.calls.every(([path]) => path === `/challenges/${token}`),
+      ).toBe(true);
+      if (token) {
+        expect(new URLSearchParams(window.location.search).get("result")).toBe(
+          runId,
+        );
+        expect(
+          new URLSearchParams(window.location.search).get("challenge"),
+        ).toBe(token);
+      }
+      await act(async () => button("Посмотреть итог →").click());
+      expect(box.querySelector(".brain-total strong")?.textContent).toBe("500");
+      expect(box.querySelector('[data-testid="public-save"]')).toBeTruthy();
+    },
+  );
+  it("keeps the exact completed challenge in the URL and restores it for a consumed guest trial", async () => {
+    const token = "test-challenge",
+      data = fixture("rotate", "practice");
+    const complete = {
       ...data,
+      private: true,
       completed: true,
-      score: 500,
-      answers: [...prior, { same: true, correctSame: true, score: 100 }],
-    });
+      score: 450,
+      challenge: {
+        ...data.challenge,
+        comparison: true,
+        comparisonToken: token,
+      },
+      answers: Array.from({ length: 5 }, () => ({
+        same: true,
+        correctSame: true,
+        score: 90,
+      })),
+    };
+    const normalRead = mock.api.getMockImplementation()!;
+    mock.api.mockImplementation(async (path) =>
+      path === `/challenges/${token}`
+        ? {
+            token,
+            game: "rotate",
+            nickname: "Друг",
+            score: 400,
+            maxScore: 500,
+            mode: "practice",
+            day: data.challenge.day,
+            isTodayDaily: false,
+          }
+        : normalRead(path),
+    );
+    window.history.replaceState(null, "", `/brain/rotate/?challenge=${token}`);
+    mock.begin.mockResolvedValue(complete);
     await act(async () => root.render(<BrainGame game="rotate" />));
     await act(async () => button("Начать игру→").click());
-    await act(async () => button("Начать раунд →").click());
-    await act(async () =>
-      box
-        .querySelector<HTMLButtonElement>(".brain-binary-controls button")!
-        .click(),
+    expect(new URLSearchParams(window.location.search).get("result")).toBe(
+      runId,
     );
-    expect(box.querySelector(".brain-rotation-correction")).toBeTruthy();
+    expect(new URLSearchParams(window.location.search).get("challenge")).toBe(
+      token,
+    );
+    expect(box.querySelector(".brain-total strong")?.textContent).toBe("450");
+    act(() => root.unmount());
+    root = createRoot(box);
+    mock.begin.mockClear();
+    mock.user = null;
+    mock.blocked = true;
+    mock.resume.mockResolvedValue(complete);
+    await act(async () => root.render(<BrainGame game="rotate" />));
+    expect(mock.resume).toHaveBeenCalledExactlyOnceWith(runId);
+    expect(mock.begin).not.toHaveBeenCalled();
+    expect(mock.brainStart).not.toHaveBeenCalled();
+    expect(box.querySelector(".brain-total strong")?.textContent).toBe("450");
+    expect(box.textContent).toContain("Ты впереди на 50 очков");
     expect(box.querySelector('[data-testid="public-save"]')).toBeNull();
-    expect(box.querySelector(".play-next")).toBeNull();
-    expect(mock.api).not.toHaveBeenCalled();
-    await act(async () => button("Посмотреть итог →").click());
-    expect(box.querySelector(".brain-total strong")?.textContent).toBe("500");
-    expect(box.querySelector('[data-testid="public-save"]')).toBeTruthy();
+  });
+  it("does not start an incomplete challenge result automatically and resumes that exact run on click", async () => {
+    const token = "unfinished",
+      data = fixture("rotate", "practice");
+    const normalRead = mock.api.getMockImplementation()!;
+    mock.api.mockImplementation(async (path) =>
+      path === `/challenges/${token}`
+        ? {
+            game: "rotate",
+            nickname: "Друг",
+            score: 400,
+            mode: "practice",
+            day: data.challenge.day,
+            isTodayDaily: false,
+          }
+        : normalRead(path),
+    );
+    window.history.replaceState(
+      null,
+      "",
+      `/brain/rotate/?result=${runId}&challenge=${token}`,
+    );
+    mock.resume.mockResolvedValue(data);
+    await act(async () => root.render(<BrainGame game="rotate" />));
+    expect(mock.resume).toHaveBeenCalledTimes(1);
+    expect(mock.brainStart).not.toHaveBeenCalled();
+    expect(mock.begin).not.toHaveBeenCalled();
+    expect(box.querySelector(".brain-stage")).toBeNull();
+    await act(async () => button("Начать игру→").click());
+    expect(mock.resume).toHaveBeenCalledTimes(2);
+    expect(mock.begin).not.toHaveBeenCalled();
+    expect(mock.brainStart).not.toHaveBeenCalled();
+    expect(button("Начать раунд →")).toBeTruthy();
   });
 
   it("reuses a failed hint request after reload without losing the route", async () => {

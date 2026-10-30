@@ -19,17 +19,15 @@ import {
 import { LINE_GOALS, reachGoal } from "./analytics";
 import "./line.css";
 import ShareResult from "./ShareResult";
-import ChallengeContext, { readChallengeToken } from "./ChallengeContext";
+import ChallengeContext, {
+  challengeQuery,
+  readChallengeToken,
+} from "./ChallengeContext";
 import { PlayneEmailOffer } from "./EmailPreferences";
 
 type Mode = "classic" | "practice";
 type Phase =
-  | "welcome"
-  | "ready"
-  | "playing"
-  | "checking"
-  | "round-result"
-  | "finished";
+  "welcome" | "ready" | "playing" | "checking" | "round-result" | "finished";
 type Saved = {
   id: string;
   mode: Mode;
@@ -100,6 +98,11 @@ export default function LineGame() {
   const heading = useRef<HTMLHeadingElement>(null);
   const hintRequest = useRef<{ id: string; path: number[] } | null>(null);
   const sending = useRef(false);
+  const resultRequest = useRef<{
+    id: string;
+    promise: Promise<ServerRun | null>;
+  } | null>(null);
+  const resultToResume = useRef<string | null>(null);
   const puzzle: LinePuzzle | undefined = run?.challenge.puzzles[index];
   const answers = run?.answers ?? [];
   const elapsed = timing
@@ -128,6 +131,89 @@ export default function LineGame() {
       /* Server still keeps the attempt. */
     }
   }, [run, index, path, phase]);
+  useEffect(() => {
+    const token = challengeToken ?? run?.challenge.comparisonToken;
+    if (!run?.completed || !token) return;
+    window.history.replaceState(
+      null,
+      "",
+      challengeQuery(`/one-line/?result=${encodeURIComponent(run.id)}`, token),
+    );
+  }, [run?.completed, run?.id, challengeToken, run?.challenge.comparisonToken]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const id = new URLSearchParams(window.location.search).get("result");
+    if (
+      !id ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        id,
+      )
+    )
+      return;
+    if (resultRequest.current?.id !== id)
+      resultRequest.current = { id, promise: ranked.resume(id) };
+    let alive = true;
+    setBusy(true);
+    void resultRequest.current.promise
+      .then((data) => {
+        if (!alive || !data) return;
+        if (
+          data.game !== "line" ||
+          !Array.isArray(data.challenge?.puzzles) ||
+          data.challenge.puzzles.length !== 5
+        )
+          throw new Error("Не удалось загрузить результат этой игры.");
+        setRun(data);
+        setMode(data.mode === "practice" ? "practice" : "classic");
+        if (data.completed) {
+          resultToResume.current = null;
+          setTiming(null);
+          setPhase("finished");
+        } else {
+          resultToResume.current = data.id;
+          const previous = readSaved(),
+            next = Math.min(data.answers?.length ?? 0, 4);
+          const restored =
+            previous?.id === data.id &&
+            previous.index === next &&
+            linePathState(data.challenge.puzzles[next], previous.path).valid
+              ? previous.path
+              : [];
+          try {
+            localStorage.setItem(
+              STORAGE,
+              JSON.stringify({
+                id: data.id,
+                mode: data.mode === "practice" ? "practice" : "classic",
+                day: data.challenge.day,
+                index: next,
+                path: restored,
+                completed: false,
+              } satisfies Saved),
+            );
+          } catch {
+            /* The server still keeps this party. */
+          }
+          setMessage(
+            "Эта партия ещё не завершена. Продолжи её по кнопке, когда будешь готов.",
+          );
+        }
+      })
+      .catch((error) => {
+        if (alive)
+          setError(
+            error instanceof Error
+              ? error.message
+              : "Не удалось загрузить результат. Попробуй ещё раз.",
+          );
+      })
+      .finally(() => {
+        if (alive) setBusy(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
   useEffect(() => {
     if (["round-result", "finished", "ready"].includes(phase))
       heading.current?.focus({ preventScroll: true });
@@ -180,16 +266,18 @@ export default function LineGame() {
     setError("");
     const previous = readSaved();
     // Guests have a single trial across modes; resume it rather than creating another.
-    const restoreId = challengeToken
-      ? undefined
-      : access.resume
-        ? access.trial?.id
-        : previous &&
-            !previous.completed &&
-            previous.mode === chosen &&
-            (chosen === "practice" || previous.day === lineMoscowDate())
-          ? previous.id
-          : undefined;
+    const restoreId =
+      resultToResume.current ??
+      (challengeToken
+        ? undefined
+        : access.resume
+          ? access.trial?.id
+          : previous &&
+              !previous.completed &&
+              previous.mode === chosen &&
+              (chosen === "practice" || previous.day === lineMoscowDate())
+            ? previous.id
+            : undefined);
     let data: ServerRun | null;
     try {
       data = restoreId
@@ -217,6 +305,7 @@ export default function LineGame() {
       setBusy(false);
       return;
     }
+    resultToResume.current = null;
     if (
       !Array.isArray(data.challenge?.puzzles) ||
       data.challenge.puzzles.length !== 5
@@ -398,6 +487,7 @@ export default function LineGame() {
                       : undefined)
                   }
                 />
+                {message && <p role="status">{message}</p>}
                 <a
                   className="game-start-ranking"
                   href={`/leaderboard/?game=line&mode=${mode}`}
