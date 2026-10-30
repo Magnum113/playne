@@ -229,8 +229,14 @@ export function TopFiveCard({
             {data?.mine ? ` · ты №${overallNumber(data.mine.place)}` : ""}
           </span>
         </div>
-        <a className="top-five-cta" href="/leaderboard/?game=overall">
-          Займи место <span aria-hidden="true">→</span>
+        <a
+          className="top-five-cta"
+          href="/leaderboard/?game=overall"
+          aria-label="Весь общий рейтинг"
+        >
+          <span className="top-five-cta-desktop">Займи место</span>
+          <span className="top-five-cta-mobile">Все</span>
+          <span aria-hidden="true">→</span>
         </a>
       </header>
       {error ? (

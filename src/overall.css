@@ -117,6 +117,44 @@
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+.top-five-cta-mobile {
+  display: none;
+}
+@media (max-width: 650px) {
+  .hub-leaderboards {
+    gap: 12px;
+  }
+  .hub-leaderboards .top-five {
+    padding: 14px;
+  }
+  .hub-leaderboards .top-five-heading {
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .hub-leaderboards .top-five-heading h2 {
+    font-size: 17px;
+  }
+  .hub-leaderboards .top-five-heading > div {
+    gap: 2px;
+  }
+  .hub-leaderboards .top-five-cta-desktop {
+    display: none;
+  }
+  .hub-leaderboards .top-five-cta-mobile {
+    display: inline;
+  }
+  .hub-leaderboards .top-five-cta {
+    min-width: 44px;
+    justify-content: center;
+  }
+  .hub-leaderboards .top-five-list {
+    gap: 0;
+  }
+  .hub-leaderboards .top-five-list a {
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    padding: 4px 8px;
+  }
+}
 .top-five-list {
   display: grid;
   gap: 4px;

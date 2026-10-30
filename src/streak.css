@@ -183,6 +183,53 @@
   width: 16px;
   height: 20px;
 }
+@media (max-width: 650px) {
+  .hub-leaderboards .streak-board.is-compact {
+    padding: 14px;
+  }
+  .hub-leaderboards .streak-board-heading {
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .hub-leaderboards .streak-board-heading h2 {
+    gap: 6px;
+    font-size: 17px;
+  }
+  .hub-leaderboards .streak-board-heading h2 .streak-flame {
+    width: 18px;
+    height: 22px;
+  }
+  .hub-leaderboards .streak-board-heading p {
+    display: none;
+  }
+  .hub-leaderboards .streak-rank-list {
+    gap: 0;
+  }
+  .hub-leaderboards .streak-rank-list li {
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    gap: 8px;
+    min-height: 36px;
+    padding: 6px 8px;
+    border-radius: 10px;
+  }
+  .hub-leaderboards .streak-name {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    font-weight: 400;
+  }
+  .hub-leaderboards .streak-name small {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .hub-leaderboards .streak-score b {
+    font-size: 17px;
+  }
+}
 .streak-empty {
   color: var(--muted);
   font-size: 14px;
