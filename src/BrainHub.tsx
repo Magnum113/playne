@@ -5,7 +5,11 @@ import FooterLinks from "./FooterLinks";
 import { brainGames } from "./brainContent";
 import { brainMoscowDate } from "./brain";
 import { BrainPreview } from "./BrainBoards";
-import { brainDateLabel, type BrainProgress } from "./brainProgress";
+import {
+  brainDateLabel,
+  brainWeekDays,
+  type BrainProgress,
+} from "./brainProgress";
 import "./brain-hub.css";
 
 export function BrainFeature() {
@@ -115,6 +119,9 @@ export default function BrainHub() {
   const completed = Object.values(progress?.today.results ?? {}).filter(
     (result) => result?.completed,
   ).length;
+  const week = progress
+    ? brainWeekDays(progress.today.day, progress.last7Days)
+    : [];
   return (
     <div className="app brain-hub">
       <a className="skip-link" href="#brain-main">
@@ -254,13 +261,20 @@ export default function BrainHub() {
             </div>
             <ol
               className="brain-calendar"
-              aria-label="Занятия за последние семь дней"
+              aria-label="Занятия за текущую неделю, с понедельника по воскресенье"
             >
-              {(progress?.last7Days ?? []).map((day) => (
+              {week.map((day) => (
                 <li
                   key={day.day}
-                  className={day.gamesCompleted ? "is-complete" : ""}
-                  title={`${brainDateLabel(day.day)}: ${day.gamesCompleted} из 4 игр`}
+                  className={[
+                    day.gamesCompleted ? "is-complete" : "",
+                    day.isToday ? "is-today" : "",
+                    day.isFuture ? "is-future" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  aria-current={day.isToday ? "date" : undefined}
+                  title={`${brainDateLabel(day.day)}: ${day.isFuture ? "день ещё не наступил" : `${day.gamesCompleted} из 4 игр`}`}
                 >
                   <span>{brainDateLabel(day.day, { weekday: "short" })}</span>
                   <strong aria-hidden="true">
@@ -269,15 +283,16 @@ export default function BrainHub() {
                       : brainDateLabel(day.day, { day: "numeric" })}
                   </strong>
                   <span className="sr-only">
-                    {brainDateLabel(day.day)}: завершено игр{" "}
-                    {day.gamesCompleted}
+                    {brainDateLabel(day.day)}:{" "}
+                    {day.isFuture
+                      ? "день ещё не наступил"
+                      : `завершено игр ${day.gamesCompleted}`}
                   </span>
                 </li>
               ))}
             </ol>
             <p className="brain-week-note">
-              Неделя — с понедельника по Москве. Календарь показывает последние
-              семь дней.
+              Неделя — с понедельника по воскресенье, по Москве.
             </p>
           </div>
         </section>

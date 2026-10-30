@@ -104,28 +104,74 @@ describe("brain hub", () => {
     expect(links[3].textContent).toContain("Начать задачу дня");
   });
 
-  it("keeps the seven-day calendar distinct from the three-day current-week goal", async () => {
+  it("shows Monday through Sunday and excludes prior-week completions from the weekly goal", async () => {
     await mount();
-    expect(container.querySelectorAll(".brain-calendar li")).toHaveLength(7);
-    expect(container.querySelectorAll(".brain-calendar .is-complete")).toHaveLength(3);
-    expect(container.querySelector(".brain-calendar li")?.getAttribute("title")).toContain("1 из 4 игр");
+    const days = [...container.querySelectorAll<HTMLLIElement>(".brain-calendar li")];
+    expect(days).toHaveLength(7);
+    expect(days[0].querySelector("span")?.textContent).toBe("пн");
+    expect(days[0].getAttribute("title")).toContain("26 октября");
+    expect(days[0].getAttribute("title")).toContain("1 из 4 игр");
+    expect(days[6].querySelector("span")?.textContent).toBe("вс");
+    expect(days[6].getAttribute("title")).toContain("1 ноября");
+    expect(container.querySelectorAll(".brain-calendar .is-complete")).toHaveLength(2);
+    const today = container.querySelector('.brain-calendar [aria-current="date"]');
+    expect(today?.closest("li")?.getAttribute("title")).toContain("29 октября");
     const goal = container.querySelector("[role=progressbar]")!;
     expect(goal.getAttribute("aria-valuemax")).toBe("3");
     expect(goal.getAttribute("aria-valuenow")).toBe("2");
     expect(Number.parseFloat((goal.firstElementChild as HTMLElement).style.width)).toBeCloseTo(66.7, 0);
-    expect(container.textContent).toContain("Неделя — с понедельника по Москве");
+    expect(container.textContent).toContain("Неделя — с понедельника по воскресенье, по Москве");
+  });
+
+  it("shows the Friday week across the month boundary with Saturday/Sunday still ahead", async () => {
+    vi.setSystemTime(new Date("2026-10-30T12:00:00Z"));
+    const data = progress();
+    data.today.day = "2026-10-30";
+    data.last7Days = [1, 1, 1, 0, 1, 0, 2].map((gamesCompleted, index) => ({
+      day: `2026-10-${24 + index}`, gamesCompleted, score: gamesCompleted * 100,
+    }));
+    data.weeklyDays = 3;
+    data.goal.completedDays = 3;
+    mocks.api.mockResolvedValue(data);
+    await mount();
+    const days = [...container.querySelectorAll<HTMLLIElement>(".brain-calendar li")];
+    expect(days).toHaveLength(7);
+    expect(days[0].querySelector("span")?.textContent).toBe("пн");
+    expect(days[0].getAttribute("title")).toContain("26 октября");
+    expect(days[6].querySelector("span")?.textContent).toBe("вс");
+    expect(days[6].getAttribute("title")).toContain("1 ноября");
+    expect(days.some((day) => /24 октября|25 октября/.test(day.getAttribute("title") ?? ""))).toBe(false);
+    expect(container.querySelectorAll(".brain-calendar .is-complete")).toHaveLength(3);
+    expect(container.querySelector("[role=progressbar]")?.getAttribute("aria-valuenow")).toBe("3");
+    const today = container.querySelector('.brain-calendar [aria-current="date"]');
+    expect(today?.closest("li")).toBe(days[4]);
+    expect(days[4].getAttribute("title")).toContain("30 октября");
+    const future = days.filter((day) => day.classList.contains("is-future"));
+    expect(future).toEqual(days.slice(5));
+    expect(future.map((day) => day.querySelector("strong")?.textContent)).toEqual(["31", "1"]);
+    for (const day of future) {
+      expect(day.classList.contains("is-complete")).toBe(false);
+      const accessible = `${day.getAttribute("aria-label") ?? ""} ${day.getAttribute("title") ?? ""} ${day.querySelector(".sr-only")?.textContent ?? ""}`;
+      expect(accessible).toMatch(/ещ[её] не наступил|будущ|предстоит/i);
+      expect(accessible).not.toContain("завершено игр 0");
+      expect(day.hasAttribute("aria-current")).toBe(false);
+    }
   });
 
   it("caps a reached weekly goal without discarding completed calendar days", async () => {
     const data = progress();
-    data.weeklyDays = 5;
-    data.goal.completedDays = 5;
+    data.last7Days = [2, 0, 0, 1, 1, 1, 1].map((gamesCompleted, index) => ({
+      day: `2026-10-${23 + index}`, gamesCompleted, score: gamesCompleted * 100,
+    }));
+    data.weeklyDays = 4;
+    data.goal.completedDays = 4;
     mocks.api.mockResolvedValue(data);
     await mount();
     const goal = container.querySelector("[role=progressbar]")!;
     expect(goal.getAttribute("aria-valuenow")).toBe("3");
     expect((goal.firstElementChild as HTMLElement).style.width).toBe("100%");
     expect(container.querySelectorAll(".brain-calendar li")).toHaveLength(7);
+    expect(container.querySelectorAll(".brain-calendar .is-complete")).toHaveLength(4);
   });
 
   it("links practice recommendations to levels1–3 and guards malformed recommendations", async () => {
@@ -167,7 +213,7 @@ describe("brain hub", () => {
     await act(async () => root!.render(<BrainHub />));
     expect(container.textContent).not.toContain("Сегодня: 499 / 500 очков");
     expect(container.querySelector(".brain-today-count")?.textContent).toBe("0 / 4 игр");
-    expect(container.querySelectorAll(".brain-calendar li")).toHaveLength(0);
+    expect(container.querySelectorAll(".brain-calendar .is-complete")).toHaveLength(0);
     expect(playLinks()).toHaveLength(4);
   });
 

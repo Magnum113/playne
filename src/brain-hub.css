@@ -230,6 +230,17 @@ a.brain-card:hover {
   color: var(--panel);
   border-color: var(--mint);
 }
+.brain-calendar .is-today strong {
+  border: 2px solid var(--mint);
+}
+.brain-calendar .is-today > span:first-child {
+  color: var(--mint);
+  font-weight: 700;
+}
+.brain-calendar .is-future strong {
+  background: transparent;
+  border-style: dashed;
+}
 .brain-week .brain-week-note {
   font-size: 11px;
   line-height: 1.5;
