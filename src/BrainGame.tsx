@@ -41,7 +41,6 @@ import ChallengeContext, {
   readChallengeToken,
   challengeQuery,
 } from "./ChallengeContext";
-import { PlayneEmailOffer } from "./EmailPreferences";
 
 const useGameLayoutEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -841,7 +840,6 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                     ? "В личной истории, без влияния на рейтинг."
                     : "Войди, чтобы сохранить её в аккаунте."}
                 </StatusMessage>
-                <PlayneEmailOffer />
               </>
             )}
             <PlayNextStep

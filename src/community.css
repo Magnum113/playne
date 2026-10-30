@@ -587,7 +587,62 @@
   text-decoration: none;
 }
 
-/* Optional email choices belong to the sign-in/result flow, never game intros. */
+/* Optional email choices belong to sign-in, account settings and the footer. */
+.footer-signup {
+  flex: 0 0 100%;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+}
+.footer-signup p { margin: 0; }
+.footer-signup-choice { max-width: 100%; }
+.footer-signup-choice label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--text);
+  cursor: pointer;
+}
+.footer-signup-choice input[type="checkbox"] {
+  appearance: auto;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--purple);
+}
+.footer-signup .footer-signup-terms {
+  margin-inline-start: 28px;
+  font-size: 12px;
+}
+.footer-signup .footer-signup-terms a {
+  font-size: inherit;
+  min-height: 0;
+  padding: 0;
+  text-underline-offset: 3px;
+  text-decoration: underline;
+  color: var(--mint);
+}
+.footer-signup-error {
+  flex-basis: 100%;
+  color: var(--danger);
+}
+.footer-signup .yandex-login {
+  min-height: 44px;
+  padding: 10px 18px;
+  font-size: 13px;
+}
+.footer-signup .email-login { gap: 8px; }
+
 .email-login {
   display: grid;
   gap: 16px;

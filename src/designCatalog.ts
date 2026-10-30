@@ -56,6 +56,11 @@ export const tokenGroups = [
 // The source paths identify the production components used by these examples.
 export const componentInventory = [
   [
+    "Компактная подписка и вход в футере",
+    "FooterSignup.tsx · FooterSignupExamples.tsx · FooterLinks.tsx",
+    "content",
+  ],
+  [
     "Поле и кнопки в видимой области при старте и смене раунда",
     "useGameViewport.ts · BrainGame.tsx",
     "gameplay",

@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+vi.mock("../src/FooterSignup", () => ({ default: () => null }));
 // Navigation streak is verified separately from game mechanics.
 vi.mock("../src/HeaderStreak", () => ({ default: () => null }));
 import { act } from "react";

@@ -38,6 +38,7 @@ import {
   DestroyWebsiteLink,
 } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
+import FooterSignupExamples from "./FooterSignupExamples";
 import { ModeChoice, RoundDots, StatusMessage } from "./ui";
 import { SizePreview, CirclePreview, ColorPreview } from "./Hub";
 import GeoPreview from "./GeoPreview";
@@ -2006,6 +2007,16 @@ export default function DesignSystem() {
               </div>
               <Sample title="Общий футер" source="FooterLinks.tsx">
                 <FooterLinks />
+              </Sample>
+              <Sample
+                title="Вход и письма в футере"
+                source="FooterSignup.tsx · FooterSignupView"
+              >
+                <p className="ds-note">
+                  Пример без запросов к аккаунту. Галочка подключает подписку
+                  только в демонстрации.
+                </p>
+                <FooterSignupExamples />
               </Sample>
             </Section>
             <Section id="artwork">

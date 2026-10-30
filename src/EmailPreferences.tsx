@@ -7,6 +7,7 @@ import {
   EMAIL_CONSENT_VERSION,
   EMAIL_LABEL,
   EMAIL_DESCRIPTION,
+  EMAIL_SETTINGS_UPDATED,
 } from "./emailConsent";
 export function EmailConsent({
   checked,
@@ -69,12 +70,14 @@ export function YandexLogin({
   game,
   children,
   disabled = false,
+  showEmailConsent = true,
 }: {
   returnPath: string;
   source?: string;
   game?: string;
   children?: ReactNode;
   disabled?: boolean;
+  showEmailConsent?: boolean;
 }) {
   const { emailSignupAvailable } = useAuth();
   const [checked, setChecked] = useState(false),
@@ -87,7 +90,7 @@ export function YandexLogin({
     setError("");
     reachGoal(ACCOUNT_GOALS.loginStart, { source, ...(game ? { game } : {}) });
     try {
-      if (checked && emailSignupAvailable) {
+      if (showEmailConsent && checked && emailSignupAvailable) {
         if (!data) {
           setError("Подтверди обработку email или убери подписку.");
           return;
@@ -111,7 +114,7 @@ export function YandexLogin({
   }
   return (
     <div className="email-login">
-      {emailSignupAvailable && (
+      {showEmailConsent && emailSignupAvailable && (
         <EmailConsent
           checked={checked}
           onChange={setChecked}
@@ -163,6 +166,7 @@ export function EmailAction() {
     try {
       await api("/email/" + action.kind, "POST", { token: action.token });
       setDone(true);
+      window.dispatchEvent(new Event(EMAIL_SETTINGS_UPDATED));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -318,6 +322,7 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
           : { enabled: false },
       );
       apply(s);
+      window.dispatchEvent(new Event(EMAIL_SETTINGS_UPDATED));
       setChecked(false);
       setData(false);
       setMessage(
@@ -375,9 +380,7 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
       aria-labelledby={id + "-title"}
     >
       <h2 id={id + "-title"}>{EMAIL_LABEL}</h2>
-      <p>
-        {EMAIL_DESCRIPTION}. До 3 писем в неделю.
-      </p>
+      <p>{EMAIL_DESCRIPTION}. До 3 писем в неделю.</p>
       {!settings ? (
         <p role="status">{error || "Загружаем настройки…"}</p>
       ) : (
@@ -547,15 +550,6 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
     </section>
   );
 }
-export function PlayneEmailOffer() {
-  const { user, loading } = useAuth();
-  return user && !loading ? <EmailPreferences compact /> : null;
-}
-// Keep already open clients and existing result imports compatible.
-export function TopTenEmailOffer(_props: { game: string; mode?: string }) {
-  return <PlayneEmailOffer />;
-}
-
 function EmailExperimentReport() {
   const [report, setReport] = useState<any>(null),
     [error, setError] = useState(""),

@@ -5,7 +5,7 @@ import {
   type RankedState,
   type ServerRun,
 } from "./rankedQueue";
-import { YandexLogin, TopTenEmailOffer } from "./EmailPreferences";
+import { YandexLogin } from "./EmailPreferences";
 import { rememberPersonalRecord } from "./recordCelebrationState";
 import { GuestTrialPanel, ResultStatus } from "./ResultStatus";
 import { PLAY_PROGRESS_UPDATED } from "./playProgress";
@@ -825,9 +825,6 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
         <button className="primary" onClick={login}>
           Войти и сохранить
         </button>
-      )}
-      {s.status === "saved" && user && (
-        <TopTenEmailOffer game={game} mode={run.mode} />
       )}
     </ResultStatus>
   );

@@ -3,11 +3,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
-import {
-  EmailPreferences,
-  PlayneEmailOffer,
-  YandexLogin,
-} from "../src/EmailPreferences";
+import { EmailPreferences, YandexLogin } from "../src/EmailPreferences";
+import FooterSignup from "../src/FooterSignup";
 import {
   EMAIL_CONSENT_VERSION,
   EMAIL_LABEL,
@@ -239,7 +236,7 @@ describe("Email entry safety", () => {
     });
     expect(box.textContent).toContain("Письма подключены");
   });
-  it("shows the optional result offer for any signed-in user without requesting a top-ten board", async () => {
+  it("shows the optional footer offer without requesting a top-ten board or repeating the email field", async () => {
     auth.user = { id: "ordinary-player" };
     const remote = vi.fn(
       async (_url: any, _options?: any) =>
@@ -255,12 +252,14 @@ describe("Email entry safety", () => {
         ),
     );
     vi.stubGlobal("fetch", remote);
-    await act(async () => root.render(<PlayneEmailOffer />));
+    await act(async () => root.render(<FooterSignup />));
     expect(remote.mock.calls).toHaveLength(1);
     expect(remote.mock.calls[0][0]).toBe("/api/email/settings");
     expect(box.textContent).toContain(EMAIL_LABEL);
     expect(box.textContent).not.toContain("топ-10");
     expect(box.querySelector("button.primary")).toBeNull();
+    expect(box.querySelector('input[type="email"]')).toBeNull();
+    expect(box.textContent).not.toContain("qa@example.com");
     expect(
       box.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked,
     ).toBe(false);

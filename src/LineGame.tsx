@@ -24,7 +24,6 @@ import ChallengeContext, {
   challengeQuery,
   readChallengeToken,
 } from "./ChallengeContext";
-import { PlayneEmailOffer } from "./EmailPreferences";
 
 type Mode = "classic" | "practice";
 type Phase =
@@ -576,7 +575,6 @@ export default function LineGame() {
                 <p className="save-result">
                   Результат сравнения сохранён отдельно от рейтинга.
                 </p>
-                <PlayneEmailOffer />
               </>
             ) : (
               <SaveResult run={ranked} game="line" />
