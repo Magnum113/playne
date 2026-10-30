@@ -5,6 +5,50 @@
   min-width: 0;
   align-self: start;
 }
+.header-account {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 8px;
+}
+.header-account a.header-streak {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 4px;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+.header-account a.header-streak.is-active {
+  color: var(--orange);
+}
+.header-account a.header-streak:hover {
+  background: var(--hover);
+}
+.header-account .header-streak .streak-flame {
+  width: 20px;
+  height: 24px;
+}
+@media (max-width: 480px) {
+  .header-account {
+    gap: 4px;
+  }
+  .header-account a.account-nav.account-nav-login {
+    width: 44px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  .header-account .account-nav-login > span {
+    display: none;
+  }
+}
 .streak-flame {
   width: 24px;
   height: 28px;

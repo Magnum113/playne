@@ -8,6 +8,8 @@ import {
 import { YandexLogin, TopTenEmailOffer } from "./EmailPreferences";
 import { rememberPersonalRecord } from "./recordCelebrationState";
 import { GuestTrialPanel, ResultStatus } from "./ResultStatus";
+import HeaderStreak from "./HeaderStreak";
+import { PLAY_PROGRESS_UPDATED } from "./playProgress";
 import { SHADE_SCORE_VERSION } from "./colorfle";
 import { PRESSURE_RULES_VERSION, formatPressScore } from "./pressure";
 import { pairs } from "./data";
@@ -337,26 +339,29 @@ export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
 export function AccountNav() {
   const { user } = useAuth();
   return (
-    <a
-      className={`account-nav${user ? "" : " account-nav-login"}`}
-      href="/account/"
-      aria-label={user ? "Личный кабинет" : "Войти через Яндекс"}
-      title={user ? "Личный кабинет" : "Войти через Яндекс"}
-    >
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        aria-hidden="true"
+    <span className="header-account">
+      <HeaderStreak />
+      <a
+        className={`account-nav${user ? "" : " account-nav-login"}`}
+        href="/account/"
+        aria-label={user ? "Личный кабинет" : "Войти через Яндекс"}
+        title={user ? "Личный кабинет" : "Войти через Яндекс"}
       >
-        <circle cx="12" cy="8" r="3.5" />
-        <path d="M4 21v-2a8 8 0 0 1 16 0v2" />
-      </svg>
-      {!user && <span>Войти</span>}
-    </a>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="8" r="3.5" />
+          <path d="M4 21v-2a8 8 0 0 1 16 0v2" />
+        </svg>
+        {!user && <span>Войти</span>}
+      </a>
+    </span>
   );
 }
 export class RankedSyncError extends Error {}
@@ -398,7 +403,10 @@ export function useRankedRun<G extends GameId>(game: G) {
     };
   }, []);
   useEffect(() => {
-    if (["complete", "saved"].includes(state.status)) void auth.refresh();
+    if (["complete", "saved"].includes(state.status)) {
+      void auth.refresh();
+      window.dispatchEvent(new Event(PLAY_PROGRESS_UPDATED));
+    }
   }, [state.status]);
   useEffect(() => {
     if (

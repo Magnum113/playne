@@ -1,5 +1,7 @@
 import type { GameId } from "./account";
 
+export const PLAY_PROGRESS_UPDATED = "playne:progress-updated";
+
 export const DAILY_PLAY_GAMES = [
   "line",
   "flash",

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, useAuth } from "./account";
 import { brainMoscowDate } from "./brain";
-import type { PlayProgress } from "./playProgress";
+import { PLAY_PROGRESS_UPDATED, type PlayProgress } from "./playProgress";
 
 export function usePlayProgress(revision?: string) {
   const auth = useAuth();
@@ -32,11 +32,13 @@ export function usePlayProgress(revision?: string) {
     }, 30_000);
     window.addEventListener("focus", visible);
     window.addEventListener("pageshow", visible);
+    window.addEventListener(PLAY_PROGRESS_UPDATED, refresh);
     document.addEventListener("visibilitychange", visible);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("focus", visible);
       window.removeEventListener("pageshow", visible);
+      window.removeEventListener(PLAY_PROGRESS_UPDATED, refresh);
       document.removeEventListener("visibilitychange", visible);
     };
   }, [refresh]);
