@@ -540,7 +540,10 @@ footer > span:first-child {
 .summary {
   max-width: 600px;
   margin: 0 auto;
-  padding: 45px 0 55px;
+  padding: var(--space-8);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel);
   text-align: center;
 }
 .summary .eyebrow {
@@ -916,7 +919,7 @@ dialog .primary {
     margin-top: 10px;
   }
   .summary {
-    padding-top: 32px;
+    padding: var(--space-6) var(--space-4);
   }
   .summary .eyebrow {
     font-size: 10px;
@@ -1696,8 +1699,7 @@ footer { flex-wrap: wrap; }
 .guide-hero { max-width: 860px; margin-bottom: 52px; }
 .guide-hero h1 { font-size: clamp(32px, 4.3vw, 52px); line-height: 1.12; letter-spacing: -.04em; text-wrap: balance; margin: 16px 0 22px; }
 .guide-hero > p:not(.eyebrow) { max-width: 740px; color: var(--muted); font-size: 18px; line-height: 1.75; }
-.guide-play { display: inline-flex; align-items: center; gap: 20px; min-height: 48px; padding: 12px 22px; margin-top: 20px; border-radius: 12px; color: var(--text); background: var(--mint-tint); border: 1px solid var(--line); font-size: 15px; font-weight: 650; text-decoration: none; transition: background .15s; }
-.guide-play:hover { background: var(--purple-tint); }
+.guide-play { margin-top: 20px; max-width: 100%; white-space: normal; text-align: left; }
 .guide-layout { display: grid; grid-template-columns: 230px minmax(0, 680px); gap: 70px; align-items: start; }
 .guide-toc { position: sticky; top: 28px; padding-top: 5px; }
 .guide-toc nav { display: grid; gap: 16px; font-size: 13px; line-height: 1.6; }

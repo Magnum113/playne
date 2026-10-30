@@ -49,7 +49,7 @@ export default function GuidePage({
             <p>
               Такой страницы нет. Выбери игру на главной или загляни в правила.
             </p>
-            <a className="guide-play" href="/">
+            <a className="primary guide-play" href="/">
               Выбрать игру →
             </a>
           </section>
@@ -61,7 +61,7 @@ export default function GuidePage({
               </p>
               <h1>{guide.title}</h1>
               <p>{guide.intro}</p>
-              <a className="guide-play" href={guide.game}>
+              <a className="primary guide-play" href={guide.game}>
                 Играть в «{guide.gameName}» <span aria-hidden="true">↗</span>
               </a>
             </div>
@@ -95,7 +95,7 @@ export default function GuidePage({
                 <div className="guide-bottom-cta">
                   <h2>Теперь попробуй</h2>
                   <p>Правила проще запоминаются в игре.</p>
-                  <a className="guide-play" href={guide.game}>
+                  <a className="primary guide-play" href={guide.game}>
                     Открыть «{guide.gameName}» →
                   </a>
                 </div>
@@ -141,7 +141,8 @@ export default function GuidePage({
                 <h2>«Жми»: правила игры с одной кнопкой</h2>
                 <p>
                   Бесплатный аналог Press Under Pressure на русском: как считать
-                  нажатия, запоминать прошлые уровни и пройти все 30 заданий.
+                  нажатия, запоминать прошлые уровни и продержаться как можно
+                  дольше.
                 </p>
                 <span className="guide-card-link">
                   Правила и игра <span aria-hidden="true">↗</span>

@@ -1,17 +1,13 @@
-import { PlayneBrand, ThemeToggle } from "./SiteHeader";
-import { AccountNav } from "./account";
+import { GameHeader } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 export default function PolicyPage({ terms = false }: { terms?: boolean }) {
   return (
     <div className="app community-app">
-      <header className="header">
-        <PlayneBrand />
-        <nav className="game-header-actions">
-          <AccountNav />
-          <ThemeToggle />
-        </nav>
-      </header>
-      <main className="community-main">
+      <a className="skip-link" href="#policy-main">
+        Перейти к содержанию
+      </a>
+      <GameHeader />
+      <main id="policy-main" className="community-main">
         <p className="eyebrow">PLAYNE</p>
         <h1>{terms ? "Правила сайта" : "Конфиденциальность"}</h1>
         <article className="community-panel">

@@ -923,9 +923,9 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 </h2>
                 <p>
                   {game === "flash" && round?.kind === "flash"
-                    ? `Запомни ${round.count} клеток. Показ — ${(round.showMs / 1000).toLocaleString("ru-RU")} с. Затем выбери их на пустом поле.`
+                    ? `Клеток для запоминания: ${round.count}. Показ — ${(round.showMs / 1000).toLocaleString("ru-RU")} с. Затем выбери их на пустом поле.`
                     : game === "dispatch" && round?.kind === "dispatch"
-                      ? `${round.trains.length} поездов за ${seconds(round.durationMs)}. Время продолжится, даже если свернуть вкладку.`
+                      ? `Поездов: ${round.trains.length}. Время: ${seconds(round.durationMs)}. Время продолжится, даже если свернуть вкладку.`
                       : game === "slide"
                         ? "Сдвигай машины вдоль их оси и доведи красную R до выхода справа. Подтверди, когда будешь доволен числом ходов."
                         : "Совпадут ли две фигуры после поворота? Или для этого нужно отражение?"}
