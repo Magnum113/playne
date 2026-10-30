@@ -13,6 +13,7 @@ import {
   EMAIL_EXPERIMENT,
   renderRankEmail,
   renderVerificationEmail,
+  renderReminderEmail,
   type RankEmailItem,
   type EmailVariant,
 } from "./email-templates";
@@ -29,6 +30,12 @@ export type EmailConfig = {
   adminId?: string;
   deliveryReady?: boolean;
 };
+import { emailConsentPurpose } from "../src/emailConsent";
+import {
+  reminderDue,
+  reminderClock,
+  playedToday,
+} from "./email-reminders-policy";
 type DB = Pick<PoolClient, "query">;
 export const EMAIL_PUBLICATION_LOCK = "playne-email-publication-v1";
 export const emailError = (message: string, statusCode = 400) =>
@@ -166,7 +173,7 @@ export function readEmailToken(
 const uuid = (s: unknown): s is string =>
   typeof s === "string" &&
   /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(s);
-const hashAddress = (config: EmailConfig, email: string) =>
+export const hashAddress = (config: EmailConfig, email: string) =>
   createHmac("sha256", config.secret)
     .update("email:" + email)
     .digest("hex");
@@ -240,7 +247,7 @@ export async function stopEmails(
   reason = "unsubscribe",
 ) {
   const result = await c.query(
-    "UPDATE playne_email_contacts SET enabled=false,requested_at=NULL,updated_at=now() WHERE user_id=$1 RETURNING email",
+    "UPDATE playne_email_contacts SET enabled=false,requested_at=NULL,updated_at=now() WHERE user_id=$1 RETURNING email,consent_version",
     [userId],
   );
   const email = result.rows[0]?.email;
@@ -259,12 +266,17 @@ export async function stopEmails(
   );
   if (reason === "unsubscribe")
     await c.query(
-      `UPDATE playne_email_outbox SET unsubscribed_at=coalesce(unsubscribed_at,now()) WHERE id=(SELECT id FROM playne_email_outbox WHERE user_id=$1 AND kind='rank' AND submitted_at IS NOT NULL ORDER BY submitted_at DESC LIMIT 1)`,
+      `UPDATE playne_email_outbox SET unsubscribed_at=coalesce(unsubscribed_at,now()) WHERE id=(SELECT id FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder') AND submitted_at IS NOT NULL ORDER BY submitted_at DESC LIMIT 1)`,
       [userId],
     );
   await c.query(
     "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,$2,$3,$4)",
-    [userId, "revoked", EMAIL_CONSENT_VERSION, reason],
+    [
+      userId,
+      "revoked",
+      result.rows[0]?.consent_version ?? EMAIL_CONSENT_VERSION,
+      reason,
+    ],
   );
 }
 export async function requestEmailSubscription(
@@ -274,7 +286,10 @@ export async function requestEmailSubscription(
   address: unknown,
   source: string,
   now = Date.now(),
+  consentVersion = EMAIL_CONSENT_VERSION,
 ) {
+  const purpose = emailConsentPurpose(consentVersion);
+  if (!purpose) throw emailError("Подтверди согласие на письма.");
   await c.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
     "email-user:" + userId,
   ]);
@@ -295,7 +310,19 @@ export async function requestEmailSubscription(
         )
       ).rowCount
     : false;
-  if (existing?.enabled && existing.email === email) return;
+  const alreadyVerified = !!(
+    existing?.enabled &&
+    existing.email === email &&
+    existing.verified_at &&
+    !existing.provider_unsubscribed
+  );
+  if (
+    existing?.enabled &&
+    existing.email === email &&
+    existing.purpose === purpose &&
+    existing.consent_version === consentVersion
+  )
+    return;
   if (
     yandexAddress &&
     existing?.provider_unsubscribed &&
@@ -324,6 +351,7 @@ export async function requestEmailSubscription(
   }
   const count =
     !yandexAddress &&
+    !alreadyVerified &&
     (await c.query(
       `SELECT count(*)::int AS n FROM playne_email_outbox WHERE user_id=$1 AND kind='verify' AND created_at>$2::timestamptz-interval '1 hour'`,
       [userId, new Date(now)],
@@ -343,19 +371,28 @@ export async function requestEmailSubscription(
     existing?.variant ?? (["A", "B", "C"] as const)[randomInt(3)];
   const contact = (
     await c.query(
-      `INSERT INTO playne_email_contacts(user_id,email,variant,consent_at,consent_version,consent_source,requested_at) VALUES($1,$2,$3,$4,$5,$6,$4) ON CONFLICT(user_id) DO UPDATE SET email=excluded.email,provider_unsubscribed=CASE WHEN playne_email_contacts.email=excluded.email THEN playne_email_contacts.provider_unsubscribed ELSE false END,verified_at=NULL,enabled=false,generation=gen_random_uuid(),requested_at=excluded.requested_at,consent_at=excluded.consent_at,consent_version=excluded.consent_version,consent_source=excluded.consent_source,updated_at=now() RETURNING *`,
-      [userId, email, variant, new Date(now), EMAIL_CONSENT_VERSION, source],
+      `INSERT INTO playne_email_contacts(user_id,email,variant,consent_at,consent_version,consent_source,requested_at,purpose,reminders_enabled) VALUES($1,$2,$3,$4,$5,$6,$4,$7,$8) ON CONFLICT(user_id) DO UPDATE SET email=excluded.email,provider_unsubscribed=CASE WHEN playne_email_contacts.email=excluded.email THEN playne_email_contacts.provider_unsubscribed ELSE false END,verified_at=NULL,enabled=false,generation=gen_random_uuid(),requested_at=excluded.requested_at,consent_at=excluded.consent_at,consent_version=excluded.consent_version,consent_source=excluded.consent_source,purpose=excluded.purpose,reminders_enabled=excluded.reminders_enabled,updated_at=now() RETURNING *`,
+      [
+        userId,
+        email,
+        variant,
+        new Date(now),
+        consentVersion,
+        source,
+        purpose,
+        purpose === "general",
+      ],
     )
   ).rows[0];
   await c.query(
     "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,$2,$3,$4)",
-    [userId, "requested", EMAIL_CONSENT_VERSION, source],
+    [userId, "requested", consentVersion, source],
   );
   await c.query(
     "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,$2,$3,$4)",
     [userId, "email_processing", "email-processing-2026-10-28-v1", source],
   );
-  if (yandexAddress) {
+  if (yandexAddress || alreadyVerified) {
     await c.query(
       "DELETE FROM playne_email_suppressions WHERE address_hash=$1 AND reason='unsubscribe'",
       [hashAddress(config, email!)],
@@ -365,8 +402,12 @@ export async function requestEmailSubscription(
       [new Date(now), userId],
     );
     await c.query(
-      "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,'confirmed',$2,'yandex_profile')",
-      [userId, EMAIL_CONSENT_VERSION],
+      "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,'confirmed',$2,$3)",
+      [
+        userId,
+        consentVersion,
+        yandexAddress ? "yandex_profile" : "verified_address",
+      ],
     );
   } else if (email)
     await c.query(
@@ -432,7 +473,7 @@ export async function confirmEmailSubscription(
   );
   await c.query(
     "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,$2,$3,$4)",
-    [contact.user_id, "confirmed", EMAIL_CONSENT_VERSION, "confirmation"],
+    [contact.user_id, "confirmed", contact.consent_version, "confirmation"],
   );
   return contact.user_id as string;
 }
@@ -443,7 +484,7 @@ export async function emailSettings(
 ) {
   const contact = (
     await c.query(
-      "SELECT email,verified_at,enabled,requested_at FROM playne_email_contacts WHERE user_id=$1",
+      "SELECT email,verified_at,enabled,requested_at,purpose,reminders_enabled,reminder_days,reminder_time FROM playne_email_contacts WHERE user_id=$1",
       [userId],
     )
   ).rows[0];
@@ -471,6 +512,13 @@ export async function emailSettings(
     verified,
     enabled: !!contact?.enabled,
     pending: !!contact?.requested_at && !verified,
+    purpose: contact?.purpose ?? null,
+    reminders: {
+      enabled: !!contact?.reminders_enabled,
+      days: contact?.reminder_days ?? [1, 3, 5],
+      time: contact?.reminder_time ?? "19:00",
+      timezone: "Europe/Moscow",
+    },
     consentVersion: EMAIL_CONSENT_VERSION,
   };
 }
@@ -518,6 +566,14 @@ export async function currentRankItems(c: DB, userId: string, events: any[]) {
     .slice(0, 3);
 }
 
+export async function emailFrequency(c: DB, userId: string, now: number) {
+  return (
+    await c.query(
+      "SELECT count(*) FILTER(WHERE submitted_at>$2::timestamptz-interval '24 hours')::int AS daily,count(*)::int AS weekly FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder') AND submitted_at>$2::timestamptz-interval '7 days'",
+      [userId, new Date(now)],
+    )
+  ).rows[0];
+}
 export async function prepareRankEmails(
   pool: Pool,
   config: EmailConfig,
@@ -529,9 +585,9 @@ export async function prepareRankEmails(
       `SELECT e.user_id FROM playne_email_events e JOIN playne_email_contacts contact ON contact.user_id=e.user_id
        WHERE e.handled_at IS NULL AND e.created_at<=$1::timestamptz-interval '30 minutes' AND e.created_at>$1::timestamptz-interval '72 hours'
        AND contact.enabled AND contact.verified_at IS NOT NULL
-       AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind='rank' AND o.status IN('pending','sending','uncertain'))
-       AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind='rank' AND o.submitted_at>$1::timestamptz-interval '24 hours')
-       AND (SELECT count(*) FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind='rank' AND o.submitted_at>$1::timestamptz-interval '7 days')<3
+       AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind IN('rank','reminder') AND o.status IN('pending','sending','uncertain'))
+       AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind IN('rank','reminder') AND o.submitted_at>$1::timestamptz-interval '24 hours')
+       AND (SELECT count(*) FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind IN('rank','reminder') AND o.submitted_at>$1::timestamptz-interval '7 days')<3
        GROUP BY e.user_id ORDER BY min(e.created_at) LIMIT 30`,
       [new Date(now)],
     )
@@ -562,11 +618,11 @@ export async function prepareRankEmails(
         [user.user_id, new Date(now)],
       );
       const pending = await c.query(
-        `SELECT 1 FROM playne_email_outbox WHERE user_id=$1 AND kind='rank' AND status IN('pending','sending','uncertain')`,
+        `SELECT 1 FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder') AND status IN('pending','sending','uncertain')`,
         [user.user_id],
       );
       const frequency = await c.query(
-        `SELECT count(*) FILTER(WHERE submitted_at>$2::timestamptz-interval '24 hours')::int AS daily,count(*)::int AS weekly FROM playne_email_outbox WHERE user_id=$1 AND kind='rank' AND submitted_at>$2::timestamptz-interval '7 days'`,
+        `SELECT count(*) FILTER(WHERE submitted_at>$2::timestamptz-interval '24 hours')::int AS daily,count(*)::int AS weekly FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder') AND submitted_at>$2::timestamptz-interval '7 days'`,
         [user.user_id, new Date(now)],
       );
       if (
@@ -690,60 +746,71 @@ export async function deliverEmails(
         contact.email !== row.payload.email ||
         !!(
           suppressed &&
-          (row.kind === "rank" || suppressed.reason !== "unsubscribe")
+          (row.kind !== "verify" || suppressed.reason !== "unsubscribe")
         );
-      if (row.kind === "rank") {
+      if (row.kind !== "verify") {
         if (!emailSendingHour(now)) {
           await c.query("COMMIT");
           break;
         }
-        const frequency = (
-          await c.query(
-            `SELECT count(*) FILTER(WHERE submitted_at>$2::timestamptz-interval '24 hours')::int AS daily,count(*)::int AS weekly FROM playne_email_outbox WHERE user_id=$1 AND kind='rank' AND submitted_at>$2::timestamptz-interval '7 days'`,
-            [row.user_id, new Date(now)],
-          )
-        ).rows[0];
+        const frequency = await emailFrequency(c, row.user_id, now);
         if (frequency.daily >= 1 || frequency.weekly >= 3) {
           await c.query(
-            `UPDATE playne_email_outbox SET available_at=$1::timestamptz+interval '1 hour' WHERE id=$2`,
+            "UPDATE playne_email_outbox SET available_at=$1::timestamptz+interval '1 hour' WHERE id=$2",
             [new Date(now), row.id],
           );
           await c.query("COMMIT");
           continue;
         }
-        const events = (
-          await c.query(
-            "SELECT * FROM playne_email_events WHERE id=ANY($1::uuid[]) AND handled_at IS NULL AND created_at>$2::timestamptz-interval '72 hours' ORDER BY created_at,id",
-            [row.event_ids, new Date(now)],
-          )
-        ).rows;
-        const items = await currentRankItems(c, row.user_id, events);
-        cancel ||= !contact?.enabled || !contact?.verified_at || !items.length;
-        if (!cancel) {
-          row.payload.items = items;
-          const exp = now + 7 * 86400000;
-          const link = signEmailToken(config, "click", { o: row.id, exp });
-          const unsub = signEmailToken(config, "unsubscribe", {
-            g: row.generation,
-            o: row.id,
-          });
-          const unsubscribeUrl =
-            config.origin + "/account/?mail=unsubscribe#" + unsub;
-          message = renderRankEmail({
-            origin: config.origin,
-            variant: row.variant,
-            items,
-            playUrl:
+        cancel ||= !contact?.enabled || !contact?.verified_at;
+        const unsub = signEmailToken(config, "unsubscribe", {
+          g: row.generation,
+          o: row.id,
+        });
+        const unsubscribeUrl =
+          config.origin + "/account/?mail=unsubscribe#" + unsub;
+        const exp = now + 7 * 86400000,
+          link = signEmailToken(config, "click", { o: row.id, exp });
+        if (row.kind === "reminder") {
+          cancel ||=
+            contact?.consent_version !== EMAIL_CONSENT_VERSION ||
+            !reminderDue(contact, now) ||
+            row.payload.day !== reminderClock(now).day ||
+            (await playedToday(c, row.user_id, now));
+          if (!cancel)
+            message = renderReminderEmail(
+              config.origin,
               config.origin + "/api/email/click/" + link + "?target=play",
-            rankUrl:
-              config.origin + "/api/email/click/" + link + "?target=rank",
-            unsubscribeUrl,
-          });
+              unsubscribeUrl,
+            );
+        } else {
+          const events = (
+            await c.query(
+              "SELECT * FROM playne_email_events WHERE id=ANY($1::uuid[]) AND handled_at IS NULL AND created_at>$2::timestamptz-interval '72 hours' ORDER BY created_at,id",
+              [row.event_ids, new Date(now)],
+            )
+          ).rows;
+          const items = await currentRankItems(c, row.user_id, events);
+          cancel ||= !items.length;
+          if (!cancel) {
+            row.payload.items = items;
+            message = renderRankEmail({
+              origin: config.origin,
+              variant: row.variant,
+              items,
+              playUrl:
+                config.origin + "/api/email/click/" + link + "?target=play",
+              rankUrl:
+                config.origin + "/api/email/click/" + link + "?target=rank",
+              unsubscribeUrl,
+            });
+          }
+        }
+        if (!cancel)
           message.headers = {
             "List-Unsubscribe": `<${config.origin}/api/email/unsubscribe/${unsub}>`,
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
           };
-        }
       } else {
         cancel ||=
           !contact?.requested_at ||
@@ -758,6 +825,7 @@ export async function deliverEmails(
                 g: row.generation,
                 exp: row.payload.expires,
               }),
+            contact.purpose,
           );
       }
       if (cancel) {
@@ -815,7 +883,7 @@ export async function deliverEmails(
                     from_name: "Playne",
                     reply_to: config.replyTo,
                     global_language: "ru",
-                    track_links: row.kind === "rank" ? 1 : 0,
+                    track_links: row.kind !== "verify" ? 1 : 0,
                     track_read: 0,
                     recipients: [
                       {
@@ -830,7 +898,9 @@ export async function deliverEmails(
                     tags: [
                       row.kind === "rank"
                         ? EMAIL_EXPERIMENT
-                        : "email-confirmation",
+                        : row.kind === "reminder"
+                          ? "playne-reminders-v1"
+                          : "email-confirmation",
                     ],
                   },
                 },

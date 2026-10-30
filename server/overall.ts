@@ -10,7 +10,7 @@ function overallSql(scope: "overall" | "brain") {
   return `WITH eligible AS (
  SELECT id,owner_id,game,mode,completed_at,
  CASE WHEN game='geo' THEN ${GEO_V4_UNITS_SQL} ELSE score_units END AS units
- FROM playne_games WHERE published_at IS NOT NULL AND score_units IS NOT NULL AND owner_id IS NOT NULL
+ FROM playne_games WHERE published_at IS NOT NULL AND score_units IS NOT NULL AND owner_id IS NOT NULL AND coalesce(challenge->>'comparison','false')<>'true'
  AND ((game IN('naglaz','circle','pressure') AND version=${scoreVersion("naglaz")} AND mode='classic')
  OR (game='colorfle' AND version=${scoreVersion("colorfle")} AND mode IN('classic','timed'))
  OR (game='geo' AND version IN(2,3,${scoreVersion("geo")}) AND mode IN('classic','timed','moving','moving-timed','landmarks','landmarks-timed'))

@@ -95,8 +95,15 @@ export function createBrain(
     states: {},
   };
 }
+export function publicComparison(challenge: any) {
+  return challenge.comparison === true && typeof challenge.comparisonToken === "string" &&
+    /^[A-Za-z0-9_-]{43}$/.test(challenge.comparisonToken)
+    ? { comparison: true, comparisonToken: challenge.comparisonToken }
+    : {};
+}
 export function publicBrain(challenge: any) {
   return {
+    ...publicComparison(challenge),
     game: challenge.game,
     version: challenge.version,
     day: challenge.day,
@@ -320,11 +327,11 @@ export async function registerBrainRoutes(
     const [records, activity, milestones] = await Promise.all([
       pool.query(
         `WITH own AS (
-        SELECT id,game,mode,challenge->>'day' AS day,challenge->>'difficulty' AS difficulty,answers,score_units,completed_at,created_at,
+        SELECT id,game,mode,challenge->>'day' AS day,challenge->>'difficulty' AS difficulty,challenge->>'comparison' AS comparison,answers,score_units,completed_at,created_at,
         row_number() OVER(PARTITION BY (completed_at IS NULL) ORDER BY created_at DESC,id) AS history_rank,
-        row_number() OVER(PARTITION BY game,mode,challenge->>'difficulty',(completed_at IS NULL) ORDER BY created_at DESC,id) AS level_rank
+        row_number() OVER(PARTITION BY game,mode,challenge->>'difficulty',coalesce(challenge->>'comparison','false'),(completed_at IS NULL) ORDER BY created_at DESC,id) AS level_rank
         FROM playne_games WHERE game=ANY($1::text[]) AND ${own}
-      ) SELECT id,game,mode,day,difficulty,score_units,completed_at,created_at,
+      ) SELECT id,game,mode,day,difficulty,comparison,score_units,completed_at,created_at,
         (SELECT coalesce(jsonb_agg(jsonb_build_object('score',a->'score','elapsedMs',a->'elapsedMs','hints',a->'hints')),'[]'::jsonb) FROM jsonb_array_elements(answers) a) AS answers
         FROM own WHERE (completed_at IS NOT NULL AND (history_rank<=30 OR (mode='practice' AND level_rank<=3))) OR (mode='classic' AND day=$3)
         ORDER BY created_at DESC,id`,
@@ -359,7 +366,7 @@ export async function registerBrainRoutes(
     const suggestedLevels = Object.fromEntries(
       BRAIN_GAMES.map((game) => {
         const practice = completed.filter(
-          (r: any) => r.game === game && r.mode === "practice",
+          (r: any) => r.game === game && r.mode === "practice" && r.comparison !== "true",
         );
         const latest = practice[0];
         const level = Number(latest?.difficulty ?? 1);
@@ -394,6 +401,7 @@ export async function registerBrainRoutes(
         id: r.id,
         game: r.game,
         mode: r.mode,
+        comparison: r.comparison === "true",
         day: r.day,
         difficulty: Number(r.difficulty),
         level: Number(r.difficulty),

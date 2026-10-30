@@ -638,6 +638,20 @@ const db = process.env.TEST_DATABASE_URL;
       expect(daily.weeklyDays).toBe(1);
       expect(daily.goal).toEqual({ days: 3, completedDays: 1 });
     });
+    it("keeps ordinary practice recommendations independent of thirty later repeated comparison packs", async () => {
+      const player = await signed();
+      await pool.query(
+        `INSERT INTO playne_games(browser_hash,owner_id,game,mode,challenge,answers,score_units,completed_at,created_at)
+         SELECT 'comparison-history',$1,'flash','practice',jsonb_build_object('day',$2::text,'difficulty',2,'comparison',n>=3),
+           '[{"score":90}]'::jsonb,CASE WHEN n<3 THEN 4500 ELSE 0 END,now(),now()+(n*interval '1 second')
+         FROM generate_series(0,35) n`,
+        [player.id, brainMoscowDate()],
+      );
+      const progress = (await get(player.cookie, "/api/brain/progress")).json();
+      expect(progress.suggestedLevels.flash).toBe(3);
+      expect(progress.history).toHaveLength(30);
+      expect(progress.history.every((run: any) => run.comparison)).toBe(true);
+    });
     it("migrates old allowlists transactionally and preserves old games", async () => {
       await pool.query(
         "ALTER TABLE playne_games DROP CONSTRAINT playne_games_game_check",

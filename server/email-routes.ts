@@ -20,8 +20,10 @@ import {
   type RankEmailItem,
 } from "./email-templates";
 
+import { emailConsentPurpose } from "../src/emailConsent";
+import { validReminderSchedule } from "./email-reminders-policy";
 const activeEmailConsentSQL =
-  "EXISTS(SELECT 1 FROM playne_email_contacts contact WHERE contact.user_id=o.user_id AND contact.generation=o.generation AND contact.enabled AND contact.verified_at IS NOT NULL)";
+  "EXISTS(SELECT 1 FROM playne_email_contacts contact WHERE contact.user_id=o.user_id AND contact.generation=o.generation AND contact.enabled AND contact.verified_at IS NOT NULL AND (o.kind<>'reminder' OR (contact.purpose='general' AND contact.consent_version='playne-emails-2026-10-30-v1')))";
 const validUuid = (v: unknown): v is string =>
   typeof v === "string" &&
   /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(v);
@@ -71,19 +73,55 @@ export async function registerEmailRoutes(
       } else {
         if (
           body?.enabled !== true ||
-          body?.consentVersion !== EMAIL_CONSENT_VERSION ||
+          !emailConsentPurpose(body?.consentVersion) ||
           body?.dataConsent !== true
         )
           throw emailError("Подтверди согласие на письма и обработку адреса.");
         if (!mailConfigured(config))
           throw emailError("Письма пока недоступны. Попробуй позже.", 503);
         await transaction((c) =>
-          requestEmailSubscription(c, config, user.id, body.email, "account"),
+          requestEmailSubscription(
+            c,
+            config,
+            user.id,
+            body.email,
+            "account",
+            Date.now(),
+            body.consentVersion,
+          ),
         );
       }
       return emailSettings(pool, config, user.id);
     },
   );
+  app.post("/api/email/reminders", async (req) => {
+    const signed = await requireUser(req),
+      body = req.body as any;
+    if (!validReminderSchedule(body))
+      throw emailError("Выбери дни и время с 10:00 до 20:59 по Москве.");
+    await transaction(async (c) => {
+      await c.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        "email-user:" + signed.id,
+      ]);
+      const saved = await c.query(
+        "UPDATE playne_email_contacts SET reminders_enabled=$2,reminder_days=$3::smallint[],reminder_time=$4,updated_at=now() WHERE user_id=$1 AND purpose='general' AND consent_version=$5 AND enabled AND verified_at IS NOT NULL RETURNING user_id",
+        [
+          signed.id,
+          body.enabled,
+          [...body.days].sort((a: number, b: number) => a - b),
+          body.time,
+          EMAIL_CONSENT_VERSION,
+        ],
+      );
+      if (!saved.rowCount)
+        throw emailError("Сначала подключи общую подписку Playne.", 409);
+      await c.query(
+        "UPDATE playne_email_outbox SET status='cancelled',updated_at=now() WHERE user_id=$1 AND kind='reminder' AND status='pending'",
+        [signed.id],
+      );
+    });
+    return emailSettings(pool, config, signed.id);
+  });
   app.post(
     "/api/email/confirm",
     { config: { rateLimit: { max: 15, timeWindow: "1 minute" } } },
@@ -130,7 +168,7 @@ export async function registerEmailRoutes(
       await stopEmails(c, config, contact.user_id);
       if (validUuid(data.o))
         await c.query(
-          `UPDATE playne_email_outbox SET unsubscribed_at=coalesce(unsubscribed_at,now()) WHERE id=$1 AND user_id=$2 AND kind='rank' AND submitted_at IS NOT NULL`,
+          `UPDATE playne_email_outbox SET unsubscribed_at=coalesce(unsubscribed_at,now()) WHERE id=$1 AND user_id=$2 AND kind IN('rank','reminder') AND submitted_at IS NOT NULL`,
           [data.o, contact.user_id],
         );
     });
@@ -170,12 +208,12 @@ export async function registerEmailRoutes(
       throw emailError("Ссылка устарела. Выбери игру на главной.", 410);
     const row = (
       await pool.query(
-        `SELECT payload,variant,${activeEmailConsentSQL} AS consent FROM playne_email_outbox o WHERE id=$1 AND kind='rank' AND submitted_at IS NOT NULL`,
+        `SELECT payload,variant,kind,${activeEmailConsentSQL} AS consent FROM playne_email_outbox o WHERE id=$1 AND kind IN('rank','reminder') AND submitted_at IS NOT NULL`,
         [data.o],
       )
     ).rows[0];
     const item = row?.payload?.items?.[0] as RankEmailItem | undefined;
-    if (!item)
+    if (!row || (row.kind === "rank" && !item))
       throw emailError("Ссылка устарела. Выбери игру на главной.", 410);
     if (row.consent)
       await pool.query(
@@ -195,13 +233,15 @@ export async function registerEmailRoutes(
         },
       );
     const path =
-      target === "play"
-        ? emailGamePath(item.game, item.mode)
-        : `/leaderboard/?game=${item.game}&mode=${encodeURIComponent(item.mode)}&period=all`;
+      row.kind === "reminder"
+        ? "/"
+        : target === "play"
+          ? emailGamePath(item!.game, item!.mode)
+          : `/leaderboard/?game=${item!.game}&mode=${encodeURIComponent(item!.mode)}&period=all`;
     return reply.redirect(
       path +
         (path.includes("?") ? "&" : "?") +
-        `from_email=1&utm_source=playne&utm_medium=email&utm_campaign=rank-notifications&utm_content=${encodeURIComponent(row.variant ?? "design")}`,
+        `from_email=1&utm_source=playne&utm_medium=email&utm_campaign=${row.kind === "reminder" ? "daily-reminder" : "rank-notifications"}&utm_content=${encodeURIComponent(row.variant ?? "design")}`,
     );
   });
   app.post("/api/email/visit", async (req) => {
@@ -213,7 +253,7 @@ export async function registerEmailRoutes(
     );
     if (data && validUuid(data.o))
       await pool.query(
-        `UPDATE playne_email_outbox o SET visited_at=coalesce(visited_at,now()) WHERE id=$1 AND kind='rank' AND submitted_at>now()-interval '7 days' AND ${activeEmailConsentSQL}`,
+        `UPDATE playne_email_outbox o SET visited_at=coalesce(visited_at,now()) WHERE id=$1 AND kind IN('rank','reminder') AND submitted_at>now()-interval '7 days' AND ${activeEmailConsentSQL}`,
         [data.o],
       );
     return { ok: true };
@@ -375,7 +415,7 @@ export async function recordEmailGameStart(
   );
   if (!data || !validUuid(data.o)) return;
   await c.query(
-    `UPDATE playne_games g SET email_origin=o.id FROM playne_email_outbox o WHERE g.id=$1 AND o.id=$2 AND o.kind='rank' AND o.submitted_at>now()-interval '7 days' AND ${activeEmailConsentSQL}`,
+    `UPDATE playne_games g SET email_origin=o.id FROM playne_email_outbox o WHERE g.id=$1 AND o.id=$2 AND o.kind IN('rank','reminder') AND o.submitted_at>now()-interval '7 days' AND ${activeEmailConsentSQL}`,
     [runId, data.o],
   );
   // Only an authenticated matching owner counts as a game start; guest runs are linked when claimed.

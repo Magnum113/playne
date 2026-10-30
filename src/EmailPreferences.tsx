@@ -3,7 +3,11 @@ import { TextField, FieldFeedback } from "./FormField";
 import { api, useAuth } from "./account";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { getEmailAction } from "./emailNavigation";
-import { EMAIL_CONSENT_VERSION, EMAIL_LABEL } from "./emailConsent";
+import {
+  EMAIL_CONSENT_VERSION,
+  EMAIL_LABEL,
+  EMAIL_DESCRIPTION,
+} from "./emailConsent";
 export function EmailConsent({
   checked,
   onChange,
@@ -26,7 +30,7 @@ export function EmailConsent({
           onChange={(e) => onChange(e.target.checked)}
         />
         <span>
-          {EMAIL_LABEL}{" "}
+          {EMAIL_LABEL} <small>{EMAIL_DESCRIPTION}</small>{" "}
           <a
             href="/terms/#email-notifications"
             target="_blank"
@@ -179,11 +183,11 @@ export function EmailAction() {
       <p>
         {done
           ? kind === "confirm"
-            ? "Напишем, если твой результат в топ-10 обойдут."
-            : "Уведомления о рейтинге больше не будут приходить."
+            ? "Новые игры, напоминания и результаты."
+            : "Письма Playne больше не будут приходить."
           : kind === "confirm"
-            ? "Уведомления о рейтинге Playne. Не чаще одного письма в день и трёх в неделю."
-            : "Ты больше не будешь получать уведомления о рейтинге."}
+            ? "Письма Playne. Не чаще одного письма за 24 часа и трёх за 7 дней."
+            : "Ты больше не будешь получать письма Playne."}
       </p>
       {!done &&
         (action ? (
@@ -215,6 +219,12 @@ export function EmailAction() {
     </section>
   );
 }
+type ReminderSettings = {
+  enabled: boolean;
+  days: number[];
+  time: string;
+  timezone: string;
+};
 type Settings = {
   reportAvailable?: boolean;
   available: boolean;
@@ -224,8 +234,16 @@ type Settings = {
   enabled: boolean;
   pending: boolean;
   verified: boolean;
+  purpose?: "rank" | "general" | null;
+  reminders?: ReminderSettings;
 };
-export function EmailPreferences() {
+const defaultReminders: ReminderSettings = {
+  enabled: true,
+  days: [1, 3, 5],
+  time: "19:00",
+  timezone: "Europe/Moscow",
+};
+export function EmailPreferences({ compact = false }: { compact?: boolean }) {
   const [settings, setSettings] = useState<Settings | null>(null),
     [address, setAddress] = useState(""),
     [checked, setChecked] = useState(false),
@@ -234,19 +252,31 @@ export function EmailPreferences() {
     [error, setError] = useState(""),
     [addressError, setAddressError] = useState(""),
     [message, setMessage] = useState("");
+  const [reminders, setReminders] =
+    useState<ReminderSettings>(defaultReminders);
   const id = useId();
   const addressInput = useRef<HTMLInputElement>(null);
+  function apply(s: Settings) {
+    setSettings(s);
+    setAddress(s.email);
+    setReminders(s.reminders ?? defaultReminders);
+  }
   useEffect(() => {
-    if (window.location.hash === "#email-settings")
+    if (!compact && window.location.hash === "#email-settings")
       document
         .getElementById("email-settings")
         ?.scrollIntoView({ block: "start" });
+    let active = true;
     void api("/email/settings")
       .then((s) => {
-        setSettings(s);
-        setAddress(s.email);
+        if (active) apply(s);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        if (active) setError(e.message);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   async function save(enabled: boolean) {
     if (busy) return;
@@ -284,7 +314,7 @@ export function EmailPreferences() {
             }
           : { enabled: false },
       );
-      setSettings(s);
+      apply(s);
       setChecked(false);
       setData(false);
       setMessage(
@@ -300,21 +330,53 @@ export function EmailPreferences() {
       setBusy(false);
     }
   }
+  async function saveReminders(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    if (!reminders.days.length) {
+      setError("Выбери хотя бы один день.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      apply(
+        await api("/email/reminders", "POST", {
+          enabled: reminders.enabled,
+          days: reminders.days,
+          time: reminders.time,
+        }),
+      );
+      setMessage("Напоминания настроены.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (compact && message) return <p role="status">{message}</p>;
+  if (
+    compact &&
+    (!settings ||
+      !settings.available ||
+      (settings.purpose === "general" &&
+        (settings.enabled || settings.pending)))
+  )
+    return null;
+  const general = settings?.purpose === "general";
   return (
     <section
       className="community-panel email-settings"
-      id="email-settings"
-      aria-labelledby="email-settings-title"
+      id={compact ? undefined : "email-settings"}
+      aria-labelledby={id + "-title"}
     >
-      <h2 id="email-settings-title">Уведомления о рейтинге</h2>
+      <h2 id={id + "-title"}>{EMAIL_LABEL}</h2>
       <p>
-        Напишем, если тебя обойдут в топ-10. Не чаще одного письма в день и трёх
-        в неделю — на все игры.
+        {EMAIL_DESCRIPTION}. Не чаще одного письма за 24 часа и трёх за 7 дней.
       </p>
       {!settings ? (
         <p role="status">{error || "Загружаем настройки…"}</p>
-      ) : !settings.available ? (
-        <p role="status">Письма пока недоступны. Попробуй позже.</p>
       ) : (
         <>
           <p role="status">
@@ -326,126 +388,169 @@ export function EmailPreferences() {
                   : "Яндекс не передал адрес. Укажи почту ниже."
                 : "Подписка выключена."}
           </p>
-          <form
-            noValidate
-            aria-busy={busy}
-            onSubmit={(e) => {
-              e.preventDefault();
-              void save(true);
-            }}
-            className="email-settings-form"
-          >
-            <TextField
-              id={id}
-              label="Электронная почта"
-              inputRef={addressInput}
-              className="ym-hide-content ym-disable-keys"
-              type="email"
-              autoComplete="email"
-              value={address}
-              onChange={(e) => {
-                setAddress(e.target.value);
-                setAddressError("");
-                setError("");
-                setMessage("");
+          {settings.enabled && !general && (
+            <p>
+              Сейчас подключены только результаты в рейтинге. Для новых игр и
+              напоминаний нужно новое согласие.
+            </p>
+          )}
+          {!settings.available ? (
+            <p role="status">Письма пока недоступны. Попробуй позже.</p>
+          ) : (
+            <form
+              noValidate
+              aria-busy={busy}
+              className="email-settings-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void save(true);
               }}
-              required
-              maxLength={254}
-              disabled={busy}
-              error={addressError}
-              hint={
-                settings.yandexEmail &&
-                address.trim().toLowerCase() === settings.yandexEmail
-                  ? "Адрес из Яндекса. Подтверждать не нужно."
-                  : undefined
-              }
-            />
-            {(!settings.enabled ||
-              address.trim().toLowerCase() !== settings.email) && (
-              <>
-                <EmailConsent
-                  checked={checked}
-                  onChange={setChecked}
-                  dataConsent={data}
-                  onDataChange={setData}
+            >
+              <TextField
+                id={id}
+                label="Электронная почта"
+                inputRef={addressInput}
+                className="ym-hide-content ym-disable-keys"
+                type="email"
+                autoComplete="email"
+                value={address}
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  setAddressError("");
+                  setError("");
+                  setMessage("");
+                }}
+                required
+                maxLength={254}
+                disabled={busy}
+                error={addressError}
+                hint={
+                  settings.yandexEmail &&
+                  address.trim().toLowerCase() === settings.yandexEmail
+                    ? "Адрес из Яндекса. Подтверждать не нужно."
+                    : undefined
+                }
+              />
+              {(!settings.enabled ||
+                !general ||
+                address.trim().toLowerCase() !== settings.email) && (
+                <>
+                  <EmailConsent
+                    checked={checked}
+                    onChange={setChecked}
+                    dataConsent={data}
+                    onDataChange={setData}
+                  />
+                  <button
+                    className={compact ? "secondary-button" : "primary"}
+                    disabled={busy || !checked || !data}
+                    aria-busy={busy}
+                  >
+                    {busy
+                      ? "Сохраняем…"
+                      : settings.pending &&
+                          address.trim().toLowerCase() !== settings.yandexEmail
+                        ? "Отправить подтверждение ещё раз"
+                        : "Подключить письма"}
+                  </button>
+                </>
+              )}
+            </form>
+          )}
+          {!compact && general && settings.enabled && (
+            <form
+              onSubmit={saveReminders}
+              className="email-reminders-form"
+              aria-busy={busy}
+            >
+              <h3>Напоминания</h3>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={reminders.enabled}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setReminders({ ...reminders, enabled: e.target.checked })
+                  }
                 />
-                <button
-                  className="primary"
-                  disabled={busy || !checked || !data}
-                  aria-busy={busy}
-                >
-                  {busy
-                    ? "Сохраняем…"
-                    : settings.pending &&
-                        address.trim().toLowerCase() !== settings.yandexEmail
-                      ? "Отправить подтверждение ещё раз"
-                      : "Подключить письма"}
-                </button>
-              </>
-            )}
-          </form>
+                Напоминать, если сегодня ещё не играл
+              </label>
+              <fieldset disabled={busy}>
+                <legend>Дни недели</legend>
+                {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map(
+                  (day, index) => (
+                    <label key={day}>
+                      <input
+                        type="checkbox"
+                        checked={reminders.days.includes(index + 1)}
+                        onChange={(e) =>
+                          setReminders({
+                            ...reminders,
+                            days: e.target.checked
+                              ? [...reminders.days, index + 1].sort()
+                              : reminders.days.filter(
+                                  (value) => value !== index + 1,
+                                ),
+                          })
+                        }
+                      />
+                      {day}
+                    </label>
+                  ),
+                )}
+              </fieldset>
+              <TextField
+                id={id + "-time"}
+                label="Время по Москве"
+                type="time"
+                min="10:00"
+                max="20:59"
+                step="60"
+                required
+                value={reminders.time}
+                disabled={busy}
+                onChange={(e) =>
+                  setReminders({ ...reminders, time: e.target.value })
+                }
+              />
+              <p>
+                Не пишем с 21:00 до 10:00. Все письма вместе — не чаще одного за
+                24 часа и трёх за 7 дней.
+              </p>
+              <button
+                className="secondary-button"
+                disabled={busy || !reminders.days.length}
+                aria-busy={busy}
+              >
+                Сохранить напоминания
+              </button>
+            </form>
+          )}
+          {!compact && (settings.enabled || settings.pending) && (
+            <button
+              type="button"
+              className="text-button"
+              disabled={busy}
+              aria-busy={busy}
+              onClick={() => void save(false)}
+            >
+              Отключить письма
+            </button>
+          )}
         </>
       )}
-      {settings && (settings.enabled || settings.pending) && (
-        <button
-          type="button"
-          className="text-button"
-          disabled={busy}
-          aria-busy={busy}
-          onClick={() => void save(false)}
-        >
-          Отключить письма
-        </button>
-      )}
+      {settings?.reportAvailable && !compact && <EmailExperimentReport />}
       <FieldFeedback message={message} error={settings ? error : undefined} />
-      {settings?.reportAvailable && <EmailExperimentReport />}
     </section>
   );
 }
-
-export function TopTenEmailOffer({
-  game,
-  mode = "classic",
-}: {
-  game: string;
-  mode?: string;
-}) {
-  const { user } = useAuth();
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    let active = true;
-    if (!user) return;
-    void Promise.all([
-      api("/email/settings"),
-      api(
-        "/leaderboard?game=" +
-          game +
-          "&mode=" +
-          encodeURIComponent(mode) +
-          "&period=all",
-      ),
-    ])
-      .then(([settings, board]) => {
-        if (active)
-          setVisible(
-            settings.available &&
-              !settings.enabled &&
-              !settings.pending &&
-              !!board.mine &&
-              board.mine.place <= 10,
-          );
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [user?.id, game, mode]);
-  return visible ? (
-    <p className="email-rank-offer">
-      Ты в топ-10.{" "}
-      <a href="/account/#email-settings">Узнать, если тебя обойдут →</a>
-    </p>
-  ) : null;
+export function PlayneEmailOffer() {
+  const { user, loading } = useAuth();
+  return user && !loading ? <EmailPreferences compact /> : null;
+}
+// Keep already open clients and existing result imports compatible.
+export function TopTenEmailOffer(_props: { game: string; mode?: string }) {
+  return <PlayneEmailOffer />;
 }
 
 function EmailExperimentReport() {

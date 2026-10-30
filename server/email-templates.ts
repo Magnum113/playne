@@ -2,6 +2,7 @@ import { GAME_NAMES, type GameId } from "./scoring";
 import { geoModeName } from "../src/geo";
 import { shadeModeName } from "../src/colorfle";
 import { formatPressScore } from "../src/pressure";
+import type { EmailPurpose } from "../src/emailConsent";
 import { isBrainGame } from "./brain";
 
 export type EmailVariant = "A" | "B" | "C";
@@ -15,9 +16,11 @@ export type RankEmailItem = {
   opponentUnits: number;
 };
 export const EMAIL_EXPERIMENT = "rank-email-design-v1";
-export { EMAIL_CONSENT_VERSION } from "../src/emailConsent";
-export const EMAIL_OPT_IN_LABEL =
-  "Писать на почту, если меня обойдут в топ-10.";
+export {
+  EMAIL_CONSENT_VERSION,
+  LEGACY_EMAIL_CONSENT_VERSION,
+} from "../src/emailConsent";
+export const EMAIL_OPT_IN_LABEL = "Получать письма Playne";
 export const emailEscape = (s: unknown) =>
   String(s).replace(
     /[&<>"']/g,
@@ -108,7 +111,7 @@ export function renderRankEmail(args: {
     )
     .join("");
   const inner = `${intro}${design}${more ? `<p class="muted" style="font-size:13px;color:#5f6b6e;margin:0">Ещё изменения</p>${more}<br>` : ""}${button("Попробовать ещё раз", playUrl)}<p style="margin:20px 0 0;text-align:center;font-size:15px"><a class="email-link" href="${emailEscape(rankUrl)}" style="color:#137866;text-underline-offset:3px">Посмотреть рейтинг</a></p>`;
-  const footer = `Ты включил уведомления о рейтинге в Playne.<br><a class="email-link" href="${emailEscape(origin)}/account/#email-settings" style="color:#137866">Настроить письма</a> · <a class="email-link" href="${emailEscape(unsubscribeUrl)}" style="color:#137866">Отписаться</a>`;
+  const footer = `Ты получаешь письма Playne.<br><a class="email-link" href="${emailEscape(origin)}/account/#email-settings" style="color:#137866">Настроить письма</a> · <a class="email-link" href="${emailEscape(unsubscribeUrl)}" style="color:#137866">Отписаться</a>`;
   const plaintext = [
     subject,
     name,
@@ -122,7 +125,7 @@ export function renderRankEmail(args: {
       ),
     `Попробовать ещё раз: ${playUrl}`,
     `Рейтинг: ${rankUrl}`,
-    `Ты включил уведомления о рейтинге в Playne. Отписаться: ${unsubscribeUrl}`,
+    `Ты получаешь письма Playne. Отписаться: ${unsubscribeUrl}`,
   ].join("\n\n");
   return {
     subject,
@@ -130,18 +133,45 @@ export function renderRankEmail(args: {
     plaintext,
   };
 }
-export function renderVerificationEmail(origin: string, confirmUrl: string) {
+export function renderVerificationEmail(
+  origin: string,
+  confirmUrl: string,
+  purpose: EmailPurpose = "general",
+) {
   const subject = "Подтверди подписку на письма Playne";
   const text =
-    "Ты выбрал уведомления о рейтинге. Подтверди адрес, чтобы получать письма, когда твой результат в топ-10 обойдут.";
+    purpose === "general"
+      ? "Подтверди адрес для писем Playne: новые игры, напоминания и результаты."
+      : "Подтверди адрес для писем Playne о результатах в рейтинге.";
   return {
     subject,
     html: frame(
       origin,
-      "Один шаг — и уведомления о рейтинге будут включены.",
+      "Один шаг — и письма Playne будут подключены.",
       `<h1 class="title copy" style="margin:32px 0 20px;font-size:34px;line-height:1.15">Подтверди подписку.</h1><p class="copy" style="font-size:17px;line-height:1.6;margin:0 0 28px">${text}</p>${button("Подтвердить подписку", confirmUrl)}<p class="muted" style="font-size:14px;color:#5f6b6e;line-height:1.6;margin:24px 0 0">Ссылка действует 24 часа. Если ты не запрашивал подписку, просто не подтверждай её — уведомлений не будет.</p>`,
       `Playne · <a class="email-link" href="${emailEscape(origin)}/privacy/" style="color:#137866">Конфиденциальность</a>`,
     ),
     plaintext: `${text}\n\nПодтвердить подписку: ${confirmUrl}\n\nСсылка действует 24 часа. Если ты не запрашивал подписку, ничего делать не нужно.`,
+  };
+}
+
+export function renderReminderEmail(
+  origin: string,
+  playUrl: string,
+  unsubscribeUrl: string,
+) {
+  const subject = "Есть пара минут на игру?";
+  const text =
+    "В Playne готовы короткие игры и задачи дня. Выбери одну для небольшой разминки.";
+  const footer = `Ты получаешь письма Playne.<br><a class="email-link" href="${emailEscape(origin)}/account/#email-settings">Настроить дни и время</a> · <a class="email-link" href="${emailEscape(unsubscribeUrl)}">Отписаться от всех писем</a>`;
+  return {
+    subject,
+    html: frame(
+      origin,
+      text,
+      `<h1 class="copy" style="font-size:32px;margin:28px 0 16px">${subject}</h1><p class="copy" style="line-height:1.6">${text}</p>${button("Выбрать игру", playUrl)}`,
+      footer,
+    ),
+    plaintext: `${subject}\n\n${text}\n\nВыбрать игру: ${playUrl}\nДни и время: ${origin}/account/#email-settings\nОтписаться от всех писем: ${unsubscribeUrl}`,
   };
 }

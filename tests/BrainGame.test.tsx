@@ -107,6 +107,26 @@ beforeEach(() => {
   };
   mock.api.mockImplementation(async (path: string) => {
     if (path === "/play/progress") return mock.progress;
+    if (path === "/email/settings")
+      return {
+        available: true,
+        email: "player@example.test",
+        enabled: true,
+        pending: false,
+        verified: true,
+        purpose: "general",
+      };
+    if (/^\/games\/[a-f0-9-]+\/insight$/.test(path))
+      return {
+        status: "unavailable",
+        game: window.location.pathname.split("/")[2],
+        metric: null,
+        sample: { previous: 0, required: 3, missing: 3 },
+        fact: "Для этой партии не хватает подробных данных для личного разбора.",
+        nextStep:
+          "Закончи новую практику, чтобы начать собирать подробную статистику.",
+        comparisonNote: "Сравниваем одинаковые параметры.",
+      };
     throw new Error("Unexpected API request: " + path);
   });
   box = document.createElement("div");
@@ -236,7 +256,7 @@ describe("brain game orchestration", () => {
       answers: Array.from({ length: 5 }, () => ({ score: 100 })),
     });
     await act(async () => root.render(<BrainGame game="flash" />));
-    expect(box.textContent).toContain("Результат практики сохранён");
+    expect(box.textContent).toContain("Практика сохранена");
     expect(box.querySelector('[data-testid="public-save"]')).toBeNull();
     expect(box.querySelectorAll(".brain-summary .primary")).toHaveLength(1);
     expect(
@@ -284,7 +304,15 @@ describe("brain game orchestration", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-29T12:00:00Z"));
     progressForResult();
-    mock.api.mockRejectedValueOnce(new Error("Нет соединения"));
+    const normalRead = mock.api.getMockImplementation()!;
+    let progressFailed = false;
+    mock.api.mockImplementation(async (path: string) => {
+      if (path === "/play/progress" && !progressFailed) {
+        progressFailed = true;
+        throw new Error("Нет соединения");
+      }
+      return normalRead(path);
+    });
     window.history.replaceState(null, "", `/brain/rotate/?result=${runId}`);
     mock.resume.mockResolvedValue(completedDaily());
     await act(async () => root.render(<BrainGame game="rotate" />));
@@ -330,7 +358,7 @@ describe("brain game orchestration", () => {
     expect(mock.begin).not.toHaveBeenCalled();
     expect(mock.brainStart).not.toHaveBeenCalled();
     await act(async () => button("Начать задачу дня").click());
-    expect(mock.begin).toHaveBeenCalledWith("classic", 1);
+    expect(mock.begin).toHaveBeenCalledWith("classic", 1, undefined);
     expect(mock.brainStart).not.toHaveBeenCalled();
     expect(button("Начать раунд →")).toBeTruthy();
     expect(window.location.search).toBe("");
@@ -415,7 +443,7 @@ describe("brain game orchestration", () => {
         )?.value,
       ).toBe(String(expected));
       await act(async () => button("Начать игру→").click());
-      expect(mock.begin).toHaveBeenCalledWith("practice", expected);
+      expect(mock.begin).toHaveBeenCalledWith("practice", expected, undefined);
     },
   );
   it("never re-exposes flash cells after reloading an active reveal", async () => {
@@ -517,7 +545,7 @@ describe("brain game orchestration", () => {
         </StrictMode>,
       ),
     );
-    expect(box.textContent).toContain("Результат практики сохранён");
+    expect(box.textContent).toContain("Практика сохранена");
     expect(box.textContent).not.toContain("— / —");
     expect(box.querySelector('[data-testid="public-save"]')).toBeNull();
     expect(mock.brainStart).not.toHaveBeenCalled();

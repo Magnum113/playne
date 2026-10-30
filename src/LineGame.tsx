@@ -18,6 +18,9 @@ import {
 } from "./lineContent";
 import { LINE_GOALS, reachGoal } from "./analytics";
 import "./line.css";
+import ShareResult from "./ShareResult";
+import ChallengeContext, { readChallengeToken } from "./ChallengeContext";
+import { PlayneEmailOffer } from "./EmailPreferences";
 
 type Mode = "classic" | "practice";
 type Phase =
@@ -72,6 +75,7 @@ const modes = [
 
 export default function LineGame() {
   const ranked = useRankedRun("line");
+  const [challengeToken] = useState(readChallengeToken);
   const access = useGuestTrial("line");
   const [mode, setMode] = useState<Mode>(() =>
     typeof window !== "undefined" &&
@@ -176,19 +180,21 @@ export default function LineGame() {
     setError("");
     const previous = readSaved();
     // Guests have a single trial across modes; resume it rather than creating another.
-    const restoreId = access.resume
-      ? access.trial?.id
-      : previous &&
-          !previous.completed &&
-          previous.mode === chosen &&
-          (chosen === "practice" || previous.day === lineMoscowDate())
-        ? previous.id
-        : undefined;
+    const restoreId = challengeToken
+      ? undefined
+      : access.resume
+        ? access.trial?.id
+        : previous &&
+            !previous.completed &&
+            previous.mode === chosen &&
+            (chosen === "practice" || previous.day === lineMoscowDate())
+          ? previous.id
+          : undefined;
     let data: ServerRun | null;
     try {
       data = restoreId
         ? await ranked.resume(restoreId)
-        : await ranked.begin(chosen);
+        : await ranked.begin(chosen, 1, challengeToken);
     } catch (e) {
       if (e instanceof ApiError && [403, 404, 410].includes(e.status)) {
         try {
@@ -196,7 +202,7 @@ export default function LineGame() {
         } catch {
           /* A new run can still begin. */
         }
-        data = await ranked.begin(chosen);
+        data = await ranked.begin(chosen, 1, challengeToken);
       } else {
         setError(
           e instanceof Error
@@ -345,6 +351,9 @@ export default function LineGame() {
           description="Соедини числа по порядку и пройди каждую клетку ровно один раз."
           onRules={openRules}
         />
+        {phase === "welcome" && (
+          <ChallengeContext game="line" token={challengeToken} />
+        )}
         {phase === "welcome" ? (
           <>
             <section className="line-welcome game-welcome">
@@ -359,15 +368,19 @@ export default function LineGame() {
                   От 1 до последнего числа — одной непрерывной линией. Найди
                   путь, который не оставит пустых клеток.
                 </p>
-                <ModeChoice
-                  value={mode}
-                  onChange={chooseMode}
-                  options={modes}
-                  className="line-mode-choice"
-                />
-                <p className="line-mode-description">
-                  {mode === "classic" ? lineDailyText : linePracticeText}
-                </p>
+                {!challengeToken && (
+                  <ModeChoice
+                    value={mode}
+                    onChange={chooseMode}
+                    options={modes}
+                    className="line-mode-choice"
+                  />
+                )}
+                {!challengeToken && (
+                  <p className="line-mode-description">
+                    {mode === "classic" ? lineDailyText : linePracticeText}
+                  </p>
+                )}
                 <GameStartAction
                   game="line"
                   onStart={() => void begin()}
@@ -450,7 +463,26 @@ export default function LineGame() {
                 ? "Первая попытка дня завершена. Новый набор появится в полночь по Москве. Можно продолжить в практике."
                 : "Результат практики учитывается в её отдельном рейтинге. Общий рейтинг меняют только поля дня."}
             </p>
-            <SaveResult run={ranked} game="line" />
+            <ChallengeContext
+              game="line"
+              token={challengeToken ?? run?.challenge.comparisonToken}
+              completed
+              runDay={run?.challenge.day}
+              runMode={run?.mode}
+              comparisonToken={run?.challenge.comparisonToken}
+              score={run?.score}
+            />
+            {run?.private || run?.challenge.comparison ? (
+              <>
+                <p className="save-result">
+                  Результат сравнения сохранён отдельно от рейтинга.
+                </p>
+                <PlayneEmailOffer />
+              </>
+            ) : (
+              <SaveResult run={ranked} game="line" />
+            )}
+            <ShareResult runId={run?.id} />
             {access.user && (
               <button
                 className="primary"

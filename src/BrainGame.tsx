@@ -35,6 +35,13 @@ import {
 } from "./brainContent";
 import { BRAIN_GOALS, reachGoal } from "./analytics";
 import "./brain-game.css";
+import BrainInsight from "./BrainInsight";
+import ShareResult from "./ShareResult";
+import ChallengeContext, {
+  readChallengeToken,
+  challengeQuery,
+} from "./ChallengeContext";
+import { PlayneEmailOffer } from "./EmailPreferences";
 
 const useGameLayoutEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -122,6 +129,7 @@ const modeOptions = [
 export default function BrainGame({ game }: { game: BrainGameId }) {
   const content = brainGameContent(game);
   const ranked = useRankedRun(game);
+  const [challengeToken] = useState(readChallengeToken);
   const access = useGuestTrial(game);
   const [mode, setMode] = useState<BrainMode>(() =>
     typeof window !== "undefined" &&
@@ -426,22 +434,24 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
     setBusy(true);
     setError("");
     const previous = readSaved(game);
-    const restoreId = access.resume
-      ? access.trial?.id
-      : previous &&
-          !previous.completed &&
-          previous.mode === chosen &&
-          (chosen === "classic"
-            ? previous.day === brainMoscowDate()
-            : previous.difficulty === selectedDifficulty)
-        ? previous.id
-        : undefined;
+    const restoreId = challengeToken
+      ? undefined
+      : access.resume
+        ? access.trial?.id
+        : previous &&
+            !previous.completed &&
+            previous.mode === chosen &&
+            (chosen === "classic"
+              ? previous.day === brainMoscowDate()
+              : previous.difficulty === selectedDifficulty)
+          ? previous.id
+          : undefined;
     try {
       let data: ServerRun | null;
       try {
         data = restoreId
           ? await ranked.resume(restoreId)
-          : await ranked.begin(chosen, selectedDifficulty);
+          : await ranked.begin(chosen, selectedDifficulty, challengeToken);
       } catch (e) {
         if (!(e instanceof ApiError) || ![403, 404, 410].includes(e.status))
           throw e;
@@ -450,7 +460,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
         } catch {
           /* Retry still works. */
         }
-        data = await ranked.begin(chosen, selectedDifficulty);
+        data = await ranked.begin(chosen, selectedDifficulty, challengeToken);
       }
       if (!data) return;
       if (
@@ -466,7 +476,10 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
         window.history.replaceState(
           null,
           "",
-          data.completed ? `${content.path}?result=${data.id}` : content.path,
+          challengeQuery(
+            data.completed ? `${content.path}?result=${data.id}` : content.path,
+            challengeToken,
+          ),
         );
       if (data.completed) {
         setPhase("finished");
@@ -682,20 +695,25 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
             reachGoal(BRAIN_GOALS.rulesOpen, { game, mode, difficulty });
           }}
         />
+        {phase === "welcome" && (
+          <ChallengeContext game={game} token={challengeToken} />
+        )}
         {phase === "welcome" ? (
           <section className="brain-welcome game-welcome">
             <div className="game-welcome-copy">
               <p className="eyebrow">ПЯТЬ РАУНДОВ · ДО 500 ОЧКОВ</p>
               <h2>{content.heroTitle}</h2>
               <p>{content.heroText}</p>
-              <ModeChoice
-                value={mode}
-                onChange={chooseMode}
-                options={modeOptions}
-                className="brain-mode-choice"
-                disabled={busy}
-              />
-              {mode === "practice" && (
+              {!challengeToken && (
+                <ModeChoice
+                  value={mode}
+                  onChange={chooseMode}
+                  options={modeOptions}
+                  className="brain-mode-choice"
+                  disabled={busy}
+                />
+              )}
+              {!challengeToken && mode === "practice" && (
                 <ModeChoice
                   value={String(difficulty)}
                   onChange={(value) => {
@@ -717,9 +735,11 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                   disabled={busy}
                 />
               )}
-              <p className="brain-mode-note">
-                {mode === "classic" ? brainDailyText : brainPracticeText}
-              </p>
+              {!challengeToken && (
+                <p className="brain-mode-note">
+                  {mode === "classic" ? brainDailyText : brainPracticeText}
+                </p>
+              )}
               {message && <p role="status">{message}</p>}
               <GameStartAction
                 game={game}
@@ -776,15 +796,27 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 </li>
               ))}
             </ol>
-            <p>{content.scoreText}</p>
+            <BrainInsight game={game} runId={run?.id} />
+            <ChallengeContext
+              game={game}
+              token={challengeToken ?? run?.challenge.comparisonToken}
+              completed
+              runDay={run?.challenge.day}
+              runMode={run?.mode}
+              comparisonToken={run?.challenge.comparisonToken}
+              score={run?.score}
+            />
             {dailyResult ? (
               <SaveResult run={ranked} game={game} />
             ) : (
-              <StatusMessage tone="success" title="Результат практики сохранён">
-                {access.user
-                  ? "Он останется в личной истории. Практика не меняет публичный и общий рейтинги."
-                  : "Войди через Яндекс, чтобы добавить его в личную историю. Практика не меняет публичный и общий рейтинги."}
-              </StatusMessage>
+              <>
+                <StatusMessage tone="success" title="Практика сохранена">
+                  {access.user
+                    ? "В личной истории, без влияния на рейтинг."
+                    : "Войди, чтобы сохранить её в аккаунте."}
+                </StatusMessage>
+                <PlayneEmailOffer />
+              </>
             )}
             <PlayNextStep
               game={game}
@@ -794,6 +826,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
               }
             />
             <div className="brain-summary-actions">
+              <ShareResult runId={run?.id} />
               {newDailyAvailable && access.user && (
                 <button
                   className={

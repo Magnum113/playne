@@ -6,6 +6,7 @@ type RecordRun = {
   game: string;
   mode: string;
   version: number;
+  challenge?: { comparison?: boolean };
 };
 
 // Called inside the publication transaction, before the new result is stored.
@@ -21,6 +22,7 @@ export async function improvesPersonalRecord(
   if (
     scoreUnits <= 0 ||
     run.mode === "practice" ||
+    run.challenge?.comparison === true ||
     !isGame(run.game) ||
     run.version !== scoreVersion(run.game)
   )
@@ -32,6 +34,7 @@ export async function improvesPersonalRecord(
     `SELECT max(${GEO_V4_UNITS_SQL}) AS units
      FROM playne_games WHERE owner_id=$1 AND game=$2 AND mode=$3 AND id<>$4
      AND published_at IS NOT NULL
+     AND coalesce(challenge->>'comparison','false')<>'true'
      AND (version=$5 OR (game='geo' AND $5=4 AND version IN(2,3)))`,
     [ownerId, run.game, run.mode, run.id, run.version],
   );

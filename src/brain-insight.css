@@ -1,0 +1,84 @@
+.brain-insight {
+  margin: 24px 0;
+  padding: 20px 0;
+  border-block: 1px solid var(--line);
+  text-align: left;
+}
+.brain-insight h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.brain-insight .brain-insight-fact {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.brain-insight .brain-insight-next {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.brain-insight-next > span {
+  color: var(--text);
+}
+.brain-insight-more {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  margin-top: 10px;
+}
+.brain-insight-more details {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+.brain-insight-more summary,
+.brain-insight-more > a {
+  min-height: 44px;
+  padding-block: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.brain-insight-more summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.brain-insight-more details p {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.brain-insight-more > a {
+  display: inline-flex;
+  align-items: center;
+}
+.brain-insight-pending {
+  min-height: 110px;
+}
+.brain-insight-pending > p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.brain-insight-pending .text-button {
+  min-height: 44px;
+}
+.brain-insight summary:focus-visible,
+.brain-insight a:focus-visible,
+.brain-insight button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+@media (max-width: 380px) {
+  .brain-insight-more {
+    gap: 0;
+  }
+  .brain-insight-more details {
+    flex-basis: 100%;
+  }
+}

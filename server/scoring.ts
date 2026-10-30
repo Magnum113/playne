@@ -8,7 +8,7 @@ import {
 import { chooseRounds, legacyPairIds, objects, pairs } from "../src/data";
 import { score } from "../src/game";
 import { evaluateCircle } from "../src/circle";
-import { isBrainGame, createBrain, publicBrain, brainAnswer } from "./brain";
+import { isBrainGame, createBrain, publicBrain, publicComparison, brainAnswer } from "./brain";
 import type { BrainChallenge } from "../src/brain";
 import { LINE_STAGE_POOLS } from "../src/linePuzzles";
 import {
@@ -166,6 +166,7 @@ export function publicChallenge(game: GameId, challenge: any) {
   if (isBrainGame(game)) return publicBrain(challenge);
   if (game === "line")
     return {
+      ...publicComparison(challenge),
       puzzles: challenge.puzzles,
       day: challenge.day,
       mode: challenge.mode,
@@ -379,6 +380,10 @@ export function safeReturn(value: unknown) {
           item,
         )
       )
+        return "/account/";
+    } else if (key === "challenge") {
+      if (!/^\/(?:line|one-line|brain\/(?:flash|rotate|slide|dispatch))\/$/.test(url.pathname) ||
+        !/^[A-Za-z0-9_-]{43}$/.test(item))
         return "/account/";
     } else if (key === "mode") {
       if (

@@ -144,6 +144,26 @@ beforeEach(() => {
   mock.api.mockImplementation(async (path: string) => {
     if (path === "/play/progress")
       return playProgressFixture({ day: brainMoscowDate() });
+    if (path === "/email/settings")
+      return {
+        available: true,
+        email: "player@example.test",
+        enabled: true,
+        pending: false,
+        verified: true,
+        purpose: "general",
+      };
+    if (/^\/games\/[a-f0-9-]+\/insight$/.test(path))
+      return {
+        status: "unavailable",
+        game: window.location.pathname.split("/")[2],
+        metric: null,
+        sample: { previous: 0, required: 3, missing: 3 },
+        fact: "Для этой партии не хватает подробных данных для личного разбора.",
+        nextStep:
+          "Закончи новую практику, чтобы начать собирать подробную статистику.",
+        comparisonNote: "Сравниваем одинаковые параметры.",
+      };
     throw new Error("Unexpected API request in scroll test: " + path);
   });
   network = vi.spyOn(globalThis, "fetch");
@@ -160,7 +180,11 @@ beforeEach(() => {
 afterEach(() => {
   try {
     for (const [path] of mock.api.mock.calls)
-      expect(path).toBe("/play/progress");
+      expect(
+        path === "/play/progress" ||
+          path === "/email/settings" ||
+          /^\/games\/[a-f0-9-]+\/insight$/.test(path),
+      ).toBe(true);
     expect(network).not.toHaveBeenCalled();
   } finally {
     act(() => root.unmount());

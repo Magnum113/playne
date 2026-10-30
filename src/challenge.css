@@ -1,0 +1,116 @@
+.challenge-context {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  margin: 20px 0;
+  border-radius: var(--radius-inner);
+  background: var(--purple-tint);
+  color: var(--text);
+  text-align: start;
+}
+.challenge-context strong {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.challenge-context p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+}
+.challenge-mark {
+  font-size: 30px;
+  color: var(--purple);
+}
+.share-dialog {
+  width: min(600px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  padding: 0;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--dialog-shadow);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.share-dialog::backdrop {
+  background: #10191bd0;
+}
+.share-dialog-content {
+  padding: 24px;
+}
+.share-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.share-dialog-heading h2 {
+  font-size: 26px;
+  letter-spacing: -0.8px;
+  margin: 0;
+}
+.share-close {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--panel);
+  font-size: 25px;
+}
+.share-preview {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-inner);
+  display: block;
+  outline: 1px solid oklch(0 0 0 / 0.1);
+}
+.share-caption {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.share-dialog input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius-control);
+  padding: 12px;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 13px;
+}
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+.share-actions > button {
+  flex: 1 1 auto;
+  min-height: 48px;
+  justify-content: center;
+}
+.share-revoke {
+  margin-top: 16px;
+  font-size: 13px;
+}
+.share-status {
+  font-size: 13px;
+  color: var(--mint);
+}
+:root[data-theme="dark"] .share-preview {
+  outline-color: oklch(1 0 0 / 0.1);
+}
+@media (max-width: 420px) {
+  .share-dialog-content {
+    padding: 18px;
+  }
+  .share-actions {
+    flex-direction: column;
+  }
+}

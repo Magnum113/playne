@@ -3,6 +3,7 @@ setDefaultResultOrder("ipv4first");
 import { Pool } from "pg";
 import { readFileSync } from "node:fs";
 import { buildApp } from "./app";
+import { prepareReminderEmails } from "./email-reminders";
 import { migrateShadeScores } from "./shade-migration";
 import {
   deliverEmails,
@@ -88,6 +89,7 @@ async function main() {
         lastEmailCleanup = Date.now();
       }
       await prepareRankEmails(pool, email);
+      await prepareReminderEmails(pool, email);
       await deliverEmails(pool, email, fetch, Date.now(), emailShutdown.signal);
     })()
       .catch(() => console.error("Playne email worker failed"))

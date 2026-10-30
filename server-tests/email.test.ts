@@ -249,6 +249,7 @@ describe("Email capabilities and templates", () => {
       max: 8,
     });
     await pool.query(readFileSync("server/schema.sql", "utf8"));
+    await pool.query(readFileSync("server/reminders-schema.sql", "utf8"));
     await pool.query(readFileSync("server/schema.sql", "utf8"));
     app = await buildApp(
       pool,

@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => {
 vi.mock("../src/account", () => ({
   ApiError: mocks.ApiError,
   useGuestTrial: () => mocks.access,
+  useAuth: () => mocks.access,
   useRankedRun: () => mocks.ranked,
   AccountNav: () => null,
   GuestSavedNotice: () => null,
@@ -136,7 +137,7 @@ describe("one-line saved-party recovery", () => {
     await mount();
     await begin();
     expect(mocks.ranked.resume).toHaveBeenCalledExactlyOnceWith(OLD_ID);
-    expect(mocks.ranked.begin).toHaveBeenCalledExactlyOnceWith("practice");
+    expect(mocks.ranked.begin).toHaveBeenCalledExactlyOnceWith("practice", 1, undefined);
     expect(mocks.ranked.lineStart).toHaveBeenCalledExactlyOnceWith(0);
     expect(container.querySelector(".line-board")).not.toBeNull();
     expect(JSON.parse(localStorage.getItem(STORAGE)!).id).toBe(NEW_ID);
@@ -161,7 +162,7 @@ describe("one-line saved-party recovery", () => {
     await mount();
     await begin();
     expect(mocks.ranked.resume).not.toHaveBeenCalled();
-    expect(mocks.ranked.begin).toHaveBeenCalledExactlyOnceWith("classic");
+    expect(mocks.ranked.begin).toHaveBeenCalledExactlyOnceWith("classic", 1, undefined);
     expect(mocks.ranked.lineStart).toHaveBeenCalledExactlyOnceWith(0);
     expect(container.textContent).toContain(`Поля дня · ${DAY}`);
     expect(JSON.parse(localStorage.getItem(STORAGE)!).day).toBe(DAY);

@@ -248,6 +248,16 @@ export function useGuestTrial<G extends GameId = GameId>(game?: G) {
 }
 export function guestLoginReturn(game: GameId, id?: string, mode?: GameMode) {
   const params = new URLSearchParams();
+  const challenge =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("challenge");
+  if (
+    (game === "line" || isBrain(game)) &&
+    challenge &&
+    /^[A-Za-z0-9_-]{43}$/.test(challenge)
+  )
+    return `/${game === "line" ? "one-line" : "brain/" + game}/?challenge=${challenge}`;
   if (id) params.set("saved", id);
   if (
     mode &&
@@ -388,6 +398,7 @@ export function useRankedRun<G extends GameId>(game: G) {
   function begin(
     mode?: GameMode,
     difficulty = 1,
+    challenge?: string,
   ): Promise<ServerRun<G> | null> {
     const generation = current.current.generation + 1;
     if (restoreTimer.current) clearTimeout(restoreTimer.current);
@@ -413,6 +424,7 @@ export function useRankedRun<G extends GameId>(game: G) {
           game,
           mode,
           ...(isBrain(game) ? { difficulty } : {}),
+          ...(challenge ? { challenge } : {}),
           geoRulesVersion: game === "geo" ? GEO_SCORE_VERSION : undefined,
           pressureRulesVersion:
             game === "pressure" ? PRESSURE_RULES_VERSION : undefined,
@@ -427,7 +439,7 @@ export function useRankedRun<G extends GameId>(game: G) {
           setState({
             status: "error",
             message:
-              e instanceof ApiError && e.status === 403
+              e instanceof ApiError && (challenge || e.status === 403)
                 ? e.message
                 : "Не удалось загрузить партию. Проверь соединение и попробуй ещё раз.",
           });

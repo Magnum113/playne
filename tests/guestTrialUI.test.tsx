@@ -215,6 +215,81 @@ describe("guest party entry", () => {
       `/circle/?saved=${id}`,
     );
   });
+  it.each(["line", "flash", "rotate", "slide", "dispatch"] as const)(
+    "keeps a %s invitation ahead of an older saved guest result on login",
+    (game) => {
+      const path = game === "line" ? "/one-line/" : `/brain/${game}/`;
+      const token = "aB_9-".repeat(8) + "xyz";
+      window.history.replaceState(
+        null,
+        "",
+        `${path}?challenge=${token}&saved=${id}&mode=practice`,
+      );
+      expect(guestLoginReturn(game, id, "practice")).toBe(
+        `${path}?challenge=${token}`,
+      );
+    },
+  );
+  it.each(["short", "a".repeat(44), "a".repeat(42) + "/", ""])(
+    "keeps ordinary saved-result recovery for an invalid invitation: %s",
+    (token) => {
+      window.history.replaceState(
+        null,
+        "",
+        `/one-line/?challenge=${encodeURIComponent(token)}`,
+      );
+      expect(guestLoginReturn("line", id, "practice")).toBe(
+        `/one-line/?saved=${id}&mode=practice`,
+      );
+    },
+  );
+  it("does not transfer a challenge to a game without invitation support", () => {
+    window.history.replaceState(
+      null,
+      "",
+      `/circle/?challenge=${"a".repeat(43)}`,
+    );
+    expect(guestLoginReturn("circle", id)).toBe(`/circle/?saved=${id}`);
+  });
+  it.each(["welcome", "finished"] as const)(
+    "keeps the invitation in the real %s guest login navigation",
+    async (surface) => {
+      const token = "b".repeat(43);
+      window.history.replaceState(
+        null,
+        "",
+        `/brain/flash/?challenge=${token}`,
+      );
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response(JSON.stringify({
+          user: null,
+          trials: { flash: { id, mode: "classic", completed: true } },
+        }))),
+      );
+      const assign = vi.spyOn(window.location, "assign").mockImplementation(() => {});
+      try {
+        await act(async () => root.render(
+          <AuthProvider>
+            {surface === "welcome" ? (
+              <GameStartAction game="flash" onStart={vi.fn()} />
+            ) : (
+              <GuestTrialPrompt game="flash" id={id} />
+            )}
+          </AuthProvider>,
+        ));
+        await act(async () => box.querySelector("button")!.click());
+        expect(assign).toHaveBeenCalledTimes(1);
+        const target = new URL(String(assign.mock.calls[0][0]), location.origin);
+        expect(target.pathname).toBe("/api/auth/yandex/start");
+        expect(target.searchParams.get("return")).toBe(
+          `/brain/flash/?challenge=${token}`,
+        );
+      } finally {
+        assign.mockRestore();
+      }
+    },
+  );
   it("shows a complete-party prompt with a clear save promise", async () => {
     vi.stubGlobal(
       "fetch",
