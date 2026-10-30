@@ -13,6 +13,7 @@ import {
   type PlaySuggestion,
 } from "./playSuggestions";
 import { usePlayProgress } from "./usePlayProgress";
+import type { PlayProgress } from "./playProgress";
 import "./play-progress.css";
 
 function Preview({ game }: { game: GameId }) {
@@ -147,6 +148,30 @@ function Choice({
 
 export default function TodayPlay() {
   const { data, day, loading, error, refresh } = usePlayProgress();
+  return (
+    <TodayPlayCard
+      data={data}
+      day={day}
+      loading={loading}
+      error={error}
+      onRetry={refresh}
+    />
+  );
+}
+
+export function TodayPlayCard({
+  data,
+  day,
+  loading = false,
+  error = false,
+  onRetry,
+}: {
+  data?: PlayProgress;
+  day: string;
+  loading?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
+}) {
   const [primary, secondary] = todaySuggestions(day, data);
   return (
     <section
@@ -184,7 +209,7 @@ export default function TodayPlay() {
         </div>
       )}
       {error && (
-        <button className="text-button play-refresh" onClick={refresh}>
+        <button className="text-button play-refresh" onClick={onRetry}>
           Обновить рекомендации
         </button>
       )}

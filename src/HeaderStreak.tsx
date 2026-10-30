@@ -5,7 +5,24 @@ import "./streak.css";
 
 export default function HeaderStreak() {
   const { data, loading, error } = usePlayProgress();
-  const days = data?.streak.current;
+  return (
+    <HeaderStreakLink
+      days={data?.streak.current}
+      loading={loading}
+      error={error}
+    />
+  );
+}
+
+export function HeaderStreakLink({
+  days,
+  loading = false,
+  error = false,
+}: {
+  days?: number;
+  loading?: boolean;
+  error?: boolean;
+}) {
   const label =
     days !== undefined
       ? `Ударная серия: ${streakDays(days)}`

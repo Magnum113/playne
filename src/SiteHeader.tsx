@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from "react";
 import { AccountNav } from "./account";
+import HeaderStreak from "./HeaderStreak";
 import { useTheme } from "./theme";
 
 export function PlayneMark() {
@@ -48,6 +49,15 @@ export function PlayneMark() {
   );
 }
 
+export function HeaderAccount() {
+  return (
+    <span className="header-account">
+      <HeaderStreak />
+      <AccountNav />
+    </span>
+  );
+}
+
 export function GameHeader({
   back = true,
   account = true,
@@ -74,7 +84,7 @@ export function GameHeader({
           </a>
         )}
         {children}
-        {account && <AccountNav />}
+        {account && <HeaderAccount />}
         <ThemeToggle />
       </nav>
     </header>

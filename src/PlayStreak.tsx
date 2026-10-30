@@ -2,6 +2,7 @@ import StreakFlame from "./StreakFlame";
 import { streakDays } from "./playStreaks";
 import { usePlayProgress } from "./usePlayProgress";
 import { useAuth } from "./account";
+import type { PlayProgress } from "./playProgress";
 import "./streak.css";
 
 export default function PlayStreak({
@@ -13,6 +14,33 @@ export default function PlayStreak({
 }) {
   const { data, loading, error, refresh } = usePlayProgress(revision);
   const { user } = useAuth();
+  return (
+    <PlayStreakCard
+      data={data}
+      loading={loading}
+      error={error}
+      onRetry={refresh}
+      guest={!user}
+      showRankingLink={showRankingLink}
+    />
+  );
+}
+
+export function PlayStreakCard({
+  data,
+  loading = false,
+  error = false,
+  onRetry,
+  guest = false,
+  showRankingLink = true,
+}: {
+  data?: PlayProgress;
+  loading?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
+  guest?: boolean;
+  showRankingLink?: boolean;
+}) {
   const streak = data?.streak;
   const target =
     [3, 7, 14, 30, 60, 100, 365].find((n) => n > (streak?.current ?? 0)) ??
@@ -97,7 +125,7 @@ export default function PlayStreak({
         </>
       )}
       {error && (
-        <button className="text-button" onClick={refresh}>
+        <button className="text-button" onClick={onRetry}>
           Обновить прогресс
         </button>
       )}
@@ -106,7 +134,7 @@ export default function PlayStreak({
           <a href="/leaderboard/?game=streak">Рейтинг серий →</a>
         </div>
       )}
-      {!user && (
+      {guest && (
         <p className="streak-guest">
           <a href="/account/">Войди</a>, чтобы сохранить серию в аккаунте.
         </p>

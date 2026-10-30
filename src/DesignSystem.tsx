@@ -1,10 +1,6 @@
 import { EmailConsent } from "./EmailPreferences";
 import { AccountBests } from "./AccountBests";
-import {
-  TopFiveCard,
-  OverallStandings,
-  OverallRules,
-} from "./OverallLeaderboard";
+import { OverallStandings, OverallRules } from "./OverallLeaderboard";
 import { type OverallBoard, type OverallEntry } from "./overall";
 import RandomGame from "./RandomGame";
 import RecordCelebration from "./RecordCelebration";
@@ -20,6 +16,7 @@ import { TextField, FieldFeedback } from "./FormField";
 import { RulesDialog } from "./RulesDialog";
 import DesignNavigation from "./DesignNavigation";
 import ActivityExamples from "./ActivityExamples";
+import ReturnExamples from "./ReturnExamples";
 import { DesignPrinciples, ComponentContracts } from "./DesignPrinciplesPanel";
 import { GameIntro, GameRecord, GameStartAction } from "./GameIntro";
 import {
@@ -31,9 +28,10 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
-import { AccountNav, resultText } from "./account";
+import { resultText } from "./account";
 import {
   GameHeader,
+  HeaderAccount,
   PlayneBrand,
   PlayneMark,
   ThemeToggle,
@@ -313,7 +311,7 @@ function ButtonExamples() {
         <Sample title="Кнопки с иконками" source="SiteHeader.tsx">
           <div className="ds-inline">
             <ThemeToggle />
-            <AccountNav />
+            <HeaderAccount />
             <button
               className="help-button"
               onClick={() =>
@@ -1093,7 +1091,14 @@ function Results() {
   return (
     <div className="ds-grid">
       <Sample
-        title="Общий рейтинг и топ-5 на главной"
+        title="Серия, рекомендации и мобильные рейтинги"
+        source="HeaderStreakLink · TodayPlayCard · PlayStreakCard · StreakBoardView"
+        wide
+      >
+        <ReturnExamples overall={top} />
+      </Sample>
+      <Sample
+        title="Общий рейтинг и вклад игр"
         source="OverallLeaderboard.tsx · overall.css"
         wide
       >
@@ -1106,9 +1111,6 @@ function Results() {
           фокусе. При уменьшении движения контур статичен, а появление строк
           происходит без анимации.
         </p>
-        <div className="ds-top-five-demo">
-          <TopFiveCard data={top} />
-        </div>
         <p className="ds-note">
           Нажми на игрока, чтобы раскрыть вклад каждой игры. Вся строка доступна
           с клавиатуры.
@@ -1678,7 +1680,7 @@ export default function DesignSystem() {
                   source="SiteHeader.tsx · account.tsx"
                 >
                   <div className="ds-inline">
-                    <AccountNav />
+                    <HeaderAccount />
                     <ThemeToggle />
                     <span className="question" aria-label="Знак справки">
                       ?

@@ -56,6 +56,21 @@ export const tokenGroups = [
 // The source paths identify the production components used by these examples.
 export const componentInventory = [
   [
+    "Серия в шапке: огонь, число, загрузка и ошибка",
+    "HeaderStreak.tsx · HeaderStreakLink · SiteHeader.tsx",
+    "navigation",
+  ],
+  [
+    "Личная ударная серия и календарь без ссылки на текущую страницу",
+    "PlayStreak.tsx · ReturnExamples.tsx",
+    "results",
+  ],
+  [
+    "Компактные мобильные топ-5 очков и серий",
+    "OverallLeaderboard.tsx · StreakLeaderboard.tsx · overall.css · streak.css",
+    "results",
+  ],
+  [
     "Недельная цель, календарь и постоянные достижения",
     "PlayWeek.tsx · ActivityExamples.tsx",
     "results",
@@ -304,8 +319,16 @@ export const componentInventory = [
     "GuidePage.tsx · PressureAbout.tsx · LineAbout.tsx",
     "content",
   ],
-  ["Личный разбор результата", "BrainInsight.tsx · brain-insight.css", "results"],
-  ["Вызов другу и общая ссылка", "ShareResult.tsx · ChallengeContext.tsx · challenge.css", "overlays"],
+  [
+    "Личный разбор результата",
+    "BrainInsight.tsx · brain-insight.css",
+    "results",
+  ],
+  [
+    "Вызов другу и общая ссылка",
+    "ShareResult.tsx · ChallengeContext.tsx · challenge.css",
+    "overlays",
+  ],
   ["Общий футер со всеми ссылками", "FooterLinks.tsx", "content"],
   [
     "Векторные силуэты и растровые маски",

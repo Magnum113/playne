@@ -1,7 +1,7 @@
 import { PressurePreview } from "./PressureGame";
 import LinePreview from "./LinePreview";
 import { readPressStats, formatPressScore } from "./pressure";
-import { AccountNav } from "./account";
+import { HeaderAccount } from "./SiteHeader";
 import HubTopFive from "./OverallLeaderboard";
 import FooterLinks from "./FooterLinks";
 import { DestroyWebsiteLink, PlayneBrand, ThemeToggle } from "./SiteHeader";
@@ -65,7 +65,7 @@ export default function Hub() {
             Рейтинг
           </a>
           <DestroyWebsiteLink />
-          <AccountNav />
+          <HeaderAccount />
           <ThemeToggle />
         </nav>
       </header>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { api, useAuth } from "./account";
 import type { StreakBoard } from "./playStreaks";
 import { streakDays } from "./playStreaks";
@@ -74,7 +74,43 @@ export function StreakBoardCard({ compact = false }: { compact?: boolean }) {
         { game: "streak", period: "current" },
       );
   }, [compact, data, status, identity, page]);
-  const waiting = authLoading || status === "loading";
+  return (
+    <StreakBoardView
+      data={data}
+      compact={compact}
+      loading={authLoading || status === "loading"}
+      error={status === "error"}
+      page={page}
+      headingRef={heading}
+      onRetry={() => setRevision((n) => n + 1)}
+      onPageChange={(next) => {
+        changed.current = true;
+        setPage(next);
+      }}
+    />
+  );
+}
+
+export function StreakBoardView({
+  data,
+  compact = false,
+  loading = false,
+  error = false,
+  page = 1,
+  headingRef,
+  onRetry,
+  onPageChange,
+}: {
+  data: StreakBoard | null;
+  compact?: boolean;
+  loading?: boolean;
+  error?: boolean;
+  page?: number;
+  headingRef?: RefObject<HTMLHeadingElement | null>;
+  onRetry?: () => void;
+  onPageChange?: (page: number) => void;
+}) {
+  const waiting = loading;
   const pages = data ? Math.ceil(data.total / data.limit) : 1;
   return (
     <section
@@ -84,7 +120,7 @@ export function StreakBoardCard({ compact = false }: { compact?: boolean }) {
     >
       <header className="streak-board-heading">
         <div>
-          <h2 ref={heading} tabIndex={-1}>
+          <h2 ref={headingRef} tabIndex={-1}>
             Кто в огне
             <StreakFlame animated />
           </h2>
@@ -100,13 +136,10 @@ export function StreakBoardCard({ compact = false }: { compact?: boolean }) {
           </a>
         )}
       </header>
-      {status === "error" ? (
+      {error ? (
         <p className="streak-empty" role="status">
           Не удалось загрузить серии.{" "}
-          <button
-            className="text-button"
-            onClick={() => setRevision((n) => n + 1)}
-          >
+          <button className="text-button" onClick={onRetry}>
             Повторить
           </button>
         </p>
@@ -157,10 +190,7 @@ export function StreakBoardCard({ compact = false }: { compact?: boolean }) {
           <button
             className="secondary-button"
             disabled={page === 1 || waiting}
-            onClick={() => {
-              changed.current = true;
-              setPage((p) => p - 1);
-            }}
+            onClick={() => onPageChange?.(page - 1)}
           >
             ← Назад
           </button>
@@ -170,10 +200,7 @@ export function StreakBoardCard({ compact = false }: { compact?: boolean }) {
           <button
             className="secondary-button"
             disabled={page >= pages || waiting}
-            onClick={() => {
-              changed.current = true;
-              setPage((p) => p + 1);
-            }}
+            onClick={() => onPageChange?.(page + 1)}
           >
             Дальше →
           </button>

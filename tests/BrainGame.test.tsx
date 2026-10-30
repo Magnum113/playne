@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+// The navigation streak has its own integration tests; these tests isolate gameplay.
+vi.mock("../src/HeaderStreak", () => ({ default: () => null }));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";

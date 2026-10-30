@@ -115,6 +115,25 @@ assert(
   "Technical catalog should not compete with game pages in search",
 );
 assert(!html.includes('placeholder="TODO"'));
+for (const component of [
+  "HeaderStreakLink",
+  "TodayPlayCard",
+  "PlayStreakCard",
+  "StreakBoardView",
+]) {
+  assert(
+    html.includes(component),
+    `Missing return/streak component in the catalog: ${component}`,
+  );
+}
+assert(
+  html.includes("Состояние серии и рекомендаций"),
+  "Catalog must expose progress/loading/error examples",
+);
+assert(
+  html.includes("ds-top-five-demo hub-leaderboards"),
+  "Catalog must use the production homepage scope for responsive rankings",
+);
 console.log(
   `Design system checks passed: ${sectionIds.length} sections, unique IDs and ${textPairs.length * 2 + 8} colour-pair checks in both themes.`,
 );

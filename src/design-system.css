@@ -1091,3 +1091,8 @@
   max-width: 304px;
   margin-block: 16px;
 }
+@media (max-width: 650px) {
+  .ds-top-five-demo {
+    max-width: none;
+  }
+}

@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+// Navigation streak is verified separately from game mechanics.
+vi.mock("../src/HeaderStreak", () => ({ default: () => null }));
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

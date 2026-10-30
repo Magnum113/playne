@@ -8,7 +8,6 @@ import {
 import { YandexLogin, TopTenEmailOffer } from "./EmailPreferences";
 import { rememberPersonalRecord } from "./recordCelebrationState";
 import { GuestTrialPanel, ResultStatus } from "./ResultStatus";
-import HeaderStreak from "./HeaderStreak";
 import { PLAY_PROGRESS_UPDATED } from "./playProgress";
 import { SHADE_SCORE_VERSION } from "./colorfle";
 import { PRESSURE_RULES_VERSION, formatPressScore } from "./pressure";
@@ -248,7 +247,8 @@ export const useAuth = () => useContext(AuthContext);
 export function useGuestTrial<G extends GameId = GameId>(game?: G) {
   const auth = useAuth();
   const trial = (game ? auth.trials[game] : undefined) as
-    GuestTrial<G> | undefined;
+    | GuestTrial<G>
+    | undefined;
   const query =
     typeof window === "undefined"
       ? null
@@ -339,29 +339,26 @@ export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
 export function AccountNav() {
   const { user } = useAuth();
   return (
-    <span className="header-account">
-      <HeaderStreak />
-      <a
-        className={`account-nav${user ? "" : " account-nav-login"}`}
-        href="/account/"
-        aria-label={user ? "Личный кабинет" : "Войти через Яндекс"}
-        title={user ? "Личный кабинет" : "Войти через Яндекс"}
+    <a
+      className={`account-nav${user ? "" : " account-nav-login"}`}
+      href="/account/"
+      aria-label={user ? "Личный кабинет" : "Войти через Яндекс"}
+      title={user ? "Личный кабинет" : "Войти через Яндекс"}
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        aria-hidden="true"
       >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          aria-hidden="true"
-        >
-          <circle cx="12" cy="8" r="3.5" />
-          <path d="M4 21v-2a8 8 0 0 1 16 0v2" />
-        </svg>
-        {!user && <span>Войти</span>}
-      </a>
-    </span>
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M4 21v-2a8 8 0 0 1 16 0v2" />
+      </svg>
+      {!user && <span>Войти</span>}
+    </a>
   );
 }
 export class RankedSyncError extends Error {}
@@ -691,7 +688,11 @@ export function useRankedRun<G extends GameId>(game: G) {
     },
     state,
     mode: (current.current.mode ?? "classic") as G extends
-      "line" | "flash" | "rotate" | "slide" | "dispatch"
+      | "line"
+      | "flash"
+      | "rotate"
+      | "slide"
+      | "dispatch"
       ? GameMode
       : GeoMode,
     begin,

@@ -270,6 +270,7 @@
   }
   .circle-feedback {
     gap: 12px;
+    flex-wrap: wrap;
   }
   .circle-status {
     font-size: 13px;
