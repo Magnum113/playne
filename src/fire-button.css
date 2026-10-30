@@ -1,0 +1,44 @@
+/* Canvas, face and label share the native button's hover/press transform. */
+.fire-button {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  max-width: 100%;
+}
+.fire-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: inherit;
+  pointer-events: none;
+}
+.fire-button-effect {
+  position: absolute;
+  left: -21px;
+  top: -65px;
+  width: calc(100% + 42px);
+  height: calc(100% + 100px);
+  z-index: 0;
+  pointer-events: none;
+}
+.fire-button-label {
+  position: relative;
+  z-index: 2;
+}
+.fire-button:disabled .fire-button-effect,
+.fire-button[data-fire-state="reduced"] .fire-button-effect {
+  visibility: hidden;
+}
+.fire-button[data-fire-state="reduced"] {
+  border-color: var(--orange);
+}
+@media (forced-colors: active) {
+  .fire-button::before {
+    display: none;
+  }
+  .fire-button[data-fire-state="reduced"] {
+    border-color: ButtonText;
+  }
+}

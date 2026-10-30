@@ -166,6 +166,11 @@ export const componentInventory = [
   ],
   ["Кнопки: вторичная, текстовая, опасное действие", "ui.css", "actions"],
   [
+    "Вызов другу: кадровое пламя и единое нажатие",
+    "FireButton.tsx · buttonFire.ts · fire-button.css",
+    "actions",
+  ],
+  [
     "Загрузка и недоступная кнопка",
     "ui.css · .ui-spinner / :disabled",
     "actions",

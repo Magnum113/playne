@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { api, useAuth } from "./account";
 import { challengeScore, type PublicChallenge } from "./challenges";
 import { reachGoal, SHARE_GOALS } from "./analytics";
+import FireButton from "./FireButton";
 import "./challenge.css";
 
 export default function ShareResult({ runId }: { runId?: string }) {
@@ -102,8 +103,7 @@ export default function ShareResult({ runId }: { runId?: string }) {
   }
   return (
     <>
-      <button
-        className="secondary-button"
+      <FireButton
         aria-label="Бросить вызов другу"
         onClick={() => {
           reachGoal(SHARE_GOALS.opened, { game });
@@ -112,7 +112,7 @@ export default function ShareResult({ runId }: { runId?: string }) {
         disabled={loading}
       >
         Бросить вызов ↗
-      </button>
+      </FireButton>
       <dialog
         className="share-dialog ym-hide-content"
         ref={dialog}

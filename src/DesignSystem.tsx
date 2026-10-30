@@ -17,6 +17,7 @@ import { RulesDialog } from "./RulesDialog";
 import DesignNavigation from "./DesignNavigation";
 import ActivityExamples from "./ActivityExamples";
 import ReturnExamples from "./ReturnExamples";
+import FireButton from "./FireButton";
 import { DesignPrinciples, ComponentContracts } from "./DesignPrinciplesPanel";
 import { GameIntro, GameRecord, GameStartAction } from "./GameIntro";
 import {
@@ -292,6 +293,27 @@ function ButtonExamples() {
               {busy && <span className="ui-spinner" aria-hidden="true" />}
               {busy ? "Сохраняем…" : "Проверить загрузку"}
             </button>
+          </div>
+        </Sample>
+        <Sample
+          title="Вызов другу: огненный контур"
+          source="FireButton.tsx · buttonFire.ts · fire-button.css"
+        >
+          <p className="ds-note">
+            48 подготовленных кадров. Поджигание за 1,4 секунды при появлении
+            кнопки на экране. Высота огня — 10 px. Контур, фон и текст
+            уменьшаются вместе при нажатии. При уменьшении движения — статичный
+            контур.
+          </p>
+          <div className="ds-fire-button-demo">
+            <FireButton
+              aria-label="Бросить вызов другу"
+              onClick={() =>
+                setNotice("Это пример кнопки. Приглашение не создаётся.")
+              }
+            >
+              Бросить вызов ↗
+            </FireButton>
           </div>
         </Sample>
         <Sample title="Ссылки" source="style.css">
