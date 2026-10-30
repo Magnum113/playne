@@ -243,44 +243,54 @@ describe("guest party entry", () => {
       );
     },
   );
-  it("does not transfer a challenge to a game without invitation support", () => {
+  it("preserves a Circle invitation after login", () => {
     window.history.replaceState(
       null,
       "",
       `/circle/?challenge=${"a".repeat(43)}`,
     );
-    expect(guestLoginReturn("circle", id)).toBe(`/circle/?saved=${id}`);
+    expect(guestLoginReturn("circle", id)).toBe(
+      `/circle/?challenge=${"a".repeat(43)}`,
+    );
   });
   it.each(["welcome", "finished"] as const)(
     "keeps the invitation in the real %s guest login navigation",
     async (surface) => {
       const token = "b".repeat(43);
-      window.history.replaceState(
-        null,
-        "",
-        `/brain/flash/?challenge=${token}`,
-      );
+      window.history.replaceState(null, "", `/brain/flash/?challenge=${token}`);
       vi.stubGlobal(
         "fetch",
-        vi.fn(async () => new Response(JSON.stringify({
-          user: null,
-          trials: { flash: { id, mode: "classic", completed: true } },
-        }))),
+        vi.fn(
+          async () =>
+            new Response(
+              JSON.stringify({
+                user: null,
+                trials: { flash: { id, mode: "classic", completed: true } },
+              }),
+            ),
+        ),
       );
-      const assign = vi.spyOn(window.location, "assign").mockImplementation(() => {});
+      const assign = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => {});
       try {
-        await act(async () => root.render(
-          <AuthProvider>
-            {surface === "welcome" ? (
-              <GameStartAction game="flash" onStart={vi.fn()} />
-            ) : (
-              <GuestTrialPrompt game="flash" id={id} />
-            )}
-          </AuthProvider>,
-        ));
+        await act(async () =>
+          root.render(
+            <AuthProvider>
+              {surface === "welcome" ? (
+                <GameStartAction game="flash" onStart={vi.fn()} />
+              ) : (
+                <GuestTrialPrompt game="flash" id={id} />
+              )}
+            </AuthProvider>,
+          ),
+        );
         await act(async () => box.querySelector("button")!.click());
         expect(assign).toHaveBeenCalledTimes(1);
-        const target = new URL(String(assign.mock.calls[0][0]), location.origin);
+        const target = new URL(
+          String(assign.mock.calls[0][0]),
+          location.origin,
+        );
         expect(target.pathname).toBe("/api/auth/yandex/start");
         expect(target.searchParams.get("return")).toBe(
           `/brain/flash/?challenge=${token}`,

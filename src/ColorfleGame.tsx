@@ -1,8 +1,9 @@
+import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
 import { GameIntro, GameStartAction } from "./GameIntro";
 import { ModeChoice, RoundDots } from "./ui";
-import { useRankedRun, SaveResult } from "./account";
+import { useRankedRun } from "./account";
 import {
   useEffect,
   useId,
@@ -287,7 +288,7 @@ export default function ColorfleGame() {
     const generation = entryGeneration.current;
     const online = await ranked.begin(mode);
     if (!online || generation !== entryGeneration.current) return;
-    if (online.answers?.length || (access.resume && online.mode !== mode)) {
+    if (online.answers?.length || online.mode !== mode) {
       const session = newShadeSession(
         current.current,
         Math.random,

@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "./account";
-import type { PublicChallenge, ChallengeGame } from "./challenges";
+import {
+  challengePath,
+  challengeScore,
+  type PublicChallenge,
+  type ChallengeGame,
+} from "./challenges";
 import "./challenge.css";
 
 export const readChallengeToken = () =>
@@ -62,9 +67,7 @@ export default function ChallengeContext({
     return (
       <aside className="challenge-context" role="status">
         Вызов недоступен.{" "}
-        <a href={game === "line" ? "/one-line/" : `/brain/${game}/`}>
-          Открыть обычную игру →
-        </a>
+        <a href={challengePath(game)}>Открыть обычную игру →</a>
       </aside>
     );
   if (!data)
@@ -81,18 +84,15 @@ export default function ChallengeContext({
       <aside className="challenge-context">
         <strong>Для сравнения нужны те же задания</strong>
         <p>
-          <a
-            href={challengeQuery(
-              game === "line" ? "/one-line/" : `/brain/${game}/`,
-              token,
-            )}
-          >
+          <a href={challengeQuery(challengePath(game), token)}>
             Принять вызов →
           </a>
         </p>
       </aside>
     );
-  const difference = (score ?? 0) - data.score;
+  const difference = Math.round(((score ?? 0) - data.score) * 10) / 10;
+  const n = Math.abs(difference);
+  const unit = game === "circle" ? "п.п." : n % 10 === 1 && n % 100 !== 11 ? "очко" : [2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100) ? "очка" : "очков";
   return (
     <aside className="challenge-context" aria-label="Вызов друга">
       <span className="challenge-mark" aria-hidden="true">
@@ -102,16 +102,16 @@ export default function ChallengeContext({
         <strong>
           {completed
             ? difference > 0
-              ? `Ты впереди на ${difference} очков`
+              ? `Ты впереди на ${difference} ${unit}`
               : difference === 0
                 ? "Ничья"
-                : `До результата друга — ${-difference} очков`
+                : `До результата друга — ${-difference} ${unit}`
             : `Вызов от ${data.nickname}`}
         </strong>
         <p>
           {completed
-            ? `Ты: ${score} · ${data.nickname}: ${data.score} / 500`
-            : `${data.score} / 500 · ${data.isTodayDaily ? "Сегодняшняя задача дня" : "Те же задания, отдельное сравнение"}`}
+            ? `Ты: ${game === "circle" || game === "pressure" ? challengeScore({ ...data, score: score ?? 0 }) : score} · ${data.nickname}: ${challengeScore(data)}`
+            : `${challengeScore(data)} · ${data.isTodayDaily ? "Сегодняшняя задача дня" : "Те же задания, отдельное сравнение"}`}
         </p>
       </div>
     </aside>

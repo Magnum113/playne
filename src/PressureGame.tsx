@@ -1,8 +1,9 @@
+import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
 import { GameIntro, GameStartAction } from "./GameIntro";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { SaveResult, useRankedRun } from "./account";
+import { useRankedRun } from "./account";
 import { GameHeader } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
 import PressureAbout from "./PressureAbout";

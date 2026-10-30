@@ -238,7 +238,8 @@ export const useAuth = () => useContext(AuthContext);
 export function useGuestTrial<G extends GameId = GameId>(game?: G) {
   const auth = useAuth();
   const trial = (game ? auth.trials[game] : undefined) as
-    GuestTrial<G> | undefined;
+    | GuestTrial<G>
+    | undefined;
   return {
     ...auth,
     trial,
@@ -252,12 +253,8 @@ export function guestLoginReturn(game: GameId, id?: string, mode?: GameMode) {
     typeof window === "undefined"
       ? null
       : new URLSearchParams(window.location.search).get("challenge");
-  if (
-    (game === "line" || isBrain(game)) &&
-    challenge &&
-    /^[A-Za-z0-9_-]{43}$/.test(challenge)
-  )
-    return `/${game === "line" ? "one-line" : "brain/" + game}/?challenge=${challenge}`;
+  if (challenge && /^[A-Za-z0-9_-]{43}$/.test(challenge))
+    return `/${game === "line" ? "one-line" : isBrain(game) ? "brain/" + game : game}/?challenge=${challenge}`;
   if (id) params.set("saved", id);
   if (
     mode &&
@@ -349,6 +346,12 @@ export function AccountNav() {
 export class RankedSyncError extends Error {}
 export function useRankedRun<G extends GameId>(game: G) {
   const auth = useGuestTrial(game);
+  const invite = useRef(
+    typeof window === "undefined"
+      ? undefined
+      : new URLSearchParams(window.location.search).get("challenge") ||
+          undefined,
+  );
   const [state, setState] = useState<RankedState>({ status: "idle" });
   const current = useRef<{
     generation: number;
@@ -376,6 +379,20 @@ export function useRankedRun<G extends GameId>(game: G) {
   useEffect(() => {
     if (["complete", "saved"].includes(state.status)) void auth.refresh();
   }, [state.status]);
+  useEffect(() => {
+    if (
+      invite.current &&
+      state.id &&
+      ["complete", "saved"].includes(state.status) &&
+      !["line", "flash", "rotate", "slide", "dispatch"].includes(game)
+    ) {
+      window.history.replaceState(
+        null,
+        "",
+        `/${game}/?result=${state.id}&challenge=${invite.current}`,
+      );
+    }
+  }, [state.status, state.id, game]);
   function activate<T extends ServerRun>(
     data: T | null,
     generation: number,
@@ -386,6 +403,16 @@ export function useRankedRun<G extends GameId>(game: G) {
       current.current.generation === generation
     )
       current.current.mode = data.mode ?? data.challenge.mode ?? "classic";
+    if (
+      data?.completed &&
+      invite.current &&
+      !["line", "flash", "rotate", "slide", "dispatch"].includes(game)
+    ) {
+      window.location.assign(
+        `/${game}/?result=${data.id}&challenge=${invite.current}`,
+      );
+      return null;
+    }
     const key = rankedQueue.add(data, game, current.current.mode);
     if (current.current.generation === generation) {
       current.current.key = key;
@@ -398,7 +425,7 @@ export function useRankedRun<G extends GameId>(game: G) {
   function begin(
     mode?: GameMode,
     difficulty = 1,
-    challenge?: string,
+    challenge: string | undefined = invite.current,
   ): Promise<ServerRun<G> | null> {
     const generation = current.current.generation + 1;
     if (restoreTimer.current) clearTimeout(restoreTimer.current);
@@ -411,7 +438,7 @@ export function useRankedRun<G extends GameId>(game: G) {
       run: Promise.resolve(null) as Promise<ServerRun<G> | null>,
     };
     current.current = active;
-    if (game === "circle") {
+    if (game === "circle" && !challenge) {
       active.key = rankedQueue.add(null, "circle");
       sync();
       return active.run;
@@ -612,9 +639,18 @@ export function useRankedRun<G extends GameId>(game: G) {
     return rankedQueue.get(active.key)?.results[index]?.answer ?? null;
   }
   return {
+    get comparisonToken(): string | undefined {
+      return current.current.key
+        ? rankedQueue.get(current.current.key)?.run?.challenge?.comparisonToken
+        : undefined;
+    },
     state,
     mode: (current.current.mode ?? "classic") as G extends
-      "line" | "flash" | "rotate" | "slide" | "dispatch"
+      | "line"
+      | "flash"
+      | "rotate"
+      | "slide"
+      | "dispatch"
       ? GameMode
       : GeoMode,
     begin,

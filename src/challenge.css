@@ -106,3 +106,24 @@
 }
 
 .share-actions > .primary { min-height: var(--control-height); }
+.other-challenge-banner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+.challenge-result-score {
+  font-size: clamp(48px, 10vw, 96px);
+  font-weight: 750;
+  line-height: 1.1;
+}
+
+.other-challenge-result {
+  width: calc(100% - 40px);
+  max-width: 720px;
+  min-height: 0;
+  margin: 48px auto;
+  padding: clamp(22px, 5vw, 40px);
+}
+.other-challenge-banner:has(~ * .challenge-context) {
+  display: none;
+}

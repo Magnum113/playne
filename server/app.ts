@@ -14,7 +14,11 @@ import { LEADERBOARD_SQL } from "./leaderboard";
 import { overallLeaderboard } from "./overall";
 import { improvesPersonalRecord } from "./personal-record";
 import { registerPlayProgressRoutes } from "./play-progress";
-import { privateComparison, registerChallengeRoutes, resolveChallengeStart } from "./challenges";
+import {
+  privateComparison,
+  registerChallengeRoutes,
+  resolveChallengeStart,
+} from "./challenges";
 import { registerBrainInsightRoutes } from "./brain-insights";
 import { hintLinePath, lineMoscowDate } from "../src/line";
 import {
@@ -251,7 +255,11 @@ export async function buildApp(
   await registerBrainRoutes(app, pool, owned, failure, browser, user);
   await registerBrainInsightRoutes(app, pool, browser, user);
   await registerPlayProgressRoutes(app, pool, browser, user);
-  await registerChallengeRoutes(app, pool, { origin: config.origin, browser, user });
+  await registerChallengeRoutes(app, pool, {
+    origin: config.origin,
+    browser,
+    user,
+  });
   app.get("/api/health", async () => {
     await pool.query("SELECT 1");
     return { ok: true, revision: config.revision };
@@ -338,8 +346,7 @@ export async function buildApp(
       const optIn = body?.emailOptIn === true;
       if (
         optIn &&
-        (!emailConsentPurpose(body.consentVersion) ||
-          body.dataConsent !== true)
+        (!emailConsentPurpose(body.consentVersion) || body.dataConsent !== true)
       )
         failure("Подтверди согласие на письма и обработку адреса.");
       if (optIn && (!emailConfig.yandexEmail || !mailConfigured(emailConfig)))
@@ -558,13 +565,15 @@ export async function buildApp(
       )
         failure("Некорректный каталог сравнений");
       const challengeToken = (req.body as any)?.challenge;
-      let mode = challengeToken !== undefined ? "classic" :
-        game === "geo" ||
-        game === "colorfle" ||
-        game === "line" ||
-        isBrainGame(game)
-          ? ((req.body as any)?.mode ?? "classic")
-          : "classic";
+      let mode =
+        challengeToken !== undefined
+          ? "classic"
+          : game === "geo" ||
+              game === "colorfle" ||
+              game === "line" ||
+              isBrainGame(game)
+            ? ((req.body as any)?.mode ?? "classic")
+            : "classic";
       if (
         game === "line" || isBrainGame(game)
           ? !["classic", "practice"].includes(mode)
@@ -574,8 +583,10 @@ export async function buildApp(
         failure("Неизвестный режим");
       const lineDay =
         game === "line" || isBrainGame(game) ? lineMoscowDate() : undefined;
-      let difficulty = challengeToken !== undefined ? 1 :
-        (req.body as any)?.difficulty ?? (req.body as any)?.level ?? 1;
+      let difficulty =
+        challengeToken !== undefined
+          ? 1
+          : ((req.body as any)?.difficulty ?? (req.body as any)?.level ?? 1);
       if (
         isBrainGame(game) &&
         mode === "practice" &&
@@ -587,11 +598,20 @@ export async function buildApp(
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
-        const shared = challengeToken === undefined ? null
-          : await resolveChallengeStart(client, challengeToken, game, config.origin, lineDay);
+        const shared =
+          challengeToken === undefined
+            ? null
+            : await resolveChallengeStart(
+                client,
+                challengeToken,
+                game,
+                config.origin,
+                lineDay,
+              );
         if (shared) {
           mode = shared.mode;
-          if (shared.kind === "comparison") difficulty = shared.challenge.difficulty ?? 1;
+          if (shared.kind === "comparison")
+            difficulty = shared.challenge.difficulty ?? 1;
         }
         // Claims/publication take this lock before the run and account/day locks.
         // Daily starts use the same order, including adoption of a guest attempt.
@@ -613,10 +633,19 @@ export async function buildApp(
                 403,
               );
             const existing = await owned(req, reply, t.run_id, client);
-            if (shared && !(shared.kind === "daily"
-              ? existing.mode === "classic" && existing.challenge.day === lineDay && !privateComparison(existing)
-              : privateComparison(existing) && existing.challenge.comparisonToken === challengeToken))
-              failure("В этом браузере уже начата другая пробная партия. Закончи её или войди, чтобы принять вызов.", 409);
+            if (
+              shared &&
+              !(shared.kind === "daily"
+                ? existing.mode === "classic" &&
+                  existing.challenge.day === lineDay &&
+                  !privateComparison(existing)
+                : privateComparison(existing) &&
+                  existing.challenge.comparisonToken === challengeToken)
+            )
+              failure(
+                "В этом браузере уже начата другая пробная партия. Закончи её или войди, чтобы принять вызов.",
+                409,
+              );
             await client.query("COMMIT");
             return {
               id: existing.id,
@@ -626,23 +655,44 @@ export async function buildApp(
               challenge: publicChallenge(game, existing.challenge),
               answers: existing.answers,
               completed: false,
-              ...(isBrainGame(game) || privateComparison(existing) ? { private: privateRun(existing) } : {}),
+              ...(isBrainGame(game) || privateComparison(existing)
+                ? { private: privateRun(existing) }
+                : {}),
             };
           }
         }
         if (shared?.kind === "comparison" && u) {
-          await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`challenge-run:${u.id}:${game}:${challengeToken}`]);
+          await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+            `challenge-run:${u.id}:${game}:${challengeToken}`,
+          ]);
           const previous = await client.query(
-            "SELECT id FROM playne_games WHERE owner_id=$1 AND game=$2 AND mode='practice' AND challenge->>'comparison'='true' AND challenge->>'comparisonToken'=$3 AND (completed_at IS NOT NULL OR expires_at>now()) ORDER BY created_at,id LIMIT 1",
+            "SELECT id FROM playne_games WHERE owner_id=$1 AND game=$2 AND challenge->>'comparison'='true' AND challenge->>'comparisonToken'=$3 AND (completed_at IS NOT NULL OR expires_at>now()) ORDER BY created_at,id LIMIT 1",
             [u.id, game, challengeToken],
           );
           if (previous.rows[0]) {
-            const existing = await owned(req, reply, previous.rows[0].id, client, true);
+            const existing = await owned(
+              req,
+              reply,
+              previous.rows[0].id,
+              client,
+              true,
+            );
             await client.query("COMMIT");
-            return { id: existing.id, game, version: existing.version, mode: existing.mode,
-              challenge: publicChallenge(game, existing.challenge), answers: existing.answers,
-              completed: !!existing.completed_at, published: false, private: true,
-              score: existing.score_units === null ? null : existing.score_units / 10 };
+            return {
+              id: existing.id,
+              game,
+              version: existing.version,
+              mode: existing.mode,
+              challenge: publicChallenge(game, existing.challenge),
+              answers: existing.answers,
+              completed: !!existing.completed_at,
+              published: false,
+              private: true,
+              score:
+                existing.score_units === null
+                  ? null
+                  : existing.score_units / 10,
+            };
           }
         }
         if ((game === "line" || isBrainGame(game)) && mode === "classic") {
@@ -726,36 +776,42 @@ export async function buildApp(
         );
         const geoVersion = (req.body as any)?.geoRulesVersion;
         const version =
-          game === "geo"
-            ? geoVersion === 4
-              ? 4
-              : geoVersion === 3
-                ? 3
-                : geoVersion === 2
-                  ? 2
-                  : 1
-            : scoreVersion(game);
+          shared?.kind === "comparison"
+            ? shared.version
+            : game === "geo"
+              ? geoVersion === 4
+                ? 4
+                : geoVersion === 3
+                  ? 3
+                  : geoVersion === 2
+                    ? 2
+                    : 1
+              : scoreVersion(game);
         if (
           game === "geo" &&
           (geoCanMove(mode) || geoIsLandmarks(mode)) &&
           version < 4
         )
           failure("Обнови страницу, чтобы играть в этом режиме");
-        const brainPack = isBrainGame(game) && shared?.kind !== "comparison"
-          ? await brainDailyPack(client, game, lineDay!)
-          : undefined;
+        const brainPack =
+          isBrainGame(game) && shared?.kind !== "comparison"
+            ? await brainDailyPack(client, game, lineDay!)
+            : undefined;
         let challenge: ReturnType<typeof makeChallenge>;
         try {
-          challenge = shared?.kind === "comparison" ? shared.challenge : makeChallenge(
-            game,
-            recent,
-            game === "geo" && version === 1 ? "classic" : mode,
-            game === "naglaz" ? supportedPairIds : undefined,
-            (req.body as any)?.pressureRulesVersion,
-            lineDay,
-            difficulty,
-            brainPack,
-          );
+          challenge =
+            shared?.kind === "comparison"
+              ? shared.challenge
+              : makeChallenge(
+                  game,
+                  recent,
+                  game === "geo" && version === 1 ? "classic" : mode,
+                  game === "naglaz" ? supportedPairIds : undefined,
+                  (req.body as any)?.pressureRulesVersion,
+                  lineDay,
+                  difficulty,
+                  brainPack,
+                );
         } catch (e) {
           if (game === "naglaz")
             failure("Обнови страницу, чтобы загрузить доступные сравнения");
@@ -801,7 +857,9 @@ export async function buildApp(
           mode: game === "geo" && version === 1 ? "classic" : mode,
           challenge: publicChallenge(game, challenge),
           answers: [],
-          ...(isBrainGame(game) || privateComparison({ challenge }) ? { private: privateRun({ game, mode, challenge }) } : {}),
+          ...(isBrainGame(game) || privateComparison({ challenge })
+            ? { private: privateRun({ game, mode, challenge }) }
+            : {}),
         };
       } catch (e) {
         await client.query("ROLLBACK");
@@ -860,7 +918,9 @@ export async function buildApp(
       challenge: publicChallenge(run.game, run.challenge),
       published: !!run.published_at,
       completed: !!run.completed_at,
-      ...(isBrainGame(run.game) || privateComparison(run) ? { private: privateRun(run) } : {}),
+      ...(isBrainGame(run.game) || privateComparison(run)
+        ? { private: privateRun(run) }
+        : {}),
     };
   });
   app.post("/api/games/:id/replace", async (req, reply) => {
@@ -873,6 +933,7 @@ export async function buildApp(
       const run = await owned(req, reply, (req.params as any).id, c, true);
       if (
         run.game !== "geo" ||
+        privateComparison(run) ||
         run.completed_at ||
         run.answers.length !== index ||
         run.challenge.panoramas[index]
@@ -1221,7 +1282,9 @@ export async function buildApp(
         await c.query("COMMIT");
         return {
           answer: run.answers[input.index],
-          ...(isBrainGame(run.game) || privateComparison(run) ? { private: privateRun(run) } : {}),
+          ...(isBrainGame(run.game) || privateComparison(run)
+            ? { private: privateRun(run) }
+            : {}),
           completed: !!run.completed_at,
           published: !!run.published_at,
           score: run.score_units === null ? null : run.score_units / 10,
@@ -1293,7 +1356,17 @@ export async function buildApp(
           : answers;
       const savedChallenge =
         publish && run.game === "geo"
-          ? { places: run.challenge.places, mode: run.mode }
+          ? {
+              places: run.challenge.places,
+              mode: run.mode,
+              cameraIds:
+                run.challenge.cameraIds ??
+                Object.fromEntries(
+                  Object.entries(run.challenge.panoramas ?? {}).map(
+                    ([i, p]: any) => [i, p.pano],
+                  ),
+                ),
+            }
           : run.challenge;
       const updated = await c.query(
         "UPDATE playne_games SET answers=$1,score_units=$2,completed_at=CASE WHEN $3 THEN now() ELSE NULL END,owner_id=CASE WHEN $8 THEN $6 ELSE owner_id END,published_at=CASE WHEN $5 THEN coalesce(published_at,now()) ELSE published_at END,challenge=$7 WHERE id=$4 RETURNING completed_at",
@@ -1333,7 +1406,9 @@ export async function buildApp(
         answer,
         completed: complete,
         published: publish || !!run.published_at,
-        ...(isBrainGame(run.game) || privateComparison(run) ? { private: privateRun(run) } : {}),
+        ...(isBrainGame(run.game) || privateComparison(run)
+          ? { private: privateRun(run) }
+          : {}),
         score: units === null ? null : units / 10,
         ...(record ? { record } : {}),
       };
@@ -1387,7 +1462,17 @@ export async function buildApp(
           : run.answers;
       const challenge =
         run.game === "geo"
-          ? { places: run.challenge.places, mode: run.mode }
+          ? {
+              places: run.challenge.places,
+              mode: run.mode,
+              cameraIds:
+                run.challenge.cameraIds ??
+                Object.fromEntries(
+                  Object.entries(run.challenge.panoramas ?? {}).map(
+                    ([i, p]: any) => [i, p.pano],
+                  ),
+                ),
+            }
           : run.challenge;
       await c.query(
         "UPDATE playne_games SET owner_id=$1,published_at=coalesce(published_at,now()),answers=$2,challenge=$3 WHERE id=$4",

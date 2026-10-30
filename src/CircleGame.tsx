@@ -1,7 +1,8 @@
+import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { GuestSavedNotice, GuestTrialPrompt, useGuestTrial } from "./account";
 import { GameIntro } from "./GameIntro";
-import { useRankedRun, SaveResult } from "./account";
+import { useRankedRun } from "./account";
 import FooterLinks from "./FooterLinks";
 import { CIRCLE_GOALS, reachGoal } from "./analytics";
 import { createCircleTracker } from "./gameAnalytics";

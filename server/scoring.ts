@@ -8,7 +8,13 @@ import {
 import { chooseRounds, legacyPairIds, objects, pairs } from "../src/data";
 import { score } from "../src/game";
 import { evaluateCircle } from "../src/circle";
-import { isBrainGame, createBrain, publicBrain, publicComparison, brainAnswer } from "./brain";
+import {
+  isBrainGame,
+  createBrain,
+  publicBrain,
+  publicComparison,
+  brainAnswer,
+} from "./brain";
 import type { BrainChallenge } from "../src/brain";
 import { LINE_STAGE_POOLS } from "../src/linePuzzles";
 import {
@@ -179,14 +185,18 @@ export function publicChallenge(game: GameId, challenge: any) {
     };
   if (game === "geo")
     return {
+      ...publicComparison(challenge),
       places: challenge.places,
       mode: validGeoMode(challenge.mode) ? challenge.mode : "classic",
-      panoramaIds: Object.fromEntries(
-        Object.entries(challenge.panoramas ?? {}).map(([index, value]) => [
-          index,
-          (value as { pano: string }).pano,
-        ]),
-      ),
+      panoramaIds: {
+        ...challenge.cameraIds,
+        ...Object.fromEntries(
+          Object.entries(challenge.panoramas ?? {}).map(([index, value]) => [
+            index,
+            (value as { pano: string }).pano,
+          ]),
+        ),
+      },
     };
   return challenge;
 }
@@ -382,8 +392,12 @@ export function safeReturn(value: unknown) {
       )
         return "/account/";
     } else if (key === "challenge") {
-      if (!/^\/(?:line|one-line|brain\/(?:flash|rotate|slide|dispatch))\/$/.test(url.pathname) ||
-        !/^[A-Za-z0-9_-]{43}$/.test(item))
+      if (
+        !/^\/(?:naglaz|circle|colorfle|geo|pressure|line|one-line|brain\/(?:flash|rotate|slide|dispatch))\/$/.test(
+          url.pathname,
+        ) ||
+        !/^[A-Za-z0-9_-]{43}$/.test(item)
+      )
         return "/account/";
     } else if (key === "mode") {
       if (

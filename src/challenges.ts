@@ -1,4 +1,15 @@
-export const CHALLENGE_GAMES = ["line", "flash", "rotate", "slide", "dispatch"] as const;
+export const CHALLENGE_GAMES = [
+  "line",
+  "flash",
+  "rotate",
+  "slide",
+  "dispatch",
+  "naglaz",
+  "circle",
+  "colorfle",
+  "geo",
+  "pressure",
+] as const;
 export type ChallengeGame = (typeof CHALLENGE_GAMES)[number];
 
 /** Only the one result explicitly shared by its player is public. */
@@ -10,12 +21,33 @@ export type PublicChallenge = {
   gameName: string;
   nickname: string;
   score: number;
-  maxScore: 500;
+  maxScore: number;
   day: string;
-  mode: "classic" | "practice";
+  mode: import("./account").GameMode;
   isTodayDaily: boolean;
 };
 
 export type ChallengeStart =
   | { kind: "daily"; mode: "classic"; reference: PublicChallenge }
-  | { kind: "comparison"; mode: "practice"; version: 1; challenge: any; reference: PublicChallenge };
+  | {
+      kind: "comparison";
+      mode: import("./account").GameMode;
+      version: number;
+      challenge: any;
+      reference: PublicChallenge;
+    };
+
+export const challengePath = (game: ChallengeGame) =>
+  game === "line"
+    ? "/one-line/"
+    : ["flash", "rotate", "slide", "dispatch"].includes(game)
+      ? `/brain/${game}/`
+      : `/${game}/`;
+export const challengeScore = (
+  data: Pick<PublicChallenge, "game" | "score" | "maxScore">,
+) =>
+  data.game === "circle"
+    ? `${String(data.score).replace(".", ",")}%`
+    : data.game === "pressure"
+      ? `${data.score} очков`
+      : `${data.score} / ${data.maxScore}`;

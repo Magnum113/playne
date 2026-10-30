@@ -1,3 +1,4 @@
+import OtherChallenge from "./OtherChallenge";
 import DesignSystem from "./DesignSystem";
 import App from "./App";
 import PolicyPage from "./PolicyPage";
@@ -23,15 +24,40 @@ export default function Site({ path }: { path: string }) {
   if (route === "/account/") return <AccountPage />;
   if (route === "/leaderboard/") return <LeaderboardPage />;
   if (route === "/") return <Hub />;
-  if (route === "/naglaz/") return <App />;
-  if (route === "/circle/") return <CircleGame />;
-  if (route === "/colorfle/") return <ColorfleGame />;
-  if (route === "/pressure/") return <PressureGame />;
+  if (route === "/naglaz/")
+    return (
+      <OtherChallenge game="naglaz">
+        <App />
+      </OtherChallenge>
+    );
+  if (route === "/circle/")
+    return (
+      <OtherChallenge game="circle">
+        <CircleGame />
+      </OtherChallenge>
+    );
+  if (route === "/colorfle/")
+    return (
+      <OtherChallenge game="colorfle">
+        <ColorfleGame />
+      </OtherChallenge>
+    );
+  if (route === "/pressure/")
+    return (
+      <OtherChallenge game="pressure">
+        <PressureGame />
+      </OtherChallenge>
+    );
   if (route === "/one-line/") return <LineGame />;
   if (route === "/brain/") return <BrainHub />;
   const brainGame = BRAIN_GAME_IDS.find((id) => route === `/brain/${id}/`);
   if (brainGame) return <BrainGame game={brainGame} />;
-  if (route === "/geo/") return <GeoGame />;
+  if (route === "/geo/")
+    return (
+      <OtherChallenge game="geo">
+        <GeoGame />
+      </OtherChallenge>
+    );
   if (route === "/guides/") return <GuidePage />;
   const guide = guides.find((g) => route === `/guides/${g.slug}/`);
   return guide ? <GuidePage slug={guide.slug} /> : <GuidePage notFound />;

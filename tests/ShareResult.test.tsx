@@ -112,7 +112,7 @@ describe("explicit result sharing", () => {
     expect(image.getAttribute("src")).toBe(value().imageUrl);
     expect(image.getAttribute("width")).toBe("1200");
     expect(image.getAttribute("height")).toBe("630");
-    expect(image.alt).toContain("400 из 500");
+    expect(image.alt).toContain("400 / 500");
     expect(box.textContent).toContain("По ссылке видны ник и результат");
   });
   it("uses the labelled native dialog, returns focus on close, and reopens the existing link", async () => {

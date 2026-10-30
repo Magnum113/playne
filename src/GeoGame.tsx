@@ -1,13 +1,9 @@
+import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
 import { GameIntro, GameStartAction } from "./GameIntro";
 import { ModeChoice, RoundDots } from "./ui";
-import {
-  AccountNav,
-  useRankedRun,
-  SaveResult,
-  RankedSyncError,
-} from "./account";
+import { AccountNav, useRankedRun, RankedSyncError } from "./account";
 import { useEffect, useRef, useState } from "react";
 import { GameHeader } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";

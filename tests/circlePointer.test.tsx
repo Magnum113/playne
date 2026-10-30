@@ -13,6 +13,7 @@ const access = vi.hoisted(() => ({
   resume: false,
 }));
 const ranked = vi.hoisted(() => ({ begin: vi.fn(), submit: vi.fn() }));
+vi.mock("../src/GameResult", () => ({ SaveResult: () => null }));
 vi.mock("../src/account", () => ({
   useGuestTrial: () => access,
   GuestTrialPrompt: () => null,

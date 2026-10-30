@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { api, useAuth } from "./account";
-import type { PublicChallenge } from "./challenges";
+import { challengeScore, type PublicChallenge } from "./challenges";
 import { reachGoal, SHARE_GOALS } from "./analytics";
 import "./challenge.css";
 
@@ -73,9 +73,9 @@ export default function ShareResult({ runId }: { runId?: string }) {
     const current = request.current;
     try {
       await navigator.share({
-        title: `${data.gameName} · ${data.score} / 500`,
+        title: `${data.gameName} · ${challengeScore(data)}`,
         text:
-          data.score === 500
+          data.maxScore > 0 && data.score >= data.maxScore
             ? "Сможешь повторить мой результат?"
             : "Побьёшь мой результат?",
         url: data.url,
@@ -139,10 +139,10 @@ export default function ShareResult({ runId }: { runId?: string }) {
                 src={data.imageUrl}
                 width="1200"
                 height="630"
-                alt={`${data.gameName}: ${data.score} из 500. Вызов другу.`}
+                alt={`${data.gameName}: ${challengeScore(data)}. Вызов другу.`}
               />
               <p className="share-caption">
-                Друг сыграет те же задания. По ссылке видны ник и результат.
+                Друг сыграет в тех же условиях. По ссылке видны ник и результат.
               </p>
               <label className="sr-only" htmlFor={heading + "-url"}>
                 Ссылка для друга

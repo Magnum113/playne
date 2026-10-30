@@ -11,6 +11,9 @@ const access = vi.hoisted(() => ({
   resume: false,
 }));
 const mocks = vi.hoisted(() => ({ begin: vi.fn(), submit: vi.fn() }));
+vi.mock("../src/GameResult", () => ({
+  SaveResult: () => <p>Результат сохранён в рейтинг.</p>,
+}));
 vi.mock("../src/account", () => ({
   useGuestTrial: () => access,
   GuestTrialPrompt: () => null,
