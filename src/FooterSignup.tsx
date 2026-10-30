@@ -103,15 +103,17 @@ function MemberSignup() {
   const [announcement, setAnnouncement] = useState("");
   const [revision, setRevision] = useState(0);
   const saving = useRef(false);
+  const request = useRef(0);
   useEffect(() => {
     let active = true;
+    const current = ++request.current;
     setFailed(false);
     void api<Settings>("/email/settings")
       .then((value) => {
-        if (active) setSettings(value);
+        if (active && current === request.current) setSettings(value);
       })
       .catch(() => {
-        if (active) setFailed(true);
+        if (active && current === request.current) setFailed(true);
       });
     return () => {
       active = false;
@@ -128,6 +130,7 @@ function MemberSignup() {
   async function subscribe() {
     if (!settings?.email || saving.current) return;
     saving.current = true;
+    request.current++;
     setBusy(true);
     setError("");
     try {

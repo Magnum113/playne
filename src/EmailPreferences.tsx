@@ -263,6 +263,8 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
     useState<ReminderSettings>(defaultReminders);
   const id = useId();
   const addressInput = useRef<HTMLInputElement>(null);
+  const saving = useRef(false);
+  const request = useRef(0);
   function apply(s: Settings) {
     setSettings(s);
     setAddress(s.email);
@@ -274,19 +276,26 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
         .getElementById("email-settings")
         ?.scrollIntoView({ block: "start" });
     let active = true;
-    void api("/email/settings")
-      .then((s) => {
-        if (active) apply(s);
-      })
-      .catch((e) => {
-        if (active) setError(e.message);
-      });
+    const refresh = () => {
+      if (saving.current) return;
+      const current = ++request.current;
+      void api("/email/settings")
+        .then((s) => {
+          if (active && current === request.current) apply(s);
+        })
+        .catch((e) => {
+          if (active && current === request.current) setError(e.message);
+        });
+    };
+    refresh();
+    window.addEventListener(EMAIL_SETTINGS_UPDATED, refresh);
     return () => {
       active = false;
+      window.removeEventListener(EMAIL_SETTINGS_UPDATED, refresh);
     };
   }, []);
   async function save(enabled: boolean) {
-    if (busy) return;
+    if (busy || saving.current) return;
     setAddressError("");
     if (
       enabled &&
@@ -305,6 +314,8 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
       setError("Подтверди согласие на письма и обработку email.");
       return;
     }
+    saving.current = true;
+    request.current++;
     setBusy(true);
     setError("");
     setMessage("");
@@ -335,16 +346,19 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   }
   async function saveReminders(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || saving.current) return;
     if (!reminders.days.length) {
       setError("Выбери хотя бы один день.");
       return;
     }
+    saving.current = true;
+    request.current++;
     setBusy(true);
     setError("");
     setMessage("");
@@ -360,6 +374,7 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   }

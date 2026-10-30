@@ -9,6 +9,7 @@ import {
   EMAIL_CONSENT_VERSION,
   EMAIL_LABEL,
   EMAIL_DESCRIPTION,
+  EMAIL_SETTINGS_UPDATED,
 } from "../src/emailConsent";
 import LeaderboardPage from "../src/LeaderboardPage";
 import {
@@ -41,6 +42,91 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("Email entry safety", () => {
+  it("does not let an older event refresh undo a completed account unsubscribe", async () => {
+    const initial = {
+      available: true,
+      email: "qa@example.com",
+      enabled: true,
+      pending: false,
+      verified: true,
+      purpose: "general",
+    };
+    let finishOld!: (response: Response) => void;
+    let reads = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: any, options?: any) => {
+        if (options?.method === "POST")
+          return new Response(JSON.stringify({ ...initial, enabled: false }));
+        if (++reads === 2)
+          return new Promise<Response>((resolve) => {
+            finishOld = resolve;
+          });
+        return new Response(JSON.stringify(initial));
+      }),
+    );
+    await act(async () => root.render(<EmailPreferences />));
+    await act(async () =>
+      window.dispatchEvent(new Event(EMAIL_SETTINGS_UPDATED)),
+    );
+    const unsubscribe = [
+      ...box.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((button) => button.textContent === "Отключить письма")!;
+    await act(async () => unsubscribe.click());
+    await act(async () => finishOld(new Response(JSON.stringify(initial))));
+    expect(box.textContent).toContain("Подписка выключена.");
+    expect(box.textContent).not.toContain("Подписка включена.");
+  });
+  it("updates account controls after subscribing in the footer, and updates the footer after account unsubscribe", async () => {
+    auth.user = { id: "footer-account-sync" };
+    let enabled = false;
+    const remote = vi.fn(async (_url: any, options?: any) => {
+      if (options?.method === "POST")
+        enabled = JSON.parse(options.body).enabled;
+      return new Response(
+        JSON.stringify({
+          available: true,
+          email: "qa@example.com",
+          yandexEmail: "qa@example.com",
+          enabled,
+          pending: false,
+          verified: true,
+          purpose: enabled ? "general" : null,
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", remote);
+    await act(async () =>
+      root.render(
+        <>
+          <EmailPreferences />
+          <FooterSignup />
+        </>,
+      ),
+    );
+    expect(box.querySelector(".email-settings")?.textContent).toContain(
+      "Подписка выключена.",
+    );
+    await act(async () =>
+      box.querySelector<HTMLInputElement>(".footer-signup input")!.click(),
+    );
+    expect(box.querySelector(".footer-signup")).toBeNull();
+    expect(box.querySelector(".email-settings")?.textContent).toContain(
+      "Подписка включена.",
+    );
+    const unsubscribe = [
+      ...box.querySelectorAll<HTMLButtonElement>(".email-settings button"),
+    ].find((button) => button.textContent === "Отключить письма")!;
+    expect(unsubscribe).toBeDefined();
+    await act(async () => unsubscribe.click());
+    expect(box.querySelector(".email-settings")?.textContent).toContain(
+      "Подписка выключена.",
+    );
+    expect(box.querySelector(".footer-signup input")).not.toBeNull();
+    expect(
+      remote.mock.calls.filter(([, options]) => options?.method === "POST"),
+    ).toHaveLength(2);
+  });
   it("removes the capability from the URL while retaining it only for the action", () => {
     window.history.replaceState(
       null,

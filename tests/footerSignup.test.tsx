@@ -158,6 +158,26 @@ it("refreshes when the subscription is changed in account settings", async () =>
   );
   expect(box.querySelector(".footer-signup")).toBeNull();
 });
+it("does not restore the offer from a late external refresh after subscribing", async () => {
+  let finishOld!: (data: typeof base) => void;
+  let reads = 0;
+  mock.api.mockImplementation(async (_path, method) => {
+    if (method === "POST")
+      return { ...base, enabled: true, purpose: "general" };
+    if (++reads === 2)
+      return new Promise((resolve) => {
+        finishOld = resolve;
+      });
+    return base;
+  });
+  await act(async () => root.render(<FooterSignup />));
+  await act(async () =>
+    window.dispatchEvent(new Event(EMAIL_SETTINGS_UPDATED)),
+  );
+  await act(async () => box.querySelector<HTMLInputElement>("input")!.click());
+  await act(async () => finishOld(base));
+  expect(box.querySelector(".footer-signup")).toBeNull();
+});
 
 it("ignores an old account request resolving after switching accounts", async () => {
   let old!: (value: typeof base) => void;
