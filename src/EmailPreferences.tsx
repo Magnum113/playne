@@ -13,7 +13,9 @@ export function EmailConsent({
   onChange,
   dataConsent,
   onDataChange,
+  brief = false,
 }: {
+  brief?: boolean;
   checked: boolean;
   onChange: (value: boolean) => void;
   dataConsent: boolean;
@@ -30,7 +32,8 @@ export function EmailConsent({
           onChange={(e) => onChange(e.target.checked)}
         />
         <span>
-          {EMAIL_LABEL} <small>{EMAIL_DESCRIPTION}</small>{" "}
+          {brief ? "Получать письма" : EMAIL_LABEL}{" "}
+          {!brief && <small>{EMAIL_DESCRIPTION}. </small>}
           <a
             href="/terms/#email-notifications"
             target="_blank"
@@ -373,7 +376,7 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
     >
       <h2 id={id + "-title"}>{EMAIL_LABEL}</h2>
       <p>
-        {EMAIL_DESCRIPTION}. Не чаще одного письма за 24 часа и трёх за 7 дней.
+        {EMAIL_DESCRIPTION}. До 3 писем в неделю.
       </p>
       {!settings ? (
         <p role="status">{error || "Загружаем настройки…"}</p>
@@ -436,6 +439,7 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
                 address.trim().toLowerCase() !== settings.email) && (
                 <>
                   <EmailConsent
+                    brief
                     checked={checked}
                     onChange={setChecked}
                     dataConsent={data}

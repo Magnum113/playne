@@ -599,8 +599,8 @@
   gap: 6px;
   text-align: left;
   max-width: 560px;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 20px;
   color: var(--muted);
 }
 .email-consent label {
@@ -608,7 +608,7 @@
   align-items: flex-start;
   gap: 10px;
   min-height: 44px;
-  padding: 10px 0;
+  padding: 12px 0;
   cursor: pointer;
 }
 .email-consent input[type="checkbox"] {
@@ -617,15 +617,26 @@
   width: 18px;
   height: 18px;
   min-height: 18px;
-  margin: 2px 0 0;
+  margin: 1px 0 0;
   accent-color: var(--purple);
 }
 .email-consent span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.email-consent a {
+.email-consent label a {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  font-size: 12px;
+  line-height: inherit;
   white-space: normal;
+}
+.email-consent small {
+  font-size: 12px;
+}
+.email-settings > p {
+  font-size: 13px;
 }
 .email-settings-form {
   display: grid;
@@ -731,9 +742,6 @@
   }
   .email-settings .primary {
     justify-self: stretch;
-  }
-  .email-consent {
-    font-size: 14px;
   }
 }
 .email-login > .yandex-login {
