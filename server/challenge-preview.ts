@@ -83,7 +83,7 @@ export async function renderChallengePng(data: PublicChallenge): Promise<Buffer>
 
 export function challengeHtml(data: PublicChallenge) {
   const title = `${data.nickname}: ${scoreText(data.score)} / 500 · ${data.gameName}`;
-  const description = `${prompt(data)} ${data.gameName}, ${dateText(data.day)}. Сыграй те же пять раундов на Playne.`;
+  const description = `${prompt(data)} ${data.gameName}, ${dateText(data.day).replace(/\.$/, "")}. Сыграй те же пять раундов на Playne.`;
   const status = data.isTodayDaily
     ? "Сегодняшняя задача дня. В зачёт идёт твоя первая попытка."
     : "Те же пять заданий в отдельном вызове. Результат не меняет рейтинг.";
