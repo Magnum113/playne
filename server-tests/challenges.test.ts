@@ -913,6 +913,8 @@ const db = process.env.TEST_DATABASE_URL;
       expect(analytics.body).not.toContain(link.token);
       expect(page.body).toContain('property="og:image"');
       expect(page.body).toContain(link.imageUrl);
+      expect(link.imageUrl).toContain("?v=field-b-v3");
+      expect(page.body).toContain('property="og:image:alt"');
       expect(page.body).toContain("Сможешь повторить?");
       expect(page.body).not.toContain("Побьёшь мой результат?");
       expect(page.body).toContain("500 / 500");

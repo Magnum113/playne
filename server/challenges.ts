@@ -13,7 +13,11 @@ import {
   challengeAnalyticsCsp,
   challengeAnalyticsScript,
 } from "./challenge-analytics";
-import { renderChallengePng, challengeHtml } from "./challenge-preview";
+import {
+  renderChallengePng,
+  challengeHtml,
+  CHALLENGE_PREVIEW_VERSION,
+} from "./challenge-preview";
 
 type Queryable = Pick<Pool, "query">;
 type Viewer = { browserHash: string; userId?: string };
@@ -111,7 +115,7 @@ function metadata(
     url: run.short_code
       ? `${base}/c/${run.short_code}`
       : `${base}/challenge/${run.token}`,
-    imageUrl: `${base}/api/challenges/${run.token}/image.png`,
+    imageUrl: `${base}/api/challenges/${run.token}/image.png?v=${CHALLENGE_PREVIEW_VERSION}`,
     game: run.game,
     gameName: names[run.game as ChallengeGame],
     nickname: run.nickname || "Гость",
