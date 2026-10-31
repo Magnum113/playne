@@ -836,3 +836,13 @@
 }
 
 .policy-main h1 { font-size: clamp(28px, 5vw, 52px); overflow-wrap: anywhere; }
+
+.email-report-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 24px 0; }
+.email-report-totals > div { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-inner); background: var(--bg); }
+.email-report-totals dt { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.email-report-totals dd { margin: 8px 0 0; font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.email-report-help, .email-report-date { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.email-report-mature { border: 1px solid var(--line); border-radius: var(--radius-inner); padding: 16px; margin-top: 24px; }
+.email-report-mature > summary { cursor: pointer; line-height: 1.5; font-weight: 600; }
+.email-experiment h4 { margin-top: 28px; }
+@media(max-width:650px) { .email-report-totals { grid-template-columns: repeat(2, minmax(0,1fr)); } }

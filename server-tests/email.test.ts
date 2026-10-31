@@ -560,6 +560,18 @@ describe("Email capabilities and templates", () => {
     expect(
       (await pool.query("SELECT * FROM playne_email_callbacks")).rowCount,
     ).toBe(1);
+    for (const status of ["opened", "clicked"]) {
+      body.events_by_user[0].events[0].event_data.status = status;
+      const eventRaw = JSON.stringify(body);
+      const eventSigned = eventRaw.replace(
+        '"auth":"' + config.apiKey + '"',
+        '"auth":"' + createHash("md5").update(eventRaw).digest("hex") + '"',
+      );
+      expect((await app.inject({ method: "POST", url: "/api/email/provider", headers: { "content-type": "application/json" }, payload: eventSigned })).statusCode).toBe(200);
+    }
+    const tracked = (await pool.query("SELECT opened_at,provider_clicked_at FROM playne_email_outbox WHERE id=$1", [row.id])).rows[0];
+    expect(tracked.opened_at).toBeTruthy();
+    expect(tracked.provider_clicked_at).toBeTruthy();
   });
   it("separates scanner GET from interaction and has no arbitrary redirects", async () => {
     await displaced();
@@ -1022,6 +1034,11 @@ describe("Email capabilities and templates", () => {
     expect(a.visitRate95![1]).toBeGreaterThan(0.5);
     expect(bv.visited_users).toBe(0);
     expect(cv.delivered_users).toBe(0);
+    expect(r.current.find((v) => v.variant === "C")!.delivered_users).toBe(1);
+    expect(r.activity.totals.accepted).toBe(5);
+    expect(r.activity.totals.delivered).toBe(5);
+    expect(r.health.next_mature_at).not.toBeNull();
+
   });
   it("restricts the report to the configured owner", async () => {
     const id = await user(),

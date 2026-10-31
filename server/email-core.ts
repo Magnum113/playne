@@ -961,9 +961,9 @@ export async function emailExperimentReport(pool: Pool, now = Date.now()) {
       `SELECT variant,count(*)::int AS messages,count(DISTINCT user_id)::int AS recipients,
    count(*) FILTER(WHERE delivered_at IS NOT NULL)::int AS delivered_messages,
    count(DISTINCT user_id) FILTER(WHERE delivered_at IS NOT NULL)::int AS delivered_users,
-   count(DISTINCT user_id) FILTER(WHERE delivered_at IS NOT NULL AND visited_at IS NOT NULL)::int AS visited_users,
-   count(DISTINCT user_id) FILTER(WHERE delivered_at IS NOT NULL AND game_started_at IS NOT NULL)::int AS started_users,
-   count(DISTINCT user_id) FILTER(WHERE delivered_at IS NOT NULL AND game_completed_at IS NOT NULL)::int AS completed_users,
+   count(DISTINCT user_id) FILTER(WHERE delivered_at IS NOT NULL AND visited_at<=submitted_at+interval '7 days')::int AS visited_users,
+   count(DISTINCT user_id) FILTER(WHERE delivered_at IS NOT NULL AND game_started_at<=submitted_at+interval '7 days')::int AS started_users,
+   count(DISTINCT user_id) FILTER(WHERE delivered_at IS NOT NULL AND game_completed_at<=submitted_at+interval '7 days')::int AS completed_users,
    count(*) FILTER(WHERE complaint_at IS NOT NULL)::int AS complaints,
    count(*) FILTER(WHERE unsubscribed_at IS NOT NULL)::int AS unsubscribes,
    min(submitted_at) AS first_sent
@@ -985,7 +985,48 @@ export async function emailExperimentReport(pool: Pool, now = Date.now()) {
       [EMAIL_EXPERIMENT],
     )
   ).rows;
+  // Operational totals are available immediately. The mature A/B/C cohort is
+  // deliberately separate: a recent delivered message must never look absent.
+  const metrics = `count(*)::int AS messages,
+    count(*) FILTER(WHERE status='accepted')::int AS accepted,
+    count(DISTINCT user_id) FILTER(WHERE status='accepted')::int AS recipients,
+    count(*) FILTER(WHERE delivered_at IS NOT NULL)::int AS delivered,
+    count(DISTINCT user_id) FILTER(WHERE delivered_at IS NOT NULL)::int AS delivered_users,
+    count(*) FILTER(WHERE opened_at IS NOT NULL)::int AS opened,
+    count(*) FILTER(WHERE provider_clicked_at IS NOT NULL OR raw_click_at IS NOT NULL)::int AS clicked,
+    count(DISTINCT user_id) FILTER(WHERE visited_at IS NOT NULL)::int AS visited_users,
+    count(DISTINCT user_id) FILTER(WHERE game_started_at IS NOT NULL)::int AS started_users,
+    count(DISTINCT user_id) FILTER(WHERE game_completed_at IS NOT NULL)::int AS completed_users,
+    count(*) FILTER(WHERE status='pending')::int AS pending,
+    count(*) FILTER(WHERE status IN('sending','uncertain'))::int AS uncertain,
+    count(*) FILTER(WHERE status='failed')::int AS failed,
+    count(*) FILTER(WHERE status='cancelled')::int AS cancelled,
+    count(*) FILTER(WHERE unsubscribed_at IS NOT NULL)::int AS unsubscribes,
+    count(*) FILTER(WHERE complaint_at IS NOT NULL)::int AS complaints,
+    min(submitted_at) AS first_sent,max(submitted_at) AS last_sent`;
+  const window = `coalesce(submitted_at,created_at)>=$1::timestamptz-interval '90 days'
+    AND coalesce(submitted_at,created_at)<=$1`;
+  const activity = (await pool.query(
+    `SELECT kind,${metrics} FROM playne_email_outbox WHERE ${window}
+     GROUP BY GROUPING SETS((kind),()) ORDER BY kind NULLS FIRST`, [new Date(now)],
+  )).rows;
+  const current = (await pool.query(
+    `SELECT variant,${metrics} FROM playne_email_outbox WHERE ${window}
+     AND kind='rank' AND experiment=$2 GROUP BY variant ORDER BY variant`,
+    [new Date(now), EMAIL_EXPERIMENT],
+  )).rows;
+  const health = (await pool.query(
+    `SELECT (SELECT max(created_at) FROM playne_email_callbacks) AS last_callback,
+      (SELECT min(submitted_at)+interval '7 days' FROM playne_email_outbox
+       WHERE kind='rank' AND experiment=$2 AND submitted_at>$1::timestamptz-interval '7 days'
+       AND submitted_at<=$1 AND delivered_at IS NOT NULL) AS next_mature_at,
+      (SELECT count(*)::int FROM playne_email_contacts WHERE enabled AND verified_at IS NOT NULL) AS subscribers`,
+    [new Date(now), EMAIL_EXPERIMENT],
+  )).rows[0];
   return {
+    activity: { totals: activity.find((r) => r.kind === null), byKind: activity.filter((r) => r.kind !== null) },
+    current,
+    health,
     live,
     experiment: EMAIL_EXPERIMENT,
     unit: "user",

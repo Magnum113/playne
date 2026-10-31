@@ -128,6 +128,8 @@ CREATE TABLE IF NOT EXISTS playne_email_outbox (
  failure_code text
 );
 CREATE UNIQUE INDEX IF NOT EXISTS playne_email_one_pending ON playne_email_outbox(user_id,kind) WHERE status IN('pending','sending','uncertain');
+ALTER TABLE playne_email_outbox ADD COLUMN IF NOT EXISTS opened_at timestamptz;
+ALTER TABLE playne_email_outbox ADD COLUMN IF NOT EXISTS provider_clicked_at timestamptz;
 CREATE INDEX IF NOT EXISTS playne_email_pending ON playne_email_outbox(available_at) WHERE status='pending';
 CREATE INDEX IF NOT EXISTS playne_email_frequency ON playne_email_outbox(user_id,submitted_at) WHERE kind='rank' AND submitted_at IS NOT NULL;
 CREATE TABLE IF NOT EXISTS playne_email_callbacks (

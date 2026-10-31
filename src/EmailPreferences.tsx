@@ -1,3 +1,4 @@
+import EmailReport from "./EmailReport";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { TextField, FieldFeedback } from "./FormField";
 import { api, useAuth } from "./account";
@@ -560,115 +561,8 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
           )}
         </>
       )}
-      {settings?.reportAvailable && !compact && <EmailExperimentReport />}
+      {settings?.reportAvailable && !compact && <EmailReport />}
       <FieldFeedback message={message} error={settings ? error : undefined} />
     </section>
-  );
-}
-function EmailExperimentReport() {
-  const [report, setReport] = useState<any>(null),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  const percent = (n: number | null) =>
-    n === null ? "—" : (n * 100).toFixed(1).replace(".", ",") + "%";
-  async function load() {
-    setBusy(true);
-    setError("");
-    try {
-      setReport(await api("/email/report"));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div className="email-experiment">
-      <h3>Тест оформления A/B/C</h3>
-      <p>Статистика доступна только владельцу сайта.</p>
-      <button
-        type="button"
-        className="text-button"
-        onClick={() => void load()}
-        disabled={busy}
-        aria-busy={busy}
-      >
-        {busy
-          ? "Загружаем…"
-          : report
-            ? "Обновить статистику"
-            : "Показать статистику писем"}
-      </button>
-      {error && <p role="alert">{error}</p>}
-      {report && (
-        <>
-          <p>
-            Учитываем уникальных получателей за последние 90 дней после полного
-            окна в 7 дней. Основной показатель — возврат с действием на сайте.
-            Открытия и автоматические проверки ссылок в него не входят.
-          </p>
-          <div
-            className="email-report-scroll"
-            role="region"
-            aria-label="Результаты теста писем"
-            tabIndex={0}
-          >
-            <table>
-              <caption>Подтверждённые доставки и возвраты за 7 дней</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Дизайн</th>
-                  <th scope="col">Получатели</th>
-                  <th scope="col">Возвраты</th>
-                  <th scope="col">Доля</th>
-                  <th scope="col">95% интервал</th>
-                  <th scope="col">Начали игру</th>
-                  <th scope="col">Завершили игру</th>
-                  <th scope="col">Жалобы</th>
-                  <th scope="col">Отписки</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.variants.map((v: any) => (
-                  <tr key={v.variant}>
-                    <th scope="row">{v.variant}</th>
-                    <td>{v.delivered_users}</td>
-                    <td>{v.visited_users}</td>
-                    <td>{percent(v.visitRate)}</td>
-                    <td>
-                      {v.visitRate95
-                        ? v.visitRate95.map(percent).join(" — ")
-                        : "—"}
-                    </td>
-                    <td>{v.started_users}</td>
-                    <td>{v.completed_users}</td>
-                    <td>{v.complaints}</td>
-                    <td>{v.unsubscribes}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p>
-            Всего сообщений в эксперименте:{" "}
-            {report.live.reduce((n: number, r: any) => n + r.messages, 0)}. В
-            очереди:{" "}
-            {report.live
-              .filter((r: any) => r.status === "pending")
-              .reduce((n: number, r: any) => n + r.messages, 0)}
-            . Требуют проверки доставки:{" "}
-            {report.live
-              .filter((r: any) => ["uncertain", "failed"].includes(r.status))
-              .reduce((n: number, r: any) => n + r.messages, 0)}
-            .
-          </p>
-          <p>
-            На маленькой выборке победителя выбирать рано. Сравнивай также
-            завершённые игры, отписки и жалобы. Дизайн закреплён за человеком;
-            содержание и частота одинаковые.
-          </p>
-        </>
-      )}
-    </div>
   );
 }

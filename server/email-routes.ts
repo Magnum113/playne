@@ -343,6 +343,14 @@ export async function registerEmailRoutes(
         const delivered = ["delivered", "opened", "clicked"].includes(
           data.status,
         );
+        if (["opened", "clicked"].includes(data.status)) {
+          await c.query(
+            `UPDATE playne_email_outbox SET opened_at=coalesce(opened_at,now()),
+              provider_clicked_at=CASE WHEN $2 THEN coalesce(provider_clicked_at,now()) ELSE provider_clicked_at END
+              WHERE id=$1`,
+            [row.id, data.status === "clicked"],
+          );
+        }
         if (
           ["accepted", "sent", "delivered", "opened", "clicked"].includes(
             data.status,
