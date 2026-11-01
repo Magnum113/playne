@@ -10,7 +10,7 @@ function response() {
 }
 describe('public share gateway', () => {
   it('uses branded preview links in production without sending test links outside their installation', () => {
-    expect(challengePublicOrigin('https://playne.ru')).toBe('https://playne-results.vercel.app');
+    expect(challengePublicOrigin('https://playne.ru')).toBe('https://go.playne.ru');
     expect(challengePublicOrigin('https://challenges.test')).toBe('https://challenges.test');
     expect(challengePublicOrigin('http://localhost:3035')).toBe('http://localhost:3035');
   });
@@ -74,6 +74,19 @@ describe('public share gateway', () => {
       expect(body).toContain(`property="og:image" content="https://${host==='go.playne.ru'?'go.playne.ru':'playne-results.vercel.app'}/api/`);
       expect(body).not.toContain('evil.example');
     }
+  });
+  it('keeps the production share URL, canonical and both image tags on the branded domain', async () => {
+    const url = `${challengePublicOrigin('https://playne.ru')}/c/${code}`;
+    const html = `<link rel="canonical" href="${url}"><meta property="og:url" content="${url}"><meta property="og:image" content="https://playne.ru/api/challenges/token/image.png?v=3"><meta name="twitter:image" content="https://playne.ru/api/challenges/token/image.png?v=3">`;
+    const res=response();
+    await handle({method:'GET',url:`/c/${code}`,headers:{host:'go.playne.ru'}},res,async()=>new Response(html,{headers:{'content-type':'text/html'}}));
+    const body=res.end.mock.calls[0][0].toString();
+    expect(res.statusCode).toBe(200);
+    expect(body).toContain(`rel="canonical" href="${url}"`);
+    expect(body).toContain(`property="og:url" content="${url}"`);
+    expect(body).toContain('property="og:image" content="https://go.playne.ru/api/');
+    expect(body).toContain('name="twitter:image" content="https://go.playne.ru/api/');
+    expect(body).not.toContain('vercel.app');
   });
   it('continues browsers on the same original challenge without copying cookies or opaque query parameters', async () => {
     expect(gatewayHtml('<script src="/api/challenges/analytics.js" defer>')).toContain('src="/api/continue.js"');

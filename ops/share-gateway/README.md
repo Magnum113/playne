@@ -4,14 +4,14 @@ Telegram failed to generate previews for playne.ru despite valid initial HTML,
 public PNGs, DNS/TLS and WebpageBot refreshes. Serving the same live HTML and PNG
 through this external gateway produced the full result card in Telegram.
 
-- Production domain: `playne-results.vercel.app` (Vercel project `playne-share`,
-  `prj_cDN7MVNmecxQ2dvew7peeZ5M0dGX`). This production project domain is public,
-  resolves to an ingress reachable from the tested network and displays Telegram cards.
-- Diagnostic alias: `playne-share.vercel.app`; its ingress timed out from the
-  tested local network, so it is not used for new links.
-- Branded candidate `go.playne.ru`: A `go` → `76.76.21.21`, a supported Vercel
-  address returned by domain config. DNS and HTTPS verified, but Telegram did not
-  generate its card during acceptance. Do not enable it until an actual card works.
+- Production domain: `go.playne.ru` (Vercel project `playne-share`,
+  `prj_cDN7MVNmecxQ2dvew7peeZ5M0dGX`). A `go` → `76.76.21.21`, a supported
+  Vercel address returned by domain config. New share URLs, canonical, Open Graph
+  and Twitter image URLs use the branded domain.
+- Existing `playne-results.vercel.app` and `playne-share.vercel.app` aliases remain
+  for previously shared links; new links use go.playne.ru. The local network's DNS
+  cached NXDOMAIN during initial setup, so verify authoritative/public DNS and HTTPS
+  independently when a local browser still reports an unresolved hostname.
 - Only public short/legacy challenge landings and their images are served.
   All cookies, authorization and query strings are discarded. No arbitrary URLs.
 - PNGs are rendered on the gateway from small public challenge metadata, using
