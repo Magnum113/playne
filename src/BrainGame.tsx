@@ -768,12 +768,6 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                   disabled={busy}
                 /></details>
               )}
-              {!challengeToken && (
-                <details className="game-details">
-                  <summary>Как устроены задачи и рейтинг</summary>
-                  <p>{mode === "classic" ? brainDailyText : brainPracticeText}</p>
-                </details>
-              )}
               {message && <p role="status">{message}</p>}
               <GameStartAction
                 game={game}
@@ -792,6 +786,12 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                     : game === "rotate" || game === "slide" ? "Без таймера. Начнём сразу с задания." : "Запусти раунд, когда будешь готов."
                 }
               />
+              {!challengeToken && (
+                <details className="game-details">
+                  <summary>Как устроены задачи и рейтинг</summary>
+                  <p>{mode === "classic" ? brainDailyText : brainPracticeText}</p>
+                </details>
+              )}
               <a
                 className="game-start-ranking"
                 href={`/leaderboard/?game=${game}&mode=classic`}

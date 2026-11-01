@@ -177,9 +177,46 @@ button:disabled {
 .help-button {
   min-height: var(--control-size);
 }
-.color-dialog-close,
-.geo-dialog-close,
-.close-button,
+.ui-icon-button,
+.ui-icon-button.close-button,
+.ui-icon-button.geo-map-close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-size);
+  height: var(--control-size);
+  min-width: var(--control-size);
+  min-height: var(--control-size);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text);
+  font-size: 24px;
+  line-height: 1;
+  touch-action: manipulation;
+}
+.ui-icon-button-face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--control-size) - var(--space-3));
+  height: calc(var(--control-size) - var(--space-3));
+  border-radius: 8px;
+  background: var(--hover);
+  pointer-events: none;
+}
+.ui-icon-button:hover:not(:disabled) .ui-icon-button-face { background: var(--line); }
+.ui-icon-button:focus-visible { outline-offset: 0; }
+.ui-panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: calc(var(--control-size) + 2 * var(--space-2));
+  padding: var(--space-2) var(--space-3);
+}
 .pressure-pause {
   width: var(--control-size);
   height: var(--control-size);
@@ -187,12 +224,9 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-control);
+  border-radius: 50%;
   color: var(--text);
   background: var(--hover);
-}
-.pressure-pause {
-  border-radius: 50%;
 }
 dialog,
 .rules-dialog,

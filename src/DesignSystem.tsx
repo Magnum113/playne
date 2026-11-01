@@ -42,7 +42,7 @@ import {
 import FooterLinks from "./FooterLinks";
 import FooterSignupExamples from "./FooterSignupExamples";
 import GameRankingExamples from "./GameRankingExamples";
-import { ModeChoice, RoundDots, StatusMessage } from "./ui";
+import { IconButton, ModeChoice, RoundDots, StatusMessage } from "./ui";
 import { SizePreview, CirclePreview, ColorPreview } from "./Hub";
 import GeoPreview from "./GeoPreview";
 import LandmarkPreview from "./LandmarkPreview";
@@ -295,6 +295,15 @@ function ButtonExamples() {
               {busy ? "Сохраняем…" : "Проверить загрузку"}
             </button>
           </div>
+        </Sample>
+        <Sample title="Кнопка с отступом от панели" source="ui.tsx / IconButton · ui-panel-toolbar">
+          <div className="ui-panel-toolbar ds-inset-panel">
+            <strong>Где это?</strong>
+            <IconButton aria-label="Закрыть пример панели" onClick={() => setNotice("Кнопка закрытия работает. Это пример панели.")}>
+              ×
+            </IconButton>
+          </div>
+          <p className="ds-note">Фон — 32 × 32 px, область нажатия — 44 × 44 px. Внутренний отступ панели — от 8 px; фокус не обрезается.</p>
         </Sample>
         <Sample
           title="Вызов другу: огненный контур"
@@ -1048,15 +1057,25 @@ function SaveStates() {
 }
 function CompactSettingsDemo() {
   const [mode, setMode] = useState<"classic" | "timed">("classic");
-  return <>
-    <p className="game-mode-summary">Весь мир · Без перемещения · {mode === "timed" ? "На время" : "Без таймера"}</p>
-    <details className="game-details"><summary>Настроить игру</summary>
-      <ModeChoice value={mode} onChange={setMode} options={[
+  const [collection, setCollection] = useState<"world" | "landmarks">("world");
+  return <div className="geo-welcome-setup">
+    <ModeChoice
+      className="geo-mode-choice geo-collection-choice"
+      legend="Места"
+      value={collection}
+      onChange={setCollection}
+      options={[
+        { value: "world", label: "Весь мир", description: "Города, дороги и пейзажи" },
+        { value: "landmarks", label: "Достопримечательности", description: "Узнай памятники, храмы и чудеса природы" },
+      ]}
+    />
+    <details className="game-details geo-settings"><summary>Настроить игру <span className="geo-settings-summary">{collection === "landmarks" ? "Достопримечательности" : "Без перемещения"} · {mode === "timed" ? "На время" : "Без таймера"}</span></summary>
+      <ModeChoice legend="Время" className="geo-mode-choice" value={mode} onChange={setMode} options={[
         {value: "classic", label: "Без таймера", description: "В своём темпе"},
         {value: "timed", label: "На время", description: "Три минуты на раунд"},
       ]} />
     </details>
-  </>;
+  </div>;
 }
 
 function GuestPromptDemo() {

@@ -81,8 +81,8 @@ export const componentInventory = [
     "results",
   ],
   [
-    "Компактные мобильные топ-5 очков и серий",
-    "OverallLeaderboard.tsx · StreakLeaderboard.tsx · overall.css · streak.css",
+    "Мобильные топ-5 и огненная строка лидеров с вертикальной прокруткой",
+    "OverallLeaderboard.tsx · StreakLeaderboard.tsx · StreakTicker.tsx · buttonFire.ts · streak.css",
     "results",
   ],
   [
@@ -182,7 +182,7 @@ export const componentInventory = [
   ],
   [
     "Кнопки с иконками: тема, правила, закрытие, пауза",
-    "SiteHeader.tsx · pressure.css",
+    "ui.tsx / IconButton · SiteHeader.tsx · pressure.css",
     "actions",
   ],
   [

@@ -54,14 +54,7 @@
   letter-spacing: -0.8px;
   margin: 0;
 }
-.share-close {
-  min-width: 44px;
-  min-height: 44px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-pill);
-  background: var(--panel);
-  font-size: 25px;
-}
+
 .share-preview {
   width: 100%;
   height: auto;
