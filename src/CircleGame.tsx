@@ -7,6 +7,7 @@ import { GuestSavedNotice, GuestTrialPrompt, useGuestTrial } from "./account";
 import { GameIntro } from "./GameIntro";
 import { useRankedRun } from "./account";
 import FooterLinks from "./FooterLinks";
+import CircleAbout from "./CircleAbout";
 import { CIRCLE_GOALS, reachGoal } from "./analytics";
 import { createCircleTracker } from "./gameAnalytics";
 import { useRef, useState, type PointerEvent } from "react";
@@ -201,7 +202,7 @@ export default function CircleGame() {
         <GameIntro
           title="Круг"
           eyebrow="ОДНА ЛИНИЯ. ИДЕАЛЬНЫЙ КРУГ."
-          description="Обведи точку одним движением. Насколько ровно получится?"
+          description="Нарисуй идеальный круг мышью или пальцем и узнай процент точности."
           descriptionId="circle-instructions"
           record={{ game: "circle", value: best, unit: "%" }}
           onRules={() => {
@@ -381,6 +382,7 @@ export default function CircleGame() {
             </section>
           )}
         </GameResultLayout>
+        {!drawing && <CircleAbout />}
         <RulesDialog
           dialogRef={rules}
           className="color-rules-dialog"

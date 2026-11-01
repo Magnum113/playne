@@ -2,6 +2,7 @@ import { HeaderAccount } from "./SiteHeader";
 import { guides } from "./guides";
 import { PlayneBrand, DestroyWebsiteLink, ThemeToggle } from "./SiteHeader";
 import FooterLinks from "./FooterLinks";
+import CircleExamples from "./CircleExamples";
 
 export default function GuidePage({
   slug,
@@ -83,12 +84,18 @@ export default function GuidePage({
                     {s.paragraphs.map((p) => (
                       <p key={p}>{p}</p>
                     ))}
+                    {guide.slug === "perfect-circle" && s.id === "score" && (
+                      <CircleExamples idPrefix="circle-guide-example" />
+                    )}
                     {s.steps && (
                       <ol>
                         {s.steps.map((step) => (
                           <li key={step}>{step}</li>
                         ))}
                       </ol>
+                    )}
+                    {s.playLabel && (
+                      <a className="guide-section-play" href={guide.game}>{s.playLabel}</a>
                     )}
                   </section>
                 ))}

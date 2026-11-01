@@ -141,8 +141,8 @@ try {
     }
     if (page.path === "/pressure/") {
       assert(
-        title.includes("Press Under Pressure") &&
-          title.includes("бесплатный") &&
+        title.includes("Pressing Under Pressure") &&
+          title.includes("играть") &&
           title.includes("на русском"),
       );
       assert(description.includes("Pressing Under Pressure"));
