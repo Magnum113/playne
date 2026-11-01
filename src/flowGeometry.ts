@@ -1,4 +1,4 @@
-/** Dense pictures share one square stage; older saved boards keep their geometry. */
+/** Dense artwork keeps its native grid while the active stage matches the reference. */
 export function flowGeometry(puzzle: {
   width: number;
   height: number;
@@ -14,15 +14,21 @@ export function flowGeometry(puzzle: {
   const startY = 22 + (dense ? (extent - puzzle.height * step) / 2 : 0);
   const bottom = dense ? 22 + extent : startY + puzzle.height * step;
   return {
+    reference: !!dense,
+    viewBox: dense
+      ? { x: 10, y: -10, width: 520, height: 610 }
+      : { x: 0, y: 0, width: 540, height: bottom + 132 },
     step,
     size: step - Math.max(0.65, step / 24),
     startX,
     startY,
     bottom,
-    frameX: dense ? (540 - extent) / 2 - 15 : startX - 15,
-    frameY: dense ? 6 : startY - 16,
-    frameWidth: (dense ? extent : puzzle.width * step) + 30,
-    frameHeight: (dense ? extent : puzzle.height * step) + 28,
-    workerScale: dense ? Math.max(0.42, (0.72 * step) / 24) : 0.72,
+    homeY: bottom + (dense ? 89 : 66),
+    frameX: dense ? 10 : startX - 15,
+    frameY: dense ? -10 : startY - 16,
+    frameWidth: dense ? 520 : puzzle.width * step + 30,
+    frameHeight: dense ? 510 : puzzle.height * step + 28,
+    // Ants remain readable as the picture's native resolution increases.
+    workerScale: dense ? 0.85 : 0.72,
   };
 }

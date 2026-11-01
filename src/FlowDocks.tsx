@@ -50,8 +50,8 @@ export function FlowDocks({
             data-dock-link={id}
             aria-hidden="true"
             style={{
-              left: `calc(${((slot + 0.5) / count) * 100}% + ${(slot / count - (count - 1) / (2 * count)) * 8}px)`,
-              width: `calc(${100 / count}% + ${8 / count}px)`,
+              left: `calc(${((slot + 0.5) / count) * 100}% + var(--flow-dock-gap, 8px) * ${(slot - (count - 1) / 2) / count})`,
+              width: `calc(${100 / count}% + var(--flow-dock-gap, 8px) * ${1 / count})`,
               background: `linear-gradient(90deg, ${FLOW_COLORS[pair[0].color].hex}, ${FLOW_COLORS[pair[1].color].hex})`,
             }}
           />
@@ -66,8 +66,8 @@ export function FlowDocks({
           data-dock-pair={team.link}
           aria-label={`${FLOW_COLORS[team.color].name} команда: осталось ${team.left}${team.link ? ". Связанная пара" : ""}${team.left === 0 ? ". Ждёт вторую команду" : ""}`}
           style={{
-            left: `calc(${(team.slot / count) * 100}% + ${(team.slot / count) * 8}px)`,
-            width: `calc(${100 / count}% - ${((count - 1) / count) * 8}px)`,
+            left: `calc(${(team.slot / count) * 100}% + var(--flow-dock-gap, 8px) * ${team.slot / count})`,
+            width: `calc(${100 / count}% - var(--flow-dock-gap, 8px) * ${(count - 1) / count})`,
           }}
         >
           <FlowCrate color={team.color} count={team.left} />

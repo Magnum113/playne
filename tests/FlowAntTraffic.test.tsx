@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FlowScene } from "../src/FlowArt";
+import { FlowCrate, FlowScene } from "../src/FlowArt";
 import * as rules from "../src/flow";
 import type { FlowPuzzle } from "../src/flow";
 import {
@@ -117,6 +117,53 @@ afterEach(async () => {
 });
 
 describe("Swarm ant traffic renders the active timetable", () => {
+  it("uses reference proportions for active v4 boards while previews and old saves keep their aspect ratio", async () => {
+    await render([trip("sized-worker", 0, 100)]);
+    const scene = box.querySelector(".flow-scene")!;
+    expect(scene.getAttribute("viewBox")).toBe("10 -10 520 610");
+    expect(scene.getAttribute("preserveAspectRatio")).toBe("none");
+    expect(ant(0)?.firstElementChild?.getAttribute("transform")).toBe(
+      "scale(0.85)",
+    );
+    expect(box.querySelector(".flow-anthill")?.getAttribute("transform")).toBe(
+      "translate(270 543) scale(1.35) translate(-270 -520)",
+    );
+
+    for (const props of [{ preview: true }, { revealHidden: true }]) {
+      await act(async () => {
+        root.render(
+          <FlowScene puzzle={puzzle} cells={puzzle.cells} {...props} />,
+        );
+      });
+      expect(
+        box.querySelector(".flow-scene")?.getAttribute("preserveAspectRatio"),
+      ).toBe("xMidYMid meet");
+    }
+
+    await act(async () => {
+      root.render(
+        <FlowScene
+          puzzle={{ ...puzzle, version: 3, id: "traffic:v3" }}
+          cells={puzzle.cells}
+        />,
+      );
+    });
+    expect(box.querySelector(".flow-scene")?.getAttribute("viewBox")).toBe(
+      "0 0 540 178",
+    );
+    expect(
+      box.querySelector(".flow-scene")?.getAttribute("preserveAspectRatio"),
+    ).toBe("xMidYMid meet");
+    expect(
+      box.querySelector(".flow-anthill")?.getAttribute("transform"),
+    ).toBeNull();
+
+    await act(async () => root.render(<FlowCrate color={0} count={7} />));
+    expect(
+      box.querySelector(".flow-crate")?.getAttribute("preserveAspectRatio"),
+    ).toBe("none");
+  });
+
   it("mounts future journeys shortly before departure, removes delivered journeys and leaves the cube layer idle", async () => {
     const frontier = vi.spyOn(rules, "flowFrontier");
     const first = trip("first", 0, 100);

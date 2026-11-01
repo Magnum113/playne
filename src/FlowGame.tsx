@@ -890,10 +890,19 @@ export function FlowSession({
                 count: item.packet.count,
                 x: source.left - surface.left,
                 y: source.top - surface.top,
-                dx: target.left - source.left,
-                dy: target.top - source.top,
+                dx:
+                  puzzle.version === 4
+                    ? target.left +
+                      target.width / 2 -
+                      source.left -
+                      source.width / 2
+                    : target.left - source.left,
+                dy:
+                  puzzle.version === 4
+                    ? target.bottom - source.bottom
+                    : target.top - source.top,
                 width: source.width,
-                scale: target.width / source.width,
+                scale: puzzle.version === 4 ? 1 : target.width / source.width,
                 duration: timing.launch,
                 slot: allocation!.slots[index],
               },
@@ -1264,7 +1273,13 @@ export function FlowSession({
         <section
           className={`flow-play${game.stuck ? " is-stuck" : ""}${game.won && !busy ? " is-won" : ""}`}
           data-world={world.id}
-          style={worldStyle}
+          data-layout={puzzle.version === 4 ? "reference" : undefined}
+          style={
+            {
+              ...worldStyle,
+              "--flow-lanes": puzzle.lanes.length,
+            } as CSSProperties
+          }
           ref={stage}
           aria-label="Игровая площадка Рой"
         >
@@ -1524,7 +1539,12 @@ export function FlowSession({
                   className={`flow-supply${puzzle.version === 4 ? " flow-supply-dense" : ""}`}
                   style={{
                     gridTemplateColumns: `repeat(${puzzle.lanes.length}, minmax(0, 1fr))`,
-                    maxWidth: puzzle.lanes.length === 3 ? 264 : 332,
+                    maxWidth:
+                      puzzle.version === 4
+                        ? undefined
+                        : puzzle.lanes.length === 3
+                          ? 264
+                          : 332,
                   }}
                 >
                   <FlowQueueLinks

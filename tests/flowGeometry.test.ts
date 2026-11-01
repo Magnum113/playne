@@ -3,7 +3,7 @@ import { flowGeometry } from "../src/flowGeometry";
 import { flowLevelArt } from "../src/flowLevelArt";
 
 describe("colony board geometry", () => {
-  it("fits all native-resolution pictures into the same square stage without stretching cells", () => {
+  it("keeps every native-resolution grid centered inside the reference stage", () => {
     let frame: number[] | undefined;
     for (let index = 0; index < 36; index++) {
       const art = flowLevelArt(index);
@@ -29,10 +29,24 @@ describe("colony board geometry", () => {
       );
       expect(g.size).toBeGreaterThan(10);
       expect(g.size).toBeLessThan(g.step);
-      expect(g.workerScale).toBeGreaterThanOrEqual(0.42);
-      expect(g.workerScale).toBeLessThanOrEqual(0.72);
+      expect(g.reference).toBe(true);
+      expect(g.workerScale).toBe(0.85);
+      expect(g.homeY).toBe(543);
+      expect(g.viewBox).toEqual({ x: 10, y: -10, width: 520, height: 610 });
     }
-    expect(frame).toEqual([39, 6, 462, 460, 454]);
+    expect(frame).toEqual([10, -10, 520, 510, 454]);
+  });
+
+  it("projects the frame, picture and home onto the measured portrait reference", () => {
+    const g = flowGeometry({ width: 36, height: 36, version: 4 });
+    const xScale = 532 / g.viewBox.width;
+    const yScale = 550 / g.viewBox.height;
+    expect(g.frameWidth * xScale).toBeCloseTo(532);
+    expect(g.frameHeight * yScale).toBeCloseTo(460, 0);
+    expect(36 * g.step * xScale).toBeCloseTo(442, 0);
+    expect(36 * g.step * yScale).toBeCloseTo(390, 0);
+    // The 576×1280 reference starts the frame at y=174 and the home at y=673.
+    expect(174 + (g.homeY - g.viewBox.y) * yScale).toBeCloseTo(673, 0);
   });
 
   it("keeps wide sushi centered vertically and its cells square at every density", () => {
@@ -58,11 +72,14 @@ describe("colony board geometry", () => {
   it("retains the saved v2/v3 frame and 24-unit cells", () => {
     for (const version of [undefined, 2, 3]) {
       expect(flowGeometry({ width: 18, height: 20, version })).toEqual({
+        reference: false,
+        viewBox: { x: 0, y: 0, width: 540, height: 634 },
         step: 24,
         size: 23,
         startX: 54,
         startY: 22,
         bottom: 502,
+        homeY: 568,
         frameX: 39,
         frameY: 6,
         frameWidth: 462,
@@ -70,11 +87,14 @@ describe("colony board geometry", () => {
         workerScale: 0.72,
       });
       expect(flowGeometry({ width: 20, height: 16, version })).toEqual({
+        reference: false,
+        viewBox: { x: 0, y: 0, width: 540, height: 538 },
         step: 24,
         size: 23,
         startX: 30,
         startY: 22,
         bottom: 406,
+        homeY: 472,
         frameX: 15,
         frameY: 6,
         frameWidth: 510,
@@ -95,6 +115,6 @@ describe("colony board geometry", () => {
     const medium = flowGeometry({ width: 24, height: 24, version: 4 });
     const detailed = flowGeometry({ width: 36, height: 36, version: 4 });
     expect(detailed.step).toBeLessThan(medium.step);
-    expect(detailed.workerScale).toBeLessThan(medium.workerScale);
+    expect(detailed.workerScale).toBe(medium.workerScale);
   });
 });

@@ -463,7 +463,10 @@ describe("Рой: complete player journeys", () => {
     });
     await click(`Очередь ${lane + 1}:`);
     const now =
-      Math.ceil(Math.min(...normal.trips.map((t) => t.deliveryAt))) + 100;
+      Math.ceil(
+        [...normal.trips].sort((a, b) => a.deliveryAt - b.deliveryAt)[1]
+          .deliveryAt,
+      ) + 1;
     await act(async () => vi.advanceTimersByTime(now));
     const before = box
       .querySelector('[role="progressbar"]')!

@@ -2208,6 +2208,7 @@
 /* Fixed dock holes and stable keyed boxes let fragmented free slots close smoothly. */
 .flow-docks {
   position: relative;
+  gap: var(--flow-dock-gap, 8px);
 }
 .flow-dock-base {
   pointer-events: none;
@@ -2242,5 +2243,253 @@
   .flow-play .flow-dock-occupant,
   .flow-dock-bridge {
     transition: none;
+  }
+}
+
+/* Reference proportions: a 576px portrait surface, scaled as one composition. */
+.flow-play[data-layout="reference"]:not(.is-won) {
+  --flow-unit: min(
+    calc(min(100vw, 500px) / 576),
+    calc((100svh - var(--safe-area-top) - var(--safe-area-bottom) - 8px) / 1190)
+  );
+  --flow-dock-gap: calc(14 * var(--flow-unit));
+  --flow-queue-column: max(44px, calc(80 * var(--flow-unit)));
+}
+.flow-play[data-layout="reference"]:not(.is-won) .flow-colony {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.flow-play[data-layout="reference"]:not(.is-won) .flow-docks {
+  width: calc(428 * var(--flow-unit));
+  max-width: 100%;
+  margin: 0 0 calc(32 * var(--flow-unit));
+}
+.flow-play[data-layout="reference"]:not(.is-won) .flow-dock {
+  aspect-ratio: 74 / 64;
+  border-radius: calc(6 * var(--flow-unit));
+}
+.flow-play[data-layout="reference"]:not(.is-won)
+  .flow-dock-occupant
+  > .flow-crate {
+  position: absolute;
+  left: 50%;
+  bottom: calc(-4 * var(--flow-unit));
+  width: calc(93 * var(--flow-unit));
+  height: calc(92 * var(--flow-unit));
+  max-width: none;
+  transform: translateX(-50%);
+}
+.flow-play[data-layout="reference"]:not(.is-won) .flow-dock-bridge {
+  top: calc(50% - 10 * var(--flow-unit));
+  height: calc(14 * var(--flow-unit));
+}
+.flow-play[data-layout="reference"]:not(.is-won) .flow-supply {
+  width: calc(
+    var(--flow-lanes) * var(--flow-queue-column) + (var(--flow-lanes) - 1) * 8 *
+      var(--flow-unit)
+  );
+  max-width: none;
+  gap: calc(8 * var(--flow-unit));
+  padding: 0;
+}
+.flow-play[data-layout="reference"]:not(.is-won) .flow-launch {
+  height: calc(84 * var(--flow-unit));
+  min-height: 44px;
+  aspect-ratio: auto;
+}
+.flow-play[data-layout="reference"]:not(.is-won) .flow-promoted-crate {
+  position: relative;
+  display: block;
+}
+.flow-play[data-layout="reference"]:not(.is-won) .flow-launch .flow-crate {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(93 * var(--flow-unit));
+  height: calc(92 * var(--flow-unit));
+  max-width: none;
+  transform: translate(-50%, -50%);
+}
+.flow-play[data-layout="reference"]:not(.is-won) .flow-launch-ghost {
+  height: calc(84 * var(--flow-unit));
+}
+.flow-play[data-layout="reference"]:not(.is-won)
+  .flow-launch-ghost
+  > .flow-crate {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(93 * var(--flow-unit));
+  height: calc(92 * var(--flow-unit));
+  max-width: none;
+  transform: translate(-50%, -50%);
+}
+.flow-play[data-layout="reference"]:not(.is-won)
+  .flow-launch
+  .flow-crate
+  > rect,
+.flow-play[data-layout="reference"]:not(.is-won)
+  .flow-dock-occupant
+  .flow-crate
+  > rect {
+  stroke: #fffdf6;
+  stroke-width: 3.3px;
+}
+.flow-play[data-layout="reference"]:not(.is-won)
+  .flow-launch-ghost
+  .flow-crate
+  > rect {
+  stroke: #fffdf6;
+  stroke-width: 3.3px;
+}
+.flow-play[data-layout="reference"]:not(.is-won) .flow-next-packets {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  gap: calc(8 * var(--flow-unit));
+  padding-top: calc(12 * var(--flow-unit));
+}
+.flow-play[data-layout="reference"]:not(.is-won)
+  .flow-next-packets
+  > span:not(.flow-more-packets) {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 100%;
+  height: calc(70 * var(--flow-unit));
+  margin: 0;
+}
+.flow-play[data-layout="reference"]:not(.is-won)
+  .flow-next-packets
+  .flow-crate {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(90.71 * var(--flow-unit));
+  height: calc(80.61 * var(--flow-unit));
+  max-width: none;
+  transform: translate(-50%, -50%);
+}
+.flow-play[data-layout="reference"]:not(.is-won) .flow-more-packets {
+  display: none;
+}
+.flow-play[data-layout="reference"]:not(.is-won)
+  .flow-queue-links
+  path:first-child {
+  stroke-width: calc(13 * var(--flow-unit));
+}
+.flow-play[data-layout="reference"]:not(.is-won)
+  .flow-queue-links
+  path:last-child {
+  stroke-width: calc(8 * var(--flow-unit));
+}
+@media (max-width: 999px) {
+  .flow-play[data-layout="reference"]:not(.is-won) {
+    width: calc(576 * var(--flow-unit));
+    height: auto;
+    min-height: 100svh;
+    max-height: none;
+    padding: calc(72 * var(--flow-unit) + var(--safe-area-top))
+      calc(22 * var(--flow-unit) + var(--safe-area-right))
+      max(8px, var(--safe-area-bottom))
+      calc(22 * var(--flow-unit) + var(--safe-area-left));
+    gap: 0;
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-arena {
+    position: relative;
+    flex: none;
+    min-height: 0;
+    margin-top: max(8px, calc(102 * var(--flow-unit) - 44px));
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-progress {
+    position: absolute;
+    top: calc(-12 * var(--flow-unit));
+    left: 15%;
+    width: 70%;
+    margin: 0;
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-board-wrap {
+    flex: none;
+    min-height: 0;
+    height: calc(550 * var(--flow-unit));
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-controls {
+    flex: 1 0 auto;
+    gap: 0;
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-colony {
+    margin-top: clamp(
+      calc(16 * var(--flow-unit)),
+      calc(
+        100svh - var(--safe-area-top) - var(--safe-area-bottom) - 8px -
+          1172.35 * var(--flow-unit)
+      ),
+      calc(64 * var(--flow-unit))
+    );
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-tools {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex: 1 0 auto;
+    flex-direction: column;
+    margin: calc(12 * var(--flow-unit))
+      calc(-22 * var(--flow-unit) - var(--safe-area-right)) 0
+      calc(-22 * var(--flow-unit) - var(--safe-area-left));
+    padding-inline: calc(64 * var(--flow-unit));
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-tools::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: calc(32 * var(--flow-unit)) 0
+      calc(-1 * max(8px, var(--safe-area-bottom)));
+    border: 3px solid #c9e9ff;
+    border-bottom: 0;
+    border-radius: calc(30 * var(--flow-unit)) calc(30 * var(--flow-unit)) 0 0;
+    background-color: #78afe7;
+    background-image: conic-gradient(
+      #ffffff0d 25%,
+      transparent 0 50%,
+      #ffffff0d 0 75%,
+      transparent 0
+    );
+    background-size: calc(72 * var(--flow-unit)) calc(72 * var(--flow-unit));
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-toolbar button {
+    width: max(44px, calc(96 * var(--flow-unit)));
+    height: max(44px, calc(96 * var(--flow-unit)));
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-score-note {
+    display: none;
+  }
+}
+@media (min-width: 1000px) {
+  .flow-play[data-layout="reference"]:not(.is-won) {
+    --flow-unit: clamp(0.8px, calc((100svh - 128px) / 916), 1.15px);
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-board-wrap {
+    width: calc(532 * var(--flow-unit));
+    height: calc(550 * var(--flow-unit));
+    margin-inline: auto;
+  }
+  .flow-play[data-layout="reference"]:not(.is-won) .flow-colony {
+    width: calc(428 * var(--flow-unit));
+    margin-top: calc(24 * var(--flow-unit));
   }
 }

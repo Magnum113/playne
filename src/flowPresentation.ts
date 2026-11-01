@@ -78,7 +78,7 @@ export function flowAntRoute(
   event: FlowEvent,
   originOverride?: FlowPoint,
 ) {
-  const { step, size, startX, startY, bottom } = flowGeometry(puzzle);
+  const { step, size, startX, startY, bottom, homeY } = flowGeometry(puzzle);
   let x = startX + (event.cell % puzzle.width) * step + size / 2,
     y =
       startY + Math.floor(event.cell / puzzle.width) * step + step * (22 / 24);
@@ -113,7 +113,7 @@ export function flowAntRoute(
     { x, y },
     { x, y: gateY + 7 },
     { x: 270, y: gateY + 7 },
-    { x: 270, y: bottom + 66 },
+    { x: 270, y: homeY },
   ];
   if (event.path?.length && event.path.length > 1) {
     const corridor = event.path.map((point) => ({
@@ -156,14 +156,14 @@ export function flowAntRoute(
             ...escape,
             { x: entry.x, y: gateY + 7 },
             { x: 270, y: gateY + 7 },
-            { x: 270, y: bottom + 66 },
+            { x: 270, y: homeY },
           ]
         : [
             ...escape,
             { x: routeSide, y: entry.y },
             { x: routeSide, y: gateY + 7 },
             { x: 270, y: gateY + 7 },
-            { x: 270, y: bottom + 66 },
+            { x: 270, y: homeY },
           ];
     x = pickup.x;
     y = pickup.y;

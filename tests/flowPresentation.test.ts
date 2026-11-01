@@ -882,7 +882,7 @@ describe("dense colony picture routes", () => {
         }
         expect(route.outboundPoints.at(-1)).toEqual({ x: route.x, y: route.y });
         expect(route.returnPoints[0]).toEqual({ x: route.x, y: route.y });
-        expect(route.returnPoints.at(-1)).toEqual({ x: 270, y: g.bottom + 66 });
+        expect(route.returnPoints.at(-1)).toEqual({ x: 270, y: g.homeY });
         for (const point of [...route.outboundPoints, ...route.returnPoints]) {
           expect(point.x).toBeGreaterThanOrEqual(0);
           expect(point.x).toBeLessThanOrEqual(540);

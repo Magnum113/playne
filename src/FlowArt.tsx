@@ -170,7 +170,12 @@ export function FlowCrate({
     ? { hex: "#9396a5", dark: "#505365", ink: "#fffefa" }
     : FLOW_COLORS[color];
   return (
-    <svg className="flow-crate" viewBox="0 0 76 76" aria-hidden="true">
+    <svg
+      className="flow-crate"
+      viewBox="0 0 76 76"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
       <rect x="7" y="10" width="62" height="61" rx="11" fill={paint.dark} />
       <rect x="7" y="5" width="62" height="61" rx="11" fill={paint.hex} />
       <path
@@ -407,7 +412,7 @@ export const FlowScene = memo(function FlowScene({
   epoch?: number;
 }) {
   const geometry = flowGeometry(puzzle);
-  const { step, size, startX, startY, bottom } = geometry;
+  const { step, size, startX, startY, bottom, homeY, viewBox } = geometry;
   const concealedCells = new Set(
     revealHidden ? [] : (puzzle.hiddenCells ?? []),
   );
@@ -419,7 +424,12 @@ export const FlowScene = memo(function FlowScene({
   return (
     <svg
       className={`flow-scene${preview ? " flow-scene-preview" : ""}`}
-      viewBox={`0 0 540 ${bottom + 132}`}
+      viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
+      preserveAspectRatio={
+        geometry.reference && !preview && !revealHidden
+          ? "none"
+          : "xMidYMid meet"
+      }
       role="img"
       aria-label={
         label ??
@@ -444,8 +454,22 @@ export const FlowScene = memo(function FlowScene({
         width={geometry.frameWidth}
         height={geometry.frameHeight}
         rx="17"
-        fill="#fff6e0"
+        fill={geometry.reference ? "#e7c792" : "#fff6e0"}
+        stroke={geometry.reference ? "#d4b27e" : undefined}
+        strokeWidth={geometry.reference ? 1.5 : undefined}
       />
+      {geometry.reference && (
+        <rect
+          x={geometry.frameX + 16}
+          y={geometry.frameY + 16}
+          width={geometry.frameWidth - 32}
+          height={geometry.frameHeight - 32}
+          rx="14"
+          fill="#fff6e0"
+          stroke="#fff9e9"
+          strokeWidth="2"
+        />
+      )}
       {puzzle.cells.map((color, i) => {
         if (color < 0 || cells[i] < 0) return null;
         const x = startX + (i % puzzle.width) * step,
@@ -521,7 +545,15 @@ export const FlowScene = memo(function FlowScene({
           </g>
         );
       })}
-      <g aria-hidden="true">
+      <g
+        aria-hidden="true"
+        className="flow-anthill"
+        transform={
+          geometry.reference
+            ? `translate(270 ${homeY}) scale(1.35) translate(-270 ${-(bottom + 66)})`
+            : undefined
+        }
+      >
         <ellipse
           cx="270"
           cy={bottom + 69}

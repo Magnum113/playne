@@ -31,7 +31,7 @@ export function FlowQueueLinks({
     const measure = () => {
       const groups = new Map<
         string,
-        { x: number; y: number; color: string }[]
+        { x: number; y: number; color: string; depth: number }[]
       >();
       puzzle.lanes.forEach((lane, column) =>
         lane
@@ -55,6 +55,7 @@ export function FlowQueueLinks({
             members.push({
               x,
               y,
+              depth,
               color:
                 packet.mystery && depth > 0
                   ? "#9396a5"
@@ -75,7 +76,7 @@ export function FlowQueueLinks({
                   path:
                     Math.abs(pair[1].x - pair[0].x) >
                       (element.offsetWidth / puzzle.lanes.length) * 1.5 &&
-                    pair.every((point) => point.y < 40)
+                    pair.every((point) => point.depth === 0)
                       ? (() => {
                           const [a, b] = [...pair].sort((a, b) => a.x - b.x);
                           return `M${a.x} ${a.y}V2Q${a.x} -6 ${a.x + 8} -6H${b.x - 8}Q${b.x} -6 ${b.x} 2V${b.y}`;
@@ -94,7 +95,12 @@ export function FlowQueueLinks({
     return () => observer.disconnect();
   }, [puzzle, positionKey, supply]);
   return (
-    <svg ref={canvas} className="flow-queue-links" fill="none" aria-hidden="true">
+    <svg
+      ref={canvas}
+      className="flow-queue-links"
+      fill="none"
+      aria-hidden="true"
+    >
       {links.map((link) => (
         <g key={link.id}>
           <path d={link.path} stroke="#fff7e6" strokeWidth="13" />
