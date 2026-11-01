@@ -6,6 +6,7 @@ import FlowGame from "../src/FlowGame";
 import { FLOW_VERSION, flowDay, makeFlowPuzzle } from "../src/flow";
 import { flowMotion } from "../src/flowPresentation";
 import { initialFlow, launchFlow } from "../src/flow";
+import { FlowAudio } from "../src/flowAudio";
 const mocks = vi.hoisted(() => ({
   api: vi.fn(),
   login: vi.fn(),
@@ -61,10 +62,81 @@ beforeEach(() => {
 afterEach(async () => {
   if (root) await act(async () => root.unmount());
   box?.remove();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 describe("Рой: complete player journeys", () => {
+  it("synchronizes scene audio with walking, pickup and delivery, and keeps open dialogs quiet", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("matchMedia", () => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    const play = vi
+      .spyOn(FlowAudio.prototype, "play")
+      .mockImplementation(() => {});
+    await mount();
+    await click("Начать уровень 1");
+    const p = makeFlowPuzzle("level", 1),
+      lane = p.solution[0];
+    const timing = flowMotion(
+      launchFlow(p, initialFlow(p), lane)!.events,
+      1,
+      p,
+    );
+    await click(`Очередь ${lane + 1}:`);
+    play.mockClear();
+    await act(async () => {
+      vi.advanceTimersByTime(timing.trips[0].at + 1);
+    });
+    expect(play.mock.calls.some(([kind]) => kind === "step")).toBe(true);
+    expect(play.mock.calls.some(([kind]) => kind === "pickup")).toBe(true);
+    expect(play.mock.calls.some(([kind]) => kind === "collect")).toBe(false);
+    await click("Пауза");
+    play.mockClear();
+    await act(async () => {
+      vi.advanceTimersByTime(250);
+    });
+    expect(play).not.toHaveBeenCalled();
+    await click("Продолжить игру");
+    play.mockClear();
+    await act(async () => {
+      vi.advanceTimersByTime(timing.finish);
+    });
+    expect(play.mock.calls.some(([kind]) => kind === "carry")).toBe(true);
+    expect(play.mock.calls.some(([kind]) => kind === "collect")).toBe(true);
+  });
+
+  it.each(["Анимации", "К меню"])(
+    "cancels future footsteps after %s during a wave",
+    async (choice) => {
+      vi.useFakeTimers();
+      vi.stubGlobal("matchMedia", () => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }));
+      const play = vi
+        .spyOn(FlowAudio.prototype, "play")
+        .mockImplementation(() => {});
+      const cancel = vi.spyOn(FlowAudio.prototype, "cancel");
+      await mount();
+      await click("Начать уровень 1");
+      await click(`Очередь ${makeFlowPuzzle("level", 1).solution[0] + 1}:`);
+      await click("Пауза");
+      await click(choice);
+      expect(cancel).toHaveBeenCalled();
+      if (choice === "Анимации") await click("Продолжить игру");
+      play.mockClear();
+      await act(async () => {
+        vi.advanceTimersByTime(60000);
+      });
+      expect(play).not.toHaveBeenCalled();
+    },
+  );
+
   it("animates delivery counts, blocks duplicate launches, then releases the dock", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("matchMedia", () => ({

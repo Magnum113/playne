@@ -35,8 +35,9 @@ import {
   type FlowRecord,
   type FlowSave,
 } from "./flowStorage";
-import { FlowAudio } from "./flowAudio";
+import { FlowAudio, type FlowSound } from "./flowAudio";
 import { flowMotion, flowWorld } from "./flowPresentation";
+import { flowSoundscape } from "./flowSoundscape";
 import ShareResult from "./ShareResult";
 import ChallengeComparison from "./ChallengeComparison";
 import { readChallengeToken } from "./ChallengeContext";
@@ -310,6 +311,14 @@ export function FlowSession({
     latestSave = useRef(save);
   const audio = useRef<FlowAudio | null>(null);
   const sound = () => (audio.current ??= new FlowAudio());
+  function sceneSound(kind: FlowSound, color = 0, variation = 0, pan = 0) {
+    if (
+      stage.current &&
+      !document.hidden &&
+      !document.querySelector("dialog[open]")
+    )
+      audio.current?.play(kind, color, variation, pan);
+  }
   function later(callback: () => void, delay: number) {
     const id = setTimeout(() => {
       fxTimers.current.delete(id);
@@ -322,6 +331,7 @@ export function FlowSession({
     if (timer.current) clearTimeout(timer.current);
     for (const id of fxTimers.current) clearTimeout(id);
     fxTimers.current.clear();
+    audio.current?.cancel();
     gate.current = false;
     setFlight(null);
     setLaunchGhost(null);
@@ -627,8 +637,8 @@ export function FlowSession({
       setLaunchGhost(null);
       setBusy(false);
       gate.current = false;
-      if (updated.won) sound().play("win");
-      else if (updated.stuck) sound().play("blocked");
+      if (updated.won) sceneSound("win");
+      else if (updated.stuck) sceneSound("blocked");
     };
     if (next.type === "launch") {
       const team = puzzle.lanes[next.lane][game.state.lanes[next.lane]],
@@ -663,8 +673,13 @@ export function FlowSession({
           teams: [...game.state.active, { ...team, left: team.count }],
           delivered: {},
         });
+        for (const cue of flowSoundscape(timing, speed))
+          later(
+            () => sceneSound(cue.kind, cue.color, cue.variation, cue.pan),
+            cue.at,
+          );
         const lastByTeam = new Map<number, number>();
-        timing.deliveries.forEach((event, index) => {
+        timing.deliveries.forEach((event) => {
           lastByTeam.set(
             event.packet,
             Math.max(lastByTeam.get(event.packet) ?? 0, event.at),
@@ -682,7 +697,6 @@ export function FlowSession({
                   }
                 : null,
             );
-            if (index % 3 === 0) sound().play("collect", event.color, index);
           }, event.at);
         });
         const teams = [...game.state.active, { ...team, left: team.count }];
@@ -692,7 +706,7 @@ export function FlowSession({
             deliveredAt !== undefined &&
             !updated.state.active.some((t) => t.id === old.id)
           )
-            later(() => sound().play("dock", old.color), deliveredAt + 15);
+            later(() => sceneSound("dock", old.color), deliveredAt + 15);
         }
         timer.current = later(finish, timing.finish);
       } else {
@@ -1455,7 +1469,7 @@ export function FlowSession({
               setSave((s) => ({ ...s, motion: !s.motion }));
               if (busy) {
                 clearEffects();
-                if (game?.won) sound().play("win");
+                if (game?.won) sceneSound("win");
               }
             }}
           >
@@ -1474,6 +1488,7 @@ export function FlowSession({
           <button
             type="button"
             onClick={() => {
+              clearEffects();
               pause.current?.close();
               setScreen("home");
               setMessage("");
