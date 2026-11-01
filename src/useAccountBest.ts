@@ -24,5 +24,6 @@ export function useAccountBest(game: GameId | undefined, mode = "classic") {
     window.addEventListener(PLAY_PROGRESS_UPDATED, refresh);
     return () => window.removeEventListener(PLAY_PROGRESS_UPDATED, refresh);
   }, [user?.id]);
-  return user && data?.owner === user.id ? { ready: true, value: data.best.find(b => b.game === game && b.mode === mode)?.score ?? 0 } : { ready: false, value: 0 };
+  const entry = user && data?.owner === user.id ? data.best.find(b => b.game === game && b.mode === mode) : undefined;
+  return user && data?.owner === user.id ? { ready: true, exists: !!entry, value: entry?.score ?? 0 } : { ready: false, exists: false, value: 0 };
 }

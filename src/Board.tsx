@@ -71,16 +71,17 @@ export default function Board({
   const horizontal = reference.axis === "x";
   const W = narrow ? 420 : 840,
     H = horizontal ? 255 : 390;
-  const lane = W / 2 - 60;
+  const referenceLane = horizontal ? W * .42 - 24 : W / 2 - 60;
+  const targetLane = horizontal ? W * .54 - 24 : W / 2 - 60;
   // Both dimensions share one ground line and two side-by-side lanes.
   // Reserve room for the largest allowed estimate without changing the scale
   // while the player resizes an object.
   const largestTargetScale = (reference.size * MAX_RATIO) / target.size;
   const initialK = Math.min(
     (H - 115) / reference.height,
-    lane / reference.width,
+    referenceLane / reference.width,
     (H - 115) / (target.height * largestTargetScale),
-    lane / (target.width * largestTargetScale),
+    targetLane / (target.width * largestTargetScale),
   );
   const actual = target.size / reference.size;
   const result = resultLayout(reference, target, ratio, W, H);
@@ -89,7 +90,7 @@ export default function Board({
   const s = targetScale(ratio),
     correct = targetScale(ratio + (actual - ratio) * progress);
   const baseY = horizontal ? 185 : 320;
-  const originX = horizontal ? W * 0.52 : W * 0.72;
+  const originX = horizontal ? W * 0.46 : W * 0.72;
   const targetX = (scale: number) =>
     horizontal ? originX : originX - (target.width * scale) / 2;
   const safeOffset = {

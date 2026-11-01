@@ -195,11 +195,7 @@ export default function ShareResult({ runId }: { runId?: string }) {
             </>
           ) : (
             <>
-              <p>
-                {busy
-                  ? "Готовим превью…"
-                  : message || "В приглашении будут твой ник и результат."}
-              </p>
+              {busy ? <div className="share-preview-frame" aria-busy="true"><p role="status">Готовим превью…</p></div> : <p>{message || "В приглашении будут твой ник и результат."}</p>}
               {!busy && (
                 <button
                   className="secondary-button"

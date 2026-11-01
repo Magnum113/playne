@@ -452,6 +452,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
         setPhase("checking");
       }
     } catch (e) {
+      setPhase("ready");
       setError(errorText(e));
     } finally {
       setBusy(false);

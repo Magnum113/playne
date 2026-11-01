@@ -30,6 +30,7 @@ export type OverallEntry = {
   nickname: string;
   score: number;
   place: number;
+  position?: number;
   gamesPlayed: number;
   contributions: OverallContribution[];
   isMe: boolean;

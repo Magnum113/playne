@@ -29,6 +29,7 @@ export function GameRecord({
   const account = useAccountBest(game, mode);
   const source = account.ready ? "В аккаунте" : "На устройстве";
   const shown = account.ready ? account.value : value;
+  const hasRecord = account.ready ? account.exists : value > 0;
   const number = shown.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
   const suffix = max ? `/ ${max}` : game === "pressure" ? pressScoreWord(shown) : unit;
   return (
@@ -40,11 +41,11 @@ export function GameRecord({
       <div
         className="game-record-value"
         aria-label={
-          shown > 0 ? `${number} ${suffix ?? ""}` : "Пока нет рекорда"
+          hasRecord ? `${number} ${suffix ?? ""}` : "Пока нет рекорда"
         }
       >
-        <strong>{shown > 0 ? number : "—"}</strong>
-        {shown > 0 && suffix && <span>{suffix}</span>}
+        <strong>{hasRecord ? number : "—"}</strong>
+        {hasRecord && suffix && <span>{suffix}</span>}
       </div>
       <small>{modeLabel ? `${source} · ${modeLabel}` : source}</small>
     </div>

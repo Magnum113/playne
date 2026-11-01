@@ -4,6 +4,7 @@ import { RulesDialog } from "./RulesDialog";
 import { useEffect, useRef, useState } from "react";
 import { GameHeader } from "./SiteHeader";
 import { GameIntro, GameStartAction } from "./GameIntro";
+import NextGame from "./NextGame";
 import { ApiError, SaveResult, useGuestTrial, useRankedRun } from "./account";
 import type { ServerRun } from "./rankedQueue";
 import { ModeChoice, RoundDots } from "./ui";
@@ -582,7 +583,7 @@ export default function LineGame() {
                   </p>
                 </>
               ) : (
-                <SaveResult run={ranked} game="line" />
+                <><SaveResult run={ranked} game="line" /><NextGame game="line" /></>
               )}
               <ShareResult runId={run?.id} />
               {access.user && (

@@ -686,7 +686,7 @@ export default function GeoGame() {
             eyebrow={geoIsLandmarks(mode) ? "ЗНАМЕНИТЫЕ МЕСТА" : "УГАДАЙ МЕСТО"}
             description={geoIsLandmarks(mode)
               ? "Узнай достопримечательность по панораме и найди её на карте."
-              : "Бесплатный геогессер на русском: угадай страну и город по панораме."}
+              : "Бесплатный геогессер на русском: найди место по панораме."}
             record={{
               game: "geo", mode,
               value: stats.best,

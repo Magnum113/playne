@@ -42,9 +42,9 @@ function overallSql(scope: "overall" | "brain") {
  ORDER BY CASE game WHEN 'naglaz' THEN 1 WHEN 'circle' THEN 2 WHEN 'colorfle' THEN 3 WHEN 'geo' THEN 4 WHEN 'pressure' THEN 5 WHEN 'line' THEN 6 WHEN 'flash' THEN 7 WHEN 'rotate' THEN 8 WHEN 'slide' THEN 9 WHEN 'dispatch' THEN 10 ELSE 11 END) AS contributions
  FROM points GROUP BY owner_id
 ), ranked AS (
- SELECT u.id,u.nickname,t.*,rank() OVER(ORDER BY t.score DESC) AS place FROM totals t JOIN playne_users u ON u.id=t.owner_id
+ SELECT u.id,u.nickname,t.*,rank() OVER(ORDER BY t.score DESC) AS place, row_number() OVER(ORDER BY t.score DESC,t.achieved_at,u.id) AS position FROM totals t JOIN playne_users u ON u.id=t.owner_id
 ), projected AS (
- SELECT *,jsonb_build_object('nickname',nickname,'score',score,'place',place,'gamesPlayed',games_played,
+ SELECT *,jsonb_build_object('nickname',nickname,'score',score,'place',place,'position',position,'gamesPlayed',games_played,
  'contributions',contributions,'isMe',coalesce(id=$3::uuid,false)) AS entry FROM ranked
 )
 SELECT jsonb_build_object(

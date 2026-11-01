@@ -613,7 +613,7 @@
 @media (max-width: 600px) {
   .hub-leaderboards .top-five { padding: 14px; }
   .hub-leaderboards .top-five-list { gap: 0; }
-  .hub-leaderboards .top-five-list a { min-height: 38px; padding-block: 5px; }
+  .hub-leaderboards .top-five-list a { min-height: 44px; padding-block: 5px; }
   .hub-catalog .game-card { padding: 20px; gap: 14px; }
   .hub-catalog .game-card > .preview { max-height: 120px; }
   .hub-catalog .card-copy p { font-size: 14px; line-height: 1.5; }
