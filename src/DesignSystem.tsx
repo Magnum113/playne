@@ -1048,15 +1048,25 @@ function SaveStates() {
 }
 function CompactSettingsDemo() {
   const [mode, setMode] = useState<"classic" | "timed">("classic");
-  return <>
-    <p className="game-mode-summary">Весь мир · Без перемещения · {mode === "timed" ? "На время" : "Без таймера"}</p>
-    <details className="game-details"><summary>Настроить игру</summary>
-      <ModeChoice value={mode} onChange={setMode} options={[
+  const [collection, setCollection] = useState<"world" | "landmarks">("world");
+  return <div className="geo-welcome-setup">
+    <ModeChoice
+      className="geo-mode-choice geo-collection-choice"
+      legend="Места"
+      value={collection}
+      onChange={setCollection}
+      options={[
+        { value: "world", label: "Весь мир", description: "Города, дороги и пейзажи" },
+        { value: "landmarks", label: "Достопримечательности", description: "Узнай памятники, храмы и чудеса природы" },
+      ]}
+    />
+    <details className="game-details geo-settings"><summary>Настроить игру <span className="geo-settings-summary">{collection === "landmarks" ? "Достопримечательности" : "Без перемещения"} · {mode === "timed" ? "На время" : "Без таймера"}</span></summary>
+      <ModeChoice legend="Время" className="geo-mode-choice" value={mode} onChange={setMode} options={[
         {value: "classic", label: "Без таймера", description: "В своём темпе"},
         {value: "timed", label: "На время", description: "Три минуты на раунд"},
       ]} />
     </details>
-  </>;
+  </div>;
 }
 
 function GuestPromptDemo() {

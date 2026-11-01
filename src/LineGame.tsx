@@ -475,9 +475,6 @@ export default function LineGame() {
                     className="line-mode-choice"
                   />
                 )}
-                {!challengeToken && (
-                  <details className="game-details"><summary>Как устроены задачи и рейтинг</summary><p>{mode === "classic" ? lineDailyText : linePracticeText}</p></details>
-                )}
                 <GameStartAction
                   game="line"
                   onStart={() => void begin()}
@@ -495,6 +492,9 @@ export default function LineGame() {
                       : undefined)
                   }
                 />
+                {!challengeToken && (
+                  <details className="game-details"><summary>Как устроены задачи и рейтинг</summary><p>{mode === "classic" ? lineDailyText : linePracticeText}</p></details>
+                )}
                 {message && <p role="status">{message}</p>}
                 <a
                   className="game-start-ranking"

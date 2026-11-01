@@ -58,6 +58,22 @@ function select(legend: string, value: string) {
   );
 }
 describe("Geo shared mode choices", () => {
+  it("shows the collection immediately and discloses only movement and time", async () => {
+    await act(async () => root.render(<GeoGame />));
+    expect(picker("Места").closest("details")).toBeNull();
+    const details = box.querySelector<HTMLDetailsElement>(".geo-settings")!;
+    expect(details.open).toBe(false);
+    expect(picker("Перемещение").closest("details")).toBe(details);
+    expect(picker("Время").closest("details")).toBe(details);
+    select("Места", "landmarks");
+    expect(details.open).toBe(false);
+    expect(picker("Перемещение")).toBeUndefined();
+    act(() => { details.open = true; });
+    select("Время", "timed");
+    expect(details.querySelector("summary")?.textContent).toContain("На время");
+    expect(picker("Места").closest("details")).toBeNull();
+  });
+
   it("preserves independent collection, movement and time choices and suppresses movement in landmarks", async () => {
     await act(async () => root.render(<GeoGame />));
     const groups = [...box.querySelectorAll("fieldset")];

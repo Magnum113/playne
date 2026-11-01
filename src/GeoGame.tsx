@@ -736,56 +736,47 @@ export default function GeoGame() {
                   : "Осмотрись и отметь место на карте. Чем ближе точка, тем больше очков."}
               </p>
               {access.blocked && welcomeAction}
-            </div>
-            <div className="geo-welcome-art game-welcome-art">
-              <GeoPreview />
-              <span>
-                {geoIsLandmarks(mode)
-                  ? "Памятники, храмы и чудеса природы."
-                  : "Города, побережья, горы и дороги."}
-              </span>
-            </div>
-            {!access.blocked && (
-              <div
-                className={`geo-welcome-setup${geoIsLandmarks(mode) ? " geo-landmark-setup" : ""}`}
-              >
-                <p className="game-mode-summary">{geoModeName(mode)}</p>
-                <details className="game-details geo-settings">
-                  <summary>Настроить игру</summary>
-                {!access.blocked && (
-                  <>
-                    <ModeChoice
-                      className="geo-mode-choice"
-                      legend="Места"
-                      value={geoIsLandmarks(mode) ? "landmarks" : "world"}
-                      disabled={
-                        ranked.state.status === "loading" ||
-                        access.resume ||
-                        access.blocked
-                      }
-                      onChange={(collection) =>
-                        chooseMode(
-                          geoModeFor(
-                            geoCanMove(mode),
-                            geoIsTimed(mode),
-                            collection === "landmarks",
-                          ),
-                        )
-                      }
-                      options={[
-                        {
-                          value: "world",
-                          label: "Весь мир",
-                          description: "Города, дороги и пейзажи",
-                        },
-                        {
-                          value: "landmarks",
-                          label: "Достопримечательности",
-                          description:
-                            "Узнай памятники, храмы и чудеса природы",
-                        },
-                      ]}
-                    />
+              {!access.blocked && (
+                <div
+                  className="geo-welcome-setup"
+                >
+                  <ModeChoice
+                    className="geo-mode-choice geo-collection-choice"
+                    legend="Места"
+                    value={geoIsLandmarks(mode) ? "landmarks" : "world"}
+                    disabled={
+                      ranked.state.status === "loading" ||
+                      access.resume ||
+                      access.blocked
+                    }
+                    onChange={(collection) =>
+                      chooseMode(
+                        geoModeFor(
+                          geoCanMove(mode),
+                          geoIsTimed(mode),
+                          collection === "landmarks",
+                        ),
+                      )
+                    }
+                    options={[
+                      {
+                        value: "world",
+                        label: "Весь мир",
+                        description: "Города, дороги и пейзажи",
+                      },
+                      {
+                        value: "landmarks",
+                        label: "Достопримечательности",
+                        description:
+                          "Узнай памятники, храмы и чудеса природы",
+                      },
+                    ]}
+                  />
+                  <details className="game-details geo-settings">
+                    <summary>
+                      Настроить игру
+                      <span className="geo-settings-summary">{geoModeName(mode)}</span>
+                    </summary>
                     {!geoIsLandmarks(mode) && (
                       <ModeChoice
                         className="geo-mode-choice"
@@ -846,12 +837,19 @@ export default function GeoGame() {
                         },
                       ]}
                     />
-                  </>
-                )}
-                </details>
-                {welcomeAction}
-              </div>
-            )}
+                  </details>
+                  {welcomeAction}
+                </div>
+              )}
+            </div>
+            <div className="geo-welcome-art game-welcome-art">
+              <GeoPreview />
+              <span>
+                {geoIsLandmarks(mode)
+                  ? "Памятники, храмы и чудеса природы."
+                  : "Города, побережья, горы и дороги."}
+              </span>
+            </div>
           </section>
         )}
         {active && (
