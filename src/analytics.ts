@@ -63,8 +63,20 @@ export const BRAIN_GOALS = {
 } as const;
 
 export const FLOW_GOALS = {
+  view: "playne_flow_view",
+  rulesOpen: "playne_flow_rules_open",
   gameStart: "playne_flow_start",
+  resume: "playne_flow_resume",
+  engaged: "playne_flow_engaged",
+  halfway: "playne_flow_halfway",
   gameComplete: "playne_flow_complete",
+  stuck: "playne_flow_stuck",
+  undo: "playne_flow_undo",
+  restart: "playne_flow_restart",
+  nextLevel: "playne_flow_next_level",
+  dailyStart: "playne_flow_daily_start",
+  dailyComplete: "playne_flow_daily_complete",
+  returned: "playne_flow_return",
   share: "playne_flow_share",
 } as const;
 
@@ -147,8 +159,25 @@ declare global {
 
 const TAG_URL = `https://mc.yandex.ru/metrika/tag.js?id=${METRIKA_COUNTER_ID}`;
 
+/** Local play and QA must never reach the production counter. */
+export function isLocalAnalyticsHost() {
+  if (typeof window === "undefined") return false;
+  const hostname = window.location?.hostname?.toLowerCase();
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]"
+  );
+}
+
 export function initMetrika() {
-  if (typeof window === "undefined" || typeof document === "undefined") return;
+  if (
+    typeof window === "undefined" ||
+    typeof document === "undefined" ||
+    isLocalAnalyticsHost()
+  )
+    return;
 
   if (!window.ym) {
     const queued: MetrikaFunction = (...args: unknown[]) => {
@@ -178,7 +207,7 @@ export function initMetrika() {
 }
 
 export function reachGoal(goal: MetrikaGoal, params?: MetrikaParams) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || isLocalAnalyticsHost()) return;
   try {
     window.ym?.(METRIKA_COUNTER_ID, "reachGoal", goal, params);
     if (
@@ -227,7 +256,8 @@ export function reachGoalOnce(
   key: string,
   params?: MetrikaParams,
 ) {
-  if (typeof window === "undefined" || !window.ym) return;
+  if (typeof window === "undefined" || !window.ym || isLocalAnalyticsHost())
+    return;
   const storageKey = `playne:analytics:${goal}:${key}`;
   if (once.has(storageKey)) return;
   try {
@@ -256,10 +286,25 @@ export function trackChallengeStart(
   auth: boolean,
 ) {
   if (run.completed) return;
+  let retry =
+    !!run.challenge.retryOf ||
+    activeChallenges.get(run.id)?.attempt_kind === "retry";
+  if (!retry) {
+    try {
+      retry =
+        JSON.parse(
+          window.sessionStorage.getItem(
+            `playne:challenge-analytics:${run.id}`,
+          ) ?? "null",
+        )?.attempt_kind === "retry";
+    } catch {
+      /* A resumed game can still be tracked with blocked storage. */
+    }
+  }
   const params = {
     game: run.game,
     mode: run.mode ?? "classic",
-    attempt_kind: run.challenge.retryOf ? "retry" : "first",
+    attempt_kind: retry ? "retry" : "first",
     player: auth ? "account" : "guest",
   };
   activeChallenges.set(run.id, params);
@@ -272,8 +317,7 @@ export function trackChallengeStart(
     /* best effort */
   }
   reachGoalOnce(SHARE_GOALS.started, run.id, params);
-  if (run.challenge.retryOf)
-    reachGoalOnce(SHARE_GOALS.retryStarted, run.id, params);
+  if (retry) reachGoalOnce(SHARE_GOALS.retryStarted, run.id, params);
 }
 export function trackChallengeComplete(run: { id: string }, score: number) {
   let params = activeChallenges.get(run.id);

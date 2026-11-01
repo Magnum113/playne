@@ -28,7 +28,7 @@ const database = process.env.TEST_DATABASE_URL;
       kind: "level" | "daily" = "level",
       key = "1",
       hints = 0,
-      version: 2 | 3 = FLOW_VERSION,
+      version: 2 | 3 | 4 = FLOW_VERSION,
     ) => ({
       id: randomUUID(),
       version,
@@ -431,73 +431,76 @@ const database = process.env.TEST_DATABASE_URL;
       });
       expect(reshared.isTodayDaily).toBe(false);
     });
-    it("keeps legacy campaign progress and exact old challenges without admitting legacy daily scores to v3", async () => {
-      const player = await signed(await guest(), "Предыдущий рой");
-      const campaign = attempt("level", "7", 0, 2);
-      const daily = attempt("daily", flowDay(), 0, 2);
-      expect(
-        (await post(player.cookie, "/api/flow/finish", campaign)).statusCode,
-      ).toBe(200);
-      expect(
-        (await post(player.cookie, "/api/flow/finish", daily)).statusCode,
-      ).toBe(200);
-      expect(
-        (await post(player.cookie, "/api/flow/finish", campaign)).statusCode,
-      ).toBe(200);
-      expect(
-        (await get(player.cookie, "/api/flow/progress")).json().records,
-      ).toEqual({
-        "level:7": { score: 1000, stars: 3 },
-      });
-      expect(
-        (await get(player.cookie, "/api/flow/leaderboard"))
-          .json()
-          .entries.some((entry: any) => entry.isMe),
-      ).toBe(false);
-      expect(
-        (await get(player.cookie, "/api/play/progress")).json().daily,
-      ).not.toHaveProperty("flow");
-      const shared = (
-        await post(player.cookie, "/api/challenges", { runId: campaign.id })
-      ).json();
-      expect(shared.flow).toEqual({
-        version: 2,
-        kind: "level",
-        key: "7",
-        stars: 3,
-      });
-      expect(
-        (await get(player.cookie, `/api/challenges/${shared.token}`)).json()
-          .flow.version,
-      ).toBe(2);
-      const friend = await guest();
-      expect(
-        (
-          await post(friend, "/api/flow/finish", {
-            ...attempt("level", "7"),
-            challengeToken: shared.token,
-          })
-        ).statusCode,
-      ).toBe(409);
-      expect(
-        (
-          await post(friend, "/api/flow/finish", {
-            ...attempt("level", "7", 1, 2),
-            challengeToken: shared.token,
-          })
-        ).json(),
-      ).toMatchObject({ saved: true, score: 900 });
-      expect((await get(friend, "/api/flow/progress")).json().records).toEqual(
-        {},
-      );
-      expect(
-        (
-          await pool.query("SELECT version FROM playne_games WHERE id=$1", [
-            campaign.id,
-          ])
-        ).rows[0].version,
-      ).toBe(2);
-    });
+    it.each([2, 3] as const)(
+      "keeps v%s campaign progress and exact old challenges without admitting old daily scores to the current competition",
+      async (version) => {
+        const player = await signed(await guest(), "Предыдущий рой");
+        const campaign = attempt("level", "7", 0, version);
+        const daily = attempt("daily", flowDay(), 0, version);
+        expect(
+          (await post(player.cookie, "/api/flow/finish", campaign)).statusCode,
+        ).toBe(200);
+        expect(
+          (await post(player.cookie, "/api/flow/finish", daily)).statusCode,
+        ).toBe(200);
+        expect(
+          (await post(player.cookie, "/api/flow/finish", campaign)).statusCode,
+        ).toBe(200);
+        expect(
+          (await get(player.cookie, "/api/flow/progress")).json().records,
+        ).toEqual({
+          "level:7": { score: 1000, stars: 3 },
+        });
+        expect(
+          (await get(player.cookie, "/api/flow/leaderboard"))
+            .json()
+            .entries.some((entry: any) => entry.isMe),
+        ).toBe(false);
+        expect(
+          (await get(player.cookie, "/api/play/progress")).json().daily,
+        ).not.toHaveProperty("flow");
+        const shared = (
+          await post(player.cookie, "/api/challenges", { runId: campaign.id })
+        ).json();
+        expect(shared.flow).toEqual({
+          version,
+          kind: "level",
+          key: "7",
+          stars: 3,
+        });
+        expect(
+          (await get(player.cookie, `/api/challenges/${shared.token}`)).json()
+            .flow.version,
+        ).toBe(version);
+        const friend = await guest();
+        expect(
+          (
+            await post(friend, "/api/flow/finish", {
+              ...attempt("level", "7"),
+              challengeToken: shared.token,
+            })
+          ).statusCode,
+        ).toBe(409);
+        expect(
+          (
+            await post(friend, "/api/flow/finish", {
+              ...attempt("level", "7", 1, version),
+              challengeToken: shared.token,
+            })
+          ).json(),
+        ).toMatchObject({ saved: true, score: 900 });
+        expect(
+          (await get(friend, "/api/flow/progress")).json().records,
+        ).toEqual({});
+        expect(
+          (
+            await pool.query("SELECT version FROM playne_games WHERE id=$1", [
+              campaign.id,
+            ])
+          ).rows[0].version,
+        ).toBe(version);
+      },
+    );
     it("accepts only safe login return destinations for the new game", () => {
       expect(safeReturn("/swarm/")).toBe("/swarm/");
       expect(safeReturn("/swarm/?mode=daily")).toBe("/swarm/?mode=daily");

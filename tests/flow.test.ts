@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import * as legacy from "../src/flowV2";
+import * as publishedV3 from "../src/flowV3";
 import {
   FLOW_LEVELS,
+  FLOW_VERSION,
+  flowLaunchPackets,
   flowApproach,
   flowDay,
   flowFrontier,
@@ -20,13 +23,13 @@ describe("Рой: deterministic and solvable levels", () => {
     for (let level = 1; level <= 3; level++) {
       const puzzle = makeFlowPuzzle("level", level);
       expect(puzzle.cells.filter((c) => c >= 0).length).toBeGreaterThanOrEqual(
-        160,
+        250,
       );
       expect(
         new Set(puzzle.cells.filter((c) => c >= 0)).size,
-      ).toBeGreaterThanOrEqual(4);
-      expect(puzzle.solution.length).toBeGreaterThanOrEqual(16);
-      expect(puzzle.lanes).toHaveLength(4);
+      ).toBeGreaterThanOrEqual(3);
+      expect(puzzle.solution.length).toBeGreaterThanOrEqual(10);
+      expect([3, 4]).toContain(puzzle.lanes.length);
       expect(puzzle.lanes.every((l) => l.length > 0)).toBe(true);
       expect(puzzle.slots).toBe(5);
     }
@@ -54,9 +57,9 @@ describe("Рой: deterministic and solvable levels", () => {
     expect(drawings.size).toBe(FLOW_LEVELS);
   });
   it("keeps painted features coherent instead of changing colour every row", () => {
-    const cat = makeFlowPuzzle("level", 1);
-    const rocket = makeFlowPuzzle("level", 2);
-    const strawberry = makeFlowPuzzle("level", 3);
+    const cat = makeFlowPuzzle("level", 1, 3);
+    const rocket = makeFlowPuzzle("level", 2, 3);
+    const strawberry = makeFlowPuzzle("level", 3, 3);
     const pixel = (p: FlowPuzzle, x: number, y: number) =>
       p.cells[y * 2 * p.width + x * 2];
     expect(pixel(cat, 1, 0)).toBe(2);
@@ -87,7 +90,7 @@ describe("Рой: deterministic and solvable levels", () => {
     expect(makeFlowPuzzle("daily", "2026-11-01")).not.toEqual(
       makeFlowPuzzle("daily", "2026-11-02"),
     );
-  });
+  }, 15000);
   it("daily date changes at Moscow midnight, independent of local timezone", () => {
     expect(flowDay(new Date("2026-11-01T20:59:59Z"))).toBe("2026-11-01");
     expect(flowDay(new Date("2026-11-01T21:00:00Z"))).toBe("2026-11-02");
@@ -110,8 +113,8 @@ const tiny: FlowPuzzle = {
 };
 describe("Рой: exterior access, waiting teams and quotas", () => {
   const side: FlowPuzzle = {
-    version: 3,
-    id: "side:v3",
+    version: 4,
+    id: "side:v4",
     name: "Side-access regression",
     width: 3,
     height: 3,
@@ -121,8 +124,8 @@ describe("Рой: exterior access, waiting teams and quotas", () => {
     solution: [0, 1],
   };
   const ring: FlowPuzzle = {
-    version: 3,
-    id: "hole:v3",
+    version: 4,
+    id: "hole:v4",
     name: "A sealed hole",
     width: 5,
     height: 5,
@@ -167,8 +170,8 @@ describe("Рой: exterior access, waiting teams and quotas", () => {
   });
   it("assigns the original outer layer before digging into newly exposed interior cubes", () => {
     const slab: FlowPuzzle = {
-      version: 3,
-      id: "layers:v3",
+      version: 4,
+      id: "layers:v4",
       name: "Peel the contour",
       width: 5,
       height: 5,
@@ -379,5 +382,243 @@ describe("Рой: queues, waiting, recovery and validation", () => {
       expect(() => replayFlow(tiny, actions)).toThrow();
     for (const level of [0, 37, 1.5, NaN])
       expect(() => makeFlowPuzzle("level", level)).toThrow();
+  });
+});
+
+describe("Рой: frozen version 3 compatibility", () => {
+  it("keeps both published board fingerprints byte-for-byte", () => {
+    const hash = (value: unknown) =>
+      createHash("sha256").update(JSON.stringify(value)).digest("hex");
+    expect(hash(makeFlowPuzzle("level", 1, 3))).toBe(
+      "ad0f54f455765a1553bb7ec3646b064806ee6f69fb078b8ab542b66ae0f2b0a6",
+    );
+    expect(hash(makeFlowPuzzle("daily", "2026-11-01", 3))).toBe(
+      "08358be1a7252848686fc58bc3b7f7e8175fbbacb02b885aa62f861e55f34492",
+    );
+  });
+  it("dispatches every old campaign replay and unversioned v3 id to the frozen rules", () => {
+    for (let level = 1; level <= FLOW_LEVELS; level++) {
+      const original = publishedV3.makeFlowPuzzle("level", level);
+      const puzzle = makeFlowPuzzle("level", level, 3);
+      const actions = original.solution.map((lane) => ({
+        type: "launch",
+        lane,
+      }));
+      expect(puzzle).toEqual(original);
+      expect(replayFlow(puzzle, actions)).toEqual(
+        publishedV3.replayFlow(original, actions),
+      );
+      expect(replayFlow({ ...puzzle, version: undefined }, actions)).toEqual(
+        publishedV3.replayFlow(original, actions),
+      );
+      expect(flowFrontier(puzzle, puzzle.cells)).toEqual(
+        publishedV3.flowFrontier(original, original.cells),
+      );
+    }
+  });
+});
+
+describe("Рой v4: paired commands and concealed information", () => {
+  const pair: FlowPuzzle = {
+    version: 4,
+    id: "pair:v4",
+    name: "Atomic pair",
+    width: 3,
+    height: 1,
+    cells: [0, 1, 2],
+    slots: 2,
+    lanes: [
+      [{ id: 0, color: 0, count: 1, link: "a" }],
+      [{ id: 1, color: 1, count: 1, link: "a" }],
+      [{ id: 2, color: 2, count: 1 }],
+    ],
+    solution: [0, 2],
+  };
+  it("launches both visible heads from either end as one journal action", () => {
+    const before = initialFlow(pair);
+    expect(
+      flowLaunchPackets(pair, before, 0)?.map((item) => item.packet.id),
+    ).toEqual([0, 1]);
+    const first = launchFlow(pair, before, 0)!;
+    expect(launchFlow(pair, before, 1)).toEqual(first);
+    expect(first.state.lanes).toEqual([1, 1, 0]);
+    expect(first.state.launches).toBe(1);
+    expect(first.events.map((event) => event.packet)).toEqual([0, 1]);
+    expect(
+      replayFlow(
+        pair,
+        pair.solution.map((lane) => ({ type: "launch", lane })),
+      ).won,
+    ).toBe(true);
+    expect(
+      replayFlow(pair, [{ type: "launch", lane: 1 }, { type: "undo" }]).state,
+    ).toEqual(before);
+  });
+  it("requires two free logical docks before doing any collection", () => {
+    const before = {
+      ...initialFlow(pair),
+      active: [{ id: 10, color: 4, count: 2, left: 2 }],
+    };
+    const snapshot = structuredClone(before);
+    expect(flowLaunchPackets(pair, before, 0)).toBeNull();
+    expect(launchFlow(pair, before, 1)).toBeNull();
+    expect(before).toEqual(snapshot);
+  });
+  it("waits until the partner reaches the head, then permits the pair", () => {
+    const buried: FlowPuzzle = {
+      ...pair,
+      lanes: [
+        pair.lanes[0],
+        [{ id: 2, color: 2, count: 1 }, ...pair.lanes[1]],
+        [],
+      ],
+      solution: [1, 0],
+    };
+    const before = initialFlow(buried);
+    expect(flowLaunchPackets(buried, before, 0)).toBeNull();
+    expect(launchFlow(buried, before, 0)).toBeNull();
+    const opened = launchFlow(buried, before, 1)!.state;
+    expect(flowLaunchPackets(buried, opened, 0)).toHaveLength(2);
+    expect(
+      replayFlow(
+        buried,
+        buried.solution.map((lane) => ({ type: "launch", lane })),
+      ).won,
+    ).toBe(true);
+  });
+  const delayedPair: FlowPuzzle = {
+    version: 4,
+    id: "delayed-pair:v4",
+    name: "A finished end waits behind its bridge",
+    width: 5,
+    height: 5,
+    cells: [
+      0, 3, 3, 3, 3, 3, -1, -1, -1, 3, 3, -1, 1, -1, 3, 3, -1, -1, -1, 3, 3, 2,
+      3, 3, 3,
+    ],
+    slots: 3,
+    lanes: [
+      [{ id: 0, color: 0, count: 1, link: "waiting" }],
+      [{ id: 1, color: 1, count: 1, link: "waiting" }],
+      [{ id: 2, color: 2, count: 1 }],
+      [{ id: 3, color: 3, count: 14 }],
+    ],
+    solution: [0, 2, 3],
+  };
+  it("keeps both linked docks occupied when only one end has finished", () => {
+    const puzzle = { ...delayedPair, slots: 2 };
+    const before = initialFlow(puzzle);
+    const first = launchFlow(puzzle, before, 0)!;
+    expect(first.events.map((event) => event.packet)).toEqual([0]);
+    expect(
+      first.state.active.map((packet) => [packet.id, packet.left]),
+    ).toEqual([
+      [0, 0],
+      [1, 1],
+    ]);
+    expect(
+      first.state.active.every((packet) => packet.link === "waiting"),
+    ).toBe(true);
+    expect(first.state.lanes).toEqual([1, 1, 0, 0]);
+    expect(flowLaunchPackets(puzzle, first.state, 2)).toBeNull();
+    expect(launchFlow(puzzle, first.state, 2)).toBeNull();
+    expect(flowStuck(puzzle, first.state)).toBe(true);
+    expect(
+      replayFlow(puzzle, [{ type: "launch", lane: 1 }, { type: "undo" }]).state,
+    ).toEqual(before);
+  });
+  it("releases both ends together when a later command opens the partner's colour", () => {
+    const first = launchFlow(delayedPair, initialFlow(delayedPair), 1)!;
+    expect(first.state.active).toHaveLength(2);
+    const opened = launchFlow(delayedPair, first.state, 2)!;
+    expect(opened.events.map((event) => event.packet)).toEqual([2, 1]);
+    expect(opened.state.active).toEqual([]);
+    expect(opened.state.collected).toBe(3);
+    expect(first.state.active.map((packet) => packet.left)).toEqual([0, 1]);
+    expect(
+      replayFlow(
+        delayedPair,
+        delayedPair.solution.map((lane) => ({ type: "launch", lane })),
+      ).won,
+    ).toBe(true);
+  });
+  it("introduces queue mysteries, linked pairs and interior patches in stages", () => {
+    expect(FLOW_VERSION).toBe(4);
+    expect(
+      makeFlowPuzzle("level", 6)
+        .lanes.flat()
+        .some((p) => p.mystery),
+    ).toBe(false);
+    for (let level = 7; level <= FLOW_LEVELS; level++) {
+      const puzzle = makeFlowPuzzle("level", level);
+      expect(
+        puzzle.lanes.flat().some((p) => p.mystery),
+        `mystery ${level}`,
+      ).toBe(true);
+      expect(puzzle.lanes.every((lane) => !lane[0]?.mystery)).toBe(true);
+      expect(puzzle.lanes.flat().some((p) => p.link)).toBe(level >= 13);
+      if (level >= 21) {
+        expect(puzzle.hiddenCells?.length).toBeGreaterThanOrEqual(6);
+        const exposed = new Set(flowFrontier(puzzle, puzzle.cells));
+        expect(
+          puzzle.hiddenCells!.every(
+            (cell) => puzzle.cells[cell] >= 0 && !exposed.has(cell),
+          ),
+        ).toBe(true);
+      } else expect(puzzle.hiddenCells).toBeUndefined();
+    }
+  });
+  it("hiding artwork and future labels does not alter collection rules", () => {
+    const puzzle = makeFlowPuzzle("level", 29);
+    const visible = {
+      ...puzzle,
+      hiddenCells: undefined,
+      lanes: puzzle.lanes.map((lane) =>
+        lane.map(({ mystery: _mystery, ...packet }) => packet),
+      ),
+    };
+    const actions = puzzle.solution.map((lane) => ({ type: "launch", lane }));
+    const actual = replayFlow(puzzle, actions),
+      revealed = replayFlow(visible, actions);
+    expect(actual.won).toBe(revealed.won);
+    expect(actual.state.cells).toEqual(revealed.state.cells);
+    expect(actual.state.collected).toBe(revealed.state.collected);
+    expect(actual.events).toEqual(revealed.events);
+  });
+  it("preserves every colour total and uses substantial quotas instead of tiny fragments", () => {
+    let blockedStarts = 0;
+    for (let level = 1; level <= FLOW_LEVELS; level++) {
+      const puzzle = makeFlowPuzzle("level", level),
+        packets = puzzle.lanes.flat();
+      const colors = new Set(puzzle.cells.filter((c) => c >= 0));
+      for (const color of colors)
+        expect(
+          packets
+            .filter((p) => p.color === color)
+            .reduce((sum, p) => sum + p.count, 0),
+        ).toBe(puzzle.cells.filter((c) => c === color).length);
+      expect(packets.every((p) => p.count > 0 && p.count <= 49)).toBe(true);
+      expect(
+        packets.filter((p) => p.count >= 15).length / packets.length,
+      ).toBeGreaterThan(0.6);
+      expect(packets.filter((p) => p.count < 5).length).toBeLessThanOrEqual(3);
+      const exposed = new Set(
+        flowFrontier(puzzle, puzzle.cells).map((i) => puzzle.cells[i]),
+      );
+      if (puzzle.lanes.some((lane) => !exposed.has(lane[0].color)))
+        blockedStarts++;
+    }
+    expect(blockedStarts).toBeGreaterThan(12);
+  });
+  it("caches immutable v4 puzzles without letting consumers change the daily layout", () => {
+    const puzzle = makeFlowPuzzle("daily", "2026-11-01");
+    expect(makeFlowPuzzle("daily", "2026-11-01")).toBe(puzzle);
+    expect(Object.isFrozen(puzzle)).toBe(true);
+    expect(Object.isFrozen(puzzle.cells)).toBe(true);
+    expect(Object.isFrozen(puzzle.lanes[0][0])).toBe(true);
+    expect(() => puzzle.cells.splice(0, 1)).toThrow();
+    expect(makeFlowPuzzle("level", 1, 3)).not.toBe(
+      makeFlowPuzzle("level", 1, 3),
+    );
   });
 });

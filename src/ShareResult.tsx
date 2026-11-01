@@ -7,6 +7,7 @@ import {
   type PublicChallenge,
 } from "./challenges";
 import { reachGoal, SHARE_GOALS } from "./analytics";
+import { trackFlowShareCreated } from "./flowAnalytics";
 import FireButton from "./FireButton";
 import "./challenge.css";
 
@@ -75,6 +76,15 @@ export default function ShareResult({
       if (current === request.current) {
         setSnapshot({ scope, data: value });
         reachGoal(SHARE_GOALS.created, { game: value.game });
+        if (value.game === "flow")
+          trackFlowShareCreated(runId!, value, {
+            source: new URLSearchParams(window.location.search).has("challenge")
+              ? "challenge"
+              : value.flow?.kind === "daily"
+                ? "daily"
+                : "campaign",
+            signed: !!user,
+          });
       }
     } catch {
       if (current === request.current) {

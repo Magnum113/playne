@@ -31,6 +31,8 @@ export const challengeAnalyticsCsp = `default-src 'none'; style-src 'unsafe-inli
 
 // A browser-only page view: chat scrapers, OG image requests and API reads never convert.
 export const challengeAnalyticsScript = `(() => {
+  const hostname = window.location.hostname.toLowerCase();
+  if (['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname)) return;
   const counter = ${METRIKA_COUNTER_ID};
   const goals = ${JSON.stringify({ landing: SHARE_GOALS.landing, accepted: SHARE_GOALS.accepted })};
   const game = document.body.dataset.game;

@@ -7,7 +7,7 @@ import {
 } from "./flow";
 export type FlowAttempt = {
   id: string;
-  version?: 2 | 3;
+  version?: 2 | 3 | 4;
   kind: "level" | "daily";
   key: string;
   actions: FlowAction[];
@@ -41,7 +41,7 @@ export function validFlowAttempt(value: any): value is FlowAttempt {
       !["level", "daily"].includes(value.kind) ||
       typeof value.key !== "string" ||
       (value.version !== undefined &&
-        ![2, FLOW_VERSION].includes(value.version)) ||
+        ![2, 3, FLOW_VERSION].includes(value.version)) ||
       (value.challengeToken !== undefined &&
         (typeof value.challengeToken !== "string" ||
           !/^[A-Za-z0-9_-]{43}$/.test(value.challengeToken)))
@@ -113,11 +113,28 @@ export function readFlowSave(scope: string): FlowSave {
 }
 function migrateLegacySave(scope: string, fallback: FlowSave): FlowSave {
   try {
-    const legacy = JSON.parse(
-      localStorage.getItem(`playne:flow:v2:${scope}`) ?? "null",
-    );
-    if (!legacy || legacy.version !== 2) return fallback;
-    const tag = (value: any) => ({ ...value, version: 2 as const });
+    // A current empty v3 guest save may mean its data was already moved to an
+    // account. Never resurrect an older v2 save over that newer snapshot.
+    let legacy: any = null;
+    for (const version of [3, 2] as const) {
+      try {
+        const candidate = JSON.parse(
+          localStorage.getItem(`playne:flow:v${version}:${scope}`) ?? "null",
+        );
+        if (candidate?.version === version) {
+          legacy = candidate;
+          break;
+        }
+      } catch {
+        // A corrupt old container need not hide another valid legacy version.
+      }
+    }
+    if (!legacy) return fallback;
+    // v3 containers can contain still-unsent v2 results or a v2 comparison.
+    const tag = (value: any) => ({
+      ...value,
+      version: value?.version ?? (legacy.version as 2 | 3),
+    });
     const oldActive = tag(legacy.active);
     const validActive =
       legacy.active && validFlowAttempt(oldActive) ? oldActive : null;
@@ -129,7 +146,7 @@ function migrateLegacySave(scope: string, fallback: FlowSave): FlowSave {
           validActive.kind === "level"
             ? Number(validActive.key)
             : validActive.key,
-          2,
+          validActive.version,
         ),
         validActive.actions,
       ).won;

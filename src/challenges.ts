@@ -30,7 +30,7 @@ export type PublicChallenge = {
     kind: "level" | "daily";
     key: string;
     stars: number;
-    version?: 2 | 3;
+    version?: 2 | 3 | 4;
   };
 };
 

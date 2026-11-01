@@ -63,7 +63,7 @@ function supported(run: any) {
   if (
     !(CHALLENGE_GAMES as readonly string[]).includes(run.game) ||
     (run.game === "flow"
-      ? ![2, FLOW_VERSION].includes(run.version)
+      ? ![2, 3, FLOW_VERSION].includes(run.version)
       : run.version !== scoreVersion(run.game)) ||
     !run.completed_at ||
     run.answer_count !==

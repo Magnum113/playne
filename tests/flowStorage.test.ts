@@ -125,26 +125,127 @@ describe("Рой: durable local progress", () => {
     expect(readFlowSave(`challenge:${"y".repeat(43)}:guest`).active).toBeNull();
     expect(localStorage.getItem(`playne:flow:v2:${scope}`)).toBe(original);
   });
-  it("does not restart a completed legacy attempt or resurrect an obsolete save over current data", () => {
+  it.each([2, 3] as const)(
+    "does not restart a completed v%s attempt or resurrect its save over current data",
+    (version) => {
+      const active = {
+        id: crypto.randomUUID(),
+        kind: "level",
+        key: "1",
+        actions: makeFlowPuzzle("level", 1, version).solution.map((lane) => ({
+          type: "launch",
+          lane,
+        })),
+      };
+      localStorage.setItem(
+        `playne:flow:v${version}:guest`,
+        JSON.stringify({ version, active, records: {}, pending: [active] }),
+      );
+      expect(readFlowSave("guest").active).toBeNull();
+      expect(readFlowSave("guest").pending[0]).toEqual({ ...active, version });
+      const current = readFlowSave("guest");
+      current.records = { "level:2": { score: 1000, stars: 3 } };
+      writeFlowSave("guest", current);
+      expect(readFlowSave("guest").records).toEqual(current.records);
+      expect(validFlowAttempt({ ...active, version: 99 })).toBe(false);
+    },
+  );
+  it("prefers v3 progress and preserves the exact versions of mixed pending results", () => {
     const active = {
       id: crypto.randomUUID(),
+      version: 3,
       kind: "level",
-      key: "1",
-      actions: makeFlowPuzzle("level", 1, 2).solution.map((lane) => ({
+      key: "21",
+      actions: [
+        { type: "launch", lane: makeFlowPuzzle("level", 21, 3).solution[0] },
+      ],
+    };
+    const pending = ([2, 3] as const).map((version) => ({
+      id: crypto.randomUUID(),
+      version,
+      kind: "level",
+      key: "2",
+      actions: makeFlowPuzzle("level", 2, version).solution.map((lane) => ({
         type: "launch",
         lane,
       })),
-    };
+    }));
+    const previous = JSON.stringify({
+      version: 3,
+      records: {
+        "level:1": { score: 1000, stars: 3 },
+        "daily:2026-11-01": { score: 1000, stars: 3 },
+      },
+      active,
+      pending,
+      motion: false,
+    });
+    localStorage.setItem("playne:flow:v3:guest", previous);
     localStorage.setItem(
       "playne:flow:v2:guest",
-      JSON.stringify({ version: 2, active, records: {}, pending: [active] }),
+      JSON.stringify({
+        version: 2,
+        records: { "level:20": { score: 1000, stars: 3 } },
+      }),
     );
+    const upgraded = readFlowSave("guest");
+    expect(upgraded.records).toEqual({ "level:1": { score: 1000, stars: 3 } });
+    expect(upgraded.active).toMatchObject({
+      version: FLOW_VERSION,
+      kind: "level",
+      key: "21",
+      actions: [],
+    });
+    expect(upgraded.active?.id).not.toBe(active.id);
+    expect(upgraded.pending).toEqual(pending);
+    expect(upgraded.pending.every(validFlowAttempt)).toBe(true);
+    expect(upgraded.motion).toBe(false);
+    expect(localStorage.getItem("playne:flow:v3:guest")).toBe(previous);
+    expect(writeFlowSave("guest", upgraded)).toBe(true);
+    expect(readFlowSave("guest").pending).toEqual(pending);
+  });
+  it.each([2, 3] as const)(
+    "preserves a version %s challenge stored inside a v3 container",
+    (version) => {
+      const token = "z".repeat(43),
+        scope = `challenge:${token}:guest`;
+      const active = {
+        id: crypto.randomUUID(),
+        version,
+        kind: "level",
+        key: "3",
+        challengeToken: token,
+        actions: [],
+      };
+      localStorage.setItem(
+        `playne:flow:v3:${scope}`,
+        JSON.stringify({ version: 3, active, records: {}, pending: [] }),
+      );
+      const migrated = readFlowSave(scope);
+      expect(migrated.active).toEqual(active);
+      expect(migrated.restartedForUpgrade).toBeUndefined();
+      expect(validFlowAttempt(migrated.active)).toBe(true);
+    },
+  );
+  it("does not resurrect older v2 data over a newer empty v3 guest snapshot", () => {
+    localStorage.setItem(
+      "playne:flow:v3:guest",
+      JSON.stringify({
+        version: 3,
+        records: {},
+        active: null,
+        pending: [],
+        motion: true,
+      }),
+    );
+    localStorage.setItem(
+      "playne:flow:v2:guest",
+      JSON.stringify({
+        version: 2,
+        records: { "level:1": { score: 1000, stars: 3 } },
+      }),
+    );
+    expect(readFlowSave("guest").records).toEqual({});
     expect(readFlowSave("guest").active).toBeNull();
-    expect(readFlowSave("guest").pending[0]).toEqual({ ...active, version: 2 });
-    const current = readFlowSave("guest");
-    current.records = { "level:2": { score: 1000, stars: 3 } };
-    writeFlowSave("guest", current);
-    expect(readFlowSave("guest").records).toEqual(current.records);
-    expect(validFlowAttempt({ ...active, version: 99 })).toBe(false);
   });
 });

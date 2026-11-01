@@ -28,6 +28,28 @@ describe("Selected B: dynamic friend-result previews", () => {
     expect(unversioned).toBe(challengeArt("flow", { ...flow, version: 2 }));
     expect(unversioned).not.toBe(challengeArt("flow", { ...flow, version: 3 }));
   });
+  it("keeps dense square and wide Swarm pictures within the preview card", () => {
+    for (let level = 1; level <= 36; level++) {
+      const svg = challengeArt("flow", {
+        kind: "level",
+        key: String(level),
+        stars: 3,
+        version: 4,
+      });
+      const rectangles = [
+        ...svg.matchAll(
+          /<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/g,
+        ),
+      ];
+      expect(rectangles.length).toBeGreaterThan(500);
+      for (const [, x, y, width, height] of rectangles) {
+        expect(+x).toBeGreaterThanOrEqual(710);
+        expect(+x + +width).toBeLessThanOrEqual(1046);
+        expect(+y).toBeGreaterThanOrEqual(180);
+        expect(+y + +height).toBeLessThanOrEqual(492);
+      }
+    }
+  });
   it.each(CHALLENGE_GAMES)(
     "uses the chosen frame and a distinct %s game illustration",
     (game) => {

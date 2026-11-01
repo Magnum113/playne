@@ -20,7 +20,7 @@ export async function registerFlowRoutes(
         [u.id, b],
       );
     const { rows } = await pool.query(
-      `SELECT DISTINCT ON(challenge->>'kind',challenge->>'key') challenge->>'kind' AS kind,challenge->>'key' AS key,score_units/10 AS score FROM playne_games WHERE game='flow' AND (version=${FLOW_VERSION} OR (version=2 AND challenge->>'kind'='level')) AND completed_at IS NOT NULL AND coalesce(challenge->>'comparison','false')<>'true' AND ${u ? "owner_id=$1" : "browser_hash=$1 AND owner_id IS NULL"} ORDER BY challenge->>'kind',challenge->>'key',score_units DESC`,
+      `SELECT DISTINCT ON(challenge->>'kind',challenge->>'key') challenge->>'kind' AS kind,challenge->>'key' AS key,score_units/10 AS score FROM playne_games WHERE game='flow' AND (version=${FLOW_VERSION} OR (version IN (2,3) AND challenge->>'kind'='level')) AND completed_at IS NOT NULL AND coalesce(challenge->>'comparison','false')<>'true' AND ${u ? "owner_id=$1" : "browser_hash=$1 AND owner_id IS NULL"} ORDER BY challenge->>'kind',challenge->>'key',score_units DESC`,
       [u?.id ?? b],
     );
     return {
@@ -43,7 +43,7 @@ export async function registerFlowRoutes(
       const input = req.body as any;
       if (
         !input ||
-        ![2, FLOW_VERSION].includes(input.version) ||
+        ![2, 3, FLOW_VERSION].includes(input.version) ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
           input.id,
         ) ||

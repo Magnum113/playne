@@ -1,4 +1,5 @@
 import { flowApproach, type FlowEvent, type FlowPuzzle } from "./flow";
+import { flowGeometry } from "./flowGeometry";
 
 export const FLOW_WORLDS = [
   {
@@ -72,19 +73,37 @@ function roundPath(points: FlowPoint[], radius = 5) {
   return { path, length };
 }
 export function flowAntRoute(
-  puzzle: Pick<FlowPuzzle, "width" | "height">,
+  puzzle: Pick<FlowPuzzle, "width" | "height"> &
+    Partial<Pick<FlowPuzzle, "version" | "id">>,
   event: FlowEvent,
+  originOverride?: FlowPoint,
 ) {
-  const step = 24,
-    startX = (540 - puzzle.width * step) / 2,
-    bottom = 22 + puzzle.height * step;
-  let x = startX + (event.cell % puzzle.width) * step + 11.5,
-    y = 22 + Math.floor(event.cell / puzzle.width) * step + 22;
-  const origin = { x: 84 + event.slot * 93, y: bottom + 126 },
+  const { step, size, startX, startY, bottom } = flowGeometry(puzzle);
+  let x = startX + (event.cell % puzzle.width) * step + size / 2,
+    y =
+      startY + Math.floor(event.cell / puzzle.width) * step + step * (22 / 24);
+  const origin = originOverride ?? { x: 84 + event.slot * 93, y: bottom + 126 },
     gateY = bottom + 29;
   const side = x < 270 ? startX - 24 : 540 - startX + 24;
+  // Side docks must first go around the picture, even when their target is on
+  // the opposite edge. A diagonal from the dock to that edge crosses the cubes.
+  const boardRight = startX + puzzle.width * step;
+  const abovePicture =
+    origin.y < startY && origin.x >= startX && origin.x <= boardRight;
+  const hubX = abovePicture
+    ? origin.x < 270
+      ? startX - step
+      : boardRight + step
+    : origin.x;
+  const originApproach: FlowPoint[] = originOverride
+    ? [
+        origin,
+        ...(abovePicture ? [{ x: hubX, y: origin.y }] : []),
+        { x: hubX, y: bottom + 99 },
+      ]
+    : [origin];
   let outwardPoints: FlowPoint[] = [
-    origin,
+    ...originApproach,
     { x: side, y: bottom + 99 },
     { x: side, y: gateY },
     { x, y: gateY },
@@ -98,8 +117,8 @@ export function flowAntRoute(
   ];
   if (event.path?.length && event.path.length > 1) {
     const corridor = event.path.map((point) => ({
-      x: startX + point.x * step + 11.5,
-      y: 22 + point.y * step + 11.5,
+      x: startX + point.x * step + size / 2,
+      y: startY + point.y * step + size / 2,
     }));
     const target = corridor.at(-1)!,
       neighbor = corridor.at(-2)!;
@@ -107,21 +126,25 @@ export function flowAntRoute(
       Math.hypot(neighbor.x - target.x, neighbor.y - target.y) || step;
     // Wait on the clear side of the block instead of walking through its centre.
     const pickup = {
-      x: target.x + ((neighbor.x - target.x) / distance) * 15,
-      y: target.y + ((neighbor.y - target.y) / distance) * 15,
+      x: target.x + ((neighbor.x - target.x) / distance) * step * 0.625,
+      y: target.y + ((neighbor.y - target.y) / distance) * step * 0.625,
     };
     corridor[corridor.length - 1] = pickup;
     const entry = corridor[0],
       gridEntry = event.path[0];
     const routeSide =
       gridEntry.x < 0 || (gridEntry.y < 0 && entry.x < 270)
-        ? startX - 12.5
-        : startX + puzzle.width * step + 11.5;
+        ? startX - step / 2 - 0.5
+        : startX + puzzle.width * step + size / 2;
     const approach =
       gridEntry.y >= puzzle.height
-        ? [origin, { x: origin.x, y: gateY }, { x: entry.x, y: gateY }]
+        ? [
+            ...originApproach,
+            { x: originApproach.at(-1)!.x, y: gateY },
+            { x: entry.x, y: gateY },
+          ]
         : [
-            origin,
+            ...originApproach,
             { x: routeSide, y: bottom + 99 },
             { x: routeSide, y: entry.y },
           ];
@@ -170,6 +193,7 @@ export type FlowTrip = FlowEvent &
   ReturnType<typeof flowAntRoute> & {
     id: string;
     worker: number;
+    /** Fixed CSS assignment clock; keep it unchanged when retiming a journey. */
     renderAt: number;
     depart: number;
     arrive: number;
@@ -184,6 +208,8 @@ export type FlowMotionContext = {
   now?: number;
   trips?: readonly FlowTrip[];
   slots?: ReadonlyMap<number, number>;
+  /** Packet origins measured from their current physical dock in SVG coordinates. */
+  origins?: ReadonlyMap<number, FlowPoint>;
   slotCount?: number;
   cells?: readonly number[];
   epoch?: string | number;
@@ -199,30 +225,86 @@ export type FlowMotion = {
   finish: number;
 };
 
+/** Change the remaining clock rate without restarting an ant's current phase. */
+export function flowRetimeMotion(
+  motion: FlowMotion,
+  now: number,
+  fromSpeed: 1 | 2,
+  toSpeed: 1 | 2,
+): FlowMotion {
+  if (fromSpeed === toSpeed) return motion;
+  const ratio = fromSpeed / toSpeed;
+  const time = (at: number) => now + (at - now) * ratio;
+  const trips = motion.trips.map((trip) => ({
+    ...trip,
+    // Cube pickup delays are measured from their original CSS assignment time.
+    // Only phase boundaries move; shifting renderAt would remove cubes early.
+    depart: time(trip.depart),
+    arrive: time(trip.arrive),
+    at: time(trip.at),
+    returnAt: time(trip.returnAt),
+    deliveryAt: time(trip.deliveryAt),
+    outbound: trip.outbound * ratio,
+    carry: trip.carry * ratio,
+    pickupPause: trip.pickupPause * ratio,
+  }));
+  const current = new Map(trips.map((trip) => [trip.id, trip]));
+  return {
+    launch: motion.launch * ratio,
+    pickupPause: motion.pickupPause * ratio,
+    stagger: motion.stagger * ratio,
+    trips,
+    // Delivery removes a trip from the active timeline before the next launch.
+    // Old batch arrays must never resurrect it when the clock rate changes.
+    added: motion.added.flatMap((trip) => {
+      const updated = current.get(trip.id);
+      return updated ? [updated] : [];
+    }),
+    pickups: trips,
+    deliveries: trips.map((trip) => ({ ...trip, at: trip.deliveryAt })),
+    finish: time(motion.finish),
+  };
+}
+
 /** Append work on an absolute session clock; existing workers never restart. */
 export function flowMotion(
   events: FlowEvent[],
   speed: 1 | 2,
-  puzzle: Pick<FlowPuzzle, "width" | "height">,
+  puzzle: Pick<FlowPuzzle, "width" | "height"> &
+    Partial<Pick<FlowPuzzle, "version" | "id">>,
   context: FlowMotionContext = {},
 ): FlowMotion {
   const launch = 220 / speed,
     pickupPause = 260 / speed,
     stagger = 110 / speed,
-    now = context.now ?? 0,
-    slotCount = Math.max(1, Math.min(18, Math.trunc(context.slotCount ?? 5)));
-  let previousPickup = 0;
+    now = context.now ?? 0;
   const columns = new Map<number, { at: number; y: number }>();
-  const trips = [...(context.trips ?? [])],
+  const trips = (context.trips ?? []).map((trip) => {
+      const slot = context.slots?.get(trip.packet);
+      if (slot === undefined || slot === trip.slot || trip.depart <= now)
+        return trip;
+      // Repacking docks only moves ants that have not left yet. Their queued
+      // pickup/delivery timers and keys stay on the same absolute session clock.
+      return {
+        ...trip,
+        ...flowAntRoute(
+          puzzle,
+          { ...trip, slot },
+          context.origins?.get(trip.packet),
+        ),
+        slot,
+      };
+    }),
     added: FlowTrip[] = [];
   const picked = new Map(trips.map((trip) => [trip.cell, trip.at]));
-  type Interval = { start: number; end: number };
-  const workers: Interval[][] = Array.from({ length: 18 }, () => []);
+  // The number on a box is its colony size: every assigned cube gets an ant.
+  // Keep each box's departures paced without making another colour wait for it.
+  const lastDeparture = new Map<number, number>();
   for (const trip of trips) {
-    workers[trip.worker].push({
-      start: trip.depart,
-      end: trip.deliveryAt + 80 / speed,
-    });
+    lastDeparture.set(
+      trip.packet,
+      Math.max(lastDeparture.get(trip.packet) ?? -Infinity, trip.depart),
+    );
     if (!trip.path) {
       const column = trip.cell % puzzle.width;
       const prior = columns.get(column);
@@ -233,16 +315,7 @@ export function flowMotion(
         });
     }
   }
-  for (const intervals of workers) intervals.sort((a, b) => a.start - b.start);
-  const earliest = (intervals: Interval[], start: number, duration: number) => {
-    let candidate = start;
-    for (const interval of intervals) {
-      if (candidate + duration <= interval.start) return candidate;
-      if (candidate < interval.end) candidate = interval.end;
-    }
-    return candidate;
-  };
-  events.forEach((original, index) => {
+  events.forEach((original) => {
     if (picked.has(original.cell)) return;
     const event = {
       ...original,
@@ -253,10 +326,17 @@ export function flowMotion(
             original.path)
           : original.path,
     };
-    const route = flowAntRoute(puzzle, event),
+    const route = flowAntRoute(
+        puzzle,
+        event,
+        context.origins?.get(event.packet),
+      ),
       outbound = Math.max(1400, (route.outboundLength / 125) * 1000) / speed,
       carry = Math.max(1150, (route.returnLength / 110) * 1000) / speed;
-    let earliestDepart = now + launch + index * stagger;
+    let earliestDepart = Math.max(
+      now + launch,
+      (lastDeparture.get(event.packet) ?? -Infinity) + stagger,
+    );
     // A logically cleared cube can still be waiting for its visible pickup.
     // Do not send a new worker through that square until it is really clear.
     if (event.path)
@@ -270,7 +350,7 @@ export function flowMotion(
           continue;
         const dependency = picked.get(point.y * puzzle.width + point.x);
         if (dependency !== undefined)
-          earliestDepart = Math.max(earliestDepart, dependency + 35 / speed);
+          earliestDepart = Math.max(earliestDepart, dependency + 120 / speed);
       }
     const prior = columns.get(event.cell % puzzle.width);
     const row = Math.floor(event.cell / puzzle.width);
@@ -282,35 +362,19 @@ export function flowMotion(
           70 / speed -
           outbound,
       );
-    earliestDepart = Math.max(
-      earliestDepart,
-      previousPickup + 85 / speed - outbound,
-    );
-    const duration = outbound + pickupPause + carry + 80 / speed;
-    // A busy box cannot reserve the whole colony before another colour is opened.
-    // Physical docks own small independent worker pools while keeping 18 in total.
-    const poolSlot = ((event.slot % slotCount) + slotCount) % slotCount;
-    const starts = workers.map((intervals, worker) =>
-      context.slots && worker % slotCount !== poolSlot
-        ? Infinity
-        : earliest(intervals, earliestDepart, duration),
-    );
-    const worker = starts.indexOf(Math.min(...starts));
-    const depart = starts[worker],
+    const depart = earliestDepart,
       arrive = depart + outbound;
     const at = arrive + pickupPause * 0.55,
       returnAt = arrive + pickupPause,
       deliveryAt = returnAt + carry;
-    previousPickup = at;
+    lastDeparture.set(event.packet, depart);
     columns.set(event.cell % puzzle.width, { at, y: row });
     picked.set(event.cell, at);
-    workers[worker].push({ start: depart, end: deliveryAt + 80 / speed });
-    workers[worker].sort((a, b) => a.start - b.start);
     const trip: FlowTrip = {
       ...event,
       ...route,
       id: `${context.epoch ?? "flow"}:${event.packet}:${event.cell}`,
-      worker,
+      worker: event.cell,
       renderAt: now,
       depart,
       arrive,

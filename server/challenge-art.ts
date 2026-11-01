@@ -21,9 +21,13 @@ export function challengeArt(
         flow?.kind === "daily" ? flow.key : Number(flow?.key ?? 1),
         flow?.version ?? 2,
       );
-      const step = Math.min(13, 264 / puzzle.height),
+      const dense = flow?.version === 4;
+      const step = Math.min(
+          13,
+          264 / (dense ? Math.max(puzzle.width, puzzle.height) : puzzle.height),
+        ),
         left = 878 - (puzzle.width * step) / 2,
-        top = 188;
+        top = 188 + (dense ? (264 - puzzle.height * step) / 2 : 0);
       const cubes = puzzle.cells
         .map((color, i) => {
           if (color < 0) return "";
@@ -34,7 +38,7 @@ export function challengeArt(
         .join("");
       const ant = (x: number, color: string) =>
         `<g transform="translate(${x} 469)" stroke="#38534c" stroke-width="2" stroke-linecap="round"><path d="m-5-7-9-7m19 7 9-7m-20 12-10 2m22-2 10 2m-20 2-8 10m18-10 8 10"/><ellipse cy="8" rx="7" ry="9" fill="${color}"/><ellipse cy="-1" rx="5" ry="6" fill="${color}"/><path d="m-4-14-4-8m12 8 4-8"/><ellipse cy="-12" rx="9" ry="8" fill="${color}"/><circle cx="-4" cy="-14" r="3" fill="white" stroke="none"/><circle cx="4" cy="-14" r="3" fill="white" stroke="none"/><circle cx="-4" cy="-15" r="1.5" fill="#26362e" stroke="none"/><circle cx="4" cy="-15" r="1.5" fill="#26362e" stroke="none"/></g>`;
-      return `<rect x="710" y="180" width="336" height="312" rx="20" fill="#ffe1b3"/><rect x="${left - 9}" y="${top - 6}" width="${puzzle.width * step + 18}" height="${puzzle.height * step + 18}" rx="10" fill="#fff6e0"/>${cubes}<ellipse cx="878" cy="475" rx="21" ry="8" fill="#484a42"/>${ant(819, "#ff887c")}${ant(937, "#62cfb4")}`;
+      return `<rect x="710" y="180" width="336" height="312" rx="20" fill="#ffe1b3"/><rect x="${dense ? 737 : left - 9}" y="${dense ? 182 : top - 6}" width="${dense ? 282 : puzzle.width * step + 18}" height="${dense ? 282 : puzzle.height * step + 18}" rx="10" fill="#fff6e0"/>${cubes}<ellipse cx="878" cy="475" rx="21" ry="8" fill="#484a42"/>${ant(819, "#ff887c")}${ant(937, "#62cfb4")}`;
     },
     circle: () =>
       `<path d="M877 195C955 192 1020 257 1020 337s-59 142-140 143c-79 1-143-62-143-141s59-143 140-144Z" fill="none" stroke="#137866" stroke-width="3.5" stroke-linecap="round"/><circle cx="879" cy="337" r="4.5" fill="#137866"/>`,

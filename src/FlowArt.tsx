@@ -1,5 +1,5 @@
 import React from "react";
-import { memo, type CSSProperties } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   FLOW_COLORS,
   flowFrontier,
@@ -8,7 +8,8 @@ import {
   type FlowEvent,
   type FlowPuzzle,
 } from "./flow";
-import { flowMotion, type FlowMotion } from "./flowPresentation";
+import { flowMotion, type FlowMotion, type FlowTrip } from "./flowPresentation";
+import { flowGeometry } from "./flowGeometry";
 
 /** Shared character: the same little ant appears in previews and carries cubes. */
 function AntFigure({
@@ -156,8 +157,18 @@ export function FlowAnt({
   );
 }
 
-export function FlowCrate({ color, count }: { color: number; count: number }) {
-  const paint = FLOW_COLORS[color];
+export function FlowCrate({
+  color,
+  count,
+  concealed = false,
+}: {
+  color: number;
+  count: number;
+  concealed?: boolean;
+}) {
+  const paint = concealed
+    ? { hex: "#9396a5", dark: "#505365", ink: "#fffefa" }
+    : FLOW_COLORS[color];
   return (
     <svg className="flow-crate" viewBox="0 0 76 76" aria-hidden="true">
       <rect x="7" y="10" width="62" height="61" rx="11" fill={paint.dark} />
@@ -175,13 +186,13 @@ export function FlowCrate({ color, count }: { color: number; count: number }) {
         textAnchor="middle"
         fontSize="33"
         fontWeight="850"
-        fill="white"
+        fill={paint.ink ?? "white"}
         stroke={paint.dark}
         strokeWidth="2.7"
         paintOrder="stroke"
         fontFamily="inherit"
       >
-        {count}
+        {concealed ? "?" : count}
       </text>
     </svg>
   );
@@ -269,6 +280,106 @@ function WalkingAnt({
   );
 }
 
+/** Each journey owns its mount clock so appending work never restarts its phase. */
+const FlowAntJourney = memo(function FlowAntJourney({
+  trip,
+  epoch,
+  speed,
+  scale,
+}: {
+  trip: FlowTrip;
+  epoch: number;
+  speed: 1 | 2;
+  scale: number;
+}) {
+  const mountedAt = useRef(Math.max(0, performance.now() - epoch));
+  return (
+    <React.Fragment>
+      <g
+        className="flow-walking-ant"
+        aria-hidden="true"
+        data-trip="outbound"
+        data-packet={trip.packet}
+        data-cell={trip.cell}
+        style={
+          {
+            offsetPath: `path('${trip.outboundPath}')`,
+            "--walk-delay": `${trip.depart - mountedAt.current}ms`,
+            "--walk-duration": `${trip.outbound}ms`,
+            "--visible-duration": `${trip.outbound + trip.pickupPause}ms`,
+            "--step-repeats": Math.ceil(
+              (trip.outbound + trip.pickupPause) / (260 / speed),
+            ),
+          } as CSSProperties
+        }
+      >
+        <g transform={`scale(${scale})`}>
+          <WalkingAnt color={trip.color} />
+        </g>
+      </g>
+      <g
+        className="flow-walking-ant is-loaded"
+        aria-hidden="true"
+        data-trip="return"
+        data-packet={trip.packet}
+        data-cell={trip.cell}
+        style={
+          {
+            offsetPath: `path('${trip.returnPath}')`,
+            "--walk-delay": `${trip.returnAt - mountedAt.current}ms`,
+            "--walk-duration": `${trip.carry}ms`,
+            "--visible-duration": `${trip.carry}ms`,
+            "--step-repeats": Math.ceil(trip.carry / (260 / speed)),
+          } as CSSProperties
+        }
+      >
+        <g transform={`scale(${scale})`}>
+          <WalkingAnt color={trip.color} loaded />
+        </g>
+      </g>
+    </React.Fragment>
+  );
+});
+
+/** A light clock updates only the colony, not the full painted cube layer. */
+const FlowAntTraffic = memo(function FlowAntTraffic({
+  trips,
+  epoch,
+  speed,
+  scale,
+}: {
+  trips: FlowTrip[];
+  epoch?: number;
+  speed: 1 | 2;
+  scale: number;
+}) {
+  const fallbackEpoch = useRef(performance.now() - (trips[0]?.renderAt ?? 0));
+  const origin = epoch ?? fallbackEpoch.current;
+  const [, tick] = useState(0);
+  const now = Math.max(0, performance.now() - origin);
+  const pending = trips.some((trip) => trip.deliveryAt > now);
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setInterval(() => tick((value) => value + 1), 80);
+    return () => clearInterval(timer);
+  }, [pending, origin]);
+  return (
+    <g className="flow-ant-traffic" aria-hidden="true">
+      {trips
+        .filter((trip) => trip.depart <= now + 200 && trip.deliveryAt > now)
+        .map((trip) => (
+          <FlowAntJourney
+            key={trip.id}
+            trip={trip}
+            epoch={origin}
+            speed={speed}
+            scale={scale}
+          />
+        ))}
+    </g>
+  );
+});
+
 export const FlowScene = memo(function FlowScene({
   puzzle,
   cells,
@@ -279,6 +390,8 @@ export const FlowScene = memo(function FlowScene({
   speed = 1,
   highlightColor,
   motion,
+  revealHidden = false,
+  epoch,
 }: {
   puzzle: FlowPuzzle;
   cells: number[];
@@ -289,14 +402,20 @@ export const FlowScene = memo(function FlowScene({
   speed?: 1 | 2;
   highlightColor?: number | null;
   motion?: FlowMotion;
+  revealHidden?: boolean;
+  /** performance.now() origin of the current animation session. */
+  epoch?: number;
 }) {
-  const step = 24,
-    size = 23;
-  const startX = (540 - puzzle.width * step) / 2,
-    startY = 22;
-  const bottom = startY + puzzle.height * step;
+  const geometry = flowGeometry(puzzle);
+  const { step, size, startX, startY, bottom } = geometry;
+  const concealedCells = new Set(
+    revealHidden ? [] : (puzzle.hiddenCells ?? []),
+  );
   const frontier = new Set(flowFrontier(puzzle, cells));
   const timing = motion ?? flowMotion(events, speed, puzzle);
+  const pickups = new Map(
+    moving ? timing.trips.map((trip) => [trip.cell, trip]) : [],
+  );
   return (
     <svg
       className={`flow-scene${preview ? " flow-scene-preview" : ""}`}
@@ -310,20 +429,20 @@ export const FlowScene = memo(function FlowScene({
       }
     >
       <rect
-        x={startX - 15}
-        y={startY - 12}
-        width={puzzle.width * step + 30}
-        height={puzzle.height * step + 28}
+        x={geometry.frameX}
+        y={geometry.frameY + 4}
+        width={geometry.frameWidth}
+        height={geometry.frameHeight}
         rx="17"
         fill="#bd9569"
         opacity=".25"
         transform="translate(0 5)"
       />
       <rect
-        x={startX - 15}
-        y={startY - 16}
-        width={puzzle.width * step + 30}
-        height={puzzle.height * step + 28}
+        x={geometry.frameX}
+        y={geometry.frameY}
+        width={geometry.frameWidth}
+        height={geometry.frameHeight}
         rx="17"
         fill="#fff6e0"
       />
@@ -331,29 +450,31 @@ export const FlowScene = memo(function FlowScene({
         if (color < 0 || cells[i] < 0) return null;
         const x = startX + (i % puzzle.width) * step,
           y = startY + Math.floor(i / puzzle.width) * step;
-        const pickup = moving
-          ? timing.trips.findIndex((event) => event.cell === i)
-          : -1;
-        const paint = FLOW_COLORS[color];
+        const pickup = pickups.get(i);
+        const concealed = concealedCells.has(i) && !frontier.has(i);
+        const paint = concealed
+          ? { hex: "#9698a4", dark: "#5f6272" }
+          : FLOW_COLORS[color];
         return (
           <g
             key={i}
-            className={`flow-cube${pickup >= 0 ? " is-lifting" : ""}`}
+            className={`flow-cube${pickup !== undefined ? " is-lifting" : ""}`}
             style={
-              pickup >= 0
+              pickup !== undefined
                 ? ({
-                    "--pickup-delay": `${timing.trips[pickup].at - timing.trips[pickup].renderAt}ms`,
+                    "--pickup-delay": `${pickup.at - pickup.renderAt}ms`,
                   } as CSSProperties)
                 : undefined
             }
             data-cell={i}
+            data-concealed={concealed || undefined}
           >
             <rect
               x={x}
-              y={y + 2.5}
+              y={y + step * (2.5 / 24)}
               width={size}
               height={size}
-              rx="4.5"
+              rx={step * (4.5 / 24)}
               fill={paint.dark}
             />
             <rect
@@ -361,16 +482,29 @@ export const FlowScene = memo(function FlowScene({
               y={y}
               width={size}
               height={size}
-              rx="4.5"
+              rx={step * (4.5 / 24)}
               fill={paint.hex}
             />
             <path
-              d={`M${x + 5} ${y + 3}h${size - 10}`}
+              d={`M${x + step * 0.21} ${y + step * 0.125}h${size - step * 0.42}`}
               stroke="white"
-              strokeWidth="1.5"
+              strokeWidth={Math.max(0.65, step / 16)}
               opacity=".45"
               strokeLinecap="round"
             />
+            {concealed && (
+              <text
+                x={x + size / 2}
+                y={y + size * 0.78}
+                textAnchor="middle"
+                fill="#fffefa"
+                fontSize={step * 0.78}
+                fontWeight="850"
+                aria-hidden="true"
+              >
+                ?
+              </text>
+            )}
             {highlightColor === color && frontier.has(i) && (
               <rect
                 className="flow-target-cube"
@@ -415,49 +549,14 @@ export const FlowScene = memo(function FlowScene({
           />
         </g>
       </g>
-      {moving &&
-        timing.trips.map((trip) => (
-          <React.Fragment key={trip.id}>
-            <g
-              className="flow-walking-ant"
-              aria-hidden="true"
-              data-trip="outbound"
-              data-packet={trip.packet}
-              data-cell={trip.cell}
-              style={
-                {
-                  offsetPath: `path('${trip.outboundPath}')`,
-                  "--walk-delay": `${trip.depart - trip.renderAt}ms`,
-                  "--walk-duration": `${trip.outbound}ms`,
-                  "--visible-duration": `${trip.outbound + trip.pickupPause}ms`,
-                } as CSSProperties
-              }
-            >
-              <g transform="scale(.72)">
-                <WalkingAnt color={trip.color} />
-              </g>
-            </g>
-            <g
-              className="flow-walking-ant is-loaded"
-              aria-hidden="true"
-              data-trip="return"
-              data-packet={trip.packet}
-              data-cell={trip.cell}
-              style={
-                {
-                  offsetPath: `path('${trip.returnPath}')`,
-                  "--walk-delay": `${trip.returnAt - trip.renderAt}ms`,
-                  "--walk-duration": `${trip.carry}ms`,
-                  "--visible-duration": `${trip.carry}ms`,
-                } as CSSProperties
-              }
-            >
-              <g transform="scale(.72)">
-                <WalkingAnt color={trip.color} loaded />
-              </g>
-            </g>
-          </React.Fragment>
-        ))}
+      {moving && (
+        <FlowAntTraffic
+          trips={timing.trips}
+          epoch={epoch}
+          speed={speed}
+          scale={geometry.workerScale}
+        />
+      )}
     </svg>
   );
 });

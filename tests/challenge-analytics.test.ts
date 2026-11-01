@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+// @vitest-environment-options {"url":"https://playne.ru/"}
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BRAIN_GOALS,
@@ -81,6 +82,31 @@ describe("challenge analytics", () => {
       true,
     );
     expect(ym).toHaveBeenCalledTimes(4);
+  });
+  it("preserves a retry when an unfinished friend attempt resumes without its original retry marker", () => {
+    sessionStorage.setItem(
+      "playne:challenge-analytics:flow-retry-resume",
+      JSON.stringify({
+        game: "flow",
+        mode: "level",
+        attempt_kind: "retry",
+        player: "guest",
+      }),
+    );
+    trackChallengeStart(
+      { id: "flow-retry-resume", game: "flow", mode: "level", challenge: {} },
+      false,
+    );
+    trackChallengeComplete({ id: "flow-retry-resume" }, 1000);
+    expect(ym.mock.calls.map((call) => call[2])).toEqual([
+      SHARE_GOALS.started,
+      SHARE_GOALS.retryStarted,
+      SHARE_GOALS.completed,
+      SHARE_GOALS.retryCompleted,
+    ]);
+    expect(
+      ym.mock.calls.every((call) => call[3].attempt_kind === "retry"),
+    ).toBe(true);
   });
   it("does not lose a completion after page reload and marks comparison outcome", () => {
     sessionStorage.setItem(
