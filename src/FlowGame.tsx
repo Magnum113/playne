@@ -1505,171 +1505,181 @@ export function FlowSession({
             </div>
           ) : (
             <div className="flow-controls">
-              <FlowDocks
-                teams={visibleTeams}
-                count={puzzle.slots}
-                working={
-                  new Set(flight?.timing.trips.map((trip) => trip.packet))
-                }
-                launching={new Set(launchGhosts.map((ghost) => ghost.slot))}
-                full={game.stuck && !busy}
-                onSlot={(slot, element) => {
-                  dockElements.current[slot] = element;
-                }}
-              />
-              <h2 className="sr-only">Очереди команд</h2>
-              <div
-                ref={supply}
-                className={`flow-supply${puzzle.version === 4 ? " flow-supply-dense" : ""}`}
-                style={{
-                  gridTemplateColumns: `repeat(${puzzle.lanes.length}, minmax(0, 1fr))`,
-                  maxWidth: puzzle.lanes.length === 3 ? 264 : 332,
-                }}
-              >
-                <FlowQueueLinks
-                  puzzle={puzzle}
-                  positions={game.state.lanes}
-                  supply={supply}
+              <div className="flow-colony">
+                <FlowDocks
+                  teams={visibleTeams}
+                  count={puzzle.slots}
+                  working={
+                    new Set(flight?.timing.trips.map((trip) => trip.packet))
+                  }
+                  launching={new Set(launchGhosts.map((ghost) => ghost.slot))}
+                  full={game.stuck && !busy}
+                  onSlot={(slot, element) => {
+                    dockElements.current[slot] = element;
+                  }}
                 />
-                {puzzle.lanes.map((lane, i) => {
-                  const remaining = lane.slice(game.state.lanes[i]),
-                    team = remaining[0],
-                    paint = team ? FLOW_COLORS[team.color] : null;
-                  const group = flowLaunchPackets(puzzle, game.state, i);
-                  const launchable =
-                    !!group &&
-                    puzzle.slots - visibleTeams.length >= group.length;
-                  const accessible = team && exposedColors.has(team.color);
-                  return (
-                    <div className="flow-lane" key={i}>
-                      <button
-                        type="button"
-                        className={`flow-launch${!accessible ? " needs-opening" : ""}`}
+                <h2 className="sr-only">Очереди команд</h2>
+                <div
+                  ref={supply}
+                  className={`flow-supply${puzzle.version === 4 ? " flow-supply-dense" : ""}`}
+                  style={{
+                    gridTemplateColumns: `repeat(${puzzle.lanes.length}, minmax(0, 1fr))`,
+                    maxWidth: puzzle.lanes.length === 3 ? 264 : 332,
+                  }}
+                >
+                  <FlowQueueLinks
+                    puzzle={puzzle}
+                    positions={game.state.lanes}
+                    supply={supply}
+                  />
+                  {puzzle.lanes.map((lane, i) => {
+                    const remaining = lane.slice(game.state.lanes[i]),
+                      team = remaining[0],
+                      paint = team ? FLOW_COLORS[team.color] : null;
+                    const group = flowLaunchPackets(puzzle, game.state, i);
+                    const launchable =
+                      !!group &&
+                      puzzle.slots - visibleTeams.length >= group.length;
+                    const accessible = team && exposedColors.has(team.color);
+                    return (
+                      <div className="flow-lane" key={i}>
+                        <button
+                          type="button"
+                          className={`flow-launch${!accessible ? " needs-opening" : ""}`}
 
-                        disabled={!launchable}
-                        data-flow-packet={team?.id}
-                        data-flow-linked={team?.link}
-                        title={
-                          team?.link
-                            ? group
-                              ? "Связанная пара · 2 слота"
-                              : "Открой вторую коробку связки"
-                            : undefined
-                        }
-                        ref={(element) => {
-                          launchButtons.current[i] = element;
-                        }}
-                        onPointerEnter={() =>
-                          setPreviewColor(team?.color ?? null)
-                        }
-                        onPointerLeave={() => setPreviewColor(null)}
-                        onPointerDown={() =>
-                          setPreviewColor(team?.color ?? null)
-                        }
-                        onFocus={() => setPreviewColor(team?.color ?? null)}
-                        onBlur={() => setPreviewColor(null)}
-                        onClick={() => action({ type: "launch", lane: i })}
-                        aria-label={
-                          team
-                            ? `Очередь ${i + 1}: ${paint!.name} команда ${paint!.symbol}, ${team.count} кубиков. ${team.link ? "Связанная пара, нужны 2 слота. " : ""}${accessible ? "Цвет доступен" : "Пока нет доступных кубиков этого цвета"}. Запустить`
-                            : `Очередь ${i + 1} пуста`
-                        }
-                      >
-                        {team ? (
-                          <span
-                            className="flow-promoted-crate"
-                            key={`${active.id}:${team.id}`}
-                          >
-                            <FlowCrate color={team.color} count={team.count} />
-                            {team.link && (
-                              <span
-                                className="flow-link-badge"
-                                aria-hidden="true"
-                              >
-                                ↔{team.link.split("-").at(-1)}
-                              </span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="flow-lane-done" aria-hidden="true">
-                            ✓
-                          </span>
-                        )}
-                      </button>
-                      <div
-                        className="flow-next-packets"
-                        key={`queue:${i}:${game.state.lanes[i]}`}
-                        aria-label={`Дальше в очереди ${i + 1}`}
-                      >
-                        {remaining
-                          .slice(1, puzzle.version === 4 ? 3 : 4)
-                          .map((packet) => (
+                          disabled={!launchable}
+                          data-flow-packet={team?.id}
+                          data-flow-linked={team?.link}
+                          title={
+                            team?.link
+                              ? group
+                                ? "Связанная пара · 2 слота"
+                                : "Открой вторую коробку связки"
+                              : undefined
+                          }
+                          ref={(element) => {
+                            launchButtons.current[i] = element;
+                          }}
+                          onPointerEnter={() =>
+                            setPreviewColor(team?.color ?? null)
+                          }
+                          onPointerLeave={() => setPreviewColor(null)}
+                          onPointerDown={() =>
+                            setPreviewColor(team?.color ?? null)
+                          }
+                          onFocus={() => setPreviewColor(team?.color ?? null)}
+                          onBlur={() => setPreviewColor(null)}
+                          onClick={() => action({ type: "launch", lane: i })}
+                          aria-label={
+                            team
+                              ? `Очередь ${i + 1}: ${paint!.name} команда ${paint!.symbol}, ${team.count} кубиков. ${team.link ? "Связанная пара, нужны 2 слота. " : ""}${accessible ? "Цвет доступен" : "Пока нет доступных кубиков этого цвета"}. Запустить`
+                              : `Очередь ${i + 1} пуста`
+                          }
+                        >
+                          {team ? (
                             <span
-                              key={packet.id}
-                              data-flow-packet={packet.id}
-                              data-flow-linked={packet.link}
-                              aria-label={
-                                packet.mystery
-                                  ? "Скрытая команда"
-                                  : `${FLOW_COLORS[packet.color].name}, ${packet.count} кубиков${packet.link ? ", связанная пара" : ""}`
-                              }
+                              className="flow-promoted-crate"
+                              key={`${active.id}:${team.id}`}
                             >
                               <FlowCrate
-                                color={packet.color}
-                                count={packet.count}
-                                concealed={packet.mystery}
+                                color={team.color}
+                                count={team.count}
                               />
+                              {team.link && (
+                                <span
+                                  className="flow-link-badge"
+                                  aria-hidden="true"
+                                >
+                                  ↔{team.link.split("-").at(-1)}
+                                </span>
+                              )}
                             </span>
-                          ))}
-                        {remaining.length > (puzzle.version === 4 ? 3 : 4) && (
-                          <span className="flow-more-packets">
-                            +{remaining.length - (puzzle.version === 4 ? 3 : 4)}
-                          </span>
-                        )}
+                          ) : (
+                            <span className="flow-lane-done" aria-hidden="true">
+                              ✓
+                            </span>
+                          )}
+                        </button>
+                        <div
+                          className="flow-next-packets"
+                          key={`queue:${i}:${game.state.lanes[i]}`}
+                          aria-label={`Дальше в очереди ${i + 1}`}
+                        >
+                          {remaining
+                            .slice(1, puzzle.version === 4 ? 3 : 4)
+                            .map((packet) => (
+                              <span
+                                key={packet.id}
+                                data-flow-packet={packet.id}
+                                data-flow-linked={packet.link}
+                                aria-label={
+                                  packet.mystery
+                                    ? "Скрытая команда"
+                                    : `${FLOW_COLORS[packet.color].name}, ${packet.count} кубиков${packet.link ? ", связанная пара" : ""}`
+                                }
+                              >
+                                <FlowCrate
+                                  color={packet.color}
+                                  count={packet.count}
+                                  concealed={packet.mystery}
+                                />
+                              </span>
+                            ))}
+                          {remaining.length >
+                            (puzzle.version === 4 ? 3 : 4) && (
+                            <span className="flow-more-packets">
+                              +
+                              {remaining.length -
+                                (puzzle.version === 4 ? 3 : 4)}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+                <div className="flow-game-message" role="status">
+                  {message ||
+                    (game.stuck ? "Нет свободных слотов. Отмени ход." : "")}
+                </div>
               </div>
-              <div className="flow-game-message" role="status">
-                {message ||
-                  (game.stuck ? "Нет свободных слотов. Отмени ход." : "")}
+              <div className="flow-tools">
+                <div className="flow-toolbar">
+                  <button
+                    type="button"
+                    data-flow-sound="undo"
+                    aria-label="Отмена −20"
+                    title="Отмена −20"
+                    onClick={() => action({ type: "undo" })}
+                    disabled={!game.history.length || busy}
+                  >
+                    <FlowIcon kind="undo" />
+                    <span className="flow-tool-cost" aria-hidden="true">
+                      −20
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Все команды"
+                    title="Все команды"
+                    onClick={() => queueDialog.current?.showModal()}
+                  >
+                    <FlowIcon kind="queue" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Заново"
+                    title="Заново"
+                    onClick={() => restart.current?.showModal()}
+                    disabled={busy}
+                  >
+                    <FlowIcon kind="restart" />
+                  </button>
+                </div>
+                <p className="flow-score-note">
+                  <span aria-hidden="true">★</span> {game.score} / 1000
+                </p>
               </div>
-              <div className="flow-toolbar">
-                <button
-                  type="button"
-                  data-flow-sound="undo"
-                  aria-label="Отмена −20"
-                  title="Отмена −20"
-                  onClick={() => action({ type: "undo" })}
-                  disabled={!game.history.length || busy}
-                >
-                  <FlowIcon kind="undo" />
-                  <span className="flow-tool-cost" aria-hidden="true">
-                    −20
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  aria-label="Все команды"
-                  title="Все команды"
-                  onClick={() => queueDialog.current?.showModal()}
-                >
-                  <FlowIcon kind="queue" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Заново"
-                  title="Заново"
-                  onClick={() => restart.current?.showModal()}
-                  disabled={busy}
-                >
-                  <FlowIcon kind="restart" />
-                </button>
-              </div>
-              <p className="flow-score-note">
-                <span aria-hidden="true">★</span> {game.score} / 1000
-              </p>
             </div>
           )}
           <div className="flow-share-message" role="status">

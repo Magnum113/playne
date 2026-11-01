@@ -1967,13 +1967,17 @@
   }
 }
 
-/* Active play: a compact phone stack and a broad desktop board with side controls. */
+/* Keep the picture, docks and queues in one reading order; tools may sit beside them. */
 .flow-controls {
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+}
+.flow-colony,
+.flow-tools {
+  display: contents;
 }
 .flow-play-top {
   grid-template-columns: 44px 44px minmax(0, 1fr) 58px;
@@ -2043,17 +2047,18 @@
 @media (min-width: 1000px) {
   .flow-play,
   .flow-play:has(.flow-result) {
-    width: min(calc(100% - 48px), 1320px);
+    width: min(calc(100% - 48px), 1040px);
     height: auto;
     min-height: 100svh;
     max-height: none;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 96px;
+    grid-template-rows: auto auto auto;
     align-items: start;
+    align-content: start;
     column-gap: 24px;
-    row-gap: 20px;
-    padding: 24px;
+    row-gap: 12px;
+    padding: 20px 24px;
   }
   .flow-play-top {
     grid-column: 1 / -1;
@@ -2085,9 +2090,11 @@
     width: 100%;
     min-height: 0;
     align-self: start;
+    position: relative;
+    z-index: 2;
   }
   .flow-play .flow-progress {
-    width: calc(100% - 56px);
+    width: min(calc(100% - 56px), 560px);
     height: 4px;
     margin-bottom: 12px;
   }
@@ -2095,83 +2102,107 @@
   .flow-play:has(.flow-result) .flow-board-wrap {
     display: block;
     flex: none;
-    min-height: 0;
-    height: auto;
     width: 100%;
+    /* Reserve the lower rows for docks and queues; short windows can scroll. */
+    height: clamp(460px, calc(100svh - 338px), 760px);
+    min-height: 0;
   }
   .flow-play .flow-board-wrap .flow-scene {
-    position: static;
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
-    height: auto;
-    max-height: none;
+    height: 100%;
+    max-height: 100%;
   }
   .flow-controls {
-    grid-column: 2;
-    grid-row: 2;
-    position: sticky;
-    top: 24px;
-    gap: 20px;
-    padding: 20px;
-    border: 1px solid #fff9;
-    border-radius: 28px;
-    background: #fff5ddc9;
-    box-shadow: 0 8px 24px #593d2412;
+    display: contents;
   }
-  .flow-controls .flow-docks {
-    width: 100%;
+  .flow-colony {
+    grid-column: 1;
+    grid-row: 3;
+    display: flex;
+    flex-direction: column;
+    justify-self: center;
+    width: min(100%, 420px);
+    min-width: 0;
+    z-index: 1;
+  }
+  .flow-colony .flow-docks {
+    width: min(100%, 312px);
     max-width: none;
-    margin: 0 0 4px;
+    margin: 0 0 14px;
   }
-  .flow-controls .flow-supply {
+  .flow-colony .flow-supply {
     width: 100%;
   }
-  .flow-controls .flow-next-packets {
-    min-height: 100px;
+  .flow-colony .flow-launch {
+    height: 58px;
+    aspect-ratio: auto;
   }
-  .flow-controls .flow-next-packets > span:not(.flow-more-packets) {
-    height: 42px;
+  .flow-colony .flow-next-packets {
+    min-height: 82px;
   }
-  .flow-controls .flow-game-message {
+  .flow-colony .flow-next-packets > span:not(.flow-more-packets) {
+    height: 34px;
+  }
+  .flow-colony .flow-game-message {
     position: static;
     inset: auto;
     padding: 10px 12px;
-    margin: 0;
+    margin: 12px 0 0;
     font-size: 12px;
   }
-  .flow-controls .flow-toolbar {
-    margin: 0;
-    padding: 18px 12px 22px;
-    border: 1px solid #a9d9ff;
-    border-radius: 22px;
-    gap: 12px;
+  .flow-tools {
+    grid-column: 2;
+    grid-row: 2 / 4;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 96px;
+    min-width: 0;
+    padding-top: 36px;
   }
-  .flow-controls .flow-score-note {
-    margin-top: -8px;
+  .flow-tools .flow-toolbar {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    margin: 0;
+    padding: 18px 16px 24px;
+    border: 1px solid #a9d9ff;
+    border-radius: 24px;
+  }
+  .flow-tools .flow-score-note {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+  .flow-play:has(.flow-result) {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: auto auto;
+  }
+  .flow-play:has(.flow-result) .flow-board-wrap {
+    height: calc(100svh - 116px);
   }
   .flow-play .flow-result {
     grid-column: 2;
     grid-row: 2;
+    width: 100%;
     align-self: start;
   }
   .flow-play .flow-share-message {
+    grid-column: 1;
+  }
+  .flow-play:has(.flow-result) .flow-share-message {
     grid-column: 2;
   }
 }
 
-/* Workers can travel from the side dock into the picture without being clipped. */
+/* Workers can travel between the picture and the docks without being clipped. */
 .flow-arena,
 .flow-board-wrap {
   overflow: visible;
-}
-@media (min-width: 1000px) {
-  .flow-arena {
-    position: relative;
-    z-index: 2;
-  }
-  .flow-controls {
-    z-index: 1;
-  }
 }
 
 /* Fixed dock holes and stable keyed boxes let fragmented free slots close smoothly. */
@@ -2211,26 +2242,5 @@
   .flow-play .flow-dock-occupant,
   .flow-dock-bridge {
     transition: none;
-  }
-}
-
-/* HUD 48 + progress 16 + row gap 12 + vertical gutters 40 = 116px. */
-@media (min-width: 1000px) {
-  .flow-play,
-  .flow-play:has(.flow-result) {
-    padding-block: 20px;
-    row-gap: 12px;
-  }
-  .flow-play .flow-board-wrap,
-  .flow-play:has(.flow-result) .flow-board-wrap {
-    height: calc(100svh - 116px);
-    min-height: 0;
-  }
-  .flow-play .flow-board-wrap .flow-scene {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    max-height: 100%;
   }
 }
