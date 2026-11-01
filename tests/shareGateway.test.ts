@@ -10,16 +10,16 @@ function response() {
 }
 describe('public share gateway', () => {
   it('uses branded preview links in production without sending test links outside their installation', () => {
-    expect(challengePublicOrigin('https://playne.ru')).toBe('https://go.playne.ru');
+    expect(challengePublicOrigin('https://playne.ru')).toBe('https://playne-results.vercel.app');
     expect(challengePublicOrigin('https://challenges.test')).toBe('https://challenges.test');
     expect(challengePublicOrigin('http://localhost:3035')).toBe('http://localhost:3035');
   });
   it('serves social images from the gateway and sends players to the original game', () => {
     const html = `<link rel="canonical" href="https://playne.ru/c/${code}"><meta property="og:url" content="https://playne.ru/c/${code}"><meta property="og:image" content="https://playne.ru/api/challenges/token/image.png?v=1"><meta name="twitter:image" content="https://playne.ru/api/challenges/token/image.png?v=1"><a href="/naglaz/?challenge=token">Играть</a>`;
     const result = gatewayHtml(html);
-    expect(result).toContain('property="og:url" content="https://playne-share.vercel.app/c/');
-    expect(result).toContain('property="og:image" content="https://playne-share.vercel.app/api/');
-    expect(result).toContain('name="twitter:image" content="https://playne-share.vercel.app/api/');
+    expect(result).toContain('property="og:url" content="https://playne-results.vercel.app/c/');
+    expect(result).toContain('property="og:image" content="https://playne-results.vercel.app/api/');
+    expect(result).toContain('name="twitter:image" content="https://playne-results.vercel.app/api/');
     expect(result).toContain('href="https://playne.ru/naglaz/?challenge=token"');
     expect(result).toContain('rel="canonical" href="https://playne.ru/c/');
   });
@@ -51,12 +51,12 @@ describe('public share gateway', () => {
     expect(failed.statusCode).toBe(503);
   });
   it('uses the branded host only when explicitly allowed, including after the origin returns branded URLs', async () => {
-    const html = '<meta property="og:url" content="https://go.playne.ru/c/test"><meta property="og:image" content="https://playne.ru/api/challenges/token/image.png">';
+    const html = '<meta property="og:url" content="https://playne-results.vercel.app/c/test"><meta property="og:image" content="https://playne.ru/api/challenges/token/image.png">';
     for (const host of ['go.playne.ru', 'evil.example']) {
       const res=response();
       await handle({method:'GET',url:`/c/${code}`,headers:{host}},res,async()=>new Response(html,{headers:{'content-type':'text/html'}}));
       const body=res.end.mock.calls[0][0].toString();
-      expect(body).toContain(`property="og:image" content="https://${host==='go.playne.ru'?'go.playne.ru':'playne-share.vercel.app'}/api/`);
+      expect(body).toContain(`property="og:image" content="https://${host==='go.playne.ru'?'go.playne.ru':'playne-results.vercel.app'}/api/`);
       expect(body).not.toContain('evil.example');
     }
   });

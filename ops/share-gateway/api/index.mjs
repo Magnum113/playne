@@ -1,5 +1,5 @@
 const ORIGIN = 'https://playne.ru';
-const SHARE_ORIGIN = 'https://playne-share.vercel.app';
+const SHARE_ORIGIN = 'https://playne-results.vercel.app';
 
 // Only existing public challenge pages, their PNGs and the public analytics script.
 // Never forward credentials, cookies, arbitrary destinations or user query strings.
@@ -13,7 +13,7 @@ export function upstreamPath(path) {
 
 export function gatewayHtml(html, shareOrigin = SHARE_ORIGIN) {
   return html
-    .replace(/(property="og:url" content=")https:\/\/(?:playne\.ru|go\.playne\.ru)/g, `$1${shareOrigin}`)
+    .replace(/(property="og:url" content=")https:\/\/(?:playne\.ru|go\.playne\.ru|playne-results\.vercel\.app)/g, `$1${shareOrigin}`)
     .replace(/((?:property="og:image"|name="twitter:image") content=")https:\/\/playne\.ru/g, `$1${shareOrigin}`)
     .replace(/href="\//g, `href="${ORIGIN}/`)
     .replace('<script src="/api/challenges/analytics.js" defer>', '<script src="/api/continue.js" defer>');

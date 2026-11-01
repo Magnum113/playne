@@ -4,11 +4,14 @@ Telegram failed to generate previews for playne.ru despite valid initial HTML,
 public PNGs, DNS/TLS and WebpageBot refreshes. Serving the same live HTML and PNG
 through this external gateway produced the full result card in Telegram.
 
-- Production domain: `go.playne.ru` (Vercel project `playne-share`).
-- Public diagnostic alias: `playne-share.vercel.app`.
-- DNS: A `go` → `76.76.21.21`, a supported Vercel value returned by domain config.
-  This address was reachable from the tested Russian network; newer default
-  vercel.app addresses timed out there.
+- Production domain: `playne-results.vercel.app` (Vercel project `playne-share`,
+  `prj_cDN7MVNmecxQ2dvew7peeZ5M0dGX`). This production project domain is public,
+  resolves to an ingress reachable from the tested network and displays Telegram cards.
+- Diagnostic alias: `playne-share.vercel.app`; its ingress timed out from the
+  tested local network, so it is not used for new links.
+- Branded candidate `go.playne.ru`: A `go` → `76.76.21.21`, a supported Vercel
+  address returned by domain config. DNS and HTTPS verified, but Telegram did not
+  generate its card during acceptance. Do not enable it until an actual card works.
 - Only public short/legacy challenge landings and their images are relayed.
   All cookies, authorization and query strings are discarded. No arbitrary URLs.
 - HTML/PNG always recheck the original challenge and use `no-store`; revocation
@@ -25,5 +28,5 @@ or dependencies. Verify public GET/HEAD and the actual Telegram card after chang
 Do not infer preview success from a 200 response or WebpageBot's success message.
 
 Rollback: return the production URL mapping in `challenge-links.ts` to playne.ru;
-keep the gateway available so previously shared go.playne.ru links keep working.
+keep the gateway available so previously shared gateway links keep working.
 The main API release uses the existing exact-SHA deployment workflow.
