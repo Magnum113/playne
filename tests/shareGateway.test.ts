@@ -63,7 +63,7 @@ describe('public share gateway', () => {
   it('continues browsers on the same original challenge without copying cookies or opaque query parameters', async () => {
     expect(gatewayHtml('<script src="/api/challenges/analytics.js" defer>')).toContain('src="/api/continue.js"');
     const res=response(), fetcher=vi.fn();
-    await handle({method:'GET',url:'/api/continue.js'},res,fetcher);
+    await handle({method:'GET',url:'/api/continue.js?path=api%2Fcontinue.js'},res,fetcher);
     expect(res.statusCode).toBe(200);
     const script=res.end.mock.calls[0][0];
     expect(script).toContain("location.replace('https://playne.ru' + location.pathname)");

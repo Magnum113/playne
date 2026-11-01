@@ -29,15 +29,16 @@ export async function handle(request, response, fetcher = fetch) {
     response.statusCode = 405;
     return response.end();
   }
-  if (request.url === '/api/continue.js') {
+  const requestedPath = request.url.startsWith('/') && !request.url.startsWith('//')
+    ? new URL(request.url, SHARE_ORIGIN).pathname : null;
+  if (requestedPath === '/api/continue.js') {
     response.setHeader('Content-Type', 'application/javascript; charset=utf-8');
     response.statusCode = 200;
     // Browsers continue on the main site, preserving login and existing analytics.
     // Social crawlers read the HTML/PNG without executing JavaScript.
     return response.end(request.method === 'HEAD' ? undefined : `if (/^\\/(?:c\\/[A-Za-z0-9_-]{16}|challenge\\/[A-Za-z0-9_-]{43})$/.test(location.pathname)) location.replace('https://playne.ru' + location.pathname);`);
   }
-  const path = request.url.startsWith('/') && !request.url.startsWith('//')
-    ? upstreamPath(new URL(request.url, SHARE_ORIGIN).pathname) : null;
+  const path = requestedPath && upstreamPath(requestedPath);
   if (!path) {
     response.statusCode = 404;
     return response.end('Not found');
