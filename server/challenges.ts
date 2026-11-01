@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { randomBytes } from "node:crypto";
+import { challengePublicOrigin } from "./challenge-links";
 import { scoreVersion } from "./scoring";
 import { lineMoscowDate } from "../src/line";
 import {
@@ -110,11 +111,12 @@ function metadata(
 ): PublicChallenge {
   supported(run);
   const base = new URL(origin).origin;
+  const publicBase = challengePublicOrigin(origin);
   return {
     token: run.token,
     url: run.short_code
-      ? `${base}/c/${run.short_code}`
-      : `${base}/challenge/${run.token}`,
+      ? `${publicBase}/c/${run.short_code}`
+      : `${publicBase}/challenge/${run.token}`,
     imageUrl: `${base}/api/challenges/${run.token}/image.png?v=${CHALLENGE_PREVIEW_VERSION}`,
     game: run.game,
     gameName: names[run.game as ChallengeGame],
