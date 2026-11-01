@@ -147,7 +147,7 @@ try {
       );
       assert(description.includes("Pressing Under Pressure"));
       assert(
-        text.includes("The Impossible Quiz") &&
+        text.includes("Нажимай, удерживай или жди.") &&
           text.includes("Первая попытка до ошибки доступна без входа"),
       );
       assert(

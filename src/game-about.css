@@ -1,0 +1,38 @@
+.game-about {
+  margin-top: 32px;
+  border-top: 1px solid var(--line);
+}
+.game-about > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 52px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+  list-style: none;
+}
+.game-about > summary::-webkit-details-marker {
+  display: none;
+}
+.game-about > summary:hover {
+  color: var(--text);
+}
+.game-about > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.game-about > summary > span {
+  font-size: 20px;
+}
+.game-about[open] > summary > span {
+  transform: rotate(45deg);
+}
+.game-about > section {
+  margin-top: 0;
+  padding-top: 20px;
+  border-top: 0;
+}
