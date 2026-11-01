@@ -86,6 +86,10 @@ export const PLAY_GOALS = {
   weekOpen: "playne_week_open",
 } as const;
 
+export const THEME_GOALS = {
+  darkEnabled: "playne_dark_theme_enabled",
+} as const;
+
 export const ACCOUNT_GOALS = {
   loginStart: "account_yandex_login_start",
   loginSuccess: "account_yandex_login_success",
@@ -117,6 +121,7 @@ export type MetrikaGoal =
   | Values<typeof LINE_GOALS>
   | Values<typeof BRAIN_GOALS>
   | Values<typeof PLAY_GOALS>
+  | Values<typeof THEME_GOALS>
   | Values<typeof SHARE_GOALS>
   | Values<typeof BRAIN_GAME_GOALS>;
 export type MetrikaParams = Record<string, string | number | boolean>;
