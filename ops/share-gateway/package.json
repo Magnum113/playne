@@ -1,1 +1,1 @@
-{"name":"playne-share-gateway","private":true,"type":"module","engines":{"node":"24.x"}}
+{"name":"playne-share-gateway","private":true,"type":"module","engines":{"node":"24.x"},"dependencies":{"@resvg/resvg-wasm":"2.6.2"}}

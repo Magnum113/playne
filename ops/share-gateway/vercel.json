@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [{"source":"/:path*","destination":"/api/index"}],
+  "functions": {"api/index.mjs":{"includeFiles":"{lib/**,server/assets/**,node_modules/@resvg/resvg-wasm/**}","maxDuration":15}},
   "regions": ["fra1"]
 }

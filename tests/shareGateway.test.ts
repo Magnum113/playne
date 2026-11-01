@@ -50,6 +50,21 @@ describe('public share gateway', () => {
     await handle({method:'GET',url:`/c/${code}`},failed,async()=>{throw Error('timeout')});
     expect(failed.statusCode).toBe(503);
   });
+  it('renders PNGs locally from small verified metadata instead of transferring the remote image', async () => {
+    const token='a'.repeat(43), data={token,score:179,game:'naglaz'};
+    const png=Buffer.from('89504e470d0a1a0a','hex');
+    const fetcher=vi.fn().mockResolvedValue(Response.json(data));
+    const renderer=vi.fn().mockResolvedValue(png), res=response();
+    await handle({method:'GET',url:`/api/challenges/${token}/image.png?v=3`},res,fetcher,renderer);
+    expect(fetcher.mock.calls[0][0]).toBe(`https://playne.ru/api/challenges/${token}`);
+    expect(renderer).toHaveBeenCalledWith(data);
+    expect(res.statusCode).toBe(200);
+    expect(res.end).toHaveBeenCalledWith(png);
+    const revoked=response(), renderRevoked=vi.fn();
+    await handle({method:'GET',url:`/api/challenges/${token}/image.png`},revoked,async()=>new Response('',{status:404}),renderRevoked);
+    expect(revoked.statusCode).toBe(404);
+    expect(renderRevoked).not.toHaveBeenCalled();
+  });
   it('uses the branded host only when explicitly allowed, including after the origin returns branded URLs', async () => {
     const html = '<meta property="og:url" content="https://playne-results.vercel.app/c/test"><meta property="og:image" content="https://playne.ru/api/challenges/token/image.png">';
     for (const host of ['go.playne.ru', 'evil.example']) {

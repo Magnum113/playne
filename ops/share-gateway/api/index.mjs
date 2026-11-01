@@ -1,5 +1,8 @@
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
 const ORIGIN = 'https://playne.ru';
 const SHARE_ORIGIN = 'https://playne-results.vercel.app';
+const productionRenderer = data => require('../lib/preview.cjs').renderChallengePng(data);
 
 // Only existing public challenge pages, their PNGs and the public analytics script.
 // Never forward credentials, cookies, arbitrary destinations or user query strings.
@@ -19,7 +22,7 @@ export function gatewayHtml(html, shareOrigin = SHARE_ORIGIN) {
     .replace('<script src="/api/challenges/analytics.js" defer>', '<script src="/api/continue.js" defer>');
 }
 
-export async function handle(request, response, fetcher = fetch) {
+export async function handle(request, response, fetcher = fetch, renderPng = productionRenderer) {
   response.setHeader('Cache-Control', 'no-store');
   response.setHeader('X-Content-Type-Options', 'nosniff');
   response.setHeader('Referrer-Policy', 'no-referrer');
@@ -44,7 +47,11 @@ export async function handle(request, response, fetcher = fetch) {
     return response.end('Not found');
   }
   try {
-    const upstream = await fetcher(ORIGIN + path, {
+    const image = path.endsWith('/image.png');
+    // Transferring the source PNG across regions proved unreliable. Read the
+    // small public metadata response and render the same artwork here instead.
+    const sourcePath = image ? path.slice(0, -'/image.png'.length) : path;
+    const upstream = await fetcher(ORIGIN + sourcePath, {
       redirect: 'error', signal: AbortSignal.timeout(6000),
       headers: { 'User-Agent': 'Playne-Share-Gateway/1.0' },
     });
@@ -53,13 +60,20 @@ export async function handle(request, response, fetcher = fetch) {
       response.statusCode = upstream.status === 404 ? 404 : 503;
       return response.end('Challenge unavailable');
     }
-    const type = path.endsWith('.png') ? 'image/png' : path.endsWith('.js') ? 'application/javascript' : 'text/html';
-    if (!(upstream.headers.get('content-type') || '').startsWith(type)) throw new Error('Unexpected content');
+    const type = image ? 'image/png' : path.endsWith('.js') ? 'application/javascript' : 'text/html';
+    if (!(upstream.headers.get('content-type') || '').startsWith(image ? 'application/json' : type)) throw new Error('Unexpected content');
     const bytes = Buffer.from(await upstream.arrayBuffer());
-    if (bytes.length > 1024 * 1024) throw new Error('Response too large');
-    if (type === 'image/png' && bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new Error('Invalid PNG');
+    if (bytes.length > (image ? 64 * 1024 : 1024 * 1024)) throw new Error('Response too large');
     const shareOrigin = request.headers?.host === 'go.playne.ru' ? 'https://go.playne.ru' : SHARE_ORIGIN;
-    const body = type === 'text/html' ? Buffer.from(gatewayHtml(bytes.toString('utf8'), shareOrigin)) : bytes;
+    let body;
+    if (image) {
+      const data = JSON.parse(bytes.toString('utf8'));
+      if (sourcePath !== `/api/challenges/${data.token}` || !Number.isFinite(data.score)) throw new Error('Invalid challenge');
+      body = await renderPng(data);
+      if (body.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new Error('Invalid PNG');
+    } else {
+      body = type === 'text/html' ? Buffer.from(gatewayHtml(bytes.toString('utf8'), shareOrigin)) : bytes;
+    }
     response.setHeader('Content-Type', type === 'image/png' ? type : `${type}; charset=utf-8`);
     const csp = upstream.headers.get('content-security-policy');
     if (csp) response.setHeader('Content-Security-Policy', csp);

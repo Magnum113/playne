@@ -12,8 +12,12 @@ through this external gateway produced the full result card in Telegram.
 - Branded candidate `go.playne.ru`: A `go` → `76.76.21.21`, a supported Vercel
   address returned by domain config. DNS and HTTPS verified, but Telegram did not
   generate its card during acceptance. Do not enable it until an actual card works.
-- Only public short/legacy challenge landings and their images are relayed.
+- Only public short/legacy challenge landings and their images are served.
   All cookies, authorization and query strings are discarded. No arbitrary URLs.
+- PNGs are rendered on the gateway from small public challenge metadata, using
+  the exact shared artwork, WASM renderer and fonts. Transferring the original
+  PNG from Russia to the gateway intermittently exceeded the request timeout,
+  even when the source logged 200; do not restore that binary proxy path.
 - HTML/PNG always recheck the original challenge and use `no-store`; revocation
   therefore remains effective. Upstream errors fail closed.
 - JavaScript-capable visitors continue to the original challenge on playne.ru.
@@ -22,9 +26,13 @@ through this external gateway produced the full result card in Telegram.
 - New share URLs are selected centrally by `server/challenge-links.ts`; local
   and test installations retain their own origin. Old playne.ru links still work.
 
-Deploy the files in this directory as the root of the existing Vercel project,
-production target, no framework, no install/build commands. There are no secrets
-or dependencies. Verify public GET/HEAD and the actual Telegram card after changes.
+Run `node scripts/build-share-gateway.mjs` from the repository root. Deploy the
+generated `.ai/telegram-preview/gateway-dist` as the root of the existing Vercel
+project, production target, no framework or build command. Install its pinned
+`@resvg/resvg-wasm` dependency with npm; do not disable installation. The build
+copies both fonts and their license and bundles the shared renderer, leaving
+the WASM npm dependency external. There are no secrets. Verify public GET/HEAD,
+fresh PNG hashes/timings and the actual Telegram card after changes.
 Do not infer preview success from a 200 response or WebpageBot's success message.
 
 Rollback: return the production URL mapping in `challenge-links.ts` to playne.ru;
