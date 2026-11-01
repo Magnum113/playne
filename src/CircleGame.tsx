@@ -203,7 +203,7 @@ export default function CircleGame() {
           eyebrow="ОДНА ЛИНИЯ. ИДЕАЛЬНЫЙ КРУГ."
           description="Обведи точку одним движением. Насколько ровно получится?"
           descriptionId="circle-instructions"
-          record={{ value: best, unit: "%" }}
+          record={{ game: "circle", value: best, unit: "%" }}
           onRules={() => {
             rules.current?.showModal();
             reachGoal(CIRCLE_GOALS.rulesOpen);

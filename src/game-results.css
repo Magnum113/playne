@@ -94,9 +94,7 @@
   .game-result-aside {
     min-width: 0;
   }
-  .game-result-layout .save-result.is-saved {
-    display: none;
-  }
+  .game-result-layout .save-result.is-saved { display: block; }
   .game-result-main .shade-play-area.is-finished {
     display: block;
   }
@@ -116,3 +114,7 @@
     top: 16px;
   }
 }
+
+.result-next-game { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 20px; font-size: 14px; }
+.result-next-game > span { color: var(--muted); }
+.result-next-game a { min-height: 44px; display: flex; align-items: center; }

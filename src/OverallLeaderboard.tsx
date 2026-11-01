@@ -120,6 +120,8 @@ export function OverallStandings({
         {entries.map((entry, index) => (
           <li key={index}>
             <details
+              tabIndex={entry.isMe ? -1 : undefined}
+              id={entry.isMe ? "my-rank-row" : undefined}
               className={`overall-standing${entry.isMe ? " is-me" : ""}`}
             >
               <summary

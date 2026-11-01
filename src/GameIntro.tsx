@@ -4,6 +4,8 @@ import {
   loginToPlay,
   type GameId,
 } from "./account";
+import { pressScoreWord } from "./pressure";
+import { useAccountBest } from "./useAccountBest";
 import type { ReactNode } from "react";
 
 export type GameRecordData = {
@@ -12,6 +14,8 @@ export type GameRecordData = {
   unit?: string;
   modeLabel?: string;
   hint?: string;
+  game?: GameId;
+  mode?: string;
 };
 export function GameRecord({
   value,
@@ -19,25 +23,30 @@ export function GameRecord({
   unit,
   modeLabel,
   hint,
+  game,
+  mode = "classic",
 }: GameRecordData) {
-  const number = value.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
-  const suffix = max ? `/ ${max}` : unit;
+  const account = useAccountBest(game, mode);
+  const source = account.ready ? "В аккаунте" : "На устройстве";
+  const shown = account.ready ? account.value : value;
+  const number = shown.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+  const suffix = max ? `/ ${max}` : game === "pressure" ? pressScoreWord(shown) : unit;
   return (
     <div
       className="game-record"
-      title={hint ?? "Личный рекорд в этом браузере"}
+      title={`${hint ?? "Лучший результат"}. ${source}. ${modeLabel ?? ""}`}
     >
       <span className="game-record-label">Твой рекорд</span>
       <div
         className="game-record-value"
         aria-label={
-          value > 0 ? `${number} ${suffix ?? ""}` : "Пока нет рекорда"
+          shown > 0 ? `${number} ${suffix ?? ""}` : "Пока нет рекорда"
         }
       >
-        <strong>{value > 0 ? number : "—"}</strong>
-        {value > 0 && suffix && <span>{suffix}</span>}
+        <strong>{shown > 0 ? number : "—"}</strong>
+        {shown > 0 && suffix && <span>{suffix}</span>}
       </div>
-      <small>{modeLabel ?? "В этом браузере"}</small>
+      <small>{modeLabel ? `${source} · ${modeLabel}` : source}</small>
     </div>
   );
 }

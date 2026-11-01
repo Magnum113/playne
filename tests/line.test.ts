@@ -25,7 +25,7 @@ const adjacent = (a: number, b: number, cols: number) =>
 
 function solveByHints(puzzle: LinePuzzle): number[] {
   let path: number[] = [];
-  for (let i = 0; i < puzzle.rows * puzzle.cols; i++) {
+  for (let i = 1; i < puzzle.rows * puzzle.cols; i++) {
     const hint = hintLinePath(puzzle, path);
     expect(hint.path).toHaveLength(i + 1);
     expect(hint.nextCell).toBe(hint.path.at(-1));
@@ -137,7 +137,7 @@ describe("one-line hints", () => {
       path: [0], nextCell: 0, retracted: 2,
     });
     expect(hintLinePath(LINE_INTRO_PUZZLE, null)).toEqual({
-      path: [0], nextCell: 0, retracted: 0,
+      path: [0, 1], nextCell: 1, retracted: 0,
     });
   });
 
@@ -145,7 +145,7 @@ describe("one-line hints", () => {
     const hint = hintLinePath(LINE_INTRO_PUZZLE, LINE_INTRO_PATH);
     expect(hint).toEqual({ path: [...LINE_INTRO_PATH], nextCell: null, retracted: 0 });
     hint.path[0] = 99;
-    expect(hintLinePath(LINE_INTRO_PUZZLE, []).path).toEqual([0]);
+    expect(hintLinePath(LINE_INTRO_PUZZLE, []).path).toEqual([0, 1]);
   });
 
   it("does not reuse a cached solution for changed clues or walls with the same id", () => {

@@ -274,7 +274,7 @@ export default function App() {
               title="На глаз"
               eyebrow="ИГРА В РАЗМЕРЫ"
               description="Подбери размер одного предмета рядом с другим."
-              record={{ value: best, max: 500 }}
+              record={{ game: "naglaz", value: best, max: 500 }}
               onRules={openHelp}
             />
             <section className="game-welcome naglaz-welcome">

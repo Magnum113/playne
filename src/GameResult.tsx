@@ -1,4 +1,5 @@
 import { SaveResult as Status, type RankedRun, type GameId } from "./account";
+import NextGame from "./NextGame";
 import ShareResult from "./ShareResult";
 import ChallengeContext from "./ChallengeContext";
 export function SaveResult({
@@ -30,7 +31,6 @@ export function SaveResult({
           comparisonToken={run.comparisonToken}
         />
       )}
-      {complete && !hideShare && <ShareResult runId={run.state.id} />}
       {token && complete ? (
         <p className="save-result">
           Сравнение сохранено. Результат не меняет рейтинг.
@@ -38,6 +38,8 @@ export function SaveResult({
       ) : (
         <Status run={run} game={game} />
       )}
+      {complete && !hideShare && <ShareResult runId={run.state.id} />}
+      {complete && <NextGame game={game} />}
     </>
   );
 }

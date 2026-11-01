@@ -422,6 +422,7 @@ export default function ColorfleGame() {
             eyebrow="ПОПАДИ В ЦВЕТ"
             description="Подбери цвет как можно точнее."
             record={{
+              game: "colorfle", mode,
               value: state.stats.best,
               max: 500,
               modeLabel: shadeModeName(mode),

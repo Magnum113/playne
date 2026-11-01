@@ -1,6 +1,7 @@
+import { counted } from "./russian";
 import { RulesDialog } from "./RulesDialog";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ApiError, SaveResult, useGuestTrial, useRankedRun } from "./account";
+import { ApiError, SaveResult, useGuestTrial, useRankedRun, loginToPlay } from "./account";
 import type { ServerRun } from "./rankedQueue";
 import { GameHeader } from "./SiteHeader";
 import { GameIntro, GameStartAction } from "./GameIntro";
@@ -167,6 +168,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
   const stage = useRef<HTMLElement>(null);
   const summary = useRef<HTMLElement>(null);
   const sending = useRef(false);
+  const [hintedCar, setHintedCar] = useState<string | null>(null);
   const hintRequest = useRef<{ id: string; moves: SlideMove[] } | null>(null);
   const resultRequest = useRef<{
     id: string;
@@ -381,7 +383,13 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
       Array.isArray(restored.hintRequest.moves)
         ? restored.hintRequest
         : null;
-    setPhase("ready");
+    setHintedCar(null);
+    setPhase(game === "rotate" || game === "slide" ? "playing" : "ready");
+  }
+
+  async function advanceRound(next: number, data: ServerRun) {
+    prepareRound(next, data);
+    if (game === "rotate" || game === "slide") await startRound(next, data);
   }
 
   async function startRound(next = index, data = run, restored?: Saved | null) {
@@ -514,7 +522,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
       const restored =
         previous?.id === data.id && previous.index === next ? previous : null;
       prepareRound(next, data, restored);
-      if (data.challenge.states?.[next]?.startedAt)
+      if (data.challenge.states?.[next]?.startedAt || game === "rotate" || game === "slide")
         await startRound(next, data, restored);
     } catch (e) {
       setError(errorText(e));
@@ -589,6 +597,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
           "Подсказка не совпала с полем. Обнови страницу, чтобы продолжить партию.",
         );
       setMoves(next);
+      setHintedCar(response.move?.carId ?? null);
       reachGoal(BRAIN_GOALS.hintUsed, {
         game,
         mode,
@@ -598,7 +607,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
       });
       setMessage(
         response.move
-          ? `Подсказка: машина ${response.move.carId} сдвинута на ${Math.abs(response.move.delta)}. −15 очков. Отсюда до выхода: ${Math.max(0, response.remainingMoves - 1)} ходов.`
+          ? `Машина ${response.move.carId}: ${round.cars.find(c => c.id === response.move.carId)?.axis === "x" ? response.move.delta > 0 ? "вправо" : "влево" : response.move.delta > 0 ? "вниз" : "вверх"} на ${counted(Math.abs(response.move.delta), "клетку", "клетки", "клеток")}. −15 очков. До выхода: ${counted(Math.max(0, response.remainingMoves - 1), "ход", "хода", "ходов")}.`
           : "Красная машина уже у выхода. Можно записать решение.",
       );
     } catch (e) {
@@ -654,6 +663,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
           key={`${run?.id}:${index}`}
           round={round}
           moves={moves}
+          highlightedCar={hintedCar}
           onChange={(next) => {
             setMoves(next);
             setMessage("");
@@ -686,12 +696,12 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
   const dailyResult = run?.mode !== "practice";
   const newDailyAvailable = dailyResult && !!run && run.challenge.day !== today;
   const saveActionHasPriority =
-    dailyResult && (!access.user || ranked.state.status === "save-error");
+    !access.user || ranked.state.status === "save-error";
   const flashCanAnswer =
     !timing?.revealUntil || now + timing.offset >= timing.revealUntil;
   function roundMetric(answer: any, roundIndex: number): string {
     if (game === "slide")
-      return `${Array.isArray(answer.moves) ? answer.moves.length : (answer.moveCount ?? 0)} ходов · ${answer.hints ?? 0} подсказок`;
+      return `${counted(Array.isArray(answer.moves) ? answer.moves.length : (answer.moveCount ?? 0), "ход", "хода", "ходов")} · ${counted(answer.hints ?? 0, "подсказка", "подсказки", "подсказок")}`;
     if (game === "dispatch")
       return `${answer.correct ?? 0} / ${answer.total ?? run?.challenge.rounds[roundIndex]?.trains?.length ?? 0} поездов`;
     if (game === "flash")
@@ -713,6 +723,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
         </nav>
         <GameIntro
           title={content.name}
+          record={phase === "welcome" ? { game, mode, value: 0, max: 500, modeLabel: mode === "practice" ? "Практика" : "Лучшая задача дня" } : undefined}
           eyebrow={content.skill.toUpperCase()}
           description={content.description}
           onRules={() => {
@@ -739,7 +750,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 />
               )}
               {!challengeToken && mode === "practice" && (
-                <ModeChoice
+                <details className="game-details"><summary>Сложность: {brainDifficultyOptions[difficulty - 1].label}</summary><ModeChoice
                   value={String(difficulty)}
                   onChange={(value) => {
                     setDifficulty(Number(value) as BrainDifficulty);
@@ -758,12 +769,13 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                   legend="Сложность практики"
                   className="brain-difficulty-choice"
                   disabled={busy}
-                />
+                /></details>
               )}
               {!challengeToken && (
-                <p className="brain-mode-note">
-                  {mode === "classic" ? brainDailyText : brainPracticeText}
-                </p>
+                <details className="game-details">
+                  <summary>Как устроены задачи и рейтинг</summary>
+                  <p>{mode === "classic" ? brainDailyText : brainPracticeText}</p>
+                </details>
               )}
               {message && <p role="status">{message}</p>}
               <GameStartAction
@@ -780,7 +792,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 caption={
                   saved && !saved.completed
                     ? "Сохранённую партию можно продолжить."
-                    : "Первый раунд начнётся, когда нажмёшь его кнопку."
+                    : game === "rotate" || game === "slide" ? "Без таймера. Начнём сразу с задания." : "Запусти раунд, когда будешь готов."
                 }
               />
               <a
@@ -826,7 +838,6 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                   </li>
                 ))}
               </ol>
-              <BrainInsight game={game} runId={run?.id} />
               <ChallengeContext
                 game={game}
                 token={challengeToken ?? run?.challenge.comparisonToken}
@@ -837,17 +848,8 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 comparisonToken={run?.challenge.comparisonToken}
                 score={run?.score}
               />
-              {dailyResult ? (
-                <SaveResult run={ranked} game={game} />
-              ) : (
-                <>
-                  <StatusMessage tone="success" title="Практика сохранена">
-                    {access.user
-                      ? "В личной истории, без влияния на рейтинг."
-                      : "Войди, чтобы сохранить её в аккаунте."}
-                  </StatusMessage>
-                </>
-              )}
+              <SaveResult run={ranked} game={game} />
+              <BrainInsight game={game} runId={run?.id} />
               <PlayNextStep
                 game={game}
                 runId={run?.id}
@@ -872,6 +874,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                   className="secondary-button"
                   disabled={busy}
                   onClick={() => {
+                    if (!access.user) { loginToPlay(game, run?.id, run?.mode); return; }
                     setMode("practice");
                     setPhase("welcome");
                     setError("");
@@ -941,6 +944,14 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                         ? "Сдвигай машины вдоль их оси и доведи красную R до выхода справа. Подтверди, когда будешь доволен числом ходов."
                         : "Совпадут ли две фигуры после поворота? Или для этого нужно отражение?"}
                 </p>
+                {round?.kind === "dispatch" && (
+                  <p className="brain-ready-instruction">
+                    {round.activeSwitches.includes(0)
+                      ? "Стрелка 1 направляет к C или к стрелке 2. Стрелка 2 — к A или B."
+                      : "Стрелка 1 закреплена. Переключай только стрелку 2: вверх — A, вправо — B."}
+                    {" "}Буква на поезде показывает нужную станцию. Таймер начнётся после кнопки.
+                  </p>
+                )}
                 <button
                   className="primary"
                   disabled={busy}
@@ -973,7 +984,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                     : game === "rotate"
                       ? `Правильный ответ: «${rotateSame ? "Та же фигура" : "Зеркальная"}».`
                       : game === "slide"
-                        ? `${moves.length} ходов, подсказок: ${currentAnswer?.hints ?? timing?.hints ?? 0}.`
+                        ? `${counted(moves.length, "ход", "хода", "ходов")}, подсказок: ${currentAnswer?.hints ?? timing?.hints ?? 0}.`
                         : "Каждый поезд выбирает путь в момент проезда стрелки."}
                 </p>
                 {round?.kind === "dispatch" && (
@@ -996,7 +1007,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                   onClick={() =>
                     run?.completed
                       ? setPhase("finished")
-                      : run && prepareRound(index + 1, run)
+                      : run && void advanceRound(index + 1, run)
                   }
                 >
                   {run?.completed ? "Посмотреть итог →" : "Следующий раунд →"}

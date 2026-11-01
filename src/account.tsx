@@ -318,7 +318,7 @@ export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
         game={game}
         returnPath={guestLoginReturn(game, id ?? trial?.id, trial?.mode)}
       >
-        Войти и продолжить <span aria-hidden="true">→</span>
+        Войти и сохранить результат <span aria-hidden="true">→</span>
       </YandexLogin>
       {!ready && (
         <button className="text-button" onClick={() => void refresh()}>
@@ -773,7 +773,7 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
   const { user, loading } = useAuth();
   const s = run.state;
   const ranking = `/leaderboard/?game=${game}&mode=${run.mode}`;
-  if (isBrain(game) && run.mode === "practice")
+  if (isBrain(game) && run.mode === "practice" && user && s.status === "saved")
     return (
       <p className="save-result" role="status">
         Результат практики сохранён в личной истории. В публичный рейтинг

@@ -519,7 +519,7 @@ export default function PressureGame() {
             title="Жми"
             eyebrow="ВНИМАТЕЛЬНОСТЬ ПОД ДАВЛЕНИЕМ"
             description="Сначала прочитай. Потом решай."
-            record={{ value: stats.best, unit: pressScoreWord(stats.best) }}
+            record={{ game: "pressure", value: stats.best, unit: pressScoreWord(stats.best) }}
             onRules={() => {
               rules.current?.showModal();
               reachGoal(PRESSURE_GOALS.rulesOpen);

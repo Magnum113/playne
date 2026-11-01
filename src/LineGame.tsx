@@ -444,6 +444,7 @@ export default function LineGame() {
       >
         <GameIntro
           title="Одной линией"
+          record={phase === "welcome" ? { game: "line", mode, value: 0, max: 500, modeLabel: mode === "practice" ? "Практика" : "Лучшая задача дня" } : undefined}
           eyebrow="ЛОГИКА · МАРШРУТ · ВНИМАНИЕ"
           description="Соедини числа по порядку и пройди каждую клетку ровно один раз."
           onRules={openRules}
@@ -474,9 +475,7 @@ export default function LineGame() {
                   />
                 )}
                 {!challengeToken && (
-                  <p className="line-mode-description">
-                    {mode === "classic" ? lineDailyText : linePracticeText}
-                  </p>
+                  <details className="game-details"><summary>Как устроены задачи и рейтинг</summary><p>{mode === "classic" ? lineDailyText : linePracticeText}</p></details>
                 )}
                 <GameStartAction
                   game="line"

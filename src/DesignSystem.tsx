@@ -1,3 +1,4 @@
+import NextGame from "./NextGame";
 import { EmailConsent } from "./EmailPreferences";
 import { AccountBests } from "./AccountBests";
 import { OverallStandings, OverallRules } from "./OverallLeaderboard";
@@ -2088,11 +2089,18 @@ export default function DesignSystem() {
             </Section>
             <Section id="audit">
               <p className="ds-note">
-                Обновлено 30 октября 2026. Ниже — выполненные изменения;
+                Обновлено 1 ноября 2026. Ниже — выполненные изменения;
                 критерии будущих проверок находятся в разделе «Правила
                 компонентов».
               </p>
+              <div className="ds-demo-grid">
+                <div className="ds-panel"><h3>После партии</h3><ResultStatus state="saved" ranking="/leaderboard/" /><NextGame game="naglaz" /></div>
+                <div className="ds-panel"><h3>Компактные настройки</h3><p className="game-mode-summary">Весь мир · Без перемещения · Без таймера</p><details className="game-details"><summary>Настроить игру</summary><ModeChoice value="classic" onChange={() => {}} options={[{value: "classic", label: "Без таймера", description: "В своём темпе"}, {value: "timed", label: "На время", description: "Три минуты на раунд"}]} /></details></div>
+              </div>
               <ol className="ds-audit">
+                <li><h3>Мобильный игровой экран</h3><p>Образец, палитра, таймер и действие помещаются вместе на 412 × 915. Счёт до 500 не меняет высоту строки. У кнопок результата обычная высота 52 px; огонь не влияет на раскладку.</p></li>
+                <li><h3>Понятное сохранение</h3><p>Гость видит итог и действие «Войти и сохранить результат». Подтверждение аккаунта появляется после ответа сервера. Ошибка остаётся до повторной попытки. Практика хранится в личной истории, задача дня — в рейтинге.</p></li>
+                <li><h3>Общие стартовые экраны</h3><p>Сначала цель и запуск. Подробные настройки и правила раскрываются по запросу. Рекорд подписан источником и режимом: аккаунт, устройство, задача дня или практика.</p></li>
                 <li>
                   <h3>Общий код вместо отдельных демонстраций</h3>
                   <p>

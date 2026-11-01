@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+vi.mock("../src/useAccountBest", () => ({ useAccountBest: () => ({ ready: false, value: 0 }) }));
 vi.mock("../src/FooterSignup", () => ({ default: () => null }));
 // Navigation streak is verified separately from game mechanics.
 vi.mock("../src/HeaderStreak", () => ({ default: () => null }));

@@ -75,7 +75,7 @@ describe("Email entry safety", () => {
     await act(async () => unsubscribe.click());
     await act(async () => finishOld(new Response(JSON.stringify(initial))));
     expect(box.textContent).toContain("Подписка выключена.");
-    expect(box.textContent).not.toContain("Подписка включена.");
+    expect(box.textContent).not.toContain("Новости и уведомления о рейтинге включены.");
   });
   it("updates account controls after subscribing in the footer, and updates the footer after account unsubscribe", async () => {
     auth.user = { id: "footer-account-sync" };
@@ -112,7 +112,7 @@ describe("Email entry safety", () => {
     );
     expect(box.querySelector(".footer-signup")).toBeNull();
     expect(box.querySelector(".email-settings")?.textContent).toContain(
-      "Подписка включена.",
+      "Новости и уведомления о рейтинге включены.",
     );
     const unsubscribe = [
       ...box.querySelectorAll<HTMLButtonElement>(".email-settings button"),
@@ -240,7 +240,7 @@ describe("Email entry safety", () => {
         ),
     );
     expect(box.textContent).toContain("Письма подключены.");
-    expect(box.textContent).toContain("Подписка включена.");
+    expect(box.textContent).toContain("Уведомления о рейтинге включены.");
     expect(box.textContent).not.toContain("Отправим письмо с подтверждением");
   });
   it("allows opt-out even while the mail service is unavailable", async () => {
@@ -295,7 +295,7 @@ describe("Email entry safety", () => {
     );
     vi.stubGlobal("fetch", remote);
     await act(async () => root.render(<EmailPreferences />));
-    expect(box.textContent).toContain("нужно новое согласие");
+    expect(box.textContent).toContain("Новости игр и напоминания выключены");
     expect(
       box.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked,
     ).toBe(false);

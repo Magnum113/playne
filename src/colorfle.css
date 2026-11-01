@@ -98,3 +98,33 @@
   .shade-welcome-art { min-height: 150px; }
   .shade-welcome-art span { width: 64px; height: 64px; flex-shrink: 0; border-width: 4px; border-radius: 18px; }
 }
+
+/* Compact, stable game workspace: target, palette and submit fit together. */
+@media (max-width: 700px) {
+  .shade-status { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; min-height: 58px; margin-bottom: 8px; }
+  .shade-status > div:first-child { display: grid; gap: 6px; }
+  .shade-status-right { margin: 0; gap: 10px; }
+  .shade-score { gap: 5px; font-size: 12px; white-space: nowrap; }
+  .shade-score strong { font-size: 25px; min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+  .shade-timer { min-width: 4ch; text-align: right; font-size: 18px; }
+  .shade-active-mode { margin: 0 0 10px; }
+  .shade-play-area { gap: 12px; }
+  .shade-board { gap: 10px; }
+  .shade-swatch { height: clamp(72px, 12svh, 105px); }
+  .shade-label { margin-bottom: 7px; }
+  .shade-value { min-height: 23px; padding-top: 6px; }
+  .shade-picker { margin-top: 0; padding: 14px; }
+  .shade-picker-heading { margin-bottom: 10px; }
+  .shade-picker-heading span, .shade-picker-tip { display: none; }
+  .shade-square { height: clamp(155px, 25svh, 230px); }
+  .shade-hue-label { margin: 13px 0 0; }
+  .shade-actions { margin: 4px 0 20px; gap: 8px; }
+  .shade-actions .primary { width: 100%; min-height: 52px; }
+  .color-heading { margin-bottom: 16px; }
+  .color-heading h1 { font-size: 28px; margin-bottom: 0; }
+  .color-heading .eyebrow, .color-heading p:last-child { display: none; }
+}
+
+.shade-play-area.is-finished { display: block; }
+.shade-play-area.is-finished .shade-board { display: none; }
+.shade-result > .save-result, .shade-result > .guest-trial-prompt { margin-block: 20px; }

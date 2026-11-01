@@ -403,7 +403,7 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
         <>
           <p role="status">
             {settings.enabled
-              ? "Подписка включена."
+              ? general ? "Новости и уведомления о рейтинге включены." : "Уведомления о рейтинге включены."
               : settings.pending
                 ? settings.email
                   ? "Подтверди адрес по ссылке в письме."
@@ -412,8 +412,7 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
           </p>
           {settings.enabled && !general && (
             <p>
-              Сейчас подключены только результаты в рейтинге. Для новых игр и
-              напоминаний нужно новое согласие.
+              Новости игр и напоминания выключены. Их можно подключить отдельно ниже.
             </p>
           )}
           {!settings.available ? (
@@ -474,7 +473,7 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
                       : settings.pending &&
                           address.trim().toLowerCase() !== settings.yandexEmail
                         ? "Отправить подтверждение ещё раз"
-                        : "Подключить письма"}
+                        : settings.enabled && !general ? "Подключить новости и напоминания" : "Подключить письма"}
                   </button>
                 </>
               )}

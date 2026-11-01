@@ -173,14 +173,14 @@ it("mounts a ranking only on desktop and only when the result layout is enabled"
   );
   expect(box.querySelector("aside")).toBeNull();
 });
-it("removes the saved-success text without hiding save failures or retry actions", () => {
+it("shows saved confirmation without hiding save failures or retry actions", () => {
   act(() =>
     root.render(
       <ResultStatus state="saved" ranking="/leaderboard/?game=circle" />,
     ),
   );
-  expect(box.textContent).not.toContain("Результат сохранён");
-  expect(box.querySelector("p")).toBeNull();
+  expect(box.textContent).toContain("Результат сохранён в аккаунте.");
+  expect(box.querySelector('[role="status"]')).not.toBeNull();
   expect(box.querySelector("a")).not.toBeNull();
   const retry = vi.fn();
   act(() => root.render(<ResultStatus state="save-error" onRetry={retry} />));

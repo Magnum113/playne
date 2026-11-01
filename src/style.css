@@ -1757,3 +1757,6 @@ footer { flex-wrap: wrap; }
   font-size: clamp(19px, 2.4vw, 26px);
   overflow-wrap: anywhere;
 }
+
+.board-wrap-horizontal .board { aspect-ratio: 840 / 255; }
+@media (max-width: 599px) { .board-wrap-horizontal .board { aspect-ratio: 420 / 255; height: auto; min-height: 0; } }

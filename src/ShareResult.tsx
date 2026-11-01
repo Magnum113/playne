@@ -13,6 +13,7 @@ export default function ShareResult({ runId }: { runId?: string }) {
     data: PublicChallenge;
   } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [previewState, setPreviewState] = useState<"loading" | "ready" | "error">("loading");
   const [message, setMessage] = useState("");
   const request = useRef(0),
     dialog = useRef<HTMLDialogElement>(null),
@@ -22,6 +23,7 @@ export default function ShareResult({ runId }: { runId?: string }) {
   useEffect(() => {
     request.current++;
     setSnapshot(null);
+    setPreviewState("loading");
     setBusy(false);
     setMessage("");
     dialog.current?.close();
@@ -134,13 +136,18 @@ export default function ShareResult({ runId }: { runId?: string }) {
           </div>
           {data ? (
             <>
+              <div className="share-preview-frame" aria-busy={previewState === "loading"}>
+              {previewState !== "ready" && <p role="status">{previewState === "error" ? "Превью недоступно. Ссылкой всё равно можно поделиться." : "Готовим превью…"}</p>}
               <img
+                onLoad={() => setPreviewState("ready")}
+                onError={() => setPreviewState("error")}
+                style={{ opacity: previewState === "ready" ? 1 : 0 }}
                 className="share-preview"
                 src={data.imageUrl}
                 width="1200"
                 height="630"
                 alt={`${data.gameName}: ${challengeScore(data)}. Вызов другу.`}
-              />
+              /></div>
               <p className="share-caption">
                 Друг сыграет в тех же условиях. По ссылке видны ник и результат.
               </p>

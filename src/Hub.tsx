@@ -94,7 +94,7 @@ export default function Hub() {
           <div className="hub-catalog">
             <aside className="hub-leaderboards" aria-label="Рейтинги Playne">
               <HubTopFive />
-              <StreakBoardCard compact />
+              <details className="hub-streak-disclosure"><summary>Кто играет каждый день <span aria-hidden="true">⌄</span></summary><StreakBoardCard compact /></details>
             </aside>
             <div className="game-cards">
               <a
@@ -335,14 +335,14 @@ export default function Hub() {
                 ↗
               </span>
               <h3>Сразу в игру</h3>
-              <p>Без аккаунта и установки.</p>
+              <p>Начни без аккаунта. Без установки.</p>
             </div>
             <div>
               <span className="fact-symbol purple-symbol" aria-hidden="true">
                 ◎
               </span>
               <h3>В своём темпе</h3>
-              <p>Можно подумать. Таймер не торопит.</p>
+              <p>Выбирай свой темп. Есть игры без таймера.</p>
             </div>
             <div>
               <span className="fact-symbol orange-symbol" aria-hidden="true">

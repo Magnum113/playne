@@ -7,6 +7,7 @@ export function resultLayout(
   target: GameObject,
   ratio: number,
   width: number,
+  height = 390,
 ) {
   const guessFactor = (reference.size * ratio) / target.size;
   const separate = target.axis === "y" && target.width / target.height < 0.25;
@@ -16,9 +17,9 @@ export function resultLayout(
   const targetX = width * 0.52;
   const referenceCenter = width * 0.24;
   const scale = Math.min(
-    155 / reference.height,
+    Math.min(155, height - 115) / reference.height,
     (width * 0.4 - 30) / reference.width,
-    260 / (target.height * extent),
+    (height - 130) / (target.height * extent),
     (width - targetX - 38 - gap) / (target.width * widthExtent),
   );
   return {

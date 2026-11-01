@@ -246,15 +246,22 @@ export function SlideBoard({
   onChange,
   disabled = false,
   onMessage,
+  highlightedCar,
 }: {
   round: SlideRound;
   moves: SlideMove[];
   onChange: (moves: SlideMove[]) => void;
   disabled?: boolean;
   onMessage?: (message: string) => void;
+  highlightedCar?: string | null;
 }) {
   const state = replaySlideMoves(round, moves);
   const [selected, setSelected] = useState("R");
+  useEffect(() => {
+    if (!highlightedCar) return;
+    setSelected(highlightedCar);
+    board.current?.querySelector<HTMLElement>(`[data-car="${highlightedCar}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [highlightedCar]);
   const [dragPreview, setDragPreview] = useState<{
     id: string;
     delta: number;
@@ -386,6 +393,7 @@ export function SlideBoard({
                     : carColours[i % carColours.length],
               } as CSSProperties
             }
+            data-car={car.id}
             aria-label={`Машина ${car.id}${car.id === "R" ? ", красная, к выходу" : ""}. ${car.axis === "x" ? "По горизонтали" : "По вертикали"}. Ряд ${car.y + 1}, столбец ${car.x + 1}`}
             aria-pressed={selected === car.id}
             disabled={disabled}
@@ -700,7 +708,7 @@ export function DispatchBoard({
             </g>
           ))}
       </svg>
-      <div className="brain-switches">
+      {!finished && <div className="brain-switches">
         {([0, 1] as const).map((which) => (
           <button
             key={which}
@@ -729,19 +737,19 @@ export function DispatchBoard({
             </strong>
           </button>
         ))}
-      </div>
+      </div>}
       <p className="brain-train-count" role="status">
         Прибыло {snapshot.arrived} / {round.trains.length} · Верно{" "}
         {snapshot.correct}
       </p>
-      <p className="brain-board-note">
+      {!finished && <p className="brain-board-note">
         {!round.activeSwitches.includes(0)
           ? "В этой волне стрелка 1 закреплена. Переключай стрелку 2. "
           : ""}
         A ● круг · B ■ квадрат
         {round.stations.includes(2) ? " · C ▲ треугольник" : ""}. Путь
         выбирается при проезде стрелки.
-      </p>
+      </p>}
     </div>
   );
 }

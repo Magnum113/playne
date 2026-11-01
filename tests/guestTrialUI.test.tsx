@@ -314,8 +314,8 @@ describe("guest party entry", () => {
         </AuthProvider>,
       ),
     );
-    expect(box.textContent).toContain("Сыграем ещё?");
-    expect(box.textContent).toContain("сохранить результат в рейтинг");
+    expect(box.textContent).toContain("Сохрани результат");
+    expect(box.textContent).toContain("результат попадёт в рейтинг");
   });
 });
 it("lets a consumed guest start an explicit challenge retry without unlocking ordinary play", async () => {

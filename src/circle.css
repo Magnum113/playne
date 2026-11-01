@@ -324,3 +324,10 @@
   height: auto;
   align-self: stretch;
 }
+
+.circle-feedback.has-result .circle-actions { align-items: center; }
+.circle-feedback.has-result .circle-actions > button { flex: 1 1 160px; min-height: 52px; height: 52px; align-self: center; }
+@media (max-width: 600px) {
+  .circle-feedback.has-result .circle-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .circle-feedback.has-result .circle-actions > button { width: 100%; }
+}

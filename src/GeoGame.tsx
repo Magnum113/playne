@@ -1,3 +1,4 @@
+import { panoramaPaint } from "./panoramaPaint";
 import { useGameViewport } from "./useGameViewport";
 import GameResultLayout from "./GameResultLayout";
 import { SaveResult } from "./GameResult";
@@ -373,6 +374,7 @@ export default function GeoGame() {
     return new Promise<void>((resolve, reject) => {
       const view = panorama.current!;
       let settled = false;
+      const paint = new AbortController();
       const timer = setTimeout(
         () => finish(new Error("Panorama unavailable")),
         15_000,
@@ -388,13 +390,15 @@ export default function GeoGame() {
         clearTimeout(timer);
         listener.remove();
         cancelWait.current = null;
-        if (reason) reject(reason);
+        if (reason) { paint.abort(); reject(reason); }
         else {
           view.setPov({ heading, pitch });
           view.setZoom(zoom);
-          resolve();
+          cancelWait.current = cancelPaint;
+          panoramaPaint(panoNode.current!, paint.signal).then(resolve, reject).finally(() => { if (cancelWait.current === cancelPaint) cancelWait.current = null; });
         }
       }
+      const cancelPaint = () => paint.abort();
       cancelWait.current = () => finish(new Error("Cancelled"));
       const alreadyLoaded =
         view.getPano() === pano &&
@@ -591,7 +595,7 @@ export default function GeoGame() {
       line.current = new google.maps.Polyline({
         map: map.current,
         path: [result.guess, result.actual],
-        geodesic: true,
+        geodesic: false,
         strokeColor: "#a188e3",
         strokeWeight: 3,
         strokeOpacity: 0.8,
@@ -682,6 +686,7 @@ export default function GeoGame() {
             eyebrow={geoIsLandmarks(mode) ? "ЗНАМЕНИТЫЕ МЕСТА" : "УГАДАЙ МЕСТО"}
             description="Найди место по панораме."
             record={{
+              game: "geo", mode,
               value: stats.best,
               max: 500,
               modeLabel: "В этом режиме",
@@ -721,7 +726,7 @@ export default function GeoGame() {
               <h2>
                 {geoIsLandmarks(mode)
                   ? "Узнай и найди на карте."
-                  : "Угадай страну по панораме."}
+                  : "Найди место на карте."}
               </h2>
               <p>
                 {geoIsLandmarks(mode)
@@ -742,6 +747,9 @@ export default function GeoGame() {
               <div
                 className={`geo-welcome-setup${geoIsLandmarks(mode) ? " geo-landmark-setup" : ""}`}
               >
+                <p className="game-mode-summary">{geoModeName(mode)}</p>
+                <details className="game-details geo-settings">
+                  <summary>Настроить игру</summary>
                 {!access.blocked && (
                   <>
                     <ModeChoice
@@ -838,6 +846,7 @@ export default function GeoGame() {
                     />
                   </>
                 )}
+                </details>
                 {welcomeAction}
               </div>
             )}
@@ -969,7 +978,7 @@ export default function GeoGame() {
                 </div>
               ) : (
                 <>
-                  <span className="geo-map-hint">
+                  <span className="geo-map-hint" id="geo-point-hint">
                     {guess
                       ? "Точку можно передвинуть"
                       : "Нажми на нужное место"}
@@ -990,7 +999,8 @@ export default function GeoGame() {
                   )}
                   <button
                     className="primary geo-map-answer"
-                    disabled={phase !== "guessing"}
+                    disabled={phase !== "guessing" || !guess}
+                    aria-describedby="geo-point-hint"
                     onClick={() => void submit()}
                   >
                     Ответить <span aria-hidden="true">→</span>

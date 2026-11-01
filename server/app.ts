@@ -1621,14 +1621,14 @@ export async function buildApp(
     const [entries, count, mine] = await Promise.all([
       pool.query(
         base +
-          " SELECT id,nickname,score,place,answers,version FROM ranked ORDER BY score DESC,completed_at,id LIMIT $5 OFFSET $6",
+          " SELECT id,nickname,score,place,position,answers,version FROM ranked ORDER BY score DESC,completed_at,id LIMIT $5 OFFSET $6",
         [...params, limit, (page - 1) * limit],
       ),
       pool.query(base + " SELECT count(*)::int AS count FROM ranked", params),
       u
         ? pool.query(
             base +
-              " SELECT id,nickname,score,place,answers,version FROM ranked WHERE id=$5",
+              " SELECT id,nickname,score,place,position,answers,version FROM ranked WHERE id=$5",
             [...params, u.id],
           )
         : Promise.resolve({ rows: [] }),
@@ -1637,6 +1637,7 @@ export async function buildApp(
       nickname: r.nickname,
       score: Number(r.score),
       place: Number(r.place),
+      position: Number(r.position),
       rounds: geoProjection(
         {
           game: q.game,

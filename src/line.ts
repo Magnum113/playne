@@ -308,11 +308,13 @@ export function hintLinePath(puzzle: LinePuzzle, prefix: unknown): LineHint {
     input[common] === solution[common]
   )
     common++;
-  const nextCell = common < solution.length ? solution[common] : null;
+  // The start cell is already given in the rules, so reveal an actual step.
+  const start = common === 0 && input.length === 0 && solution.length > 1 ? 1 : common;
+  const nextCell = start < solution.length ? solution[start] : null;
   return {
-    path: solution.slice(0, common + (nextCell === null ? 0 : 1)),
+    path: solution.slice(0, start + (nextCell === null ? 0 : 1)),
     nextCell,
-    retracted: input.length - common,
+    retracted: Math.max(0, input.length - common),
   };
 }
 

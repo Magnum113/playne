@@ -68,27 +68,27 @@ export default function Board({
     m.addEventListener("change", update);
     return () => m.removeEventListener("change", update);
   }, []);
+  const horizontal = reference.axis === "x";
   const W = narrow ? 420 : 840,
-    H = 390,
-    horizontal = reference.axis === "x";
+    H = horizontal ? 255 : 390;
   const lane = W / 2 - 60;
   // Both dimensions share one ground line and two side-by-side lanes.
   // Reserve room for the largest allowed estimate without changing the scale
   // while the player resizes an object.
   const largestTargetScale = (reference.size * MAX_RATIO) / target.size;
   const initialK = Math.min(
-    275 / reference.height,
+    (H - 115) / reference.height,
     lane / reference.width,
-    275 / (target.height * largestTargetScale),
+    (H - 115) / (target.height * largestTargetScale),
     lane / (target.width * largestTargetScale),
   );
   const actual = target.size / reference.size;
-  const result = resultLayout(reference, target, ratio, W);
+  const result = resultLayout(reference, target, ratio, W, H);
   const k = initialK + (result.scale - initialK) * progress;
   const targetScale = (r: number) => ((reference.size * r) / target.size) * k;
   const s = targetScale(ratio),
     correct = targetScale(ratio + (actual - ratio) * progress);
-  const baseY = 320;
+  const baseY = horizontal ? 185 : 320;
   const originX = horizontal ? W * 0.52 : W * 0.72;
   const targetX = (scale: number) =>
     horizontal ? originX : originX - (target.width * scale) / 2;
@@ -160,7 +160,7 @@ export default function Board({
     </g>
   );
   return (
-    <div className="board-wrap">
+    <div className={`board-wrap${horizontal ? " board-wrap-horizontal" : ""}`}>
       <svg
         ref={svgRef}
         className="board"

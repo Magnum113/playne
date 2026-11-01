@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+vi.mock("../src/useAccountBest", () => ({ useAccountBest: () => ({ ready: false, value: 0 }) }));
 // The navigation streak has its own integration tests; these tests isolate gameplay.
 vi.mock("../src/HeaderStreak", () => ({ default: () => null }));
 vi.mock("../src/FooterSignup", () => ({ default: () => null }));
@@ -24,6 +25,7 @@ const mock = vi.hoisted(() => ({
   brainHint: vi.fn(),
   api: vi.fn(),
   progress: null as any,
+  mode: "classic",
   blocked: false,
   rankedState: { status: "ready" } as {
     status: "ready" | "saved" | "save-error";
@@ -49,9 +51,9 @@ vi.mock("../src/account", async (importOriginal) => ({
   }),
   AccountNav: () => <a href="/account/">Личный кабинет</a>,
   GuestSavedNotice: () => null,
-  SaveResult: () => (
-    <div data-testid="public-save">
-      Сохранение в публичный рейтинг
+  SaveResult: ({ run }: any) => (
+    <div data-testid={run.mode === "practice" ? "practice-save" : "public-save"}>
+      {run.mode === "practice" ? "Практика сохранена" : "Сохранение в публичный рейтинг"}
       {!mock.user ? (
         <button className="primary">Войти и продолжить</button>
       ) : mock.rankedState.status === "save-error" ? (
@@ -68,6 +70,7 @@ const button = (name: string) =>
     (b) => b.textContent?.trim() === name,
   )!;
 function fixture(game: Game, mode = "classic") {
+  mock.mode = mode;
   const privateChallenge = makeBrainChallenge(game, 123, 1, "2026-10-29");
   return {
     id: runId,
@@ -364,8 +367,7 @@ describe("brain game orchestration", () => {
     expect(mock.brainStart).not.toHaveBeenCalled();
     await act(async () => button("Начать задачу дня").click());
     expect(mock.begin).toHaveBeenCalledWith("classic", 1, undefined);
-    expect(mock.brainStart).not.toHaveBeenCalled();
-    expect(button("Начать раунд →")).toBeTruthy();
+    expect(mock.brainStart).toHaveBeenCalledWith(0);
     expect(window.location.search).toBe("");
   });
 
@@ -473,7 +475,7 @@ describe("brain game orchestration", () => {
     });
     await act(async () => root.render(<BrainGame game="flash" />));
     await act(async () => button("Начать игру→").click());
-    await act(async () => button("Начать раунд →").click());
+    await act(async () => button("Начать раунд →")?.click());
     expect(box.querySelectorAll(".brain-flash-cell.is-target")).toHaveLength(
       round.count,
     );
@@ -512,7 +514,7 @@ describe("brain game orchestration", () => {
       });
     await act(async () => root.render(<BrainGame game="rotate" />));
     await act(async () => button("Начать игру→").click());
-    await act(async () => button("Начать раунд →").click());
+    await act(async () => button("Начать раунд →")?.click());
     await act(async () =>
       box
         .querySelector<HTMLButtonElement>(".brain-binary-controls button")!
@@ -526,8 +528,8 @@ describe("brain game orchestration", () => {
     ]);
     expect(box.querySelector(".brain-rotation-correction")).toBeTruthy();
     await act(async () => button("Следующий раунд →").click());
-    expect(mock.brainStart).toHaveBeenCalledTimes(1);
-    expect(button("Начать раунд →")).toBeTruthy();
+    expect(mock.brainStart).toHaveBeenCalledTimes(2);
+    expect(button("Начать раунд →")).toBeUndefined();
   });
 
   it("opens a completed private result without starting a timer or publishing", async () => {
@@ -604,7 +606,7 @@ describe("brain game orchestration", () => {
       });
       await act(async () => root.render(<BrainGame game="rotate" />));
       await act(async () => button("Начать игру→").click());
-      await act(async () => button("Начать раунд →").click());
+      await act(async () => button("Начать раунд →")?.click());
       await act(async () =>
         box
           .querySelector<HTMLButtonElement>(".brain-binary-controls button")!
@@ -718,8 +720,7 @@ describe("brain game orchestration", () => {
     await act(async () => button("Начать игру→").click());
     expect(mock.resume).toHaveBeenCalledTimes(2);
     expect(mock.begin).not.toHaveBeenCalled();
-    expect(mock.brainStart).not.toHaveBeenCalled();
-    expect(button("Начать раунд →")).toBeTruthy();
+    expect(mock.brainStart).toHaveBeenCalledWith(0);
   });
 
   it("reuses a failed hint request after reload without losing the route", async () => {
@@ -753,7 +754,7 @@ describe("brain game orchestration", () => {
       });
     await act(async () => root.render(<BrainGame game="slide" />));
     await act(async () => button("Начать игру→").click());
-    await act(async () => button("Начать раунд →").click());
+    await act(async () => button("Начать раунд →")?.click());
     await act(async () => button("Подсказка −15").click());
     const requestId = mock.brainHint.mock.calls[0][2];
     expect(

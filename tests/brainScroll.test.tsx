@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+vi.mock("../src/useAccountBest", () => ({ useAccountBest: () => ({ ready: false, value: 0 }) }));
 // The navigation streak has its own integration tests; these tests isolate gameplay.
 vi.mock("../src/HeaderStreak", () => ({ default: () => null }));
 import {
@@ -134,7 +135,7 @@ async function welcome(game: Game) {
 async function playing(game: Game) {
   const data = await welcome(game);
   await click("Начать игру→");
-  await click(game === "dispatch" ? "Начать волну →" : "Начать раунд →");
+  if (game === "flash" || game === "dispatch") await click(game === "dispatch" ? "Начать волну →" : "Начать раунд →");
   return data;
 }
 
@@ -204,13 +205,13 @@ describe("brain round scroll and focus", () => {
       await welcome(game);
       await click("Начать игру→");
       const stage = box.querySelector(".brain-stage")!;
-      expect(box.querySelector(".brain-ready")).toBeTruthy();
+      expect(!!box.querySelector(".brain-ready")).toBe(game === "flash" || game === "dispatch");
       expect(scroll).toHaveBeenCalledTimes(1);
       expectTarget(stage);
-      await click(game === "dispatch" ? "Начать волну →" : "Начать раунд →");
+      if (game === "flash" || game === "dispatch") await click(game === "dispatch" ? "Начать волну →" : "Начать раунд →");
       expect(box.querySelector(".brain-ready")).toBeNull();
       expect(box.querySelector(".brain-stage")).toBe(stage);
-      expect(scroll).toHaveBeenCalledTimes(2);
+      expect(scroll).toHaveBeenCalledTimes(game === "flash" || game === "dispatch" ? 2 : 1);
       expectTarget(stage);
     },
   );
@@ -231,7 +232,7 @@ describe("brain round scroll and focus", () => {
         .click(),
     );
     expect(box.textContent).toContain("Проверяем ответ");
-    expect(scroll).toHaveBeenCalledTimes(2);
+    expect(scroll).toHaveBeenCalledTimes(1);
     const correctFirst = (data.privateChallenge.rounds[0] as RotateRound)
       .correctSame;
     const first = {
@@ -240,15 +241,14 @@ describe("brain round scroll and focus", () => {
       score: correctFirst ? 100 : 0,
     };
     await act(async () => resolveAnswer({ ...data, answers: [first] }));
-    expect(scroll).toHaveBeenCalledTimes(3);
+    expect(scroll).toHaveBeenCalledTimes(2);
     expectTarget(stage);
     await click("Следующий раунд →");
-    expect(box.textContent).toContain("Раунд 2. Начнём?");
-    expect(scroll).toHaveBeenCalledTimes(4);
+    expect(box.querySelector(".brain-ready")).toBeNull();
+    expect(scroll).toHaveBeenCalledTimes(3);
     expectTarget(stage);
-    expect(mock.brainStart).toHaveBeenCalledTimes(1);
-    await click("Начать раунд →");
-    expect(scroll).toHaveBeenCalledTimes(5);
+    expect(mock.brainStart).toHaveBeenCalledTimes(2);
+    if (button("Начать раунд →")) await click("Начать раунд →");
     expectTarget(stage);
     mock.brainAnswer.mockResolvedValueOnce({
       ...data,
@@ -271,7 +271,7 @@ describe("brain round scroll and focus", () => {
         )!
         .click(),
     );
-    expect(scroll).toHaveBeenCalledTimes(6);
+    expect(scroll).toHaveBeenCalledTimes(4);
     expectTarget(stage);
     expect(box.querySelector(".brain-stage")).toBe(stage);
   });
@@ -294,7 +294,7 @@ describe("brain round scroll and focus", () => {
     expect(scroll).toHaveBeenCalledTimes(before);
   });
 
-  it("does not reposition slide while selecting, moving, undoing or receiving a hint", async () => {
+  it("keeps slide stable for input and scrolls only the hinted car into view", async () => {
     const data = await playing("slide");
     const round = data.privateChallenge.rounds[0] as SlideRound;
     const hint = slideHint(round, []),
@@ -328,7 +328,8 @@ describe("brain round scroll and focus", () => {
     });
     await click("Подсказка −15");
     expect(box.textContent).toContain("Ходов: 1");
-    expect(scroll).toHaveBeenCalledTimes(before);
+    expect(scroll).toHaveBeenCalledTimes(before + 1);
+    expect(scroll.mock.instances.at(-1)).toBe(box.querySelector(`[data-car="${move.carId}"]`));
   });
 
   it("does not reposition dispatch on switches, animation frames or wave completion", async () => {

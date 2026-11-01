@@ -59,7 +59,7 @@ describe("Result presentation shared by games and catalog", () => {
         </GuestTrialPanel>,
       ),
     );
-    expect(container.textContent).toContain("в личной истории");
+    expect(container.textContent).toContain("в твоей истории");
     expect(container.textContent).not.toContain("в рейтинг");
   });
 });

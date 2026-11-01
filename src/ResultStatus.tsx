@@ -28,13 +28,13 @@ export function ResultStatus({
     restoring: "Восстанавливаем сохранение результата…",
     checking: "Проверяем результат для рейтинга…",
     saving: "Сохраняем результат в рейтинг…",
-    saved: "",
+    saved: "Результат сохранён в аккаунте.",
     "check-error": "Не удалось проверить результат. Попробуй ещё раз.",
     "save-error": "Не удалось отправить результат. Попробуй ещё раз.",
   }[state];
   return (
     <div className={`save-result${state === "saved" ? " is-saved" : ""}`}>
-      {state !== "saved" && (
+      {(
         <p role="status">
           {busy && <span className="ui-spinner" aria-hidden="true" />}
           {message ?? text}
@@ -69,11 +69,11 @@ export function GuestTrialPanel({
 }) {
   return (
     <div className="guest-trial-prompt">
-      <h2>Сыграем ещё?</h2>
+      <h2>Сохрани результат</h2>
       <p>
         {practice
-          ? "Войди через Яндекс, чтобы играть дальше и сохранить практику в личной истории."
-          : "Войди через Яндекс, чтобы играть дальше и сохранить результат в рейтинг."}
+          ? "Войди через Яндекс — практика останется в твоей истории."
+          : "Войди через Яндекс — результат попадёт в рейтинг."}
       </p>
       {children}
     </div>

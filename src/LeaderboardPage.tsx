@@ -82,11 +82,14 @@ function ScoreLeaderboardPage() {
   const panelRef = useRef<HTMLElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const pageFocusPending = useRef(false);
+  const jumpToMine = useRef(false);
   useEffect(() => {
     if (waiting || !pageFocusPending.current) return;
     pageFocusPending.current = false;
-    headingRef.current?.focus({ preventScroll: true });
-    panelRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+    const own = jumpToMine.current ? document.getElementById("my-rank-row") : null;
+    jumpToMine.current = false;
+    if (own) { own.focus({ preventScroll: true }); own.scrollIntoView({ block: "center", behavior: "instant" }); }
+    else { headingRef.current?.focus({ preventScroll: true }); panelRef.current?.scrollIntoView({ block: "start", behavior: "instant" }); }
   }, [waiting]);
   function changePage(next: number) {
     pageFocusPending.current = true;
@@ -151,7 +154,7 @@ function ScoreLeaderboardPage() {
     );
   }
   const entry = (e: any, key: string) => (
-    <tr className={e.isMe ? "my-entry" : ""} key={key}>
+    <tr tabIndex={e.isMe ? -1 : undefined} id={e.isMe ? "my-rank-row" : undefined} className={e.isMe ? "my-entry" : ""} key={key}>
       <td className="rank-position">{e.place}</td>
       <td>
         <strong>
@@ -328,6 +331,16 @@ function ScoreLeaderboardPage() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+        {!waiting && !error && data?.mine && (
+          <div className="rank-own-summary" role="status">
+            <span>Ты: <strong>№{data.mine.place}</strong> · {aggregate ? overallNumber(data.mine.score) : resultText(game as GameId, data.mine.score)}</span>
+            <button className="text-button" onClick={() => {
+              const targetPage = Math.floor(((data.mine.position ?? data.mine.place) - 1) / 25) + 1;
+              if (page !== targetPage) { jumpToMine.current = true; changePage(targetPage); return; }
+              document.getElementById("my-rank-row")?.scrollIntoView({ block: "center", behavior: "smooth" });
+            }}>К моему месту ↓</button>
           </div>
         )}
         <div className="rank-toolbar">
