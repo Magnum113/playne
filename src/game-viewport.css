@@ -1,0 +1,344 @@
+/* Keep the board and its actions together; expanded help may use page scroll. */
+.brain-round-details {
+  margin: 16px auto 0;
+  max-width: 480px;
+  text-align: left;
+  border-top: 1px solid var(--line);
+}
+.brain-round-details > summary,
+.line-play-details > summary,
+.geo-location-note > summary,
+.pressure-result-explanation > summary,
+.game-result-details > summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+.brain-round-details > summary:focus-visible,
+.line-play-details > summary:focus-visible,
+.geo-location-note > summary:focus-visible,
+.pressure-result-explanation > summary:focus-visible,
+.game-result-details > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.line-play-details {
+  margin-top: 12px;
+  text-align: center;
+}
+.line-play-details .line-keyboard:first-of-type {
+  margin-top: 0;
+}
+.geo-location-note {
+  grid-column: 1 / -1;
+}
+.pressure-result-explanation {
+  text-align: left;
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.brain-stage-top {
+  align-items: center;
+}
+.brain-stage-top .progress-dots {
+  margin: 0;
+  align-self: center;
+}
+.object-role.ref b {
+  font-weight: 600;
+  font-size: 13px;
+}
+.object-role.ref {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.game-result-details {
+  margin-top: 16px;
+  text-align: left;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 700px) {
+  .brain-stage {
+    padding: 12px;
+    margin-bottom: 32px;
+  }
+  .brain-stage .brain-stage-top {
+    font-size: 11px;
+    gap: 4px;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+  .brain-stage .progress-dots {
+    margin: 0;
+    flex-shrink: 0;
+    gap: 4px;
+  }
+  .brain-stage .brain-play-heading {
+    margin: 8px 0;
+  }
+  .brain-stage .brain-play-heading h2,
+  .brain-stage .brain-ready h2,
+  .brain-stage .brain-round-result h2 {
+    font-size: 22px;
+    margin: 8px 0;
+  }
+  .brain-stage .brain-play-heading > p {
+    font-size: 12px;
+  }
+  .brain-stage .brain-ready {
+    padding-bottom: 0;
+  }
+  .brain-stage .brain-ready .brain-preview {
+    max-height: clamp(80px, 18svh, 140px);
+    margin-bottom: 10px;
+  }
+  .brain-stage .brain-ready > p {
+    margin-bottom: 12px;
+  }
+  .brain-stage .brain-flash-grid {
+    width: min(100%, max(220px, calc(100svh - 290px)));
+  }
+  .brain-stage .brain-shape-pair {
+    max-width: min(100%, calc((100svh - 320px) * 2));
+  }
+  .brain-stage .brain-parking {
+    width: min(100%, max(252px, calc(100svh - 410px)));
+    min-width: 252px;
+  }
+  .brain-stage .brain-car {
+    min-width: 0;
+    min-height: 0;
+  }
+  .brain-stage .brain-car-controls {
+    margin-top: 4px;
+    gap: 6px 10px;
+  }
+  .brain-stage .brain-car-controls p {
+    font-size: 12px;
+  }
+  .brain-stage .brain-slide-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.5fr;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .brain-stage .brain-slide-actions button {
+    padding: 6px;
+    font-size: 12px;
+    line-height: 18px;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+  .brain-stage .brain-confirm,
+  .brain-stage .brain-binary-controls {
+    margin-block: 8px 0;
+  }
+  .brain-stage .brain-live-message {
+    min-height: 20px;
+    margin: 4px 0;
+    font-size: 12px;
+  }
+  .brain-stage .brain-live-message:empty {
+    margin: 4px 0;
+  }
+  .brain-stage .brain-board-note,
+  .brain-stage .brain-train-count {
+    margin-block: 4px;
+    font-size: 12px;
+  }
+  .brain-stage .brain-switches {
+    margin-top: 10px;
+  }
+  .brain-stage .brain-switches button {
+    min-height: 64px;
+    padding: 10px;
+    gap: 6px;
+  }
+  .brain-stage .brain-round-result > .eyebrow {
+    margin: 10px 0;
+    font-size: 11px;
+  }
+  .brain-stage .brain-round-score {
+    margin: 10px 0;
+  }
+  .brain-stage .brain-round-score strong {
+    font-size: 40px;
+  }
+  .brain-stage .brain-rotation-correction {
+    margin-block: 10px;
+  }
+  .brain-stage .brain-round-result > .primary {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  .brain-stage .brain-round-details {
+    margin-top: 8px;
+  }
+  .brain-stage-round-result .brain-parking {
+    width: min(100%, max(264px, calc(100svh - 310px)));
+  }
+  .brain-stage-round-result .brain-flash-grid {
+    width: min(100%, max(228px, calc(100svh - 330px)));
+  }
+  .brain-stage-round-result .brain-car-controls {
+    display: none;
+  }
+
+  .line-play {
+    padding: 14px 12px;
+  }
+  .line-play .progress-dots {
+    margin-block: 10px;
+  }
+  .line-play-heading {
+    margin-block: 12px;
+  }
+  .line-play-heading h2 {
+    font-size: 20px;
+  }
+  .line-play-heading p {
+    font-size: 12px;
+  }
+  .line-stats {
+    margin: 10px auto;
+  }
+  .line-board-wrap {
+    width: min(100%, max(268px, calc(100svh - 290px)));
+  }
+  .line-play .line-path-status {
+    margin-block: 8px;
+    min-height: 36px;
+    font-size: 12px;
+  }
+  .line-play .line-round-result {
+    padding-block: 12px;
+  }
+  .line-play .line-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.35fr;
+    gap: 6px;
+  }
+  .line-play .line-controls button {
+    padding-inline: 6px;
+    font-size: 12px;
+  }
+
+  .game-screen {
+    padding-top: 12px;
+  }
+  .game-screen .round-title {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.25;
+  }
+  .game-screen .naglaz-round-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 8px;
+    margin-block: 10px;
+  }
+  .game-screen .naglaz-round-heading .help-button {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    width: 44px;
+    height: 44px;
+  }
+  .game-screen .help-button-label {
+    display: none;
+  }
+  .game-screen .board {
+    max-height: max(180px, calc(100svh - 390px));
+  }
+  .game-screen .object-labels {
+    padding-block: 6px;
+  }
+  .game-screen .object-role {
+    margin-bottom: 6px;
+  }
+  .game-screen .object-role.ref {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+  }
+  .game-screen .object-role.ref b {
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .game-screen .controls {
+    padding-top: 8px;
+  }
+  .game-screen .check {
+    margin-top: 8px;
+  }
+  .game-screen .result-actions {
+    gap: 12px;
+  }
+
+  .circle-main .circle-play {
+    max-width: min(100%, max(240px, calc(100svh - 200px)));
+  }
+
+  .shade-game-region .shade-status {
+    min-height: 44px;
+    padding-block: 4px;
+  }
+  .shade-game-region .shade-swatch-card {
+    padding: 10px;
+  }
+  .shade-game-region .shade-swatch {
+    height: clamp(48px, calc((100svh - 400px) / 3), 95px);
+  }
+  .shade-game-region .shade-square {
+    height: clamp(120px, calc(100svh - 450px), 230px);
+  }
+  .shade-game-region .shade-picker-heading {
+    margin-bottom: 8px;
+  }
+  .shade-game-region .shade-hue-label {
+    margin-top: 8px;
+  }
+  .shade-game-region .shade-actions {
+    margin-bottom: 8px;
+  }
+  .geo-playing .geo-revealed {
+    height: clamp(180px, calc(100svh - 350px), 380px);
+  }
+  .geo-playing .geo-result {
+    padding: 12px;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .geo-playing .geo-result h2 {
+    font-size: 20px;
+    line-height: 1.25;
+    margin-block: 6px;
+  }
+  .geo-playing .geo-round-result {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px 12px;
+    align-items: center;
+  }
+  .geo-playing .geo-round-result > strong {
+    font-size: 32px;
+    grid-column: 1;
+  }
+  .geo-playing .geo-round-result > span:not(.geo-timeout-note) {
+    grid-column: 2;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .geo-playing .geo-round-result > .primary,
+  .geo-playing .geo-round-result > .geo-timeout-note {
+    grid-column: 1 / -1;
+  }
+}

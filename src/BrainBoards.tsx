@@ -189,28 +189,6 @@ export function RotateBoard({
                 : "Фигуры совпадают после поворота."}
             </strong>
           </p>
-          {alignment && (
-            <>
-              <svg
-                viewBox="0 0 160 160"
-                role="img"
-                aria-label="Фигуры совмещены: заливка — первая, контур — вторая"
-              >
-                <Shape
-                  cells={rotateShape(
-                    round.shapeA,
-                    alignment.turns,
-                    alignment.mirrored,
-                  )}
-                />
-                <Shape cells={round.shapeB} outline />
-              </svg>
-              <p>
-                {alignment.mirrored ? "Отражение и " : ""}поворот на{" "}
-                {alignment.turns * 90}°. Заливка и контур совместились.
-              </p>
-            </>
-          )}
         </div>
       ) : (
         <div className="brain-binary-controls">
@@ -231,6 +209,26 @@ export function RotateBoard({
         </div>
       )}
     </div>
+  );
+}
+
+export function RotationExplanation({ round }: { round: PublicRotateRound }) {
+  const alignment = rotationAlignment(round.shapeA, round.shapeB);
+  if (!alignment) return null;
+  return (
+    <details className="brain-round-details">
+      <summary>Как совместились фигуры</summary>
+      <div className="brain-rotation-correction">
+        <svg viewBox="0 0 160 160" role="img" aria-label="Фигуры совмещены: заливка — первая, контур — вторая">
+          <Shape cells={rotateShape(round.shapeA, alignment.turns, alignment.mirrored)} />
+          <Shape cells={round.shapeB} outline />
+        </svg>
+        <p>
+          {alignment.mirrored ? "Отражение и " : ""}поворот на {alignment.turns * 90}°.
+          Заливка и контур совместились.
+        </p>
+      </div>
+    </details>
   );
 }
 
@@ -295,10 +293,10 @@ export function SlideBoard({
       onChange(next);
       onMessage?.(
         result.solved
-          ? "Красная машина у выхода. Можно записать решение или улучшить путь."
+          ? "Выход свободен — запиши решение."
           : `Машина ${carId}: ${Math.abs(delta)} ${delta > 0 ? "вперёд" : "назад"}.`,
       );
-    } else onMessage?.("Путь занят или машина у края. Попробуй другой ход.");
+    } else onMessage?.("Путь занят. Попробуй другой ход.");
   }
   function pointerDown(
     event: PointerEvent<HTMLButtonElement>,
@@ -466,10 +464,6 @@ export function SlideBoard({
           ))}
         </div>
       </div>
-      <p className="brain-board-note">
-        Перетаскивай машину или выбери её и нажимай стрелки. Клавиатура: стрелки
-        на выбранной машине.
-      </p>
     </div>
   );
 }

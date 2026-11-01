@@ -230,7 +230,7 @@ export default function LineGame() {
     }
   }, [phase]);
 
-  useGameViewport(playRegion, phase === "welcome" ? null : `${phase}:${index}`);
+  useGameViewport(playRegion, phase === "welcome" ? null : `${phase}:${index}`, ".line-controls, .line-play > .primary, .line-round-result > .primary");
 
   function openRules() {
     rules.current?.showModal();
@@ -550,17 +550,18 @@ export default function LineGame() {
                 <strong>{run?.score ?? 0}</strong>
                 <span>/ 500 очков</span>
               </p>
-              <ol className="line-results">
-                {answers.map((a, i) => (
-                  <li key={i}>
-                    <span>Поле {i + 1}</span>
-                    <span>
-                      {clock(a.elapsedMs)} · подсказок: {a.hints}
-                    </span>
-                    <strong>{a.score} / 100</strong>
-                  </li>
-                ))}
-              </ol>
+              {access.user && (
+                <button
+                  className="primary"
+                  disabled={busy}
+                  onClick={() => {
+                    reachGoal(LINE_GOALS.gameRestart, { mode: "practice" });
+                    void begin("practice");
+                  }}
+                >
+                  {busy ? "Готовим поля…" : "Играть в практике →"}
+                </button>
+              )}
               <p>
                 {mode === "classic"
                   ? "Первая попытка дня завершена. Новый набор появится в полночь по Москве. Можно продолжить в практике."
@@ -586,18 +587,20 @@ export default function LineGame() {
                 <><SaveResult run={ranked} game="line" /><NextGame game="line" /></>
               )}
               <ShareResult runId={run?.id} />
-              {access.user && (
-                <button
-                  className="primary"
-                  disabled={busy}
-                  onClick={() => {
-                    reachGoal(LINE_GOALS.gameRestart, { mode: "practice" });
-                    void begin("practice");
-                  }}
-                >
-                  {busy ? "Готовим поля…" : "Играть в практике →"}
-                </button>
-              )}
+              <details className="game-result-details">
+                <summary>Результаты пяти полей</summary>
+                <ol className="line-results">
+                  {answers.map((a, i) => (
+                    <li key={i}>
+                      <span>Поле {i + 1}</span>
+                      <span>
+                        {clock(a.elapsedMs)} · подсказок: {a.hints}
+                      </span>
+                      <strong>{a.score} / 100</strong>
+                    </li>
+                  ))}
+                </ol>
+              </details>
               {error && <p role="status">{error}</p>}
               <a className="text-button" href="/leaderboard/?game=overall">
                 Общий рейтинг →
@@ -738,6 +741,8 @@ export default function LineGame() {
                     {error}
                   </p>
                 )}
+                <details className="line-play-details">
+                <summary>Об очках и управлении</summary>
                 <p className="line-keyboard">
                   Бонус за скорость: до 20 очков за первые {puzzle?.parSeconds}{" "}
                   сек., затем меньше. Ограничения времени нет.
@@ -746,6 +751,7 @@ export default function LineGame() {
                   Клавиатура: стрелки — выбрать клетку, Enter или пробел — ход,
                   Backspace — отмена. Время идёт и при закрытой вкладке.
                 </p>
+                </details>
               </>
             )}
           </section>

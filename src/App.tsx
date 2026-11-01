@@ -160,6 +160,7 @@ export default function App() {
   useGameViewport(
     playRegion,
     screen === "start" ? null : `${screen}:${index}:${revealed}`,
+    ".controls, .result-actions",
   );
   function openHelp() {
     reachGoal(METRIKA_GOALS.rulesOpen, { screen });
@@ -343,8 +344,8 @@ export default function App() {
               <h1 ref={heading} tabIndex={-1} className="round-title">
                 {pair.title}
               </h1>
-              <button className="help-button" onClick={openHelp}>
-                Как играть{" "}
+              <button className="help-button" onClick={openHelp} aria-label="Как играть">
+                <span className="help-button-label">Как играть</span>{" "}
                 <span className="question" aria-hidden="true">
                   ?
                 </span>
@@ -361,10 +362,10 @@ export default function App() {
             />
             <div className="object-labels">
               <div>
-                <span className="object-role ref">● Ориентир</span>
-                <h2>
-                  {reference.name} <span>{meters(reference.size)}</span>
-                </h2>
+                <span className="object-role ref">
+                  ● Ориентир <b>{meters(reference.size)}</b>
+                </span>
+                <h2>{reference.name}</h2>
                 <p>{reference.label}</p>
               </div>
               <div>
@@ -484,38 +485,41 @@ export default function App() {
                   Лучший результат на этом устройстве: {best}
                 </p>
               )}
-              <div className="result-list">
-                {results.map((r, i) => {
-                  const p = rounds[i],
-                    o = objects[p.target];
-                  return (
-                    <div className="result-row" key={r.pairId}>
-                      <span className="result-number">0{i + 1}</span>
-                      <svg
-                        viewBox={`0 0 ${o.width} ${o.height}`}
-                        className="result-icon"
-                        aria-hidden="true"
-                      >
-                        <Silhouette object={o} />
-                      </svg>
-                      <div className="result-description">
-                        <h2>{o.name}</h2>
-                        <p>{errorLabel(r.guess, o.size)}</p>
-                      </div>
-                      <strong>
-                        {r.points}
-                        <small> / 100</small>
-                      </strong>
-                    </div>
-                  );
-                })}
-              </div>
               {access.user && (
                 <button className="primary" onClick={() => start("restart")}>
                   Играть ещё <Arrow />
                 </button>
               )}
               <SaveResult run={ranked} game="naglaz" />
+              <details className="game-result-details">
+                <summary>Результаты пяти сравнений</summary>
+                <div className="result-list">
+                  {results.map((r, i) => {
+                    const p = rounds[i],
+                      o = objects[p.target];
+                    return (
+                      <div className="result-row" key={r.pairId}>
+                        <span className="result-number">0{i + 1}</span>
+                        <svg
+                          viewBox={`0 0 ${o.width} ${o.height}`}
+                          className="result-icon"
+                          aria-hidden="true"
+                        >
+                          <Silhouette object={o} />
+                        </svg>
+                        <div className="result-description">
+                          <h2>{o.name}</h2>
+                          <p>{errorLabel(r.guess, o.size)}</p>
+                        </div>
+                        <strong>
+                          {r.points}
+                          <small> / 100</small>
+                        </strong>
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
               <button
                 className="text-button result-rules-link"
                 onClick={() => {

@@ -15,13 +15,13 @@ import {
   DispatchBoard,
   FlashBoard,
   RotateBoard,
+  RotationExplanation,
   SlideBoard,
 } from "./BrainBoards";
 import {
   brainMoscowDate,
   dispatchSnapshot,
   replaySlideMoves,
-  rotationAlignment,
   validDispatchActions,
   type BrainDifficulty,
   type DispatchAction,
@@ -609,8 +609,8 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
       });
       setMessage(
         response.move
-          ? `Машина ${response.move.carId}: ${round.cars.find(c => c.id === response.move.carId)?.axis === "x" ? response.move.delta > 0 ? "вправо" : "влево" : response.move.delta > 0 ? "вниз" : "вверх"} на ${counted(Math.abs(response.move.delta), "клетку", "клетки", "клеток")}. −15 очков. До выхода: ${counted(Math.max(0, response.remainingMoves - 1), "ход", "хода", "ходов")}.`
-          : "Красная машина уже у выхода. Можно записать решение.",
+          ? `${response.move.carId}: ${round.cars.find(c => c.id === response.move.carId)?.axis === "x" ? response.move.delta > 0 ? "вправо" : "влево" : response.move.delta > 0 ? "вниз" : "вверх"} на ${counted(Math.abs(response.move.delta), "клетку", "клетки", "клеток")}. Ещё ${counted(Math.max(0, response.remainingMoves - 1), "ход", "хода", "ходов")}.`
+          : "Выход свободен — запиши решение.",
       );
     } catch (e) {
       setError(errorText(e));
@@ -691,10 +691,6 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
 
   const correctFlash =
     currentAnswer?.correctCells ?? currentAnswer?.expectedCells ?? [];
-  const rotateSame =
-    round?.kind === "rotate"
-      ? !rotationAlignment(round.shapeA, round.shapeB)?.mirrored
-      : false;
   const dailyResult = run?.mode !== "practice";
   const newDailyAvailable = dailyResult && !!run && run.challenge.day !== today;
   const saveActionHasPriority =
@@ -830,15 +826,6 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 </strong>
                 <span>/ 500 очков</span>
               </p>
-              <ol className="brain-result-list">
-                {answers.map((answer, i) => (
-                  <li key={i}>
-                    <span>Раунд {i + 1}</span>
-                    <span>{roundMetric(answer, i)}</span>
-                    <strong>{answer.score} / 100</strong>
-                  </li>
-                ))}
-              </ol>
               <ChallengeContext
                 game={game}
                 token={challengeToken ?? run?.challenge.comparisonToken}
@@ -850,16 +837,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 score={run?.score}
               />
               <SaveResult run={ranked} game={game} />
-              <BrainInsight game={game} runId={run?.id} />
-              <PlayNextStep
-                game={game}
-                runId={run?.id}
-                hideAction={
-                  (newDailyAvailable && !!access.user) || saveActionHasPriority
-                }
-              />
               <div className="brain-summary-actions">
-                <ShareResult runId={run?.id} />
                 {newDailyAvailable && access.user && (
                   <button
                     className={
@@ -889,6 +867,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 >
                   Ещё в практике →
                 </button>
+                <ShareResult runId={run?.id} />
                 <a
                   href={
                     dailyResult
@@ -900,6 +879,26 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 </a>
                 <a href="/brain/">Выбрать другую игру →</a>
               </div>
+              <details className="game-result-details">
+                <summary>Результаты пяти раундов</summary>
+                <ol className="brain-result-list">
+                  {answers.map((answer, i) => (
+                    <li key={i}>
+                      <span>Раунд {i + 1}</span>
+                      <span>{roundMetric(answer, i)}</span>
+                      <strong>{answer.score} / 100</strong>
+                    </li>
+                  ))}
+                </ol>
+              </details>
+              <BrainInsight game={game} runId={run?.id} />
+              <PlayNextStep
+                game={game}
+                runId={run?.id}
+                hideAction={
+                  (newDailyAvailable && !!access.user) || saveActionHasPriority
+                }
+              />
               {newDailyAvailable &&
                 (error || ranked.state.status === "error") && (
                   <p className="brain-error" role="alert">
@@ -913,7 +912,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
           </GameResultLayout>
         ) : (
           <section
-            className="brain-stage"
+            className={`brain-stage brain-stage-${phase}`}
             ref={stage}
             aria-label={`Игра ${content.name}`}
           >
@@ -923,9 +922,9 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                   ? `Задача дня · ${run?.challenge.day}`
                   : `Практика · ${brainDifficultyOptions[difficulty - 1].label}`}
               </span>
+              <RoundDots current={index} completed={answers.length} />
               <span>Раунд {index + 1} / 5</span>
             </div>
-            <RoundDots current={index} completed={answers.length} />
             {phase === "ready" ? (
               <div className="brain-ready">
                 <BrainPreview game={game} />
@@ -979,30 +978,13 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                   <strong>{currentAnswer?.score ?? 0}</strong> / 100 очков
                 </p>
                 {board(true)}
-                <p>
+                {game !== "rotate" && <p>
                   {game === "flash"
                     ? `Совпало ${cells.filter((c) => correctFlash.includes(c)).length} из ${round?.kind === "flash" ? round.count : 0} клеток.`
-                    : game === "rotate"
-                      ? `Правильный ответ: «${rotateSame ? "Та же фигура" : "Зеркальная"}».`
-                      : game === "slide"
+                    : game === "slide"
                         ? `${counted(moves.length, "ход", "хода", "ходов")}, подсказок: ${currentAnswer?.hints ?? timing?.hints ?? 0}.`
                         : "Каждый поезд выбирает путь в момент проезда стрелки."}
-                </p>
-                {round?.kind === "dispatch" && (
-                  <ol className="brain-train-results">
-                    {dispatchSnapshot(
-                      round,
-                      actions,
-                      round.durationMs,
-                    ).trains.map((train, i) => (
-                      <li key={train.id}>
-                        {train.correct ? "✓" : "×"} Поезд {i + 1}: нужно{" "}
-                        {"ABC"[train.destination]}, прибыл к{" "}
-                        {"ABC"[train.station ?? 0]}
-                      </li>
-                    ))}
-                  </ol>
-                )}
+                </p>}
                 <button
                   className="primary"
                   onClick={() =>
@@ -1013,6 +995,20 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                 >
                   {run?.completed ? "Посмотреть итог →" : "Следующий раунд →"}
                 </button>
+                {round?.kind === "rotate" && <RotationExplanation key={round.id} round={round} />}
+                {round?.kind === "dispatch" && (
+                  <details className="brain-round-details" key={round.id}>
+                    <summary>Маршруты поездов</summary>
+                    <ol className="brain-train-results">
+                      {dispatchSnapshot(round, actions, round.durationMs).trains.map((train, i) => (
+                        <li key={train.id}>
+                          {train.correct ? "✓" : "×"} Поезд {i + 1}: нужно{" "}
+                          {"ABC"[train.destination]}, прибыл к {"ABC"[train.station ?? 0]}
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                )}
               </div>
             ) : (
               <>
@@ -1028,8 +1024,8 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                           ? "Поворот или отражение?"
                           : round?.kind === "slide"
                             ? slideState?.solved
-                              ? "Красная машина у выхода."
-                              : "Освободи дорогу вправо."
+                              ? "Машина у выхода."
+                              : "Освободи выход."
                             : elapsed >=
                                 (round?.kind === "dispatch"
                                   ? round.durationMs
@@ -1043,7 +1039,7 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
                         ? `До исчезновения: ${seconds((timing?.revealUntil ?? 0) - (now + (timing?.offset ?? 0)))}`
                         : `Выбрано ${cells.length} / ${round.count}`
                       : round?.kind === "slide"
-                        ? `Ходов: ${moves.length} · Подсказок: ${timing?.hints ?? 0} · Время не влияет на счёт`
+                        ? `Ходов: ${moves.length} · Подсказок: ${timing?.hints ?? 0}`
                         : round?.kind === "dispatch"
                           ? `До конца волны: ${seconds(round.durationMs - elapsed)}`
                           : "Можно вращать в уме. Отражение — другой ответ."}

@@ -243,6 +243,11 @@ describe("brain round scroll and focus", () => {
     await act(async () => resolveAnswer({ ...data, answers: [first] }));
     expect(scroll).toHaveBeenCalledTimes(2);
     expectTarget(stage);
+    const explanation = box.querySelector<HTMLDetailsElement>(".brain-round-details")!;
+    const nextRound = button("Следующий раунд →")!;
+    expect(explanation.open).toBe(false);
+    expect(nextRound.compareDocumentPosition(explanation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await act(async () => { explanation.open = true; });
     await click("Следующий раунд →");
     expect(box.querySelector(".brain-ready")).toBeNull();
     expect(scroll).toHaveBeenCalledTimes(3);
@@ -274,6 +279,7 @@ describe("brain round scroll and focus", () => {
     expect(scroll).toHaveBeenCalledTimes(4);
     expectTarget(stage);
     expect(box.querySelector(".brain-stage")).toBe(stage);
+    expect(box.querySelector<HTMLDetailsElement>(".brain-round-details")!.open).toBe(false);
   });
 
   it("does not pull the viewport back when flash cells disappear or are selected", async () => {

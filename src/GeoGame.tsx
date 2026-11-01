@@ -127,8 +127,12 @@ export default function GeoGame() {
   const guessRef = useRef<GeoPoint | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [error, setError] = useState("");
-  const playRegion = useRef<HTMLDivElement>(null);
-  useGameViewport(playRegion, phase === "guessing" ? `round:${round}` : null);
+  const playRegion = useRef<HTMLElement>(null);
+  useGameViewport(
+    playRegion,
+    phase === "guessing" || phase === "reveal" ? `${phase}:${round}` : null,
+    phase === "reveal" ? ".geo-round-result > .primary" : undefined,
+  );
   const panoNode = useRef<HTMLDivElement>(null),
     mapNode = useRef<HTMLDivElement>(null);
   const panorama = useRef<google.maps.StreetViewPanorama | null>(null);
@@ -676,6 +680,7 @@ export default function GeoGame() {
       </GameHeader>
       <main
         id="geo-main"
+        ref={playRegion}
         className={`geo-main${phase === "welcome" ? " game-start-main" : ""}`}
       >
         {active && <h1 className="sr-only">Где я?</h1>}
@@ -888,7 +893,6 @@ export default function GeoGame() {
           </div>
         )}
         <div
-          ref={playRegion}
           className={`geo-stage ${active ? "" : "geo-stage-hidden"} ${mapOpen ? "geo-map-open" : ""} ${phase === "reveal" ? "geo-revealed" : ""}`}
           inert={!active}
         >
@@ -1057,7 +1061,6 @@ export default function GeoGame() {
             <div>
               <p className="eyebrow">{answer.location.country}</p>
               <h2>{answer.location.name}</h2>
-              {answer.location.note && <p>{answer.location.note}</p>}
             </div>
             <div className="geo-round-result">
               {answer.timedOut && (
@@ -1084,6 +1087,12 @@ export default function GeoGame() {
                 <span aria-hidden="true">→</span>
               </button>
             </div>
+            {answer.location.note && (
+              <details className="geo-location-note" key={round}>
+                <summary>О месте</summary>
+                <p>{answer.location.note}</p>
+              </details>
+            )}
           </section>
         )}
         {phase === "finished" && (
@@ -1113,26 +1122,29 @@ export default function GeoGame() {
                   Партий сыграно <strong>{stats.played}</strong>
                 </span>
               </div>
-              <ol className="geo-recap">
-                {answers.map((item) => (
-                  <li key={item.location.id}>
-                    <div>
-                      <strong>{item.location.name}</strong>
-                      <span>
-                        {item.location.country} ·{" "}
-                        {item.distance === null
-                          ? "Точка не выбрана"
-                          : geoDistance(item.distance)}
-                        {item.timedOut ? " · Время вышло" : ""}
-                      </span>
-                    </div>
-                    <b>
-                      {geoPoints(item.score)}
-                      <span> / 100</span>
-                    </b>
-                  </li>
-                ))}
-              </ol>
+              <details className="game-result-details">
+                <summary>Результаты пяти мест</summary>
+                <ol className="geo-recap">
+                  {answers.map((item) => (
+                    <li key={item.location.id}>
+                      <div>
+                        <strong>{item.location.name}</strong>
+                        <span>
+                          {item.location.country} ·{" "}
+                          {item.distance === null
+                            ? "Точка не выбрана"
+                            : geoDistance(item.distance)}
+                          {item.timedOut ? " · Время вышло" : ""}
+                        </span>
+                      </div>
+                      <b>
+                        {geoPoints(item.score)}
+                        <span> / 100</span>
+                      </b>
+                    </li>
+                  ))}
+                </ol>
+              </details>
               {access.user && (
                 <button className="primary" onClick={() => void start(true)}>
                   Играть ещё <span aria-hidden="true">↗</span>

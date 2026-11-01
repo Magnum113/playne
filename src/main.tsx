@@ -7,6 +7,7 @@ import "./community.css";
 import "./ui.css";
 import "./overall.css";
 import "./game-start.css";
+import "./game-viewport.css";
 import { initTheme } from "./theme";
 import { initMetrika } from "./analytics";
 

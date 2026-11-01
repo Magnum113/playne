@@ -462,6 +462,11 @@ export default function PressureGame() {
   useEffect(() => {
     if (resultVisible) outcome.current?.focus({ preventScroll: true });
   }, [resultVisible]);
+  useGameViewport(
+    outcome,
+    resultVisible ? "finished" : null,
+    ".pressure-result > .primary, .save-result, .guest-trial-prompt",
+  );
   const held = state.events.at(-1)?.type === "down",
     heldFrom = held ? state.events.at(-1)!.at : 0;
   const holdingTime = held ? state.elapsed - heldFrom : 0;
@@ -621,16 +626,6 @@ export default function PressureGame() {
                 <span> {pressScoreWord(state.cleared)}</span>
               </h2>
               <p className="pressure-result-lead">{state.reason}</p>
-              {state.reason && (
-                <div className="pressure-explanation">
-                  <span>УРОВЕНЬ {state.index + 1}</span>
-                  <h3>{level.prompt}</h3>
-                  {level.display && (
-                    <p className="pressure-result-display">{level.display}</p>
-                  )}
-                  <p>{level.explanation}</p>
-                </div>
-              )}
               <div className="pressure-result-stats">
                 <span>
                   Лучший результат{" "}
@@ -662,6 +657,17 @@ export default function PressureGame() {
                   Рекорд сохранён на этом устройстве. Для общего рейтинга начни
                   игру при подключении к серверу.
                 </p>
+              )}
+              {state.reason && (
+                <details className="pressure-result-explanation">
+                  <summary>Разбор последнего задания</summary>
+                  <div className="pressure-explanation">
+                    <span>УРОВЕНЬ {state.index + 1}</span>
+                    <h3>{level.prompt}</h3>
+                    {level.display && <p className="pressure-result-display">{level.display}</p>}
+                    <p>{level.explanation}</p>
+                  </div>
+                </details>
               )}
             </section>
           </GameResultLayout>
