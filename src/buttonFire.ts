@@ -14,8 +14,8 @@ function noise(x: number, y: number) {
   return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
 }
 
-/** The canvas lives INSIDE the native button, sharing its transform and hit area. */
-export function attachButtonFire(button: HTMLButtonElement, canvas: HTMLCanvasElement) {
+/** The canvas lives inside its native button or summary, sharing the hit area. */
+export function attachButtonFire(button: HTMLElement, canvas: HTMLCanvasElement) {
   if (typeof IntersectionObserver === "undefined" || typeof ResizeObserver === "undefined") return () => {};
   const ctx = canvas.getContext("2d");
   if (!ctx) return () => {};

@@ -7,6 +7,8 @@ import { TopFiveCard } from "./OverallLeaderboard";
 import type { OverallBoard } from "./overall";
 import type { PlayProgress } from "./playProgress";
 import type { StreakBoard } from "./playStreaks";
+import StreakTicker from "./StreakTicker";
+import { useWideStreakBoard } from "./HubStreakBoard";
 
 const day = "2026-10-30";
 const week = [26, 27, 28, 29, 30, 31, 1].map((date, i) => ({
@@ -88,6 +90,13 @@ export default function ReturnExamples({ overall }: { overall: OverallBoard }) {
             weeklyDays: 0,
           };
   const retry = () => setState("progress");
+  const wide = useWideStreakBoard();
+  const streakData = data
+    ? state === "empty" ? { ...board, entries: [] } : board
+    : null;
+  const streakView = (
+    <StreakBoardView data={streakData} compact loading={loading} error={error} onRetry={retry} />
+  );
   return (
     <>
       <div
@@ -163,24 +172,13 @@ export default function ReturnExamples({ overall }: { overall: OverallBoard }) {
               loading={loading}
               error={error ? "unavailable" : ""}
             />
-            <StreakBoardView
-              data={
-                data
-                  ? state === "empty"
-                    ? { ...board, entries: [] }
-                    : board
-                  : null
-              }
-              compact
-              loading={loading}
-              error={error}
-              onRetry={retry}
-            />
+            {wide ? streakView : <StreakTicker data={streakData} error={error}>{streakView}</StreakTicker>}
           </div>
           <p className="ds-note">
-            До 650 px: пять игроков в каждом списке, короткое «Все», одна строка
-            на имя, без подзаголовка серии и отдельной строки «Ты». Нажимаемые
-            строки — от 44 px; строки серии без действия — 36 px.
+            До 650 px: серии свёрнуты в строку с огнём. Игроки сменяются вверх
+            раз в 4 секунды. Строка раскрывает список, значок паузы останавливает
+            движение. При уменьшении движения — статичный лидер. На компьютере
+            список сразу открыт.
           </p>
         </div>
       </div>

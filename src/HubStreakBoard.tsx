@@ -10,15 +10,10 @@ const subscribe = (notify: () => void) => {
 const desktop = () => window.matchMedia(query).matches;
 const server = () => false;
 
+export function useWideStreakBoard() {
+  return useSyncExternalStore(subscribe, desktop, server);
+}
 export default function HubStreakBoard() {
-  const expanded = useSyncExternalStore(subscribe, desktop, server);
-  if (expanded) return <StreakBoardCard compact />;
-  return (
-    <details className="hub-streak-disclosure">
-      <summary>
-        Кто играет каждый день <span aria-hidden="true">⌄</span>
-      </summary>
-      <StreakBoardCard compact />
-    </details>
-  );
+  const expanded = useWideStreakBoard();
+  return <StreakBoardCard compact disclosure={!expanded} />;
 }

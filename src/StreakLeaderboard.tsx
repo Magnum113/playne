@@ -8,8 +8,15 @@ import FooterLinks from "./FooterLinks";
 import PlayStreak from "./PlayStreak";
 import { ACCOUNT_GOALS, reachGoalOnce } from "./analytics";
 import "./streak.css";
+import StreakTicker from "./StreakTicker";
 
-export function StreakBoardCard({ compact = false }: { compact?: boolean }) {
+export function StreakBoardCard({
+  compact = false,
+  disclosure = false,
+}: {
+  compact?: boolean;
+  disclosure?: boolean;
+}) {
   const { user, loading: authLoading } = useAuth();
   const identity = user?.id ?? "guest";
   const [page, setPage] = useState(1),
@@ -74,7 +81,7 @@ export function StreakBoardCard({ compact = false }: { compact?: boolean }) {
         { game: "streak", period: "current" },
       );
   }, [compact, data, status, identity, page]);
-  return (
+  const view = (
     <StreakBoardView
       data={data}
       compact={compact}
@@ -89,6 +96,9 @@ export function StreakBoardCard({ compact = false }: { compact?: boolean }) {
       }}
     />
   );
+  return disclosure ? (
+    <StreakTicker data={data} error={status === "error"}>{view}</StreakTicker>
+  ) : view;
 }
 
 export function StreakBoardView({
