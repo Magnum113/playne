@@ -77,5 +77,7 @@ describe("Selected B: dynamic friend-result previews", () => {
       hashes.add(createHash("sha256").update(png).digest("hex"));
     }
     expect(hashes.size).toBe(10);
-  });
+    // Ten full PNG renders plus cold WASM/font initialization can exceed the
+    // default 5 seconds on shared CI runners; this is not a latency benchmark.
+  }, 30_000);
 });
