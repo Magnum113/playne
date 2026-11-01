@@ -7,6 +7,7 @@ import { GameHeader } from "./SiteHeader";
 import { GameIntro, GameStartAction } from "./GameIntro";
 import { ModeChoice, RoundDots, StatusMessage } from "./ui";
 import FooterLinks from "./FooterLinks";
+import GameAbout from "./GameAbout";
 import GameResultLayout from "./GameResultLayout";
 import BrainPreview from "./BrainPreview";
 import PlayNextStep from "./PlayNextStep";
@@ -726,7 +727,6 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
           title={content.name}
           record={phase === "welcome" ? { game, mode, value: 0, max: 500, modeLabel: mode === "practice" ? "Практика" : "Лучшая задача дня" } : undefined}
           eyebrow={content.skill.toUpperCase()}
-          description={content.description}
           onRules={() => {
             rules.current?.showModal();
             reachGoal(BRAIN_GOALS.rulesOpen, { game, mode, difficulty });
@@ -1167,50 +1167,44 @@ export default function BrainGame({ game }: { game: BrainGameId }) {
             )}
           </section>
         )}
-        <section
-          className="brain-about"
-          id={`${game}-about`}
-          aria-labelledby="brain-about-title"
-        >
-          <div className="brain-about-grid">
-            <div>
-              <p className="eyebrow">{content.skill.toUpperCase()}</p>
-              <h2 id="brain-about-title">Правила игры «{content.name}»</h2>
-              <ol>
-                {content.rules.map((rule) => (
-                  <li key={rule}>{rule}</li>
-                ))}
-              </ol>
-              <p>{content.scoreText}</p>
-            </div>
-            <div>
-              <h3>Своя задача на каждый день</h3>
-              <p>{brainDailyText}</p>
-              <p>{brainPracticeText}</p>
-              <p>
-                Можно играть пальцем, мышью и клавиатурой. Первая партия — без
-                входа, дальше бесплатно через Яндекс.
-              </p>
-              <a href="/brain/">Все игры для ума →</a>
-              <p>
-                <a href="/guides/brain/">Правила, сложность и очки →</a>
-              </p>
-            </div>
-          </div>
+        <GameAbout>
           <section
-            className="brain-faq"
-            id={`${game}-faq`}
-            aria-labelledby="brain-faq-title"
+            className="brain-about"
+            id={`${game}-about`}
+            aria-labelledby="brain-about-title"
           >
-            <h2 id="brain-faq-title">Вопросы об игре</h2>
-            {content.faq.map(({ question, answer }) => (
-              <details key={question}>
-                <summary>{question}</summary>
-                <p>{answer}</p>
-              </details>
-            ))}
+            <div className="brain-about-grid">
+              <div>
+                <h2 id="brain-about-title">Правила игры «{content.name}»</h2>
+                <ol>
+                  {content.rules.map((rule) => (
+                    <li key={rule}>{rule}</li>
+                  ))}
+                </ol>
+                <p>{content.scoreText}</p>
+              </div>
+              <div>
+                <a href="/brain/">Все игры для ума →</a>
+                <p>
+                  <a href="/guides/brain/">Правила, сложность и очки →</a>
+                </p>
+              </div>
+            </div>
+            <section
+              className="brain-faq"
+              id={`${game}-faq`}
+              aria-labelledby="brain-faq-title"
+            >
+              <h2 id="brain-faq-title">Вопросы об игре</h2>
+              {content.faq.map(({ question, answer }) => (
+                <details key={question}>
+                  <summary>{question}</summary>
+                  <p>{answer}</p>
+                </details>
+              ))}
+            </section>
           </section>
-        </section>
+        </GameAbout>
       </main>
       <FooterLinks />
       <RulesDialog

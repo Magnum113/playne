@@ -686,36 +686,10 @@
 .geo-clues {
   grid-column: 1 / -1;
 }
-.geo-clues > p,
-.geo-clues li p {
+.geo-clues > p {
   color: var(--muted);
   font-size: 15px;
   line-height: 1.75;
-}
-.geo-clues ol {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-  list-style: none;
-  counter-reset: geo-clue;
-  margin: 28px 0 12px;
-  padding: 0;
-}
-.geo-clues li {
-  counter-increment: geo-clue;
-  padding-inline-start: 20px;
-  border-inline-start: 2px solid var(--line);
-}
-.geo-clues li::before {
-  content: "0" counter(geo-clue);
-  color: var(--mint);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-.geo-clues h3 {
-  font-size: 18px;
-  line-height: 1.4;
-  margin: 12px 0;
 }
 .geo-clues > a {
   display: inline-flex;
@@ -731,10 +705,6 @@
     gap: 30px;
     padding-top: 30px;
     margin-top: 30px;
-  }
-  .geo-clues ol {
-    grid-template-columns: 1fr;
-    gap: 20px;
   }
 }
 

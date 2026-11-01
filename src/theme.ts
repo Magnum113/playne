@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { reachGoal, THEME_GOALS } from "./analytics";
 
 export type Theme = "light" | "dark";
 const KEY = "playne:theme",
@@ -49,6 +50,8 @@ export function useTheme() {
     } catch {
       /* The current page still updates. */
     }
+    if (next === "dark")
+      reachGoal(THEME_GOALS.darkEnabled, { source: "header", theme: next });
   }
   return { theme, toggleTheme };
 }

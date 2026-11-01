@@ -202,7 +202,7 @@ export default function CircleGame() {
         <GameIntro
           title="Круг"
           eyebrow="ОДНА ЛИНИЯ. ИДЕАЛЬНЫЙ КРУГ."
-          description="Нарисуй идеальный круг мышью или пальцем и узнай процент точности."
+          description="Обведи точку одним движением и узнай точность круга."
           descriptionId="circle-instructions"
           record={{ game: "circle", value: best, unit: "%" }}
           onRules={() => {
