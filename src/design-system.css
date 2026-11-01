@@ -753,7 +753,8 @@
 .ds-faq summary {
   font-size: 14px;
 }
-.ds-section .footer-links {
+.ds-section .footer-links,
+.ds-section .site-footer-content {
   border: 0;
   margin: 0;
   padding: 0;
