@@ -1046,6 +1046,19 @@ function SaveStates() {
     </>
   );
 }
+function CompactSettingsDemo() {
+  const [mode, setMode] = useState<"classic" | "timed">("classic");
+  return <>
+    <p className="game-mode-summary">Весь мир · Без перемещения · {mode === "timed" ? "На время" : "Без таймера"}</p>
+    <details className="game-details"><summary>Настроить игру</summary>
+      <ModeChoice value={mode} onChange={setMode} options={[
+        {value: "classic", label: "Без таймера", description: "В своём темпе"},
+        {value: "timed", label: "На время", description: "Три минуты на раунд"},
+      ]} />
+    </details>
+  </>;
+}
+
 function GuestPromptDemo() {
   const [notice, setNotice] = useState("");
   return (
@@ -2093,14 +2106,23 @@ export default function DesignSystem() {
                 критерии будущих проверок находятся в разделе «Правила
                 компонентов».
               </p>
-              <div className="ds-demo-grid">
-                <div className="ds-panel"><h3>После партии</h3><ResultStatus state="saved" ranking="/leaderboard/" /><NextGame game="naglaz" preview /></div>
-                <div className="ds-panel"><h3>Компактные настройки</h3><p className="game-mode-summary">Весь мир · Без перемещения · Без таймера</p><details className="game-details"><summary>Настроить игру</summary><ModeChoice value="classic" onChange={() => {}} options={[{value: "classic", label: "Без таймера", description: "В своём темпе"}, {value: "timed", label: "На время", description: "Три минуты на раунд"}]} /></details></div>
-              </div>
-              <div className="ds-panel">
-                <h3>Действия после круга</h3>
-                <p className="ds-note">Пример кнопок без сохранения партии. Огонь не увеличивает высоту строки.</p>
-                <div className="circle-feedback has-result"><div className="circle-actions"><button className="secondary-button">Ещё раз ↻</button><FireButton>Бросить вызов ↗</FireButton></div></div>
+              <div className="ds-grid">
+                <Sample title="После партии" source="ResultStatus · NextGame">
+                  <ResultStatus state="saved" ranking="/leaderboard/" />
+                  <NextGame game="naglaz" preview />
+                </Sample>
+                <Sample title="Компактные настройки" source="ModeChoice · game-details">
+                  <CompactSettingsDemo />
+                </Sample>
+                <Sample title="Действия после круга" source="circle-actions · FireButton" wide>
+                  <p className="ds-note">Пример кнопок без сохранения партии. Огонь не увеличивает высоту строки.</p>
+                  <div className="circle-feedback has-result">
+                    <div className="circle-actions">
+                      <button className="secondary-button">Ещё раз ↻</button>
+                      <FireButton>Бросить вызов ↗</FireButton>
+                    </div>
+                  </div>
+                </Sample>
               </div>
               <ol className="ds-audit">
                 <li><h3>Мобильный игровой экран</h3><p>Образец, палитра, таймер и действие помещаются вместе на 412 × 915. Счёт до 500 не меняет высоту строки. У кнопок результата обычная высота 52 px; огонь не влияет на раскладку.</p></li>
