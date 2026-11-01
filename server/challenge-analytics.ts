@@ -34,7 +34,7 @@ export const challengeAnalyticsScript = `(() => {
   const counter = ${METRIKA_COUNTER_ID};
   const goals = ${JSON.stringify({ landing: SHARE_GOALS.landing, accepted: SHARE_GOALS.accepted })};
   const game = document.body.dataset.game;
-  if (!${JSON.stringify(["naglaz", "circle", "colorfle", "geo", "pressure", "line", "flash", "rotate", "slide", "dispatch"])}.includes(game)) return;
+  if (!${JSON.stringify(["naglaz", "circle", "colorfle", "geo", "pressure", "line", "flash", "rotate", "slide", "dispatch", "flow"])}.includes(game)) return;
   window.ym = window.ym || function(){(window.ym.a = window.ym.a || []).push(Array.from(arguments));};
   window.ym.l = Date.now();
   const script = document.createElement('script');

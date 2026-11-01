@@ -1108,3 +1108,161 @@
   border-radius: var(--radius-inner);
   background: var(--panel);
 }
+
+/* The same role tokens and action stack used by the real game. */
+.ds-game-spacing {
+  display: grid;
+  gap: var(--control-group-gap);
+}
+.ds-game-spacing > .secondary-button {
+  justify-self: start;
+}
+.ds-spacing-previews {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--space-6);
+  align-items: start;
+}
+.ds-spacing-stage,
+.ds-spacing-result {
+  width: min(100%, 320px);
+  justify-self: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.ds-spacing-stage {
+  --safe-area-top: 0px;
+  --safe-area-bottom: 0px;
+  position: relative;
+  padding: calc(var(--game-gutter) + var(--safe-area-top)) var(--game-gutter)
+    calc(var(--game-gutter) + var(--safe-area-bottom));
+  background: #ffe1b3;
+  color: #453b37;
+  display: grid;
+  gap: var(--space-4);
+}
+.ds-spacing-stage[data-safe-area="true"] {
+  --safe-area-top: 24px;
+  --safe-area-bottom: 32px;
+}
+.ds-spacing-stage[data-safe-area="true"]::before,
+.ds-spacing-stage[data-safe-area="true"]::after {
+  content: "";
+  position: absolute;
+  left: var(--game-gutter);
+  right: var(--game-gutter);
+  height: var(--safe-area-top);
+  top: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    #7953b433 0 4px,
+    transparent 4px 8px
+  );
+}
+.ds-spacing-stage[data-safe-area="true"]::after {
+  top: auto;
+  bottom: 0;
+  height: var(--safe-area-bottom);
+}
+.ds-spacing-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--compact-control-gap);
+}
+.ds-spacing-hud button {
+  width: var(--control-size);
+  height: var(--control-size);
+  min-width: var(--control-size);
+  padding: 0;
+}
+.ds-spacing-hud strong {
+  font-size: 14px;
+}
+.ds-spacing-stage > .flow-scene {
+  width: 100%;
+  height: auto;
+}
+.ds-spacing-queues {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--control-size), 1fr));
+  gap: var(--compact-control-gap);
+}
+.ds-spacing-queues button {
+  display: block;
+  min-width: var(--control-size);
+  min-height: var(--control-size);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.ds-spacing-queues svg {
+  width: 100%;
+}
+.ds-spacing-game-footer {
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ds-spacing-result {
+  padding: var(--panel-inset);
+  background: var(--panel);
+  text-align: center;
+}
+.ds-spacing-result > svg {
+  display: block;
+  margin-inline: auto;
+}
+.ds-spacing-result h3 {
+  margin: var(--space-3) 0;
+}
+.ds-spacing-result > p {
+  margin: 0 0 var(--control-group-gap);
+  color: var(--muted);
+  font-size: var(--text-caption);
+  line-height: 1.6;
+}
+.ds-spacing-result .ui-action-stack > button {
+  width: 100%;
+  padding-inline: var(--space-2);
+}
+.ds-spacing-replay {
+  margin-top: var(--control-group-gap);
+  min-height: var(--control-size);
+}
+.ds-spacing-roles {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+.ds-spacing-roles > div {
+  display: grid;
+  gap: var(--space-2);
+}
+.ds-spacing-roles dt {
+  font-size: 13px;
+}
+.ds-spacing-roles dd {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+}
+.ds-spacing-roles i {
+  height: 8px;
+  background: var(--purple-soft);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.ds-spacing-roles code {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.ds-game-spacing > .ds-note {
+  margin: 0;
+}
+.ds-spacing-result .ui-action-stack > button {
+  justify-content: center;
+  text-align: center;
+}

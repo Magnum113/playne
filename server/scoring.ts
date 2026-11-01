@@ -5,6 +5,7 @@ import {
   replayEndlessPressRun,
   PRESSURE_RULES_VERSION,
 } from "../src/pressure";
+import { FLOW_VERSION } from "../src/flow";
 import { chooseRounds, legacyPairIds, objects, pairs } from "../src/data";
 import { score } from "../src/game";
 import { evaluateCircle } from "../src/circle";
@@ -53,13 +54,14 @@ export const GAME_NAMES = {
   rotate: "Поворот",
   slide: "Передвинь",
   dispatch: "Диспетчер",
+  flow: "Рой",
 } as const;
 export type GameId = keyof typeof GAME_NAMES;
 export const isGame = (v: unknown): v is GameId =>
   typeof v === "string" && Object.hasOwn(GAME_NAMES, v);
 export const SCORE_VERSION = 1;
 export const scoreVersion = (game: GameId) =>
-  game === "geo"
+  game === "flow" ? FLOW_VERSION : game === "geo"
     ? 4
     : game === "colorfle"
       ? SHADE_SCORE_VERSION
@@ -122,6 +124,7 @@ export function makeChallenge(
   difficulty = 1,
   brainPack?: BrainChallenge,
 ): any {
+  if (game === "flow") throw Error("Используй отдельный маршрут игры «Рой»");
   if (isBrainGame(game))
     return createBrain(
       game,
@@ -208,6 +211,7 @@ export function validateAnswer(
   now = Date.now(),
   version = 4,
 ) {
+  if (game === "flow") throw Error("Используй отдельный маршрут игры «Рой»");
   if (isBrainGame(game)) return brainAnswer(challenge, index, input, now);
   if (game === "line") {
     const puzzle = challenge.puzzles?.[index];
@@ -374,7 +378,7 @@ export function initialNickname(profile: any) {
 export function safeReturn(value: unknown) {
   if (
     typeof value !== "string" ||
-    !/^\/(?:account|naglaz|circle|colorfle|geo|pressure|line|one-line|brain\/(?:flash|rotate|slide|dispatch)|leaderboard)\/(?:\?[^#]*)?$/.test(
+    !/^\/(?:account|naglaz|circle|colorfle|geo|pressure|swarm|line|one-line|brain\/(?:flash|rotate|slide|dispatch)|leaderboard)\/(?:\?[^#]*)?$/.test(
       value,
     )
   )
@@ -393,7 +397,7 @@ export function safeReturn(value: unknown) {
         return "/account/";
     } else if (key === "challenge") {
       if (
-        !/^\/(?:naglaz|circle|colorfle|geo|pressure|line|one-line|brain\/(?:flash|rotate|slide|dispatch))\/$/.test(
+        !/^\/(?:naglaz|circle|colorfle|geo|pressure|swarm|line|one-line|brain\/(?:flash|rotate|slide|dispatch))\/$/.test(
           url.pathname,
         ) ||
         !/^[A-Za-z0-9_-]{43}$/.test(item)
@@ -401,7 +405,9 @@ export function safeReturn(value: unknown) {
         return "/account/";
     } else if (key === "mode") {
       if (
-        url.pathname === "/geo/"
+        url.pathname === "/swarm/"
+          ? !["daily", "level"].includes(item)
+          : url.pathname === "/geo/"
           ? !validGeoMode(item)
           : ["/line/", "/one-line/"].includes(url.pathname) ||
               /^\/brain\/(flash|rotate|slide|dispatch)\/$/.test(url.pathname)

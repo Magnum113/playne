@@ -305,6 +305,7 @@ export default function AccountPage() {
                           h.game,
                         ) &&
                           ` · ${h.mode === "practice" ? "Практика · Уровень " + h.difficulty : "Задача дня"}`}
+                        {h.game === "flow" && ` · ${h.mode === "classic" ? "Испытание дня" : "Уровни"}`}
                         {h.game === "line" &&
                           ` · ${h.mode === "practice" ? "Практика" : "Задача дня"}`}
                         <small>

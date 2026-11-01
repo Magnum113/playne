@@ -45,7 +45,8 @@ export type GameId =
   | "flash"
   | "rotate"
   | "slide"
-  | "dispatch";
+  | "dispatch"
+  | "flow";
 const isBrain = (game: string) =>
   ["flash", "rotate", "slide", "dispatch"].includes(game);
 export type GameMode = GeoMode | "practice";
@@ -60,6 +61,7 @@ export const gameNames: Record<GameId, string> = {
   rotate: "Поворот",
   slide: "Передвинь",
   dispatch: "Диспетчер",
+  flow: "Рой",
 };
 export type User = {
   id: string;
@@ -247,8 +249,7 @@ export const useAuth = () => useContext(AuthContext);
 export function useGuestTrial<G extends GameId = GameId>(game?: G) {
   const auth = useAuth();
   const trial = (game ? auth.trials[game] : undefined) as
-    | GuestTrial<G>
-    | undefined;
+    GuestTrial<G> | undefined;
   const query =
     typeof window === "undefined"
       ? null
@@ -271,7 +272,7 @@ export function guestLoginReturn(game: GameId, id?: string, mode?: GameMode) {
       : new URLSearchParams(window.location.search).get("challenge");
   if (challenge && /^[A-Za-z0-9_-]{43}$/.test(challenge)) {
     const retry = new URLSearchParams(window.location.search).get("retry");
-    return `/${game === "line" ? "one-line" : isBrain(game) ? "brain/" + game : game}/?challenge=${challenge}${retry && /^[0-9a-f-]{36}$/i.test(retry) ? "&retry=" + retry : ""}`;
+    return `/${game === "line" ? "one-line" : game === "flow" ? "swarm" : isBrain(game) ? "brain/" + game : game}/?challenge=${challenge}${retry && /^[0-9a-f-]{36}$/i.test(retry) ? "&retry=" + retry : ""}`;
   }
   if (id) params.set("saved", id);
   if (
@@ -280,7 +281,7 @@ export function guestLoginReturn(game: GameId, id?: string, mode?: GameMode) {
   )
     params.set("mode", mode);
   return (
-    `/${isBrain(game) ? "brain/" + game : game === "line" ? "one-line" : game}/` +
+    `/${isBrain(game) ? "brain/" + game : game === "line" ? "one-line" : game === "flow" ? "swarm" : game}/` +
     (params.size ? `?${params}` : "")
   );
 }
@@ -680,11 +681,7 @@ export function useRankedRun<G extends GameId>(game: G) {
     },
     state,
     mode: (current.current.mode ?? "classic") as G extends
-      | "line"
-      | "flash"
-      | "rotate"
-      | "slide"
-      | "dispatch"
+      "line" | "flash" | "rotate" | "slide" | "dispatch"
       ? GameMode
       : GeoMode,
     begin,
@@ -773,7 +770,9 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
   const { user, loading } = useAuth();
   const s = run.state;
   const privatePractice = isBrain(game) && run.mode === "practice";
-  const ranking = privatePractice ? "/account/" : `/leaderboard/?game=${game}&mode=${run.mode}`;
+  const ranking = privatePractice
+    ? "/account/"
+    : `/leaderboard/?game=${game}&mode=${run.mode}`;
   const rankingLabel = privatePractice ? "Личная история →" : "Рейтинг игры →";
   if (isBrain(game) && run.mode === "practice" && user && s.status === "saved")
     return (
@@ -791,7 +790,13 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
     );
   }
   if (s.status === "idle")
-    return <ResultStatus state="restoring" ranking={ranking} rankingLabel={rankingLabel} />;
+    return (
+      <ResultStatus
+        state="restoring"
+        ranking={ranking}
+        rankingLabel={rankingLabel}
+      />
+    );
   if (["loading", "checking", "ready"].includes(s.status))
     return <ResultStatus state="checking" />;
   if (s.status === "error")
@@ -829,8 +834,10 @@ export const resultText = (
   score: number,
   version = GEO_SCORE_VERSION,
 ) =>
-  game === "pressure"
-    ? formatPressScore(score)
-    : game === "circle"
-      ? `${score.toFixed(1).replace(".", ",")}%`
-      : `${geoPoints(score)} / ${game === "geo" && version !== 1 ? geoPoints(GEO_MAX_POINTS) : "500"}`;
+  game === "flow"
+    ? `${score} / 1000`
+    : game === "pressure"
+      ? formatPressScore(score)
+      : game === "circle"
+        ? `${score.toFixed(1).replace(".", ",")}%`
+        : `${geoPoints(score)} / ${game === "geo" && version !== 1 ? geoPoints(GEO_MAX_POINTS) : "500"}`;

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { randomBytes } from "node:crypto";
 import { challengePublicOrigin } from "./challenge-links";
+import { makeFlowPuzzle } from "../src/flow";
 import { scoreVersion } from "./scoring";
 import { lineMoscowDate } from "../src/line";
 import {
@@ -38,6 +39,7 @@ const names: Record<ChallengeGame, string> = {
   rotate: "Поворот",
   slide: "Передвинь",
   dispatch: "Диспетчер",
+  flow: "Рой",
 };
 export const privateComparison = (run: any): boolean =>
   run.challenge?.comparison === true;
@@ -62,18 +64,42 @@ function supported(run: any) {
     !(CHALLENGE_GAMES as readonly string[]).includes(run.game) ||
     run.version !== scoreVersion(run.game) ||
     !run.completed_at ||
-    run.answer_count !== (["circle", "pressure"].includes(run.game) ? 1 : 5) ||
+    run.answer_count !==
+      (["circle", "pressure", "flow"].includes(run.game) ? 1 : 5) ||
     !Number.isInteger(run.score_units) ||
     run.score_units < 0 ||
     run.score_units >
       (run.game === "pressure"
         ? 250000
-        : run.game === "circle"
-          ? 1000
-          : 5000) ||
+        : run.game === "flow"
+          ? 10000
+          : run.game === "circle"
+            ? 1000
+            : 5000) ||
     (brain && (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)))
   )
     failure("Для вызова нужна завершённая партия текущей версии игры.", 409);
+  if (run.game === "flow") {
+    try {
+      if (
+        !["level", "daily"].includes(challenge?.kind) ||
+        typeof challenge?.key !== "string"
+      )
+        throw Error();
+      makeFlowPuzzle(
+        challenge.kind,
+        challenge.kind === "level" ? Number(challenge.key) : challenge.key,
+      );
+      if (
+        challenge.kind === "level" &&
+        String(Number(challenge.key)) !== challenge.key
+      )
+        throw Error();
+      if (run.score_units < 1000) throw Error();
+    } catch {
+      failure("Эту версию задания нельзя повторить.", 409);
+    }
+  }
   if (!brain) {
     if (
       (run.game === "naglaz" && challenge?.pairIds?.length !== 5) ||
@@ -122,7 +148,24 @@ function metadata(
     gameName: names[run.game as ChallengeGame],
     nickname: run.nickname || "Гость",
     score: run.score_units / 10,
-    maxScore: run.game === "circle" ? 100 : run.game === "pressure" ? 0 : 500,
+    maxScore:
+      run.game === "flow"
+        ? 1000
+        : run.game === "circle"
+          ? 100
+          : run.game === "pressure"
+            ? 0
+            : 500,
+    ...(run.game === "flow"
+      ? {
+          flow: {
+            kind: run.challenge.kind,
+            key: run.challenge.key,
+            stars:
+              run.score_units >= 9600 ? 3 : run.score_units >= 8000 ? 2 : 1,
+          },
+        }
+      : {}),
     day:
       run.challenge.day ??
       new Intl.DateTimeFormat("en-CA", {
@@ -142,7 +185,10 @@ function metadata(
 
 async function canManage(client: Queryable, run: any, viewer: Viewer) {
   if (run.owner_id) return run.owner_id === viewer.userId;
-  if (privateComparison(run) && run.browser_hash === viewer.browserHash)
+  if (
+    (run.game === "flow" || privateComparison(run)) &&
+    run.browser_hash === viewer.browserHash
+  )
     return true;
   return (
     (

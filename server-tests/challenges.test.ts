@@ -12,7 +12,10 @@ import {
   scoreVersion,
 } from "../server/scoring";
 import { brainDailyPack } from "../server/brain";
-import { challengeSvg } from "../server/challenge-preview";
+import {
+  challengeSvg,
+  CHALLENGE_PREVIEW_VERSION,
+} from "../server/challenge-preview";
 import { hintLinePath, lineMoscowDate, type LinePuzzle } from "../src/line";
 import type { ChallengeGame } from "../src/challenges";
 
@@ -913,7 +916,7 @@ const db = process.env.TEST_DATABASE_URL;
       expect(analytics.body).not.toContain(link.token);
       expect(page.body).toContain('property="og:image"');
       expect(page.body).toContain(link.imageUrl);
-      expect(link.imageUrl).toContain("?v=field-b-v3");
+      expect(link.imageUrl).toContain(`?v=${CHALLENGE_PREVIEW_VERSION}`);
       expect(page.body).toContain('property="og:image:alt"');
       expect(page.body).toContain("Сможешь повторить?");
       expect(page.body).not.toContain("Побьёшь мой результат?");

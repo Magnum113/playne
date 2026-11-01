@@ -26,7 +26,10 @@
 }
 .share-dialog {
   width: min(600px, calc(100% - 32px));
-  max-height: calc(100dvh - 32px);
+  max-height: calc(
+    100dvh - var(--space-8) - var(--safe-area-top) - var(--safe-area-bottom)
+  );
+  inset-block: var(--safe-area-top) var(--safe-area-bottom);
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
   padding: 0;
@@ -40,7 +43,7 @@
   background: var(--overlay-backdrop);
 }
 .share-dialog-content {
-  padding: 24px;
+  padding: var(--panel-inset);
 }
 .share-dialog-heading {
   display: flex;
@@ -70,8 +73,8 @@
 .share-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 18px;
+  gap: var(--control-gap);
+  margin-top: var(--space-4);
 }
 .share-actions > button {
   flex: 1 1 auto;

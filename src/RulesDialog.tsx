@@ -13,6 +13,8 @@ type RulesDialogProps = {
   eyebrow?: string;
   className?: string;
   actionLabel?: string;
+  closeLabel?: string;
+  contentLabel?: string;
   onClose?: ReactEventHandler<HTMLDialogElement>;
   onCancel?: ReactEventHandler<HTMLDialogElement>;
   children: ReactNode;
@@ -26,6 +28,8 @@ export function RulesDialog({
   eyebrow,
   className = "",
   actionLabel = "Понятно",
+  closeLabel = "Закрыть правила",
+  contentLabel = "Текст правил",
   onClose,
   onCancel,
   children,
@@ -59,7 +63,7 @@ export function RulesDialog({
         </div>
         <IconButton
           className="close-button"
-          aria-label="Закрыть правила"
+          aria-label={closeLabel}
           onClick={close}
         >
           ×
@@ -69,7 +73,7 @@ export function RulesDialog({
         className="rules-dialog-content"
         tabIndex={0}
         role="region"
-        aria-label="Текст правил"
+        aria-label={contentLabel}
       >
         {children}
       </div>

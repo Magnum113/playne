@@ -62,6 +62,12 @@ export const BRAIN_GOALS = {
   practiceLevel: "brain_practice_level",
 } as const;
 
+export const FLOW_GOALS = {
+  gameStart: "playne_flow_start",
+  gameComplete: "playne_flow_complete",
+  share: "playne_flow_share",
+} as const;
+
 export const SHARE_GOALS = {
   opened: "playne_challenge_dialog_open",
   created: "playne_challenge_created",
@@ -122,6 +128,7 @@ export type MetrikaGoal =
   | Values<typeof BRAIN_GOALS>
   | Values<typeof PLAY_GOALS>
   | Values<typeof THEME_GOALS>
+  | Values<typeof FLOW_GOALS>
   | Values<typeof SHARE_GOALS>
   | Values<typeof BRAIN_GAME_GOALS>;
 export type MetrikaParams = Record<string, string | number | boolean>;

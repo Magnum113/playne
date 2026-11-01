@@ -42,6 +42,7 @@ import {
 import FooterLinks from "./FooterLinks";
 import FooterSignupExamples from "./FooterSignupExamples";
 import GameRankingExamples from "./GameRankingExamples";
+import GameSpacingExamples from "./GameSpacingExamples";
 import { IconButton, ModeChoice, RoundDots, StatusMessage } from "./ui";
 import { SizePreview, CirclePreview, ColorPreview } from "./Hub";
 import GeoPreview from "./GeoPreview";
@@ -296,22 +297,33 @@ function ButtonExamples() {
             </button>
           </div>
         </Sample>
-        <Sample title="Кнопка с отступом от панели" source="ui.tsx / IconButton · ui-panel-toolbar">
+        <Sample
+          title="Кнопка с отступом от панели"
+          source="ui.tsx / IconButton · ui-panel-toolbar"
+        >
           <div className="ui-panel-toolbar ds-inset-panel">
             <strong>Где это?</strong>
-            <IconButton aria-label="Закрыть пример панели" onClick={() => setNotice("Кнопка закрытия работает. Это пример панели.")}>
+            <IconButton
+              aria-label="Закрыть пример панели"
+              onClick={() =>
+                setNotice("Кнопка закрытия работает. Это пример панели.")
+              }
+            >
               ×
             </IconButton>
           </div>
-          <p className="ds-note">Фон — 32 × 32 px, область нажатия — 44 × 44 px. Внутренний отступ панели — от 8 px; фокус не обрезается.</p>
+          <p className="ds-note">
+            Фон — 32 × 32 px, область нажатия — 44 × 44 px. Внутренний отступ
+            панели — от 8 px; фокус не обрезается.
+          </p>
         </Sample>
         <Sample
           title="Вызов другу: огненный контур"
           source="FireButton.tsx · buttonFire.ts · fire-button.css"
         >
           <p className="ds-note">
-            Цельное низкое пламя. Поджигание за 0,7 секунды при появлении
-            кнопки на экране. Высота огня — 12 px, скорость — 1,5×. Контур, фон и текст
+            Цельное низкое пламя. Поджигание за 0,7 секунды при появлении кнопки
+            на экране. Высота огня — 12 px, скорость — 1,5×. Контур, фон и текст
             уменьшаются вместе при нажатии. При уменьшении движения — статичный
             контур.
           </p>
@@ -1058,24 +1070,57 @@ function SaveStates() {
 function CompactSettingsDemo() {
   const [mode, setMode] = useState<"classic" | "timed">("classic");
   const [collection, setCollection] = useState<"world" | "landmarks">("world");
-  return <div className="geo-welcome-setup">
-    <ModeChoice
-      className="geo-mode-choice geo-collection-choice"
-      legend="Места"
-      value={collection}
-      onChange={setCollection}
-      options={[
-        { value: "world", label: "Весь мир", description: "Города, дороги и пейзажи" },
-        { value: "landmarks", label: "Достопримечательности", description: "Узнай памятники, храмы и чудеса природы" },
-      ]}
-    />
-    <details className="game-details geo-settings"><summary>Настроить игру <span className="geo-settings-summary">{collection === "landmarks" ? "Достопримечательности" : "Без перемещения"} · {mode === "timed" ? "На время" : "Без таймера"}</span></summary>
-      <ModeChoice legend="Время" className="geo-mode-choice" value={mode} onChange={setMode} options={[
-        {value: "classic", label: "Без таймера", description: "В своём темпе"},
-        {value: "timed", label: "На время", description: "Три минуты на раунд"},
-      ]} />
-    </details>
-  </div>;
+  return (
+    <div className="geo-welcome-setup">
+      <ModeChoice
+        className="geo-mode-choice geo-collection-choice"
+        legend="Места"
+        value={collection}
+        onChange={setCollection}
+        options={[
+          {
+            value: "world",
+            label: "Весь мир",
+            description: "Города, дороги и пейзажи",
+          },
+          {
+            value: "landmarks",
+            label: "Достопримечательности",
+            description: "Узнай памятники, храмы и чудеса природы",
+          },
+        ]}
+      />
+      <details className="game-details geo-settings">
+        <summary>
+          Настроить игру{" "}
+          <span className="geo-settings-summary">
+            {collection === "landmarks"
+              ? "Достопримечательности"
+              : "Без перемещения"}{" "}
+            · {mode === "timed" ? "На время" : "Без таймера"}
+          </span>
+        </summary>
+        <ModeChoice
+          legend="Время"
+          className="geo-mode-choice"
+          value={mode}
+          onChange={setMode}
+          options={[
+            {
+              value: "classic",
+              label: "Без таймера",
+              description: "В своём темпе",
+            },
+            {
+              value: "timed",
+              label: "На время",
+              description: "Три минуты на раунд",
+            },
+          ]}
+        />
+      </details>
+    </div>
+  );
 }
 
 function GuestPromptDemo() {
@@ -1683,20 +1728,31 @@ export default function DesignSystem() {
             </Section>
             <Section id="layout">
               <LayoutTokens />
+              <Sample
+                title="Поля экрана и расстояния до действий"
+                source="GameSpacingExamples.tsx · ui-action-stack · design-tokens.css"
+                wide
+              >
+                <GameSpacingExamples />
+              </Sample>
               <dl className="ds-spec-list">
                 <div>
                   <dt>Контейнер</dt>
                   <dd>
                     1184 px — основные страницы; 1220 px — каталог игр; 1376 px
-                    — панорамы. На телефоне по 20 px от края.
+                    — панорамы. На телефоне по 20 px от края страницы, в игровой
+                    сцене — от 16 px плюс safe area. Фон может идти до края,
+                    управление остаётся внутри полей.
                   </dd>
                 </div>
                 <div>
                   <dt>Действия</dt>
                   <dd>
                     Основная кнопка — минимум 52 px высотой; компактное действие
-                    на карте — 48 px. Иконки — область нажатия 44 × 44 px.
-                    Расстояние между соседними действиями — 8–16 px.
+                    на карте — 48 px. Иконки — область нажатия 44 × 44 px. Между
+                    компактными элементами — 8 px, обычными действиями — 12 px,
+                    группами — 24 px. Для огненной кнопки — 24 px до соседнего
+                    действия и от 12 px свободного пространства под эффект.
                   </dd>
                 </div>
                 <div>
@@ -2121,20 +2177,29 @@ export default function DesignSystem() {
             </Section>
             <Section id="audit">
               <p className="ds-note">
-                Обновлено 1 ноября 2026. Ниже — выполненные изменения;
-                критерии будущих проверок находятся в разделе «Правила
-                компонентов».
+                Обновлено 1 ноября 2026. Ниже — выполненные изменения; критерии
+                будущих проверок находятся в разделе «Правила компонентов».
               </p>
               <div className="ds-grid">
                 <Sample title="После партии" source="ResultStatus · NextGame">
                   <ResultStatus state="saved" ranking="/leaderboard/" />
                   <NextGame game="naglaz" preview />
                 </Sample>
-                <Sample title="Компактные настройки" source="ModeChoice · game-details">
+                <Sample
+                  title="Компактные настройки"
+                  source="ModeChoice · game-details"
+                >
                   <CompactSettingsDemo />
                 </Sample>
-                <Sample title="Действия после круга" source="circle-actions · FireButton" wide>
-                  <p className="ds-note">Пример кнопок без сохранения партии. Огонь не увеличивает высоту строки.</p>
+                <Sample
+                  title="Действия после круга"
+                  source="circle-actions · FireButton"
+                  wide
+                >
+                  <p className="ds-note">
+                    Пример кнопок без сохранения партии. Огонь не увеличивает
+                    высоту строки.
+                  </p>
                   <div className="circle-feedback has-result">
                     <div className="circle-actions">
                       <button className="secondary-button">Ещё раз ↻</button>
@@ -2144,9 +2209,32 @@ export default function DesignSystem() {
                 </Sample>
               </div>
               <ol className="ds-audit">
-                <li><h3>Мобильный игровой экран</h3><p>Образец, палитра, таймер и действие помещаются вместе на 412 × 915. Счёт до 500 не меняет высоту строки. У кнопок результата обычная высота 52 px; огонь не влияет на раскладку.</p></li>
-                <li><h3>Понятное сохранение</h3><p>Гость видит итог и действие «Войти и сохранить результат». Подтверждение аккаунта появляется после ответа сервера. Ошибка остаётся до повторной попытки. Практика хранится в личной истории, задача дня — в рейтинге.</p></li>
-                <li><h3>Общие стартовые экраны</h3><p>Сначала цель и запуск. Подробные настройки и правила раскрываются по запросу. Рекорд подписан источником и режимом: аккаунт, устройство, задача дня или практика.</p></li>
+                <li>
+                  <h3>Мобильный игровой экран</h3>
+                  <p>
+                    Образец, палитра, таймер и действие помещаются вместе на 412
+                    × 915. Счёт до 500 не меняет высоту строки. У кнопок
+                    результата обычная высота 52 px; огонь не влияет на
+                    раскладку.
+                  </p>
+                </li>
+                <li>
+                  <h3>Понятное сохранение</h3>
+                  <p>
+                    Гость видит итог и действие «Войти и сохранить результат».
+                    Подтверждение аккаунта появляется после ответа сервера.
+                    Ошибка остаётся до повторной попытки. Практика хранится в
+                    личной истории, задача дня — в рейтинге.
+                  </p>
+                </li>
+                <li>
+                  <h3>Общие стартовые экраны</h3>
+                  <p>
+                    Сначала цель и запуск. Подробные настройки и правила
+                    раскрываются по запросу. Рекорд подписан источником и
+                    режимом: аккаунт, устройство, задача дня или практика.
+                  </p>
+                </li>
                 <li>
                   <h3>Общий код вместо отдельных демонстраций</h3>
                   <p>

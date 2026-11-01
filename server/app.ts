@@ -1,3 +1,5 @@
+import { registerFlowRoutes } from "./flow";
+import { FLOW_VERSION } from "../src/flow";
 import Fastify, { type FastifyRequest } from "fastify";
 import {
   validHSV,
@@ -70,7 +72,7 @@ import {
   GEO_TIME_LIMIT_MS,
 } from "../src/geo";
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
-const privateRun = (run: any) => privateBrain(run) || privateComparison(run);
+const privateRun = (run: any) => (run.game === "flow" && run.mode === "practice") || privateBrain(run) || privateComparison(run);
 const token = () => randomBytes(32).toString("base64url");
 const uuid = (v: unknown): v is string =>
   typeof v === "string" &&
@@ -251,6 +253,7 @@ export async function buildApp(
       );
     }
   }
+  await registerFlowRoutes(app, pool, browser, user, failure, config.origin);
   await registerEmailRoutes(app, pool, emailConfig, requireUser);
   await registerBrainRoutes(app, pool, owned, failure, browser, user);
   await registerBrainInsightRoutes(app, pool, browser, user);
@@ -562,6 +565,7 @@ export async function buildApp(
     async (req, reply) => {
       const game = (req.body as any)?.game;
       if (!isGame(game)) failure("Неизвестная игра");
+      if (game === "flow") failure("Открой игру «Рой», чтобы начать уровень");
       const supportedPairIds = (req.body as any)?.supportedPairIds;
       if (
         game === "naglaz" &&
@@ -1338,6 +1342,7 @@ export async function buildApp(
       await c.query("BEGIN");
       await lockPublications(c);
       const run = await owned(req, reply, (req.params as any).id, c, true);
+      if (run.game === "flow") failure("Результат «Роя» сохраняется после проверки всей партии");
       // Idempotent retry returns the originally accepted answer, never changes it.
       if (input.index < run.answers.length) {
         const recordViewer = run.completed_at ? await user(req, c) : null;
@@ -1663,12 +1668,12 @@ export async function buildApp(
   app.get("/api/account", async (req) => {
     const u = await requireUser(req);
     const rows = await pool.query(
-      "SELECT id,game,mode,version,score_units,answers,completed_at,challenge->>'difficulty' AS difficulty FROM playne_games WHERE owner_id=$1 AND (published_at IS NOT NULL OR ((game IN('flash','rotate','slide','dispatch') AND mode='practice' OR challenge->>'comparison'='true') AND completed_at IS NOT NULL)) ORDER BY completed_at DESC LIMIT 30",
+      "SELECT id,game,mode,version,score_units,answers,completed_at,challenge->>'difficulty' AS difficulty FROM playne_games WHERE owner_id=$1 AND (published_at IS NOT NULL OR ((game IN('flash','rotate','slide','dispatch','flow') AND mode='practice' OR challenge->>'comparison'='true') AND completed_at IS NOT NULL)) ORDER BY completed_at DESC LIMIT 30",
       [u.id],
     );
     const best = await pool.query(
-      `SELECT game,mode,max(CASE WHEN $3=4 THEN ${GEO_V4_UNITS_SQL} WHEN $3=3 THEN ${GEO_V3_UNITS_SQL} ELSE score_units END)/10.0 AS score FROM playne_games WHERE owner_id=$1 AND coalesce(challenge->>'comparison','false')<>'true' AND (published_at IS NOT NULL OR (game IN('flash','rotate','slide','dispatch') AND mode='practice' AND completed_at IS NOT NULL)) AND ((game='geo' AND (version=$3 OR ($3=3 AND version=2) OR ($3=4 AND version IN(2,3)))) OR (game='colorfle' AND version=$4) OR (game NOT IN('geo','colorfle') AND version=$2)) GROUP BY game,mode`,
-      [u.id, SCORE_VERSION, geoViewerVersion(req), SHADE_SCORE_VERSION],
+      `SELECT game,mode,max(CASE WHEN $3=4 THEN ${GEO_V4_UNITS_SQL} WHEN $3=3 THEN ${GEO_V3_UNITS_SQL} ELSE score_units END)/10.0 AS score FROM playne_games WHERE owner_id=$1 AND coalesce(challenge->>'comparison','false')<>'true' AND (published_at IS NOT NULL OR (game IN('flash','rotate','slide','dispatch','flow') AND mode='practice' AND completed_at IS NOT NULL)) AND ((game='geo' AND (version=$3 OR ($3=3 AND version=2) OR ($3=4 AND version IN(2,3)))) OR (game='colorfle' AND version=$4) OR (game='flow' AND version=$5) OR (game NOT IN('geo','colorfle','flow') AND version=$2)) GROUP BY game,mode`,
+      [u.id, SCORE_VERSION, geoViewerVersion(req), SHADE_SCORE_VERSION, FLOW_VERSION],
     );
     return {
       user: u,

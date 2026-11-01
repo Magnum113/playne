@@ -389,7 +389,7 @@ describe("Overall leaderboard UI", () => {
         expect(box.querySelector(".rank-empty a")?.getAttribute("href")).toBe(
           playPath,
         );
-        expect(box.querySelectorAll(".rank-games button")).toHaveLength(8);
+        expect(box.querySelectorAll(".rank-games button")).toHaveLength(9);
       } finally {
         act(() => root.unmount());
         box.remove();

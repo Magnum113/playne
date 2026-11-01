@@ -1,3 +1,4 @@
+import FlowPreview from "./FlowArt";
 import { PressurePreview } from "./PressureGame";
 import LinePreview from "./LinePreview";
 import { readPressStats, formatPressScore } from "./pressure";
@@ -97,6 +98,13 @@ export default function Hub() {
               <HubStreakBoard />
             </aside>
             <div className="game-cards">
+              <a className="game-card game-card-live flow-feature-card" href="/swarm/" aria-label="Играть в Рой — цветные муравьи, уровни и испытание дня">
+                <div className="card-topline"><span className="card-category">✦ НОВАЯ ИГРА · ПЛАНИРОВАНИЕ</span></div>
+                <FlowPreview />
+                <div className="card-copy"><h2>Рой<span className="brand-dot">.</span></h2><p>Запускай цветных муравьёв и собирай конструкции.<br />Береги свободные доки — порядок решает.</p></div>
+                <div className="card-bottom"><span>36 уровней · испытание дня</span><span className="card-play">Играть <Arrow /></span></div>
+              </a>
+
               <a
                 className="game-card game-card-live"
                 href="/naglaz/"

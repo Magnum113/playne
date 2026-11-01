@@ -52,6 +52,7 @@ export function AccountBests({ best }: { best?: AccountBest[] }) {
   };
   return (
     <div className="account-bests">
+      <a className="account-best-card account-best-card--single" href="/swarm/?mode=daily" aria-label={`Рой. Испытание дня. ${score("flow", "classic") ?? "Нет результата"}. Открыть игру`}><span className="account-best-title">Рой</span><span className="account-best-footer">{result(score("flow", "classic"))}<RankArrow /></span></a>
       {(["naglaz", "circle", "pressure"] as const).map((game) => {
         const text = score(game, "classic");
         return (

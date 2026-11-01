@@ -115,6 +115,34 @@ describe("explicit result sharing", () => {
     expect(image.alt).toContain("400 / 500");
     expect(box.textContent).toContain("По ссылке видны ник и результат");
   });
+  it("waits for a swarm replay to save, then shows its level preview and shares the precise link", async () => {
+    const ready = deferred<void>(),
+      beforeCreate = vi.fn(() => ready.promise);
+    const shared = {
+      ...value(),
+      game: "flow" as const,
+      gameName: "Рой",
+      score: 1000,
+      maxScore: 1000,
+      flow: { kind: "level" as const, key: "12", stars: 3 },
+    };
+    mock.api.mockResolvedValue(shared);
+    await act(async () =>
+      root.render(<ShareResult runId="flow-run" beforeCreate={beforeCreate} />),
+    );
+    await click("Бросить вызов ↗");
+    expect(beforeCreate).toHaveBeenCalledTimes(1);
+    expect(mock.api).not.toHaveBeenCalled();
+    expect(box.textContent).toContain("Готовим превью");
+    await act(async () => ready.resolve());
+    expect(mock.api).toHaveBeenCalledExactlyOnceWith("/challenges", "POST", {
+      runId: "flow-run",
+    });
+    expect(box.querySelector("img")?.alt).toContain("Уровень 12, 3 из 3 звёзд");
+    expect(box.textContent).toContain("отдельно от кампании и рейтинга");
+    await click("Скопировать ссылку");
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(shared.url);
+  });
   it("uses the labelled native dialog, returns focus on close, and reopens the existing link", async () => {
     await render();
     const trigger = button("Бросить вызов ↗");

@@ -234,7 +234,10 @@ dialog,
 .geo-rules-dialog {
   border-radius: var(--radius-panel);
   padding: var(--space-6);
-  max-height: calc(100dvh - 32px);
+  max-height: calc(
+    100dvh - var(--space-8) - var(--safe-area-top) - var(--safe-area-bottom)
+  );
+  inset-block: var(--safe-area-top) var(--safe-area-bottom);
   overflow-y: auto;
   overscroll-behavior: contain;
   box-shadow: var(--dialog-shadow);
@@ -634,4 +637,13 @@ input[type="range"] {
   font-size: 20px;
   letter-spacing: -0.5px;
   line-height: 1.3;
+}
+
+/* Opt-in action layout shared by real screens and the design catalog. */
+.ui-action-stack {
+  display: grid;
+  gap: var(--control-gap);
+}
+.ui-action-stack--effect {
+  row-gap: var(--effect-control-gap);
 }

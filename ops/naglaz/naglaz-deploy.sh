@@ -310,7 +310,7 @@ with tarfile.open(archive, mode="r:") as bundle:
             raise SystemExit("archive contains platform metadata")
         if member.isdir() and member.type != tarfile.DIRTYPE:
             raise SystemExit("archive contains a non-standard directory")
-        if member.isdir() and normalized not in {"api", "naglaz/account", "naglaz/leaderboard", "naglaz/privacy", "naglaz/terms", "naglaz", "naglaz/assets", "naglaz/art", "naglaz/naglaz", "naglaz/circle", "naglaz/colorfle", "naglaz/geo", "naglaz/pressure", "naglaz/one-line", "naglaz/brain", "naglaz/brain/flash", "naglaz/brain/rotate", "naglaz/brain/slide", "naglaz/brain/dispatch", "naglaz/guides/brain", "naglaz/design-system", "naglaz/guides", "naglaz/guides/naglaz", "naglaz/guides/perfect-circle", "naglaz/guides/colorfle", "naglaz/guides/geoguessr", "naglaz/guides/one-line"}:
+        if member.isdir() and normalized not in {"api", "naglaz/account", "naglaz/leaderboard", "naglaz/privacy", "naglaz/terms", "naglaz", "naglaz/assets", "naglaz/art", "naglaz/art/flow", "naglaz/swarm", "naglaz/naglaz", "naglaz/circle", "naglaz/colorfle", "naglaz/geo", "naglaz/pressure", "naglaz/one-line", "naglaz/brain", "naglaz/brain/flash", "naglaz/brain/rotate", "naglaz/brain/slide", "naglaz/brain/dispatch", "naglaz/guides/brain", "naglaz/design-system", "naglaz/guides", "naglaz/guides/naglaz", "naglaz/guides/perfect-circle", "naglaz/guides/colorfle", "naglaz/guides/geoguessr", "naglaz/guides/one-line"}:
             raise SystemExit("archive contains an unexpected directory")
         if member.isfile() and member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}:
             raise SystemExit("archive contains a sparse or non-standard regular file")
@@ -336,12 +336,16 @@ with tarfile.open(archive, mode="r:") as bundle:
         for name in regular_files
         if name.startswith("naglaz/art/") and name.endswith(".png")
     ]
+    flow_artwork = [name for name in regular_files if name in {
+        "naglaz/art/flow-social.svg", "naglaz/art/flow/meadow-v2.svg",
+        "naglaz/art/flow/mushroom-v2.svg", "naglaz/art/flow/moonlight-v2.svg",
+    }]
     if len(javascript) != 1 or len(stylesheets) != 1:
         raise SystemExit("archive must contain exactly one JavaScript and one CSS bundle")
     if len(artwork) > 64:
         raise SystemExit("archive contains too many artwork files")
     optional_pages = {
-        "naglaz/circle/index.html", "naglaz/colorfle/index.html", "naglaz/geo/index.html", "naglaz/pressure/index.html", "naglaz/one-line/index.html", "naglaz/brain/index.html", "naglaz/brain/flash/index.html", "naglaz/brain/rotate/index.html", "naglaz/brain/slide/index.html", "naglaz/brain/dispatch/index.html", "naglaz/guides/brain/index.html", "naglaz/design-system/index.html",
+        "naglaz/circle/index.html", "naglaz/colorfle/index.html", "naglaz/geo/index.html", "naglaz/pressure/index.html", "naglaz/one-line/index.html", "naglaz/swarm/index.html", "naglaz/brain/index.html", "naglaz/brain/flash/index.html", "naglaz/brain/rotate/index.html", "naglaz/brain/slide/index.html", "naglaz/brain/dispatch/index.html", "naglaz/guides/brain/index.html", "naglaz/design-system/index.html",
         "naglaz/guides/index.html", "naglaz/guides/naglaz/index.html",
         "naglaz/guides/perfect-circle/index.html", "naglaz/guides/colorfle/index.html", "naglaz/guides/geoguessr/index.html", "naglaz/guides/one-line/index.html",
         "naglaz/robots.txt", "naglaz/sitemap.xml", "naglaz/404.html",
@@ -350,14 +354,15 @@ with tarfile.open(archive, mode="r:") as bundle:
     } & set(regular_files)
     if any(name.startswith("api/") for name in regular_files) and not {"api/server.cjs", "api/schema.sql"}.issubset(regular_files):
         raise SystemExit("archive is missing API release files")
-    allowed_files = required | optional_pages | set(javascript) | set(stylesheets) | set(artwork)
+    allowed_files = required | optional_pages | set(javascript) | set(stylesheets) | set(artwork) | set(flow_artwork)
     if set(regular_files) != allowed_files:
         raise SystemExit("archive contains an unexpected public file")
-    for asset in javascript + stylesheets + artwork:
+    for asset in javascript + stylesheets + artwork + flow_artwork:
         asset_path = pathlib.PurePosixPath(asset)
         filename = asset_path.name
         expected_parent = "art" if asset in artwork else "assets"
-        if asset_path.parts != ("naglaz", expected_parent, filename):
+        expected_parts = ("naglaz", "art", "flow", filename) if asset.startswith("naglaz/art/flow/") else ("naglaz", "art", filename) if asset in flow_artwork else ("naglaz", expected_parent, filename)
+        if asset_path.parts != expected_parts:
             raise SystemExit("archive contains an asset outside its exact directory")
         if not filename or any(
             character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
@@ -519,7 +524,7 @@ health_check() {
   fi
 
   # Optional for compatibility with releases built before the SEO pages existed.
-  for public_path in brain/index.html brain/flash/index.html brain/rotate/index.html brain/slide/index.html brain/dispatch/index.html guides/brain/index.html design-system/index.html pressure/index.html one-line/index.html guides/one-line/index.html account/index.html leaderboard/index.html privacy/index.html terms/index.html geo/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html guides/geoguessr/index.html; do
+  for public_path in swarm/index.html brain/index.html brain/flash/index.html brain/rotate/index.html brain/slide/index.html brain/dispatch/index.html guides/brain/index.html design-system/index.html pressure/index.html one-line/index.html guides/one-line/index.html account/index.html leaderboard/index.html privacy/index.html terms/index.html geo/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html guides/geoguessr/index.html; do
     if [[ -f "$release_dir/naglaz/$public_path" ]]; then
       request_path="${public_path%index.html}"
       curl "${curl_options[@]}" --fail "https://playne.ru/$request_path" --output "$index_file" || return 1

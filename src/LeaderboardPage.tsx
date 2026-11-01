@@ -480,7 +480,7 @@ function ScoreLeaderboardPage() {
                       ? "/brain/"
                       : isBrain(game)
                         ? `/brain/${game}/`
-                        : `/${game === "line" ? "one-line" : game}/${(game === "geo" || game === "colorfle" || game === "line") && mode !== "classic" ? `?mode=${mode}` : ""}`
+                        : `/${game === "line" ? "one-line" : game === "flow" ? "swarm" : game}/${(game === "geo" || game === "colorfle" || game === "line") && mode !== "classic" ? `?mode=${mode}` : ""}`
                 }
               >
                 {game === "overall"
@@ -522,7 +522,7 @@ function ScoreLeaderboardPage() {
               равных результатах место одинаковое.
             </p>
             <p>
-              {isBrain(game)
+              {game === "flow" ? "В таблице — лучшие результаты испытаний дня. У сегодняшней конструкции есть отдельный рейтинг на странице игры." : isBrain(game)
                 ? "В рейтинге — только задачи дня: одна попытка за московскую дату, одинаковые пять раундов для всех. Практика не публикуется."
                 : game === "line"
                   ? mode === "practice"

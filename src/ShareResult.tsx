@@ -1,12 +1,24 @@
 import { IconButton } from "./ui";
 import { useEffect, useId, useRef, useState } from "react";
 import { api, useAuth } from "./account";
-import { challengeScore, type PublicChallenge } from "./challenges";
+import {
+  challengeScore,
+  challengeTask,
+  type PublicChallenge,
+} from "./challenges";
 import { reachGoal, SHARE_GOALS } from "./analytics";
 import FireButton from "./FireButton";
 import "./challenge.css";
 
-export default function ShareResult({ runId }: { runId?: string }) {
+export default function ShareResult({
+  runId,
+  beforeCreate,
+  className,
+}: {
+  runId?: string;
+  beforeCreate?: () => Promise<void>;
+  className?: string;
+}) {
   const { user, loading } = useAuth();
   const scope = `${user?.id ?? "guest"}:${runId}`;
   const [snapshot, setSnapshot] = useState<{
@@ -14,7 +26,9 @@ export default function ShareResult({ runId }: { runId?: string }) {
     data: PublicChallenge;
   } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [previewState, setPreviewState] = useState<"loading" | "ready" | "error">("loading");
+  const [previewState, setPreviewState] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
   const [message, setMessage] = useState("");
   const request = useRef(0),
     dialog = useRef<HTMLDialogElement>(null),
@@ -40,7 +54,12 @@ export default function ShareResult({ runId }: { runId?: string }) {
     typeof window === "undefined"
       ? undefined
       : window.location.pathname.split("/").filter(Boolean).at(-1);
-  const game = slug === "one-line" ? "line" : (slug ?? "unknown");
+  const game =
+    slug === "one-line"
+      ? "line"
+      : slug === "swarm"
+        ? "flow"
+        : (slug ?? "unknown");
   async function create() {
     dialog.current?.showModal();
     setMessage("");
@@ -48,6 +67,8 @@ export default function ShareResult({ runId }: { runId?: string }) {
     const current = ++request.current;
     setBusy(true);
     try {
+      await beforeCreate?.();
+      if (current !== request.current) return;
       const value = await api<PublicChallenge>("/challenges", "POST", {
         runId,
       });
@@ -85,7 +106,7 @@ export default function ShareResult({ runId }: { runId?: string }) {
     const current = request.current;
     try {
       await navigator.share({
-        title: `${data.gameName} · ${challengeScore(data)}`,
+        title: `${data.gameName} · ${data.flow ? challengeTask(data) + " · " : ""}${challengeScore(data)}`,
         text:
           data.maxScore > 0 && data.score >= data.maxScore
             ? "Сможешь повторить мой результат?"
@@ -107,6 +128,7 @@ export default function ShareResult({ runId }: { runId?: string }) {
   return (
     <>
       <FireButton
+        className={className}
         aria-label="Бросить вызов другу"
         onClick={() => {
           reachGoal(SHARE_GOALS.opened, { game });
@@ -126,7 +148,11 @@ export default function ShareResult({ runId }: { runId?: string }) {
       >
         <div className="share-dialog-content">
           <div className="share-dialog-heading">
-            <h2 id={heading}>Кто побьёт твой результат?</h2>
+            <h2 id={heading}>
+              {data?.flow
+                ? challengeTask(data) + " · вызов другу"
+                : "Кто побьёт твой результат?"}
+            </h2>
             <IconButton
               className="share-close"
               aria-label="Закрыть приглашение"
@@ -137,20 +163,32 @@ export default function ShareResult({ runId }: { runId?: string }) {
           </div>
           {data ? (
             <>
-              <div className="share-preview-frame" aria-busy={previewState === "loading"}>
-              {previewState !== "ready" && <p role="status">{previewState === "error" ? "Превью недоступно. Ссылкой всё равно можно поделиться." : "Готовим превью…"}</p>}
-              <img
-                onLoad={() => setPreviewState("ready")}
-                onError={() => setPreviewState("error")}
-                style={{ opacity: previewState === "ready" ? 1 : 0 }}
-                className="share-preview"
-                src={data.imageUrl}
-                width="1200"
-                height="630"
-                alt={`${data.gameName}: ${challengeScore(data)}. Вызов другу.`}
-              /></div>
+              <div
+                className="share-preview-frame"
+                aria-busy={previewState === "loading"}
+              >
+                {previewState !== "ready" && (
+                  <p role="status">
+                    {previewState === "error"
+                      ? "Превью недоступно. Ссылкой всё равно можно поделиться."
+                      : "Готовим превью…"}
+                  </p>
+                )}
+                <img
+                  onLoad={() => setPreviewState("ready")}
+                  onError={() => setPreviewState("error")}
+                  style={{ opacity: previewState === "ready" ? 1 : 0 }}
+                  className="share-preview"
+                  src={data.imageUrl}
+                  width="1200"
+                  height="630"
+                  alt={`${data.gameName}: ${data.flow ? challengeTask(data) + ", " + data.flow.stars + " из 3 звёзд. " : ""}${challengeScore(data)}. Вызов другу.`}
+                />
+              </div>
               <p className="share-caption">
-                Друг сыграет в тех же условиях. По ссылке видны ник и результат.
+                {data.flow
+                  ? "Друг получит то же поле. Вызов — отдельно от кампании и рейтинга. По ссылке видны ник и результат."
+                  : "Друг сыграет в тех же условиях. По ссылке видны ник и результат."}
               </p>
               <label className="sr-only" htmlFor={heading + "-url"}>
                 Ссылка для друга
@@ -196,7 +234,13 @@ export default function ShareResult({ runId }: { runId?: string }) {
             </>
           ) : (
             <>
-              {busy ? <div className="share-preview-frame" aria-busy="true"><p role="status">Готовим превью…</p></div> : <p>{message || "В приглашении будут твой ник и результат."}</p>}
+              {busy ? (
+                <div className="share-preview-frame" aria-busy="true">
+                  <p role="status">Готовим превью…</p>
+                </div>
+              ) : (
+                <p>{message || "В приглашении будут твой ник и результат."}</p>
+              )}
               {!busy && (
                 <button
                   className="secondary-button"

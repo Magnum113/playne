@@ -1,3 +1,4 @@
+import FlowPreview from "./FlowArt";
 import StreakFlame from "./StreakFlame";
 import { streakDays } from "./playStreaks";
 import "./streak.css";
@@ -17,6 +18,7 @@ import type { PlayProgress } from "./playProgress";
 import "./play-progress.css";
 
 function Preview({ game }: { game: GameId }) {
+  if (game === "flow") return <FlowPreview />;
   if (["flash", "rotate", "slide", "dispatch"].includes(game))
     return <BrainPreview game={game as BrainGameId} />;
   if (game === "line") return <LinePreview />;

@@ -48,6 +48,19 @@
   --space-8: 32px;
   --space-12: 48px;
   --space-16: 64px;
+  /* Role-based spacing: controls stay inset even when backgrounds bleed. */
+  --page-gutter: var(--space-5);
+  --game-gutter: var(--space-4);
+  --panel-inset: var(--space-6);
+  --control-gap: var(--space-3);
+  --compact-control-gap: var(--space-2);
+  --control-group-gap: var(--space-6);
+  --effect-clearance: var(--space-3);
+  --effect-control-gap: var(--space-6);
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
   --radius-control: 12px;
   --radius-inner: 16px;
   --radius-panel: 24px;

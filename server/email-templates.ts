@@ -51,7 +51,7 @@ export function emailBoardName(game: GameId, mode: string) {
 }
 export function emailGamePath(game: GameId, mode: string) {
   return (
-    `/${isBrainGame(game) ? "brain/" + game : game === "line" ? "one-line" : game}/` +
+    `/${isBrainGame(game) ? "brain/" + game : game === "line" ? "one-line" : game === "flow" ? "swarm" : game}/` +
     ((game === "geo" ||
       game === "colorfle" ||
       game === "line" ||

@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS playne_oauth_states (
 CREATE TABLE IF NOT EXISTS playne_games (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), browser_hash char(64) NOT NULL,
  owner_id uuid REFERENCES playne_users(id) ON DELETE CASCADE,
- game text NOT NULL CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch')),
+ game text NOT NULL CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch','flow')),
  version integer NOT NULL DEFAULT 1, challenge jsonb NOT NULL, answers jsonb NOT NULL DEFAULT '[]',
  score_units integer, completed_at timestamptz, published_at timestamptz,
  expires_at timestamptz NOT NULL DEFAULT now()+interval '24 hours', created_at timestamptz NOT NULL DEFAULT now(),
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS playne_games (
  CHECK(published_at IS NULL OR (completed_at IS NOT NULL AND owner_id IS NOT NULL AND score_units IS NOT NULL))
 );
 ALTER TABLE playne_games DROP CONSTRAINT IF EXISTS playne_games_game_check;
-ALTER TABLE playne_games ADD CONSTRAINT playne_games_game_check CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch'));
+ALTER TABLE playne_games ADD CONSTRAINT playne_games_game_check CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch','flow'));
 ALTER TABLE playne_games ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'classic';
 ALTER TABLE playne_games DROP CONSTRAINT IF EXISTS playne_games_score_units_check;
 ALTER TABLE playne_games ADD CONSTRAINT playne_games_score_units_check CHECK(score_units IS NULL OR score_units BETWEEN 0 AND 250000);
@@ -45,14 +45,16 @@ CREATE TABLE IF NOT EXISTS playne_color_score_backups (
  created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS playne_guest_trials (
- browser_hash char(64) NOT NULL, game text NOT NULL CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch')),
+ browser_hash char(64) NOT NULL, game text NOT NULL CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch','flow')),
  run_id uuid REFERENCES playne_games(id) ON DELETE SET NULL,
  consumed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY(browser_hash,game)
 );
+CREATE INDEX IF NOT EXISTS playne_flow_progress ON playne_games(owner_id,(challenge->>'kind'),(challenge->>'key'),score_units DESC) WHERE game='flow' AND completed_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS playne_flow_daily ON playne_games((challenge->>'key'),score_units DESC,owner_id) WHERE game='flow' AND mode='classic' AND completed_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS playne_guest_trials_run ON playne_guest_trials(run_id);
 ALTER TABLE playne_guest_trials DROP CONSTRAINT IF EXISTS playne_guest_trials_game_check;
-ALTER TABLE playne_guest_trials ADD CONSTRAINT playne_guest_trials_game_check CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch'));
+ALTER TABLE playne_guest_trials ADD CONSTRAINT playne_guest_trials_game_check CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch','flow'));
 CREATE TABLE IF NOT EXISTS playne_line_days (
  day date NOT NULL, browser_hash char(64) NOT NULL,
  owner_id uuid REFERENCES playne_users(id) ON DELETE SET NULL,

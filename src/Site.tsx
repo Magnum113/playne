@@ -1,3 +1,4 @@
+import FlowGame from "./FlowGame";
 import OtherChallenge from "./OtherChallenge";
 import DesignSystem from "./DesignSystem";
 import App from "./App";
@@ -48,6 +49,7 @@ export default function Site({ path }: { path: string }) {
         <PressureGame />
       </OtherChallenge>
     );
+  if (route === "/swarm/") return <FlowGame />;
   if (route === "/one-line/") return <LineGame />;
   if (route === "/brain/") return <BrainHub />;
   const brainGame = BRAIN_GAME_IDS.find((id) => route === `/brain/${id}/`);

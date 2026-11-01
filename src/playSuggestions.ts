@@ -5,6 +5,7 @@ export const playCatalog: Record<
   GameId,
   { name: string; path: string; skill: string; hint: string }
 > = {
+  flow: { name: "Рой", path: "/swarm/", skill: "Планирование", hint: "Отправь цветных муравьёв за кубиками" },
   naglaz: {
     name: "На глаз",
     path: "/naglaz/",
@@ -94,7 +95,7 @@ function suggestion(
     : undefined;
   return {
     game,
-    href: playCatalog[game].path,
+    href: playCatalog[game].path + (game === "flow" ? "?mode=daily" : ""),
     label:
       status && !status.completed
         ? "Партия начата"
@@ -146,7 +147,7 @@ export function todaySuggestions(
     const game = data?.favorites[0]?.game ?? "naglaz";
     primary = {
       game,
-      href: playCatalog[game].path + (isDaily(game) ? "?mode=practice" : ""),
+      href: playCatalog[game].path + (isDaily(game) && game !== "flow" ? "?mode=practice" : ""),
       label: "Все задачи дня готовы",
       action: "Сыграть ещё",
     };

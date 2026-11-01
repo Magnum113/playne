@@ -21,7 +21,7 @@ export function SaveResult({
   );
   return (
     <>
-      {token && complete && (
+      {token && complete && game !== "flow" && (
         <ChallengeContext
           game={game}
           token={token}

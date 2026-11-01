@@ -4,10 +4,11 @@ import type { PlayDay, PlayProgress } from "../src/playProgress";
 import { playOwnership } from "./play-owner";
 import { readPlayStreak, readStreakLeaderboard } from "./play-streaks";
 import { lineMoscowDate } from "../src/line";
+import { FLOW_VERSION } from "../src/flow";
 
 type Viewer = { browserHash: string; userId?: string };
 type Queryable = Pick<Pool, "query">;
-const dailyGames = ["line", "flash", "rotate", "slide", "dispatch"];
+const dailyGames = ["flow", "line", "flash", "rotate", "slide", "dispatch"];
 const zone = "Europe/Moscow";
 
 function shiftDay(day: string, offset: number) {
@@ -113,6 +114,7 @@ export async function readPlayProgress(
         `SELECT DISTINCT ON(game) id,game,completed_at,jsonb_array_length(answers) AS completed_rounds
       FROM playne_games g WHERE ${own.sql} AND game=ANY($2::text[])
         AND mode='classic' AND challenge->>'day'=$3
+        AND (game<>'flow' OR version=${FLOW_VERSION})
       ORDER BY game,created_at DESC,id`,
         [own.id, dailyGames, day],
       ),
@@ -142,7 +144,7 @@ export async function readPlayProgress(
           id: row.id,
           completed: !!row.completed_at,
           completedRounds: Number(row.completed_rounds),
-          totalRounds: 5,
+          totalRounds: row.game === "flow" ? 1 : 5,
         },
       ]),
     ),

@@ -253,6 +253,17 @@ describe("guest party entry", () => {
       `/circle/?challenge=${"a".repeat(43)}`,
     );
   });
+  it("returns to the Swarm invitation and preserves its retry after login", () => {
+    const token = "f".repeat(43);
+    window.history.replaceState(
+      null,
+      "",
+      `/swarm/?challenge=${token}&retry=${id}`,
+    );
+    expect(guestLoginReturn("flow", id)).toBe(
+      `/swarm/?challenge=${token}&retry=${id}`,
+    );
+  });
   it.each(["welcome", "finished"] as const)(
     "keeps the invitation in the real %s guest login navigation",
     async (surface) => {
