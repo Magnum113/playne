@@ -1336,7 +1336,9 @@ export function FlowSession({
                   disabled={!game.history.length || busy}
                 >
                   <FlowIcon kind="undo" />
-                  <small>−20</small>
+                  <span className="flow-tool-cost" aria-hidden="true">
+                    −20
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -1347,7 +1349,9 @@ export function FlowSession({
                   disabled={busy}
                 >
                   <FlowIcon kind="hint" />
-                  <small>−100</small>
+                  <span className="flow-tool-cost" aria-hidden="true">
+                    −100
+                  </span>
                 </button>
                 <button
                   type="button"
