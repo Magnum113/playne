@@ -13,12 +13,14 @@ export function ResultStatus({
   state,
   message,
   ranking,
+  rankingLabel = "Рейтинг игры →",
   onRetry,
   children,
 }: {
   state: ResultStatusKind;
   message?: string;
   ranking?: string;
+  rankingLabel?: string;
   onRetry?: () => void;
   children?: ReactNode;
 }) {
@@ -52,7 +54,7 @@ export function ResultStatus({
                 : "Повторить проверку"}
             </button>
           )}
-          {ranking && <a href={ranking}>Рейтинг игры →</a>}
+          {ranking && <a href={ranking}>{rankingLabel}</a>}
         </div>
       )}
       {children}

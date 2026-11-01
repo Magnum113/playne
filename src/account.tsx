@@ -772,7 +772,9 @@ export type RankedRun = ReturnType<typeof useRankedRun>;
 export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
   const { user, loading } = useAuth();
   const s = run.state;
-  const ranking = `/leaderboard/?game=${game}&mode=${run.mode}`;
+  const privatePractice = isBrain(game) && run.mode === "practice";
+  const ranking = privatePractice ? "/account/" : `/leaderboard/?game=${game}&mode=${run.mode}`;
+  const rankingLabel = privatePractice ? "Личная история →" : "Рейтинг игры →";
   if (isBrain(game) && run.mode === "practice" && user && s.status === "saved")
     return (
       <p className="save-result" role="status">
@@ -789,7 +791,7 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
     );
   }
   if (s.status === "idle")
-    return <ResultStatus state="restoring" ranking={ranking} />;
+    return <ResultStatus state="restoring" ranking={ranking} rankingLabel={rankingLabel} />;
   if (["loading", "checking", "ready"].includes(s.status))
     return <ResultStatus state="checking" />;
   if (s.status === "error")
@@ -809,6 +811,7 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
       state={s.status === "saved" ? "saved" : waiting ? "saving" : "save-error"}
       message={s.status !== "saved" && !waiting ? s.message : undefined}
       ranking={ranking}
+      rankingLabel={rankingLabel}
       onRetry={
         !waiting && s.status !== "saved" && user ? run.retrySave : undefined
       }
