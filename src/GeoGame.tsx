@@ -692,7 +692,7 @@ export default function GeoGame() {
               value: stats.best,
               max: 500,
               modeLabel: "В этом режиме",
-              hint: geoModeName(mode) + ". Рекорд в этом браузере.",
+              hint: geoModeName(mode) + ". Лучший результат за всё время",
             }}
             onRules={() => {
               rules.current?.showModal();
