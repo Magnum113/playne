@@ -8,7 +8,7 @@ import {
   type FlowEvent,
   type FlowPuzzle,
 } from "./flow";
-import { flowMotion } from "./flowPresentation";
+import { flowMotion, type FlowMotion } from "./flowPresentation";
 
 /** Shared character: the same little ant appears in previews and carries cubes. */
 function AntFigure({
@@ -278,6 +278,7 @@ export const FlowScene = memo(function FlowScene({
   label,
   speed = 1,
   highlightColor,
+  motion,
 }: {
   puzzle: FlowPuzzle;
   cells: number[];
@@ -287,6 +288,7 @@ export const FlowScene = memo(function FlowScene({
   label?: string;
   speed?: 1 | 2;
   highlightColor?: number | null;
+  motion?: FlowMotion;
 }) {
   const step = 24,
     size = 23;
@@ -294,7 +296,7 @@ export const FlowScene = memo(function FlowScene({
     startY = 22;
   const bottom = startY + puzzle.height * step;
   const frontier = new Set(flowFrontier(puzzle, cells));
-  const timing = flowMotion(events, speed, puzzle);
+  const timing = motion ?? flowMotion(events, speed, puzzle);
   return (
     <svg
       className={`flow-scene${preview ? " flow-scene-preview" : ""}`}
@@ -304,7 +306,7 @@ export const FlowScene = memo(function FlowScene({
         label ??
         (preview
           ? "Муравьи собирают цветную пиксельную конструкцию"
-          : `${puzzle.name}. Кубиков осталось: ${cells.filter((c) => c >= 0).length}. Доступны нижние кубики каждого столбца.`)
+          : `${puzzle.name}. Кубиков осталось: ${cells.filter((c) => c >= 0).length}. Доступны кубики на открытых краях картины.`)
       }
     >
       <rect
@@ -330,7 +332,7 @@ export const FlowScene = memo(function FlowScene({
         const x = startX + (i % puzzle.width) * step,
           y = startY + Math.floor(i / puzzle.width) * step;
         const pickup = moving
-          ? events.findIndex((event) => event.cell === i)
+          ? timing.trips.findIndex((event) => event.cell === i)
           : -1;
         const paint = FLOW_COLORS[color];
         return (
@@ -340,7 +342,7 @@ export const FlowScene = memo(function FlowScene({
             style={
               pickup >= 0
                 ? ({
-                    "--pickup-delay": `${timing.pickups[pickup].at}ms`,
+                    "--pickup-delay": `${timing.trips[pickup].at - timing.trips[pickup].renderAt}ms`,
                   } as CSSProperties)
                 : undefined
             }
@@ -415,15 +417,17 @@ export const FlowScene = memo(function FlowScene({
       </g>
       {moving &&
         timing.trips.map((trip) => (
-          <React.Fragment key={`${trip.packet}:${trip.cell}`}>
+          <React.Fragment key={trip.id}>
             <g
               className="flow-walking-ant"
               aria-hidden="true"
               data-trip="outbound"
+              data-packet={trip.packet}
+              data-cell={trip.cell}
               style={
                 {
                   offsetPath: `path('${trip.outboundPath}')`,
-                  "--walk-delay": `${trip.depart}ms`,
+                  "--walk-delay": `${trip.depart - trip.renderAt}ms`,
                   "--walk-duration": `${trip.outbound}ms`,
                   "--visible-duration": `${trip.outbound + trip.pickupPause}ms`,
                 } as CSSProperties
@@ -437,10 +441,12 @@ export const FlowScene = memo(function FlowScene({
               className="flow-walking-ant is-loaded"
               aria-hidden="true"
               data-trip="return"
+              data-packet={trip.packet}
+              data-cell={trip.cell}
               style={
                 {
                   offsetPath: `path('${trip.returnPath}')`,
-                  "--walk-delay": `${trip.returnAt}ms`,
+                  "--walk-delay": `${trip.returnAt - trip.renderAt}ms`,
                   "--walk-duration": `${trip.carry}ms`,
                   "--visible-duration": `${trip.carry}ms`,
                 } as CSSProperties

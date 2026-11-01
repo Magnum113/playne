@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { randomBytes } from "node:crypto";
 import { challengePublicOrigin } from "./challenge-links";
-import { makeFlowPuzzle } from "../src/flow";
+import { FLOW_VERSION, makeFlowPuzzle } from "../src/flow";
 import { scoreVersion } from "./scoring";
 import { lineMoscowDate } from "../src/line";
 import {
@@ -62,7 +62,9 @@ function supported(run: any) {
   );
   if (
     !(CHALLENGE_GAMES as readonly string[]).includes(run.game) ||
-    run.version !== scoreVersion(run.game) ||
+    (run.game === "flow"
+      ? ![2, FLOW_VERSION].includes(run.version)
+      : run.version !== scoreVersion(run.game)) ||
     !run.completed_at ||
     run.answer_count !==
       (["circle", "pressure", "flow"].includes(run.game) ? 1 : 5) ||
@@ -89,6 +91,7 @@ function supported(run: any) {
       makeFlowPuzzle(
         challenge.kind,
         challenge.kind === "level" ? Number(challenge.key) : challenge.key,
+        run.version,
       );
       if (
         challenge.kind === "level" &&
@@ -159,6 +162,7 @@ function metadata(
     ...(run.game === "flow"
       ? {
           flow: {
+            version: run.version,
             kind: run.challenge.kind,
             key: run.challenge.key,
             stars:

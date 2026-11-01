@@ -20,7 +20,7 @@ export async function registerFlowRoutes(
         [u.id, b],
       );
     const { rows } = await pool.query(
-      `SELECT DISTINCT ON(challenge->>'kind',challenge->>'key') challenge->>'kind' AS kind,challenge->>'key' AS key,score_units/10 AS score FROM playne_games WHERE game='flow' AND version=${FLOW_VERSION} AND completed_at IS NOT NULL AND coalesce(challenge->>'comparison','false')<>'true' AND ${u ? "owner_id=$1" : "browser_hash=$1 AND owner_id IS NULL"} ORDER BY challenge->>'kind',challenge->>'key',score_units DESC`,
+      `SELECT DISTINCT ON(challenge->>'kind',challenge->>'key') challenge->>'kind' AS kind,challenge->>'key' AS key,score_units/10 AS score FROM playne_games WHERE game='flow' AND (version=${FLOW_VERSION} OR (version=2 AND challenge->>'kind'='level')) AND completed_at IS NOT NULL AND coalesce(challenge->>'comparison','false')<>'true' AND ${u ? "owner_id=$1" : "browser_hash=$1 AND owner_id IS NULL"} ORDER BY challenge->>'kind',challenge->>'key',score_units DESC`,
       [u?.id ?? b],
     );
     return {
@@ -43,7 +43,7 @@ export async function registerFlowRoutes(
       const input = req.body as any;
       if (
         !input ||
-        input.version !== FLOW_VERSION ||
+        ![2, FLOW_VERSION].includes(input.version) ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
           input.id,
         ) ||
@@ -69,6 +69,7 @@ export async function registerFlowRoutes(
           makeFlowPuzzle(
             input.kind,
             input.kind === "level" ? Number(input.key) : input.key,
+            input.version,
           ),
           input.actions,
         );
@@ -94,6 +95,7 @@ export async function registerFlowRoutes(
           );
           if (
             shared.kind !== "comparison" ||
+            shared.version !== input.version ||
             shared.challenge.kind !== input.kind ||
             shared.challenge.key !== input.key
           )
@@ -108,7 +110,7 @@ export async function registerFlowRoutes(
           day: input.kind === "daily" ? input.key : flowDay(),
         };
         await c.query(
-          `INSERT INTO playne_games(id,browser_hash,owner_id,game,version,mode,challenge,answers,score_units,completed_at,published_at,expires_at) VALUES($1,$2,$3,'flow',${FLOW_VERSION},$4,$5,$6,$7,now(),CASE WHEN $3::uuid IS NOT NULL AND $4='classic' THEN now() ELSE NULL END,now()+interval '365 days') ON CONFLICT(id) DO NOTHING`,
+          `INSERT INTO playne_games(id,browser_hash,owner_id,game,version,mode,challenge,answers,score_units,completed_at,published_at,expires_at) VALUES($1,$2,$3,'flow',$8,$4,$5,$6,$7,now(),CASE WHEN $3::uuid IS NOT NULL AND $4='classic' THEN now() ELSE NULL END,now()+interval '365 days') ON CONFLICT(id) DO NOTHING`,
           [
             input.id,
             b,
@@ -119,6 +121,7 @@ export async function registerFlowRoutes(
             JSON.stringify(challenge),
             JSON.stringify([{ actions: input.actions, score: result.score }]),
             result.score * 10,
+            input.version,
           ],
         );
         const stored = (
@@ -129,7 +132,7 @@ export async function registerFlowRoutes(
         if (
           !stored ||
           stored.game !== "flow" ||
-          stored.version !== FLOW_VERSION ||
+          stored.version !== input.version ||
           (stored.browser_hash !== b && stored.owner_id !== u?.id)
         )
           failure("Партия не найдена", 404);

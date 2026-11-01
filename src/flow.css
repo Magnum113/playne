@@ -480,21 +480,6 @@
 .flow-launch.needs-opening {
   border-style: dashed;
 }
-.flow-launch.is-hinted {
-  outline: 3px solid #7a3bb7;
-  outline-offset: 4px;
-  box-shadow: 0 0 0 7px #fff9;
-}
-.flow-hint-arrow {
-  position: absolute;
-  top: -32px;
-  inset-inline: 0;
-  color: #633096;
-  text-align: center;
-  font-size: 30px;
-  font-weight: 900;
-  filter: drop-shadow(0 2px #fff);
-}
 .flow-lane-done {
   color: #315c3f;
   font-size: 27px;
@@ -545,7 +530,7 @@
 }
 .flow-toolbar {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin: 0 18px;
   flex-shrink: 0;
@@ -1158,24 +1143,6 @@
   font-size: 25px;
   font-weight: 850;
 }
-.flow-wait-dots {
-  position: absolute;
-  display: flex;
-  gap: 3px;
-  top: -9px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 4px 6px;
-  border-radius: 10px;
-  background: #fff9e9;
-  box-shadow: 0 2px 4px #233e2822;
-}
-.flow-wait-dots i {
-  width: 3px;
-  height: 3px;
-  background: #74683c;
-  border-radius: 50%;
-}
 .flow-docks.is-full {
   outline: 2px solid #9c4d2f;
   outline-offset: 3px;
@@ -1278,15 +1245,6 @@
   }
   .flow-dock.is-delivered::after {
     animation: flow-dock-check 180ms ease-out both;
-  }
-  .flow-wait-dots i {
-    animation: flow-wait-dot 1300ms ease-in-out infinite;
-  }
-  .flow-wait-dots i:nth-child(2) {
-    animation-delay: 150ms;
-  }
-  .flow-wait-dots i:nth-child(3) {
-    animation-delay: 300ms;
   }
   .flow-docks.is-full {
     animation: flow-dock-warning 210ms ease-out;
@@ -1415,16 +1373,6 @@
   to {
     transform: scale(1);
     opacity: 1;
-  }
-}
-@keyframes flow-wait-dot {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-2px);
   }
 }
 @keyframes flow-dock-warning {
@@ -1669,9 +1617,7 @@
 .flow-play .flow-launch:disabled:not(:has(.flow-lane-done)) {
   opacity: 0.88;
 }
-.flow-play .flow-launch.is-hinted {
-  outline: 3px solid #784ac3;
-}
+
 .flow-play .flow-launch:has(.flow-lane-done) {
   background: #fff5;
 }

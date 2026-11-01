@@ -19,11 +19,9 @@ import {
   FLOW_LEVELS,
   flowDay,
   flowFrontier,
-  flowSolution,
   makeFlowPuzzle,
   replayFlow,
   type FlowAction,
-  type FlowEvent,
 } from "./flow";
 import {
   flowRecordKey,
@@ -36,7 +34,7 @@ import {
   type FlowSave,
 } from "./flowStorage";
 import { FlowAudio, type FlowSound } from "./flowAudio";
-import { flowMotion, flowWorld } from "./flowPresentation";
+import { flowMotion, flowWorld, type FlowMotion } from "./flowPresentation";
 import { flowSoundscape } from "./flowSoundscape";
 import ShareResult from "./ShareResult";
 import ChallengeComparison from "./ChallengeComparison";
@@ -50,18 +48,18 @@ type Board = {
   total: number;
   entries: { place: number; nickname: string; score: number; isMe: boolean }[];
 };
+type Flight = {
+  cells: number[];
+  timing: FlowMotion;
+  teams: { id: number; color: number; left: number; slot: number }[];
+  delivered: Record<number, number>;
+  baseCollected: number;
+  serial: number;
+};
 function FlowIcon({
   kind,
 }: {
-  kind:
-    | "motion"
-    | "still"
-    | "lock"
-    | "pause"
-    | "undo"
-    | "hint"
-    | "restart"
-    | "queue";
+  kind: "motion" | "still" | "lock" | "pause" | "undo" | "restart" | "queue";
 }) {
   return (
     <svg
@@ -79,8 +77,6 @@ function FlowIcon({
         <path d="M8 5v14M16 5v14" strokeWidth="4" />
       ) : kind === "undo" ? (
         <path d="M8 8H3V3m0 5a9 9 0 1 1 0 8" />
-      ) : kind === "hint" ? (
-        <path d="m12 2 2.8 6.2L22 11l-7.2 2.8L12 21l-2.8-7.2L2 11l7.2-2.8Z" />
       ) : kind === "restart" ? (
         <path d="M19 8a8 8 0 1 0 1 7M19 3v5h-5" />
       ) : kind === "queue" ? (
@@ -164,6 +160,7 @@ function FlowChallenge({
   if (!reference) return <p role="status">Загружаем вызов…</p>;
   return (
     <FlowSession
+      key={`${FLOW_VERSION}:${reference.flow?.version ?? 2}:${scope}`}
       scope={`challenge:${token}:${scope}`}
       signed={signed}
       challenge={reference}
@@ -192,7 +189,7 @@ export default function FlowGame() {
           />
         ) : (
           <FlowSession
-            key={user?.id ?? "guest"}
+            key={`${FLOW_VERSION}:${user?.id ?? "guest"}`}
             scope={user?.id ?? "guest"}
             signed={!!user}
           />
@@ -217,7 +214,8 @@ export function FlowSession({
     !!challenge?.flow &&
     attempt.challengeToken === challenge.token &&
     attempt.kind === challenge.flow.kind &&
-    attempt.key === challenge.flow.key;
+    attempt.key === challenge.flow.key &&
+    (attempt.version ?? FLOW_VERSION) === (challenge.flow.version ?? 2);
   const [save, setSave] = useState<FlowSave>(() => {
     const current = readFlowSave(scope);
     if (challenge) {
@@ -266,14 +264,13 @@ export function FlowSession({
   );
   const [speed, setSpeed] = useState<1 | 2>(1);
   const [busy, setBusy] = useState(false),
-    [message, setMessage] = useState("");
-  const [hint, setHint] = useState<number | null>(null);
-  const [flight, setFlight] = useState<{
-    cells: number[];
-    events: FlowEvent[];
-    teams: { id: number; color: number; left: number }[];
-    delivered: Record<number, number>;
-  } | null>(null);
+    [message, setMessage] = useState(
+      save.restartedForUpgrade ? "Обновили поле. Уровень начат заново." : "",
+    );
+  const [flight, setFlight] = useState<Flight | null>(null);
+  const flightRef = useRef<Flight | null>(null);
+  const sceneEpoch = useRef(performance.now());
+  const sceneSerial = useRef(0);
   const [previewColor, setPreviewColor] = useState<number | null>(null);
   const [launchGhost, setLaunchGhost] = useState<{
     id: number;
@@ -286,6 +283,7 @@ export function FlowSession({
     width: number;
     scale: number;
     duration: number;
+    slot: number;
   } | null>(null);
   const launchSerial = useRef(0),
     fxTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
@@ -307,10 +305,18 @@ export function FlowSession({
     stage = useRef<HTMLElement>(null),
     resultHeading = useRef<HTMLHeadingElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null),
-    gate = useRef(false),
     latestSave = useRef(save);
   const audio = useRef<FlowAudio | null>(null);
   const sound = () => (audio.current ??= new FlowAudio());
+  function changeFlight(
+    update: Flight | null | ((current: Flight | null) => Flight | null),
+  ) {
+    const next =
+      typeof update === "function" ? update(flightRef.current) : update;
+    flightRef.current = next;
+    setFlight(next);
+    return next;
+  }
   function sceneSound(kind: FlowSound, color = 0, variation = 0, pan = 0) {
     if (
       stage.current &&
@@ -332,8 +338,9 @@ export function FlowSession({
     for (const id of fxTimers.current) clearTimeout(id);
     fxTimers.current.clear();
     audio.current?.cancel();
-    gate.current = false;
-    setFlight(null);
+    sceneSerial.current++;
+    sceneEpoch.current = performance.now();
+    changeFlight(null);
     setLaunchGhost(null);
     setBusy(false);
   }
@@ -345,9 +352,10 @@ export function FlowSession({
         ? makeFlowPuzzle(
             active.kind,
             active.kind === "level" ? Number(active.key) : active.key,
+            active.version ?? FLOW_VERSION,
           )
         : null,
-    [active?.id, active?.kind, active?.key],
+    [active?.id, active?.kind, active?.key, active?.version],
   );
   const game = useMemo(
     () => (puzzle && active ? replayFlow(puzzle, active.actions) : null),
@@ -362,6 +370,7 @@ export function FlowSession({
             challenge.flow.kind === "level"
               ? Number(challenge.flow.key)
               : challenge.flow.key,
+            challenge.flow.version ?? 2,
           )
         : makeFlowPuzzle(
             mode,
@@ -377,6 +386,9 @@ export function FlowSession({
     .filter(([key]) => key.startsWith("level:"))
     .reduce((sum, [, record]) => sum + record.stars, 0);
   const animated = save.motion && !reduced;
+  useEffect(() => {
+    if (!animated && flightRef.current) clearEffects();
+  }, [animated]);
   const world = flowWorld(
     active?.kind ?? mode,
     active?.key ?? (mode === "daily" ? day : unlocked),
@@ -437,7 +449,6 @@ export function FlowSession({
     return () => {
       media.removeEventListener("change", update);
       if (timer.current) clearTimeout(timer.current);
-      gate.current = false;
       for (const id of fxTimers.current) clearTimeout(id);
       fxTimers.current.clear();
       audio.current?.dispose();
@@ -489,7 +500,7 @@ export function FlowSession({
         for (const pending of latestSave.current.pending) {
           await api("/flow/finish", "POST", {
             ...pending,
-            version: FLOW_VERSION,
+            version: pending.version ?? FLOW_VERSION,
           });
           if (!alive) return;
           setSave((current) => ({
@@ -570,10 +581,10 @@ export function FlowSession({
     setPreviewColor(null);
     sound().wake();
     sound().play("start");
-    setHint(null);
     setMessage("");
     const attempt: FlowAttempt = {
       id: crypto.randomUUID(),
+      version: challenge?.flow?.version ?? (challenge ? 2 : FLOW_VERSION),
       ...(challenge ? { challengeToken: challenge.token } : {}),
       kind,
       key: String(key),
@@ -589,74 +600,110 @@ export function FlowSession({
     });
   }
   function action(next: FlowAction) {
-    if (!active || !puzzle || !game || game.won || gate.current) return;
-    if (active.actions.length >= 590) {
+    const attemptBefore = latestSave.current.active;
+    if (!attemptBefore || !puzzle || (next.type !== "launch" && busy)) return;
+    const before = replayFlow(puzzle, attemptBefore.actions);
+    if (before.won || next.type === "hint") return;
+    if (attemptBefore.actions.length >= 590) {
       setMessage(
         "Слишком длинная партия. Начни заново — лучший результат останется.",
       );
       return;
     }
+    const previous = flightRef.current;
+    const initialTeams =
+      previous?.teams ??
+      before.state.active.map((team, slot) => ({
+        id: team.id,
+        color: team.color,
+        left: team.left,
+        slot,
+      }));
+    const delivered = previous?.delivered ?? {};
+    const teams = initialTeams.filter(
+      (team) => team.left > (delivered[team.id] ?? 0),
+    );
+    const slot = Array.from({ length: puzzle.slots }, (_, i) => i).find(
+      (i) => !teams.some((team) => team.slot === i),
+    );
     if (
       next.type === "launch" &&
-      !puzzle.lanes[next.lane]?.[game.state.lanes[next.lane]]
+      (slot === undefined ||
+        !puzzle.lanes[next.lane]?.[before.state.lanes[next.lane]])
     )
       return;
     let updated;
     try {
-      updated = replayFlow(puzzle, [...active.actions, next]);
+      updated = replayFlow(puzzle, [...attemptBefore.actions, next]);
     } catch {
       return;
     }
-    setHint(null);
+    if (next.type === "undo") clearEffects();
     setPreviewColor(null);
     sound().wake();
     setMessage("");
-    const attempt = { ...active, actions: [...active.actions, next] };
-    setSave((current) => ({
-      ...current,
+    const attempt = {
+      ...attemptBefore,
+      actions: [...attemptBefore.actions, next],
+    };
+    const nextSave: FlowSave = {
+      ...latestSave.current,
       active: attempt,
       ...(updated.won
         ? {
             records: challenge
-              ? current.records
-              : mergeFlowRecords(current.records, {
-                  [flowRecordKey(active.kind, active.key)]: {
+              ? latestSave.current.records
+              : mergeFlowRecords(latestSave.current.records, {
+                  [flowRecordKey(attempt.kind, attempt.key)]: {
                     score: updated.score,
                     stars: updated.stars,
                   },
                 }),
             pending: [
-              ...current.pending.filter((p) => p.id !== attempt.id),
+              ...latestSave.current.pending.filter((p) => p.id !== attempt.id),
               attempt,
             ],
           }
         : {}),
-    }));
-    const finish = () => {
-      setFlight(null);
-      setLaunchGhost(null);
-      setBusy(false);
-      gate.current = false;
-      if (updated.won) sceneSound("win");
-      else if (updated.stuck) sceneSound("blocked");
     };
+    latestSave.current = nextSave;
+    setSave(nextSave);
     if (next.type === "launch") {
-      const team = puzzle.lanes[next.lane][game.state.lanes[next.lane]],
-        timing = flowMotion(updated.events, speed, puzzle);
+      const team = puzzle.lanes[next.lane][before.state.lanes[next.lane]];
       sound().play("launch", team.color);
       if (animated) {
-        gate.current = true;
+        const roster = [
+          ...teams,
+          { id: team.id, color: team.color, left: team.count, slot: slot! },
+        ];
+        const slots = new Map(roster.map((team) => [team.id, team.slot]));
+        const now = performance.now() - sceneEpoch.current;
+        const timing = flowMotion(updated.events, speed, puzzle, {
+          now,
+          trips: previous?.timing.trips,
+          slots,
+          slotCount: puzzle.slots,
+          cells: previous?.cells ?? before.state.cells,
+          epoch: attempt.id,
+        });
+        const serial = ++sceneSerial.current;
+        changeFlight({
+          cells: previous?.cells ?? [...before.state.cells],
+          timing,
+          teams: roster,
+          delivered: { ...delivered },
+          baseCollected: previous?.baseCollected ?? before.state.collected,
+          serial,
+        });
         setBusy(true);
         const source =
           launchButtons.current[next.lane]?.getBoundingClientRect();
-        const target =
-          dockElements.current[
-            game.state.active.length
-          ]?.getBoundingClientRect();
+        const target = dockElements.current[slot!]?.getBoundingClientRect();
         const surface = stage.current?.getBoundingClientRect();
-        if (source && target && surface)
+        if (source && target && surface) {
+          const ghostId = ++launchSerial.current;
           setLaunchGhost({
-            id: ++launchSerial.current,
+            id: ghostId,
             color: team.color,
             count: team.count,
             x: source.left - surface.left,
@@ -666,76 +713,112 @@ export function FlowSession({
             width: source.width,
             scale: target.width / source.width,
             duration: timing.launch,
+            slot: slot!,
           });
-        setFlight({
-          cells: game.state.cells,
-          events: updated.events,
-          teams: [...game.state.active, { ...team, left: team.count }],
-          delivered: {},
-        });
-        for (const cue of flowSoundscape(timing, speed))
+          later(
+            () =>
+              setLaunchGhost((current) =>
+                current?.id === ghostId ? null : current,
+              ),
+            timing.launch + 160 / speed,
+          );
+        }
+        for (const cue of flowSoundscape(
+          { ...timing, trips: timing.added },
+          speed,
+        ))
           later(
             () => sceneSound(cue.kind, cue.color, cue.variation, cue.pan),
-            cue.at,
+            Math.max(0, cue.at - now),
           );
-        const lastByTeam = new Map<number, number>();
-        timing.deliveries.forEach((event) => {
-          lastByTeam.set(
-            event.packet,
-            Math.max(lastByTeam.get(event.packet) ?? 0, event.at),
+        for (const trip of timing.added) {
+          later(
+            () =>
+              changeFlight((current) => {
+                if (!current) return current;
+                const cells = [...current.cells];
+                cells[trip.cell] = -1;
+                return { ...current, cells };
+              }),
+            Math.max(0, trip.at + 100 / speed - now),
           );
-          later(() => {
-            setFlight((current) =>
-              current
-                ? {
-                    ...current,
-                    delivered: {
-                      ...current.delivered,
-                      [event.packet]:
-                        (current.delivered[event.packet] ?? 0) + 1,
-                    },
-                  }
-                : null,
-            );
-          }, event.at);
-        });
-        const teams = [...game.state.active, { ...team, left: team.count }];
-        for (const old of teams) {
-          const deliveredAt = lastByTeam.get(old.id);
-          if (
-            deliveredAt !== undefined &&
-            !updated.state.active.some((t) => t.id === old.id)
-          )
-            later(() => sceneSound("dock", old.color), deliveredAt + 15);
+          later(
+            () => {
+              let completedColor: number | undefined;
+              changeFlight((current) => {
+                if (!current) return current;
+                const delivered = {
+                  ...current.delivered,
+                  [trip.packet]: (current.delivered[trip.packet] ?? 0) + 1,
+                };
+                const team = current.teams.find(
+                  (team) => team.id === trip.packet,
+                );
+                if (team && delivered[trip.packet] === team.left)
+                  completedColor = team.color;
+                return {
+                  ...current,
+                  delivered,
+                  timing: {
+                    ...current.timing,
+                    trips: current.timing.trips.filter(
+                      (old) => old.id !== trip.id,
+                    ),
+                  },
+                };
+              });
+              if (completedColor !== undefined)
+                sceneSound("dock", completedColor);
+            },
+            Math.max(0, trip.deliveryAt - now),
+          );
         }
-        timer.current = later(finish, timing.finish);
+        timer.current = later(
+          () => {
+            const current = flightRef.current;
+            if (!current || current.serial !== serial) return;
+            const latest = latestSave.current.active;
+            if (!latest || latest.id !== attempt.id) return;
+            const settled = replayFlow(puzzle, latest.actions);
+            changeFlight({
+              cells: settled.state.cells,
+              timing: flowMotion([], speed, puzzle),
+              teams: current.teams
+                .map((team) => ({
+                  ...team,
+                  left: Math.max(
+                    0,
+                    team.left - (current.delivered[team.id] ?? 0),
+                  ),
+                }))
+                .filter((team) => team.left > 0),
+              delivered: {},
+              baseCollected: settled.state.collected,
+              serial,
+            });
+            setLaunchGhost(null);
+            setBusy(false);
+            if (settled.won) sceneSound("win");
+            else if (settled.stuck) sceneSound("blocked");
+          },
+          Math.max(0, timing.finish - now),
+        );
       } else {
-        if (updated.events.length) sound().play("collect", team.color);
-        finish();
+        if (updated.events.length) sceneSound("collect", team.color);
+        if (updated.won) sceneSound("win");
+        else if (updated.stuck) sceneSound("blocked");
       }
     } else if (next.type === "undo") sound().play("undo");
-    else if (next.type === "hint") sound().play("hint");
     if (updated.won)
       reachGoal("playne_flow_complete", {
         game: "flow",
-        mode: active.kind,
-        level: active.key,
+        mode: attempt.kind,
+        level: attempt.key,
         score: updated.score,
         hints: updated.hints,
         undos: updated.undos,
       });
     else if (updated.stuck) setMessage("Нет свободных слотов. Отмени ход.");
-  }
-  function showHint() {
-    if (!puzzle || !game || busy || game.won) return;
-    const path = flowSolution(puzzle, game.state);
-    if (!path?.length) {
-      setMessage("Из этой позиции путь не найден. Отмени последний запуск.");
-      return;
-    }
-    action({ type: "hint" });
-    setHint(path[0]);
-    setMessage(`Очередь ${path[0] + 1} подсвечена.`);
   }
   useEffect(() => {
     if (screen !== "play") return;
@@ -758,28 +841,29 @@ export function FlowSession({
         event.preventDefault();
         action({ type: "undo" });
       }
-      if (["h", "р"].includes(event.key.toLowerCase())) {
-        event.preventDefault();
-        showHint();
-      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
   const resume = !!active && !game?.won;
-  const dockTeams = (flight?.teams ?? game?.state.active ?? []).map((team) => ({
-    ...team,
-    left: Math.max(0, team.left - (flight?.delivered[team.id] ?? 0)),
-  }));
-  const visualCollected = game
-    ? game.state.collected -
-      (flight?.events.length ?? 0) +
-      Object.values(flight?.delivered ?? {}).reduce((a, b) => a + b, 0)
-    : 0;
-  const highlightedColor =
-    hint !== null && puzzle && game
-      ? puzzle.lanes[hint][game.state.lanes[hint]]?.color
-      : previewColor;
+  const visibleTeams = (
+    flight?.teams ??
+    game?.state.active.map((team, slot) => ({ ...team, slot })) ??
+    []
+  )
+    .map((team) => ({
+      ...team,
+      left: Math.max(0, team.left - (flight?.delivered[team.id] ?? 0)),
+    }))
+    .filter((team) => team.left > 0);
+  const dockTeams = Array.from({ length: puzzle?.slots ?? 5 }, (_, slot) =>
+    visibleTeams.find((team) => team.slot === slot),
+  );
+  const visualCollected = flight
+    ? flight.baseCollected +
+      Object.values(flight.delivered).reduce((a, b) => a + b, 0)
+    : (game?.state.collected ?? 0);
+  const highlightedColor = previewColor;
   const progress =
     game && puzzle
       ? Math.round(
@@ -1076,7 +1160,7 @@ export function FlowSession({
             >
               <FlowScene
                 label={
-                  flight
+                  busy
                     ? "Муравьи переносят кубики в муравейник"
                     : game.won && !busy
                       ? `Собранная конструкция: ${puzzle.name}`
@@ -1090,8 +1174,8 @@ export function FlowSession({
                     ? puzzle.cells
                     : (flight?.cells ?? game.state.cells)
                 }
-                events={flight?.events}
-                moving={!!flight && animated}
+                motion={flight?.timing}
+                moving={busy && animated}
               />
               {game.won && !busy && (
                 <div className="flow-victory-stamp" aria-hidden="true">
@@ -1104,7 +1188,7 @@ export function FlowSession({
                 <div
                   className={`flow-docks${game.stuck && !busy ? " is-full" : ""}`}
                   role="group"
-                  aria-label={`Доки: ${puzzle.slots - dockTeams.length} свободно из ${puzzle.slots}`}
+                  aria-label={`Доки: ${puzzle.slots - visibleTeams.length} свободно из ${puzzle.slots}`}
                   style={{
                     gridTemplateColumns: `repeat(${puzzle.slots}, 1fr)`,
                   }}
@@ -1113,7 +1197,7 @@ export function FlowSession({
                     const team = dockTeams[i];
                     return (
                       <div
-                        className={`flow-dock${team ? " is-waiting" : ""}${flight?.teams[i] ? " is-working" : ""}${team?.left === 0 ? " is-delivered" : ""}${launchGhost && i === (flight?.teams.length ?? 0) - 1 ? " is-launching" : ""}`}
+                        className={`flow-dock${team ? " is-waiting" : ""}${team && flight?.timing.trips.some((trip) => trip.packet === team.id) ? " is-working" : ""}${launchGhost?.slot === i ? " is-launching" : ""}`}
                         key={i}
                         ref={(element) => {
                           dockElements.current[i] = element;
@@ -1127,13 +1211,6 @@ export function FlowSession({
                         <span className="flow-dock-hole" aria-hidden="true" />
                         {team && (
                           <FlowCrate color={team.color} count={team.left} />
-                        )}
-                        {team && !flight && (
-                          <span className="flow-wait-dots" aria-hidden="true">
-                            <i />
-                            <i />
-                            <i />
-                          </span>
                         )}
                       </div>
                     );
@@ -1224,7 +1301,7 @@ export function FlowSession({
                       return;
                     await api("/flow/finish", "POST", {
                       ...active,
-                      version: FLOW_VERSION,
+                      version: active.version ?? FLOW_VERSION,
                     });
                     setSave((current) => ({
                       ...current,
@@ -1259,20 +1336,17 @@ export function FlowSession({
                     paint = team ? FLOW_COLORS[team.color] : null;
                   const accessible =
                     team &&
-                    flowFrontier(puzzle, game.state.cells).some(
-                      (cell) => game.state.cells[cell] === team.color,
-                    );
+                    flowFrontier(
+                      puzzle,
+                      flight?.cells ?? game.state.cells,
+                    ).some((cell) => game.state.cells[cell] === team.color);
                   return (
                     <div className="flow-lane" key={i}>
                       <button
                         type="button"
-                        className={`flow-launch${hint === i ? " is-hinted" : ""}${!accessible ? " needs-opening" : ""}`}
+                        className={`flow-launch${!accessible ? " needs-opening" : ""}`}
 
-                        disabled={
-                          !team ||
-                          busy ||
-                          game.state.active.length >= puzzle.slots
-                        }
+                        disabled={!team || visibleTeams.length >= puzzle.slots}
                         ref={(element) => {
                           launchButtons.current[i] = element;
                         }}
@@ -1302,11 +1376,6 @@ export function FlowSession({
                         ) : (
                           <span className="flow-lane-done" aria-hidden="true">
                             ✓
-                          </span>
-                        )}
-                        {hint === i && (
-                          <span className="flow-hint-arrow" aria-hidden="true">
-                            ↓
                           </span>
                         )}
                       </button>
@@ -1352,19 +1421,6 @@ export function FlowSession({
                   <FlowIcon kind="undo" />
                   <span className="flow-tool-cost" aria-hidden="true">
                     −20
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  data-flow-sound="hint"
-                  aria-label="Подсказка −100"
-                  title="Подсказка −100"
-                  onClick={showHint}
-                  disabled={busy}
-                >
-                  <FlowIcon kind="hint" />
-                  <span className="flow-tool-cost" aria-hidden="true">
-                    −100
                   </span>
                 </button>
                 <button
@@ -1467,10 +1523,7 @@ export function FlowSession({
             aria-pressed={save.motion}
             onClick={() => {
               setSave((s) => ({ ...s, motion: !s.motion }));
-              if (busy) {
-                clearEffects();
-                if (game?.won) sceneSound("win");
-              }
+              clearEffects();
             }}
           >
             <FlowIcon kind={save.motion ? "motion" : "still"} /> Анимации{" "}
@@ -1502,11 +1555,11 @@ export function FlowSession({
         <div className="flow-rules">
           <div>
             <FlowCrate color={0} count={12} />
-            <p>Нажми на переднюю коробку. Число — её груз.</p>
+            <p>Число на коробке — сколько кубиков заберёт команда.</p>
           </div>
           <div>
             <FlowCrate color={2} count={8} />
-            <p>Муравьи забирают нижние кубики своего цвета.</p>
+            <p>Муравьи забирают свой цвет с открытых краёв картины.</p>
           </div>
           <div>
             <FlowCrate color={1} count={5} />
@@ -1518,12 +1571,12 @@ export function FlowSession({
         <details className="flow-rule-details">
           <summary>Очки и управление</summary>
           <p>
-            Победа — 1000 очков. Подсказка −100, отмена −20. ★★★ от 960, ★★ от
-            800. Время не влияет.
+            Победа — 1000 очков. Отмена −20. ★★★ от 960, ★★ от 800. Время не
+            влияет.
           </p>
           <p>
-            1–4 — очередь, Z — отмена, H — подсказка. Новое испытание дня — в
-            00:00 по Москве; учитывается лучший результат.
+            1–4 — очередь, Z — отмена. Новое испытание дня — в 00:00 по Москве;
+            учитывается лучший результат.
           </p>
         </details>
       </RulesDialog>

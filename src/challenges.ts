@@ -26,7 +26,12 @@ export type PublicChallenge = {
   day: string;
   mode: import("./account").GameMode;
   isTodayDaily: boolean;
-  flow?: { kind: "level" | "daily"; key: string; stars: number };
+  flow?: {
+    kind: "level" | "daily";
+    key: string;
+    stars: number;
+    version?: 2 | 3;
+  };
 };
 
 export type ChallengeStart =

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { CHALLENGE_GAMES, type PublicChallenge } from "../src/challenges";
+import { challengeArt } from "../server/challenge-art";
 import {
   challengeSvg,
   renderChallengePng,
@@ -21,6 +22,12 @@ const data = (game: PublicChallenge["game"], score = 420): PublicChallenge => ({
   isTodayDaily: false,
 });
 describe("Selected B: dynamic friend-result previews", () => {
+  it("keeps unversioned Swarm links on their legacy board during a rolling upgrade", () => {
+    const flow = { kind: "level" as const, key: "1", stars: 3 };
+    const unversioned = challengeArt("flow", flow);
+    expect(unversioned).toBe(challengeArt("flow", { ...flow, version: 2 }));
+    expect(unversioned).not.toBe(challengeArt("flow", { ...flow, version: 3 }));
+  });
   it.each(CHALLENGE_GAMES)(
     "uses the chosen frame and a distinct %s game illustration",
     (game) => {

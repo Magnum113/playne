@@ -19,6 +19,7 @@ export function challengeArt(
       const puzzle = makeFlowPuzzle(
         flow?.kind ?? "level",
         flow?.kind === "daily" ? flow.key : Number(flow?.key ?? 1),
+        flow?.version ?? 2,
       );
       const step = Math.min(13, 264 / puzzle.height),
         left = 878 - (puzzle.width * step) / 2,
