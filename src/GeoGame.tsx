@@ -1005,7 +1005,7 @@ export default function GeoGame() {
                     aria-describedby="geo-point-hint"
                     onClick={() => void submit()}
                   >
-                    Ответить <span aria-hidden="true">→</span>
+                    {guess ? "Ответить" : "Выбери точку на карте"} <span aria-hidden="true">→</span>
                   </button>
                 </>
               )}
