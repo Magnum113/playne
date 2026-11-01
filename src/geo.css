@@ -154,7 +154,6 @@
   overflow: hidden;
 }
 .geo-map-heading {
-  padding: 16px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -167,11 +166,6 @@
 .geo-map-close {
   display: none;
   border: 0;
-  background: var(--bg);
-  color: var(--text);
-  border-radius: 10px;
-  width: 44px;
-  height: 44px;
   font-size: 25px;
 }
 .geo-map {
@@ -615,9 +609,6 @@
   .geo-welcome ol {
     font-size: 14px;
   }
-  .geo-map-heading {
-    padding: 10px 14px;
-  }
   .geo-map-tools {
     padding: 10px 14px;
   }
@@ -899,9 +890,7 @@
   opacity: 1;
 }
 .geo-playing .geo-map-heading {
-  padding: 0 14px;
   gap: 8px;
-  min-height: 44px;
 }
 .geo-playing .geo-map-heading h2 {
   font-size: 14px;
@@ -979,7 +968,7 @@
   min-height: 120px;
   flex: 1;
 }
-.geo-playing .geo-map-close {
+.geo-playing .geo-map-close.ui-icon-button {
   display: none;
 }
 .geo-playing .geo-revealed {
@@ -1100,7 +1089,7 @@
     pointer-events: auto;
     opacity: 1;
   }
-  .geo-playing .geo-map-close {
+  .geo-playing .geo-map-close.ui-icon-button {
     display: grid;
     place-items: center;
     padding: 0;

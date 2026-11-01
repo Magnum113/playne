@@ -5,7 +5,7 @@ import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
 import { GameIntro, GameStartAction } from "./GameIntro";
-import { ModeChoice, RoundDots } from "./ui";
+import { IconButton, ModeChoice, RoundDots } from "./ui";
 import { AccountNav, useRankedRun, RankedSyncError } from "./account";
 import { useEffect, useRef, useState } from "react";
 import { GameHeader } from "./SiteHeader";
@@ -932,7 +932,7 @@ export default function GeoGame() {
             }
             aria-label="Карта для ответа"
           >
-            <div className="geo-map-heading">
+            <div className="geo-map-heading ui-panel-toolbar">
               <h2>
                 {phase === "reveal"
                   ? answer?.guess
@@ -953,14 +953,14 @@ export default function GeoGame() {
                 </button>
               )}
               {phase !== "reveal" && (
-                <button
+                <IconButton
                   ref={mapClose}
                   className="geo-map-close"
                   aria-label="Вернуться к панораме"
                   onClick={closeMap}
                 >
                   ×
-                </button>
+                </IconButton>
               )}
             </div>
             <div className="geo-map" id="geo-answer-map" ref={mapNode} />

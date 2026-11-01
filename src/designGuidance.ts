@@ -143,9 +143,10 @@ export const componentContracts: readonly ComponentContract[] = [
     ],
     checks: [
       "У иконки есть доступное имя; с клавиатуры видны фокус и отклик.",
+      "В панели кнопки отстоят от её рамки минимум на 8 px. У компактного крестика IconButton видимый фон 32 × 32 px, нативная область нажатия 44 × 44 px. Фокус не обрезается и не перекрывает соседнее управление.",
       "Область нажатия — от 44 × 44 px, основная кнопка — от 52 px высотой; компактная кнопка на карте — 48 px. Загрузка не допускает повторной отправки.",
     ],
-    source: "ui.css · style.css · SiteHeader.tsx",
+    source: "ui.tsx / IconButton · ui.css · RulesDialog.tsx · SiteHeader.tsx",
   },
   {
     id: "fields",

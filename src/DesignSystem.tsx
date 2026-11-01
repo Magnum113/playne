@@ -42,7 +42,7 @@ import {
 import FooterLinks from "./FooterLinks";
 import FooterSignupExamples from "./FooterSignupExamples";
 import GameRankingExamples from "./GameRankingExamples";
-import { ModeChoice, RoundDots, StatusMessage } from "./ui";
+import { IconButton, ModeChoice, RoundDots, StatusMessage } from "./ui";
 import { SizePreview, CirclePreview, ColorPreview } from "./Hub";
 import GeoPreview from "./GeoPreview";
 import LandmarkPreview from "./LandmarkPreview";
@@ -295,6 +295,15 @@ function ButtonExamples() {
               {busy ? "Сохраняем…" : "Проверить загрузку"}
             </button>
           </div>
+        </Sample>
+        <Sample title="Кнопка с отступом от панели" source="ui.tsx / IconButton · ui-panel-toolbar">
+          <div className="ui-panel-toolbar ds-inset-panel">
+            <strong>Где это?</strong>
+            <IconButton aria-label="Закрыть пример панели" onClick={() => setNotice("Кнопка закрытия работает. Это пример панели.")}>
+              ×
+            </IconButton>
+          </div>
+          <p className="ds-note">Фон — 32 × 32 px, область нажатия — 44 × 44 px. Внутренний отступ панели — от 8 px; фокус не обрезается.</p>
         </Sample>
         <Sample
           title="Вызов другу: огненный контур"

@@ -1,3 +1,4 @@
+import { IconButton } from "./ui";
 import { useEffect, useId, useRef, useState } from "react";
 import { api, useAuth } from "./account";
 import { challengeScore, type PublicChallenge } from "./challenges";
@@ -126,13 +127,13 @@ export default function ShareResult({ runId }: { runId?: string }) {
         <div className="share-dialog-content">
           <div className="share-dialog-heading">
             <h2 id={heading}>Кто побьёт твой результат?</h2>
-            <button
+            <IconButton
               className="share-close"
               aria-label="Закрыть приглашение"
               onClick={() => dialog.current?.close()}
             >
               ×
-            </button>
+            </IconButton>
           </div>
           {data ? (
             <>

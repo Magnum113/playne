@@ -1,3 +1,4 @@
+import { IconButton } from "./ui";
 import {
   useId,
   type ReactEventHandler,
@@ -56,14 +57,13 @@ export function RulesDialog({
           {eyebrow && <p className="eyebrow">{eyebrow}</p>}
           <h2 id={headingId}>{title}</h2>
         </div>
-        <button
-          type="button"
+        <IconButton
           className="close-button"
           aria-label="Закрыть правила"
           onClick={close}
         >
           ×
-        </button>
+        </IconButton>
       </div>
       <div
         className="rules-dialog-content"

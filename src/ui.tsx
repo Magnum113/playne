@@ -1,4 +1,20 @@
-import { useId, type ReactNode } from "react";
+import { useId, type ReactNode, type ComponentProps } from "react";
+
+/** A compact visible face with an unshrunk 44px native button target. */
+export function IconButton({
+  children,
+  className = "",
+  type = "button",
+  ...props
+}: ComponentProps<"button">) {
+  return (
+    <button {...props} type={type} className={`ui-icon-button ${className}`.trim()}>
+      <span className="ui-icon-button-face" aria-hidden="true">
+        {children}
+      </span>
+    </button>
+  );
+}
 
 export function RoundDots({
   current,

@@ -1102,3 +1102,9 @@
   display: flex;
   justify-content: center;
 }
+
+.ds-inset-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-inner);
+  background: var(--panel);
+}

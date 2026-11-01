@@ -182,7 +182,7 @@ export const componentInventory = [
   ],
   [
     "Кнопки с иконками: тема, правила, закрытие, пауза",
-    "SiteHeader.tsx · pressure.css",
+    "ui.tsx / IconButton · SiteHeader.tsx · pressure.css",
     "actions",
   ],
   [
