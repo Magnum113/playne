@@ -44,7 +44,6 @@
   font-size: 13px;
   line-height: 1.5;
 }
-.hub-streak-shell.has-controls .streak-ticker-face { gap: 56px; }
 .streak-ticker-track { display: block; }
 .streak-ticker-row {
   display: flex;
@@ -80,23 +79,6 @@
 .streak-ticker-chevron { flex: none; color: var(--muted); }
 .hub-streak-disclosure[open] .streak-ticker-chevron { transform: rotate(180deg); }
 .hub-streak-disclosure[open] .streak-ticker-face { gap: 12px; }
-.streak-ticker-pause {
-  position: absolute;
-  z-index: 3;
-  right: 29px;
-  top: 7px;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-}
-.streak-ticker-pause:hover { background: var(--orange-tint); color: var(--orange); }
 .streak-ticker-fallback { display: flex; align-items: center; gap: 7px; color: var(--muted); }
 .streak-ticker-fallback .streak-flame { width: 14px; height: 18px; }
 .hub-streak-shell.is-paused .fire-button-effect { visibility: hidden; }

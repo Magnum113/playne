@@ -14,7 +14,6 @@ export default function StreakTicker({ data, error = false, children }: {
   const summary = useRef<HTMLElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [open, setOpen] = useState(false);
-  const [paused, setPaused] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -23,7 +22,7 @@ export default function StreakTicker({ data, error = false, children }: {
   const [position, setPosition] = useState({ index: 0, snap: true });
   const entries = data?.entries ?? [];
   const signature = JSON.stringify(entries);
-  const running = visible && !hidden && !reduced && !paused && !hovered && !focused && !open;
+  const running = visible && !hidden && !reduced && !hovered && !focused && !open;
   const current = entries.length ? entries[position.index % entries.length] : undefined;
   const fallback = error ? "Серии пока недоступны" : data ? "Кто зажжёт первым?" : "Загружаем серии…";
 
@@ -61,7 +60,7 @@ export default function StreakTicker({ data, error = false, children }: {
   }, [running, entries.length]);
 
   return (
-    <div ref={shell} className={`hub-streak-shell${running ? " is-playing" : " is-paused"}${!open && !reduced && entries.length ? " has-controls" : ""}`}
+    <div ref={shell} className={`hub-streak-shell${running ? " is-playing" : " is-paused"}`}
       onPointerEnter={(e) => { if (e.pointerType === "mouse") setHovered(true); }}
       onPointerLeave={() => setHovered(false)}>
       <details className="hub-streak-disclosure" onToggle={(e) => setOpen(e.currentTarget.open)}>
@@ -92,14 +91,6 @@ export default function StreakTicker({ data, error = false, children }: {
         </summary>
         {children}
       </details>
-      {!open && !reduced && entries.length > 0 && (
-        <button type="button" className="streak-ticker-pause" aria-label={paused ? "Продолжить смену игроков и огонь" : "Приостановить смену игроков и огонь"}
-          aria-pressed={paused} onClick={() => setPaused((p) => !p)}>
-          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-            {paused ? <path d="m5 3 7 5-7 5Z" fill="currentColor" /> : <path d="M5 3v10M11 3v10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />}
-          </svg>
-        </button>
-      )}
     </div>
   );
 }

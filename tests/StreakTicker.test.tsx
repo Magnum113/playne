@@ -59,13 +59,10 @@ it("opens the native disclosure and stops rotation, with no explanatory copy", a
   expect(box.querySelector(".streak-ticker-pause")).toBeNull();
   expect(box.querySelector("details")!.open).toBe(true);
 });
-it("allows a visible pause control without opening the list", async () => {
+it("rotates automatically without a separate pause control or opening the list", async () => {
   await render(); await see();
-  await act(async () => box.querySelector<HTMLButtonElement>(".streak-ticker-pause")!.click());
-  await advance(); expect(summary().getAttribute("aria-label")).toContain("Первый");
+  expect(box.querySelector("button")).toBeNull();
   expect(box.querySelector("details")!.open).toBe(false);
-  expect(box.querySelector("button")!.getAttribute("aria-pressed")).toBe("true");
-  await act(async () => box.querySelector<HTMLButtonElement>(".streak-ticker-pause")!.click());
   await advance(); expect(summary().getAttribute("aria-label")).toContain("Очень длинное");
 });
 it("stops for reduced motion, hidden tabs, focus and offscreen content", async () => {
