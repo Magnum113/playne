@@ -65,15 +65,42 @@ it("rotates automatically without a separate pause control or opening the list",
   expect(box.querySelector("details")!.open).toBe(false);
   await advance(); expect(summary().getAttribute("aria-label")).toContain("Очень длинное");
 });
+it("resumes fire and rotation after repeated pointer open-close cycles while summary retains focus", async () => {
+  await render(); await see();
+  for (let cycle = 0; cycle < 3; cycle++) {
+    await act(async () => {
+      summary().dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" }));
+      summary().dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: cycle ? "touch" : "mouse" }));
+      summary().focus();
+      const details = box.querySelector("details")!;
+      details.open = true; details.dispatchEvent(new Event("toggle"));
+    });
+    expect(box.querySelector(".hub-streak-shell.is-playing")).toBeNull();
+    const before = mock.fire.mock.calls.length;
+    await act(async () => {
+      summary().dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: cycle ? "touch" : "mouse" }));
+      const details = box.querySelector("details")!;
+      details.open = false; details.dispatchEvent(new Event("toggle"));
+    });
+    expect(document.activeElement).toBe(summary());
+    expect(box.querySelector(".hub-streak-shell.is-playing")).toBeTruthy();
+    expect(mock.fire.mock.calls.length).toBeGreaterThan(before);
+    const player = summary().getAttribute("aria-label");
+    await advance();
+    expect(summary().getAttribute("aria-label")).not.toBe(player);
+  }
+});
 it("stops for reduced motion, hidden tabs, focus and offscreen content", async () => {
   await render(); await see();
   await act(async () => motion.change(true)); await advance();
   expect(summary().getAttribute("aria-label")).toContain("Первый");
   expect(box.querySelector(".streak-ticker-pause")).toBeNull();
   await act(async () => motion.change(false));
+  const focusVisible = vi.spyOn(summary(), "matches").mockReturnValue(true);
   await act(async () => summary().focus()); await advance();
   expect(summary().getAttribute("aria-label")).toContain("Первый");
   await act(async () => summary().blur());
+  focusVisible.mockRestore();
   await see(false); await advance(); expect(summary().getAttribute("aria-label")).toContain("Первый");
   await see();
   vi.spyOn(document, "hidden", "get").mockReturnValue(true);

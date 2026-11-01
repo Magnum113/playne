@@ -14,15 +14,14 @@ export default function StreakTicker({ data, error = false, children }: {
   const summary = useRef<HTMLElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [open, setOpen] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
+  const [keyboardFocused, setKeyboardFocused] = useState(false);
   const [visible, setVisible] = useState(false);
   const [reduced, setReduced] = useState(true);
   const [hidden, setHidden] = useState(false);
   const [position, setPosition] = useState({ index: 0, snap: true });
   const entries = data?.entries ?? [];
   const signature = JSON.stringify(entries);
-  const running = visible && !hidden && !reduced && !hovered && !focused && !open;
+  const running = visible && !hidden && !reduced && !keyboardFocused && !open;
   const current = entries.length ? entries[position.index % entries.length] : undefined;
   const fallback = error ? "Серии пока недоступны" : data ? "Кто зажжёт первым?" : "Загружаем серии…";
 
@@ -60,11 +59,12 @@ export default function StreakTicker({ data, error = false, children }: {
   }, [running, entries.length]);
 
   return (
-    <div ref={shell} className={`hub-streak-shell${running ? " is-playing" : " is-paused"}`}
-      onPointerEnter={(e) => { if (e.pointerType === "mouse") setHovered(true); }}
-      onPointerLeave={() => setHovered(false)}>
+    <div ref={shell} className={`hub-streak-shell${running ? " is-playing" : " is-paused"}`}>
       <details className="hub-streak-disclosure" onToggle={(e) => setOpen(e.currentTarget.open)}>
-        <summary ref={summary} className="fire-button" onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+        <summary ref={summary} className="fire-button"
+          onPointerDown={() => setKeyboardFocused(false)}
+          onFocus={(e) => setKeyboardFocused(e.currentTarget.matches(":focus-visible"))}
+          onBlur={() => setKeyboardFocused(false)}
           aria-label={current ? `Ударные серии: №${current.place}, ${current.nickname}, ${streakDays(current.days)}` : `Ударные серии: ${fallback}`}>
           <canvas ref={canvas} className="fire-button-effect" aria-hidden="true" />
           <span className="streak-ticker-face fire-button-label">
