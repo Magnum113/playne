@@ -2,8 +2,7 @@ import FooterSignup from "./FooterSignup";
 
 export default function FooterLinks() {
   return (
-    <>
-      <FooterSignup />
+    <div className="site-footer-content">
       <nav className="footer-links" aria-label="Игры и правила">
         <div>
           <strong>Играть</strong>
@@ -40,6 +39,9 @@ export default function FooterLinks() {
           <a href="/terms/">Правила сайта</a>
         </div>
       </nav>
-    </>
+      <div className="site-footer-subscription">
+        <FooterSignup />
+      </div>
+    </div>
   );
 }

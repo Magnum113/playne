@@ -1687,8 +1687,8 @@ footer .playne-brand svg[data-playne-mark] {
 
 /* Shared, crawlable navigation and reading pages. */
 footer { flex-wrap: wrap; }
-.footer-links { flex: 0 0 100%; display: grid; grid-template-columns: 1fr 2fr; gap: 24px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.55; }
-.footer-links > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 22px; }
+.footer-links { flex: 0 0 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.55; }
+.footer-links > div { display: flex; flex-wrap: wrap; align-items: baseline; align-content: flex-start; min-width: 0; gap: 12px 22px; }
 .footer-links strong, .footer-links .footer-heading { flex-basis: 100%; color: var(--text); font-size: 13px; font-weight: 650; }
 .footer-links a, .guide-footer > a { color: var(--muted); text-decoration: none; text-underline-offset: 4px; }
 .footer-links a:hover, .guide-footer > a:hover { color: var(--mint); text-decoration: underline; }
@@ -1760,3 +1760,37 @@ footer { flex-wrap: wrap; }
 
 .board-wrap-horizontal .board { aspect-ratio: 840 / 255; }
 @media (max-width: 599px) { .board-wrap-horizontal .board { aspect-ratio: 420 / 255; height: auto; min-height: 0; } }
+
+/* Navigation and email share one footer row when the content fits. */
+.site-footer-content {
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.site-footer-content > .footer-links {
+  flex: 2 1 600px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.site-footer-subscription {
+  flex: 1 1 260px;
+  min-width: 0;
+  max-width: 100%;
+}
+.site-footer-subscription .footer-signup {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.site-footer-content .footer-links a {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
