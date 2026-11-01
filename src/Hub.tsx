@@ -335,7 +335,7 @@ export default function Hub() {
                 ↗
               </span>
               <h3>Сразу в игру</h3>
-              <p>Без аккаунта и установки.</p>
+              <p>Первая партия каждой игры — без входа и установки.</p>
             </div>
             <div>
               <span className="fact-symbol purple-symbol" aria-hidden="true">
@@ -349,7 +349,7 @@ export default function Hub() {
                 ✳
               </span>
               <h3>Ещё одна попытка</h3>
-              <p>Переигрывай и улучшай результат.</p>
+              <p>Войди через Яндекс, чтобы играть дальше бесплатно.</p>
             </div>
           </div>
         </section>

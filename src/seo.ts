@@ -52,9 +52,9 @@ export const pages: PageMeta[] = [
   },
   {
     path: "/pressure/",
-    title: "Жми — бесплатный аналог Press Under Pressure на русском | Playne",
+    title: "Pressing Under Pressure на русском — играть в «Жми» | Playne",
     description:
-      "Играй в «Жми» — бесплатный аналог Pressing Under Pressure на русском. Бесконечные уровни на память и реакцию, до первой ошибки. Первая попытка без входа, дальше — бесплатно через Яндекс.",
+      "«Жми» — самостоятельная игра по мотивам Pressing Under Pressure на русском. Играй бесплатно в браузере до первой ошибки. Первая попытка без входа, дальше — через Яндекс.",
     kind: "game",
     name: "Жми",
     image: {

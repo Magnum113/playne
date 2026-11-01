@@ -518,7 +518,7 @@ export default function PressureGame() {
           <GameIntro
             title="Жми"
             eyebrow="ВНИМАТЕЛЬНОСТЬ ПОД ДАВЛЕНИЕМ"
-            description="Сначала прочитай. Потом решай."
+            description="Самостоятельная игра по мотивам Pressing Under Pressure на русском."
             record={{ value: stats.best, unit: pressScoreWord(stats.best) }}
             onRules={() => {
               rules.current?.showModal();
@@ -559,15 +559,19 @@ export default function PressureGame() {
                 <span>А правило разрешает?</span>
               </h2>
               <p>
-                Считай, запоминай, лови момент. Иногда лучший ход — вообще
-                ничего не делать. Одна ошибка, и начинаем сначала.
+                Одна кнопка, новое правило на каждом уровне. Считай,
+                запоминай, нажимай или жди. Первая ошибка завершает попытку.
               </p>
               <GameStartAction
                 game="pressure"
                 onStart={() => void begin()}
                 loading={loading}
                 loadingLabel="Готовим задания…"
-                caption="Без скачивания. Игра — до первой ошибки."
+                caption={
+                  access.user
+                    ? "Бесплатно в браузере. Скачивать ничего не нужно."
+                    : "Первая попытка — без входа. Дальше — бесплатно через Яндекс."
+                }
               />
               {ranked.state.status === "error" && (
                 <p role="status">{ranked.state.message}</p>
