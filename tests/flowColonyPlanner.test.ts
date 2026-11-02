@@ -139,5 +139,7 @@ describe("physical colony scheduling", () => {
         puzzle.cells.filter((c) => c >= 0).length,
       );
     },
+    // Dense boards check every outbound and return sample; hosted CI is slower.
+    30_000,
   );
 });
