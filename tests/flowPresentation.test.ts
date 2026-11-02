@@ -319,7 +319,9 @@ describe("Рой: visual timeline without changing rules", () => {
       trips: first.trips,
     });
     expect(next.added).toHaveLength(15);
-    expect(next.added[0].depart).toBe(1500 + next.launch);
+    expect(next.added[0].depart).toBe(
+      Math.max(1500 + next.launch, first.trips.at(-1)!.depart + next.stagger),
+    );
     expect(new Set(next.trips.map((trip) => trip.worker)).size).toBe(25);
     first.trips.forEach((trip, i) => expect(next.trips[i]).toBe(trip));
   });

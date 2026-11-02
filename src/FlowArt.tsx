@@ -1,5 +1,11 @@
-import React from "react";
-import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  memo,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   FLOW_COLORS,
   flowFrontier,
@@ -161,10 +167,12 @@ export function FlowCrate({
   color,
   count,
   concealed = false,
+  blank = false,
 }: {
   color: number;
   count: number;
   concealed?: boolean;
+  blank?: boolean;
 }) {
   const paint = concealed
     ? { hex: "#9396a5", dark: "#505365", ink: "#fffefa" }
@@ -177,7 +185,15 @@ export function FlowCrate({
       aria-hidden="true"
     >
       <rect x="7" y="10" width="62" height="61" rx="11" fill={paint.dark} />
-      <rect x="7" y="5" width="62" height="61" rx="11" fill={paint.hex} />
+      <rect
+        className="flow-crate-lid"
+        x="7"
+        y="5"
+        width="62"
+        height="61"
+        rx="11"
+        fill={paint.hex}
+      />
       <path
         d="M18 9h40"
         stroke="white"
@@ -185,20 +201,22 @@ export function FlowCrate({
         strokeLinecap="round"
         opacity=".48"
       />
-      <text
-        x="38"
-        y="49"
-        textAnchor="middle"
-        fontSize="33"
-        fontWeight="850"
-        fill={paint.ink ?? "white"}
-        stroke={paint.dark}
-        strokeWidth="2.7"
-        paintOrder="stroke"
-        fontFamily="inherit"
-      >
-        {concealed ? "?" : count}
-      </text>
+      {!blank && (
+        <text
+          x="38"
+          y="49"
+          textAnchor="middle"
+          fontSize="33"
+          fontWeight="850"
+          fill={paint.ink ?? "white"}
+          stroke={paint.dark}
+          strokeWidth="2.7"
+          paintOrder="stroke"
+          fontFamily="inherit"
+        >
+          {concealed ? "?" : count}
+        </text>
+      )}
     </svg>
   );
 }
@@ -212,6 +230,7 @@ function WalkingAnt({
   loaded?: boolean;
 }) {
   const paint = FLOW_COLORS[color];
+  const gloss = useId();
   return (
     <g
       className="flow-worker-body"
@@ -219,6 +238,13 @@ function WalkingAnt({
       strokeLinecap="round"
       strokeLinejoin="round"
     >
+      <defs>
+        <radialGradient id={gloss} cx="30%" cy="20%" r="85%">
+          <stop offset="0" stopColor="#fffdf3" stopOpacity=".7" />
+          <stop offset=".3" stopColor={paint.hex} />
+          <stop offset="1" stopColor={paint.dark} />
+        </radialGradient>
+      </defs>
       <ellipse
         cy="3"
         rx="12"
@@ -227,60 +253,76 @@ function WalkingAnt({
         stroke="none"
         opacity=".12"
       />
-      <g fill="none" strokeWidth="2.3">
-        <path
-          className="flow-worker-legs-a"
-          d="m-4-6-9-7-5 2m22 12 10-1 4 5m-22 4-8 5-1 6"
+      <g className="flow-worker-stride">
+        <g fill="none" strokeWidth="2.3">
+          <path
+            className="flow-worker-legs-a"
+            d="m-4-6-9-7-5 2m22 12 10-1 4 5m-22 4-8 5-1 6"
+          />
+          <path
+            className="flow-worker-legs-b"
+            d="m4-6 9-7 5 2m-22 12-10-1-4 5m22 4 8 5 1 6"
+          />
+          <path d="m-5-15-4-8-5-3m19 11 4-8 5-3" strokeWidth="1.8" />
+        </g>
+        <ellipse
+          cy="10"
+          rx="7.5"
+          ry="10"
+          fill={`url(#${gloss})`}
+          strokeWidth="1.2"
+        />
+        <path d="M-5 13q5 3 10 0" fill="none" opacity=".35" />
+        <ellipse
+          cy="-1"
+          rx="5"
+          ry="7"
+          fill={`url(#${gloss})`}
+          strokeWidth="1.2"
+        />
+        <ellipse
+          cy="-12"
+          rx="8.5"
+          ry="7.8"
+          fill={`url(#${gloss})`}
+          strokeWidth="1.2"
         />
         <path
-          className="flow-worker-legs-b"
-          d="m4-6 9-7 5 2m-22 12-10-1-4 5m22 4 8 5 1 6"
+          d="M-5-15q2-3 5-3"
+          stroke="white"
+          strokeWidth="1.8"
+          opacity=".5"
+          fill="none"
         />
-        <path d="m-5-15-4-8-5-3m19 11 4-8 5-3" strokeWidth="1.8" />
-      </g>
-      <ellipse cy="10" rx="7.5" ry="10" fill={paint.hex} strokeWidth="1.2" />
-      <path d="M-5 13q5 3 10 0" fill="none" opacity=".35" />
-      <ellipse cy="-1" rx="5" ry="7" fill={paint.hex} strokeWidth="1.2" />
-      <ellipse cy="-12" rx="8.5" ry="7.8" fill={paint.hex} strokeWidth="1.2" />
-      <path
-        d="M-5-15q2-3 5-3"
-        stroke="white"
-        strokeWidth="1.8"
-        opacity=".5"
-        fill="none"
-      />
-      <ellipse
-        cx="-4"
-        cy="-15"
-        rx="2.2"
-        ry="2.8"
-        fill="#fffef4"
-        stroke="none"
-      />
-      <ellipse cx="4" cy="-15" rx="2.2" ry="2.8" fill="#fffef4" stroke="none" />
-      <circle cx="-4" cy="-16" r="1.2" fill="#34352f" stroke="none" />
-      <circle cx="4" cy="-16" r="1.2" fill="#34352f" stroke="none" />
-      {loaded && (
-        <g stroke="none">
-          <rect
-            x="-11"
-            y="-40"
-            width="22"
-            height="22"
-            rx="4"
-            fill={paint.dark}
-          />
-          <rect
-            x="-11"
-            y="-42"
-            width="22"
-            height="21"
-            rx="4"
-            fill={paint.hex}
-          />
+        <ellipse
+          cx="-4"
+          cy="-15"
+          rx="2.2"
+          ry="2.8"
+          fill="#fffef4"
+          stroke="none"
+        />
+        <ellipse
+          cx="4"
+          cy="-15"
+          rx="2.2"
+          ry="2.8"
+          fill="#fffef4"
+          stroke="none"
+        />
+        <circle cx="-4" cy="-16" r="1.2" fill="#34352f" stroke="none" />
+        <circle cx="4" cy="-16" r="1.2" fill="#34352f" stroke="none" />
+        <g
+          className={`flow-worker-cargo${loaded ? " is-carrying" : ""}`}
+          stroke="none"
+        >
+          <path d="M-11-40 4-45 15-38 0-33Z" fill={paint.hex} />
+          <path d="M-11-40 0-33 0-17-11-24Z" fill={paint.dark} />
+          <path d="M0-33 15-38 15-22 0-17Z" fill={paint.hex} />
+          <path d="M-11-40 4-45 15-38 0-33Z" fill="white" opacity=".2" />
           <path d="M-7-39H7" stroke="white" strokeWidth="1.6" opacity=".6" />
         </g>
-      )}
+      </g>
     </g>
   );
 }
@@ -298,8 +340,14 @@ const FlowAntJourney = memo(function FlowAntJourney({
   scale: number;
 }) {
   const mountedAt = useRef(Math.max(0, performance.now() - epoch));
+  const last = trip.outboundPoints.at(-1)!,
+    before = trip.outboundPoints.at(-2)!;
+  const next = trip.returnPoints[1]!;
+  const incoming = Math.atan2(last.y - before.y, last.x - before.x);
+  const outgoing = Math.atan2(next.y - last.y, next.x - last.x);
+  const turn = ((((outgoing - incoming) * 180) / Math.PI + 540) % 360) - 180;
   return (
-    <React.Fragment>
+    <g data-ant-id={trip.id}>
       <g
         className="flow-walking-ant"
         aria-hidden="true"
@@ -311,6 +359,11 @@ const FlowAntJourney = memo(function FlowAntJourney({
             offsetPath: `path('${trip.outboundPath}')`,
             "--walk-delay": `${trip.depart - mountedAt.current}ms`,
             "--walk-duration": `${trip.outbound}ms`,
+            "--pickup-start": `${trip.arrive - mountedAt.current}ms`,
+            "--pickup-time": `${trip.pickupPause}ms`,
+            "--pickup-turn": `${turn}deg`,
+            "--cargo-delay": `${trip.at - mountedAt.current}ms`,
+            "--stride-time": `${260 / speed}ms`,
             "--visible-duration": `${trip.outbound + trip.pickupPause}ms`,
             "--step-repeats": Math.ceil(
               (trip.outbound + trip.pickupPause) / (260 / speed),
@@ -319,7 +372,9 @@ const FlowAntJourney = memo(function FlowAntJourney({
         }
       >
         <g transform={`scale(${scale})`}>
-          <WalkingAnt color={trip.color} />
+          <g className="flow-worker-turn">
+            <WalkingAnt color={trip.color} />
+          </g>
         </g>
       </g>
       <g
@@ -333,16 +388,21 @@ const FlowAntJourney = memo(function FlowAntJourney({
             offsetPath: `path('${trip.returnPath}')`,
             "--walk-delay": `${trip.returnAt - mountedAt.current}ms`,
             "--walk-duration": `${trip.carry}ms`,
+            "--home-delay": `${trip.deliveryAt - mountedAt.current - 180 / speed}ms`,
+            "--home-time": `${180 / speed}ms`,
+            "--stride-time": `${260 / speed}ms`,
             "--visible-duration": `${trip.carry}ms`,
             "--step-repeats": Math.ceil(trip.carry / (260 / speed)),
           } as CSSProperties
         }
       >
         <g transform={`scale(${scale})`}>
-          <WalkingAnt color={trip.color} loaded />
+          <g className="flow-worker-home">
+            <WalkingAnt color={trip.color} loaded />
+          </g>
         </g>
       </g>
-    </React.Fragment>
+    </g>
   );
 });
 
@@ -352,22 +412,24 @@ const FlowAntTraffic = memo(function FlowAntTraffic({
   epoch,
   speed,
   scale,
+  pausedAt,
 }: {
   trips: FlowTrip[];
   epoch?: number;
   speed: 1 | 2;
   scale: number;
+  pausedAt?: number;
 }) {
   const fallbackEpoch = useRef(performance.now() - (trips[0]?.renderAt ?? 0));
   const origin = epoch ?? fallbackEpoch.current;
   const [, tick] = useState(0);
-  const now = Math.max(0, performance.now() - origin);
+  const now = pausedAt ?? Math.max(0, performance.now() - origin);
   const pending = trips.some((trip) => trip.deliveryAt > now);
   useEffect(() => {
-    if (!pending) return;
+    if (!pending || pausedAt !== undefined) return;
     const timer = setInterval(() => tick((value) => value + 1), 80);
     return () => clearInterval(timer);
-  }, [pending, origin]);
+  }, [pending, origin, pausedAt]);
   return (
     <g className="flow-ant-traffic" aria-hidden="true">
       {trips
@@ -397,6 +459,7 @@ export const FlowScene = memo(function FlowScene({
   motion,
   revealHidden = false,
   epoch,
+  pausedAt,
 }: {
   puzzle: FlowPuzzle;
   cells: number[];
@@ -410,6 +473,7 @@ export const FlowScene = memo(function FlowScene({
   revealHidden?: boolean;
   /** performance.now() origin of the current animation session. */
   epoch?: number;
+  pausedAt?: number;
 }) {
   const geometry = flowGeometry(puzzle);
   const { step, size, startX, startY, bottom, homeY, viewBox } = geometry;
@@ -586,6 +650,7 @@ export const FlowScene = memo(function FlowScene({
           trips={timing.trips}
           epoch={epoch}
           speed={speed}
+          pausedAt={pausedAt}
           scale={geometry.workerScale}
         />
       )}

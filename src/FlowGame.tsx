@@ -23,6 +23,7 @@ import { flowAnalyticsParams, trackFlowReturn } from "./flowAnalytics";
 import { FlowAnt, FlowCrate, FlowScene } from "./FlowArt";
 import { FlowQueueLinks } from "./FlowQueueLinks";
 import { FlowDocks } from "./FlowDocks";
+import { FlowSupply } from "./FlowSupply";
 import {
   flowAllocateDocks,
   flowDockRemaining,
@@ -75,9 +76,35 @@ type Flight = {
   timing: FlowMotion;
   teams: FlowDockTeam[];
   delivered: Record<number, number>;
+  departed: Record<number, number>;
+  closing: Set<number>;
   baseCollected: number;
   serial: number;
 };
+type LaunchGhost = {
+  id: number;
+  color: number;
+  count: number;
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  width: number;
+  height: number;
+  scale: number;
+  duration: number;
+  slot: number;
+  link?: string;
+};
+function launchBridges(ghosts: LaunchGhost[]) {
+  const groups = new Map<string, LaunchGhost[]>();
+  for (const ghost of ghosts)
+    if (ghost.link)
+      groups.set(ghost.link, [...(groups.get(ghost.link) ?? []), ghost]);
+  return [...groups].flatMap(([link, pair]) =>
+    pair.length === 2 ? [{ link, pair: pair.sort((a, b) => a.x - b.x) }] : [],
+  );
+}
 type SceneTimer = {
   handle: ReturnType<typeof setTimeout> | null;
   at: number;
@@ -291,6 +318,8 @@ export function FlowSession({
   );
   const [day, setDay] = useState(flowDay);
   const [speed, setSpeed] = useState<1 | 2>(1);
+  const speedRef = useRef(speed);
+  speedRef.current = speed;
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState(
       save.restartedForUpgrade ? "Обновили поле. Уровень начат заново." : "",
@@ -298,26 +327,15 @@ export function FlowSession({
   const [flight, setFlight] = useState<Flight | null>(null);
   const flightRef = useRef<Flight | null>(null);
   const sceneEpoch = useRef(performance.now());
+  const pausedAt = useRef<number | null>(null);
+  const pauseReasons = useRef(new Set<string>());
+  const [scenePaused, setScenePaused] = useState(false);
   const sceneSerial = useRef(0);
   // Only attempts started or changed here can finish in this visit.
   const playedAttempts = useRef(new Set<string>());
   const seenHalfway = useRef(new Set<string>());
   const [previewColor, setPreviewColor] = useState<number | null>(null);
-  const [launchGhosts, setLaunchGhosts] = useState<
-    {
-      id: number;
-      color: number;
-      count: number;
-      x: number;
-      y: number;
-      dx: number;
-      dy: number;
-      width: number;
-      scale: number;
-      duration: number;
-      slot: number;
-    }[]
-  >([]);
+  const [launchGhosts, setLaunchGhosts] = useState<LaunchGhost[]>([]);
   const launchSerial = useRef(0),
     fxTimers = useRef(new Set<SceneTimer>());
   const supply = useRef<HTMLDivElement>(null);
@@ -374,7 +392,7 @@ export function FlowSession({
       callback,
     };
     fxTimers.current.add(effect);
-    armEffect(effect);
+    if (pausedAt.current === null) armEffect(effect);
   }
   function clearEffects() {
     for (const effect of fxTimers.current)
@@ -383,12 +401,14 @@ export function FlowSession({
     audio.current?.cancel();
     sceneSerial.current++;
     sceneEpoch.current = performance.now();
+    if (pausedAt.current !== null) pausedAt.current = sceneEpoch.current;
     changeFlight(null);
     setLaunchGhosts([]);
     setBusy(false);
   }
   function changeSpeed() {
     const nextSpeed = speed === 1 ? 2 : 1;
+    speedRef.current = nextSpeed;
     const now = performance.now();
     const current = flightRef.current;
     if (current && busy) {
@@ -453,6 +473,46 @@ export function FlowSession({
     .filter(([key]) => key.startsWith("level:"))
     .reduce((sum, [, record]) => sum + record.stars, 0);
   const animated = save.motion && !reduced;
+  useEffect(() => {
+    if (screen !== "play") return;
+    const reconcile = () => {
+      const reasons = new Set<string>();
+      if (document.hidden) reasons.add("hidden");
+      if (document.querySelector("dialog[open]")) reasons.add("dialog");
+      pauseReasons.current = reasons;
+      if (reasons.size && pausedAt.current === null) {
+        pausedAt.current = performance.now();
+        for (const effect of fxTimers.current)
+          if (effect.handle !== null) clearTimeout(effect.handle);
+        audio.current?.hush();
+        setScenePaused(true);
+      } else if (!reasons.size && pausedAt.current !== null) {
+        const elapsed = performance.now() - pausedAt.current;
+        sceneEpoch.current += elapsed;
+        pausedAt.current = null;
+        for (const effect of fxTimers.current) {
+          effect.at += elapsed;
+          armEffect(effect);
+        }
+        setScenePaused(false);
+      }
+    };
+    const observer = new MutationObserver(reconcile);
+    observer.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["open"],
+    });
+    document.addEventListener("visibilitychange", reconcile);
+    reconcile();
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", reconcile);
+      pausedAt.current = null;
+      pauseReasons.current.clear();
+      setScenePaused(false);
+    };
+  }, [screen]);
   useEffect(() => {
     if (!animated && flightRef.current) clearEffects();
   }, [animated]);
@@ -760,13 +820,21 @@ export function FlowSession({
         slot,
       }));
     const delivered = previous?.delivered ?? {};
+    const departed = previous?.departed ?? {};
+    const closing = previous?.closing ?? new Set<number>();
     const retainedIds = new Set(
-      flowDockRemaining(initialTeams, delivered).map((team) => team.id),
+      flowDockRemaining(
+        initialTeams,
+        puzzle.version === 4 ? departed : delivered,
+        closing,
+      ).map((team) => team.id),
     );
     const teams = initialTeams.filter((team) => retainedIds.has(team.id));
     const group =
       next.type === "launch"
-        ? flowLaunchPackets(puzzle, before.state, next.lane)
+        ? flowLaunchPackets(puzzle, before.state, next.lane)?.sort(
+            (a, b) => a.lane - b.lane,
+          )
         : null;
     const allocation = group
       ? flowAllocateDocks(
@@ -868,6 +936,8 @@ export function FlowSession({
           timing,
           teams: roster,
           delivered: { ...delivered },
+          departed: { ...departed },
+          closing: new Set(closing),
           baseCollected: previous?.baseCollected ?? before.state.collected,
           serial,
         });
@@ -886,6 +956,7 @@ export function FlowSession({
               ...current,
               {
                 id: ghostId,
+                link: item.packet.link,
                 color: item.packet.color,
                 count: item.packet.count,
                 x: source.left - surface.left,
@@ -902,6 +973,7 @@ export function FlowSession({
                     ? target.bottom - source.bottom
                     : target.top - source.top,
                 width: source.width,
+                height: source.height,
                 scale: puzzle.version === 4 ? 1 : target.width / source.width,
                 duration: timing.launch,
                 slot: allocation!.slots[index],
@@ -912,7 +984,7 @@ export function FlowSession({
                 setLaunchGhosts((current) =>
                   current.filter((ghost) => ghost.id !== ghostId),
                 ),
-              timing.launch + 160 / speed,
+              timing.launch,
             );
           }
         }
@@ -925,6 +997,59 @@ export function FlowSession({
             Math.max(0, cue.at - now),
           );
         for (const trip of timing.added) {
+          if (puzzle.version === 4)
+            later(
+              () => {
+                let finished: number[] = [];
+                changeFlight((current) => {
+                  if (!current) return current;
+                  const departed = {
+                    ...current.departed,
+                    [trip.packet]: (current.departed[trip.packet] ?? 0) + 1,
+                  };
+                  const remaining = new Set(
+                    flowDockRemaining(current.teams, departed).map(
+                      (team) => team.id,
+                    ),
+                  );
+                  finished = current.teams
+                    .filter(
+                      (team) =>
+                        !remaining.has(team.id) &&
+                        !current.closing.has(team.id),
+                    )
+                    .map((team) => team.id);
+                  return {
+                    ...current,
+                    departed,
+                    closing: new Set([...current.closing, ...finished]),
+                  };
+                });
+                if (finished.length) {
+                  sceneSound("dock", trip.color);
+                  later(
+                    () =>
+                      changeFlight((current) =>
+                        current
+                          ? {
+                              ...current,
+                              teams: current.teams.filter(
+                                (team) => !finished.includes(team.id),
+                              ),
+                              closing: new Set(
+                                [...current.closing].filter(
+                                  (id) => !finished.includes(id),
+                                ),
+                              ),
+                            }
+                          : current,
+                      ),
+                    300 / speedRef.current,
+                  );
+                }
+              },
+              Math.max(0, trip.depart - now),
+            );
           later(
             () =>
               changeFlight((current) => {
@@ -933,7 +1058,7 @@ export function FlowSession({
                 cells[trip.cell] = -1;
                 return { ...current, cells };
               }),
-            Math.max(0, trip.at + 100 / speed - now),
+            Math.max(0, trip.at - now),
           );
           later(
             () => {
@@ -969,7 +1094,7 @@ export function FlowSession({
                   },
                 };
               });
-              if (completedColor !== undefined)
+              if (puzzle.version !== 4 && completedColor !== undefined)
                 sceneSound("dock", completedColor);
             },
             Math.max(0, trip.deliveryAt - now),
@@ -985,8 +1110,13 @@ export function FlowSession({
             changeFlight({
               cells: settled.state.cells,
               timing: flowMotion([], speed, puzzle),
-              teams: flowDockRemaining(current.teams, current.delivered),
+              teams: flowDockRemaining(
+                current.teams,
+                puzzle.version === 4 ? current.departed : current.delivered,
+              ),
               delivered: {},
+              departed: {},
+              closing: new Set(),
               baseCollected: settled.state.collected,
               serial,
             });
@@ -1035,7 +1165,8 @@ export function FlowSession({
     flight?.teams ??
       game?.state.active.map((team, slot) => ({ ...team, slot })) ??
       [],
-    flight?.delivered,
+    puzzle?.version === 4 ? flight?.departed : flight?.delivered,
+    flight?.closing,
   );
   const visualCollected = flight
     ? flight.baseCollected +
@@ -1272,6 +1403,7 @@ export function FlowSession({
       ) : active && puzzle && game ? (
         <section
           className={`flow-play${game.stuck ? " is-stuck" : ""}${game.won && !busy ? " is-won" : ""}`}
+          data-paused={scenePaused || undefined}
           data-world={world.id}
           data-layout={puzzle.version === 4 ? "reference" : undefined}
           style={
@@ -1284,6 +1416,38 @@ export function FlowSession({
           aria-label="Игровая площадка Рой"
         >
           {game.won && !busy && animated && <FlowCelebration />}
+          {game.won &&
+            busy &&
+            flight &&
+            !flight.timing.trips.length &&
+            animated && (
+              <div className="flow-homecoming" aria-hidden="true">
+                <FlowAnt color={0} />
+                <FlowAnt color={1} />
+                <FlowAnt color={2} />
+              </div>
+            )}
+          {launchBridges(launchGhosts).map(({ link, pair: [a, b] }) => (
+            <span
+              key={link}
+              className="flow-flight-bridge"
+              data-flight-link={link}
+              aria-hidden="true"
+              style={
+                {
+                  left: a.x + a.width / 2,
+                  top: a.y + a.height / 2,
+                  width: b.x + b.width / 2 - a.x - a.width / 2,
+                  background: `linear-gradient(90deg, ${FLOW_COLORS[a.color].hex}, ${FLOW_COLORS[b.color].hex})`,
+                  "--bridge-dx": `${a.dx}px`,
+                  "--bridge-dy": `${a.dy}px`,
+                  "--bridge-source-width": `${b.x + b.width / 2 - a.x - a.width / 2}px`,
+                  "--bridge-width": `${b.x + b.width / 2 + b.dx - a.x - a.width / 2 - a.dx}px`,
+                  "--ghost-time": `${a.duration}ms`,
+                } as CSSProperties
+              }
+            />
+          ))}
           {launchGhosts.map((launchGhost) => (
             <div
               key={launchGhost.id}
@@ -1395,6 +1559,11 @@ export function FlowSession({
                 motion={flight?.timing}
                 moving={busy && animated}
                 epoch={sceneEpoch.current}
+                pausedAt={
+                  scenePaused && pausedAt.current !== null
+                    ? pausedAt.current - sceneEpoch.current
+                    : undefined
+                }
                 revealHidden={game.won && !busy}
               />
               {game.won && !busy && (
@@ -1523,6 +1692,7 @@ export function FlowSession({
               <div className="flow-colony">
                 <FlowDocks
                   teams={visibleTeams}
+                  closing={flight?.closing}
                   count={puzzle.slots}
                   working={
                     new Set(flight?.timing.trips.map((trip) => trip.packet))
@@ -1534,130 +1704,150 @@ export function FlowSession({
                   }}
                 />
                 <h2 className="sr-only">Очереди команд</h2>
-                <div
-                  ref={supply}
-                  className={`flow-supply${puzzle.version === 4 ? " flow-supply-dense" : ""}`}
-                  style={{
-                    gridTemplateColumns: `repeat(${puzzle.lanes.length}, minmax(0, 1fr))`,
-                    maxWidth:
-                      puzzle.version === 4
-                        ? undefined
-                        : puzzle.lanes.length === 3
-                          ? 264
-                          : 332,
-                  }}
-                >
-                  <FlowQueueLinks
+                {puzzle.version === 4 ? (
+                  <FlowSupply
                     puzzle={puzzle}
-                    positions={game.state.lanes}
+                    state={game.state}
+                    freeSlots={puzzle.slots - visibleTeams.length}
+                    exposedColors={exposedColors}
                     supply={supply}
+                    onButton={(lane, element) => {
+                      launchButtons.current[lane] = element;
+                    }}
+                    onPreview={setPreviewColor}
+                    onLaunch={(lane) => action({ type: "launch", lane })}
                   />
-                  {puzzle.lanes.map((lane, i) => {
-                    const remaining = lane.slice(game.state.lanes[i]),
-                      team = remaining[0],
-                      paint = team ? FLOW_COLORS[team.color] : null;
-                    const group = flowLaunchPackets(puzzle, game.state, i);
-                    const launchable =
-                      !!group &&
-                      puzzle.slots - visibleTeams.length >= group.length;
-                    const accessible = team && exposedColors.has(team.color);
-                    return (
-                      <div className="flow-lane" key={i}>
-                        <button
-                          type="button"
-                          className={`flow-launch${!accessible ? " needs-opening" : ""}`}
+                ) : (
+                  <>
+                    <div
+                      ref={supply}
+                      className="flow-supply"
+                      style={{
+                        gridTemplateColumns: `repeat(${puzzle.lanes.length}, minmax(0, 1fr))`,
+                        maxWidth: puzzle.lanes.length === 3 ? 264 : 332,
+                      }}
+                    >
+                      <FlowQueueLinks
+                        puzzle={puzzle}
+                        positions={game.state.lanes}
+                        supply={supply}
+                      />
+                      {puzzle.lanes.map((lane, i) => {
+                        const remaining = lane.slice(game.state.lanes[i]),
+                          team = remaining[0],
+                          paint = team ? FLOW_COLORS[team.color] : null;
+                        const group = flowLaunchPackets(puzzle, game.state, i);
+                        const launchable =
+                          !!group &&
+                          puzzle.slots - visibleTeams.length >= group.length;
+                        const accessible =
+                          team && exposedColors.has(team.color);
+                        return (
+                          <div className="flow-lane" key={i}>
+                            <button
+                              type="button"
+                              className={`flow-launch${!accessible ? " needs-opening" : ""}`}
 
-                          disabled={!launchable}
-                          data-flow-packet={team?.id}
-                          data-flow-linked={team?.link}
-                          title={
-                            team?.link
-                              ? group
-                                ? "Связанная пара · 2 слота"
-                                : "Открой вторую коробку связки"
-                              : undefined
-                          }
-                          ref={(element) => {
-                            launchButtons.current[i] = element;
-                          }}
-                          onPointerEnter={() =>
-                            setPreviewColor(team?.color ?? null)
-                          }
-                          onPointerLeave={() => setPreviewColor(null)}
-                          onPointerDown={() =>
-                            setPreviewColor(team?.color ?? null)
-                          }
-                          onFocus={() => setPreviewColor(team?.color ?? null)}
-                          onBlur={() => setPreviewColor(null)}
-                          onClick={() => action({ type: "launch", lane: i })}
-                          aria-label={
-                            team
-                              ? `Очередь ${i + 1}: ${paint!.name} команда ${paint!.symbol}, ${team.count} кубиков. ${team.link ? "Связанная пара, нужны 2 слота. " : ""}${accessible ? "Цвет доступен" : "Пока нет доступных кубиков этого цвета"}. Запустить`
-                              : `Очередь ${i + 1} пуста`
-                          }
-                        >
-                          {team ? (
-                            <span
-                              className="flow-promoted-crate"
-                              key={`${active.id}:${team.id}`}
+                              disabled={!launchable}
+                              data-flow-packet={team?.id}
+                              data-flow-linked={team?.link}
+                              title={
+                                team?.link
+                                  ? group
+                                    ? "Связанная пара · 2 слота"
+                                    : "Открой вторую коробку связки"
+                                  : undefined
+                              }
+                              ref={(element) => {
+                                launchButtons.current[i] = element;
+                              }}
+                              onPointerEnter={() =>
+                                setPreviewColor(team?.color ?? null)
+                              }
+                              onPointerLeave={() => setPreviewColor(null)}
+                              onPointerDown={() =>
+                                setPreviewColor(team?.color ?? null)
+                              }
+                              onFocus={() =>
+                                setPreviewColor(team?.color ?? null)
+                              }
+                              onBlur={() => setPreviewColor(null)}
+                              onClick={() =>
+                                action({ type: "launch", lane: i })
+                              }
+                              aria-label={
+                                team
+                                  ? `Очередь ${i + 1}: ${paint!.name} команда ${paint!.symbol}, ${team.count} кубиков. ${team.link ? "Связанная пара, нужны 2 слота. " : ""}${accessible ? "Цвет доступен" : "Пока нет доступных кубиков этого цвета"}. Запустить`
+                                  : `Очередь ${i + 1} пуста`
+                              }
                             >
-                              <FlowCrate
-                                color={team.color}
-                                count={team.count}
-                              />
-                              {team.link && (
+                              {team ? (
                                 <span
-                                  className="flow-link-badge"
+                                  className="flow-promoted-crate"
+                                  key={`${active.id}:${team.id}`}
+                                >
+                                  <FlowCrate
+                                    color={team.color}
+                                    count={team.count}
+                                  />
+                                  {team.link && (
+                                    <span
+                                      className="flow-link-badge"
+                                      aria-hidden="true"
+                                    >
+                                      ↔{team.link.split("-").at(-1)}
+                                    </span>
+                                  )}
+                                </span>
+                              ) : (
+                                <span
+                                  className="flow-lane-done"
                                   aria-hidden="true"
                                 >
-                                  ↔{team.link.split("-").at(-1)}
+                                  ✓
                                 </span>
                               )}
-                            </span>
-                          ) : (
-                            <span className="flow-lane-done" aria-hidden="true">
-                              ✓
-                            </span>
-                          )}
-                        </button>
-                        <div
-                          className="flow-next-packets"
-                          key={`queue:${i}:${game.state.lanes[i]}`}
-                          aria-label={`Дальше в очереди ${i + 1}`}
-                        >
-                          {remaining
-                            .slice(1, puzzle.version === 4 ? 3 : 4)
-                            .map((packet) => (
-                              <span
-                                key={packet.id}
-                                data-flow-packet={packet.id}
-                                data-flow-linked={packet.link}
-                                aria-label={
-                                  packet.mystery
-                                    ? "Скрытая команда"
-                                    : `${FLOW_COLORS[packet.color].name}, ${packet.count} кубиков${packet.link ? ", связанная пара" : ""}`
-                                }
-                              >
-                                <FlowCrate
-                                  color={packet.color}
-                                  count={packet.count}
-                                  concealed={packet.mystery}
-                                />
-                              </span>
-                            ))}
-                          {remaining.length >
-                            (puzzle.version === 4 ? 3 : 4) && (
-                            <span className="flow-more-packets">
-                              +
-                              {remaining.length -
-                                (puzzle.version === 4 ? 3 : 4)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                            </button>
+                            <div
+                              className="flow-next-packets"
+                              key={`queue:${i}:${game.state.lanes[i]}`}
+                              aria-label={`Дальше в очереди ${i + 1}`}
+                            >
+                              {remaining
+                                .slice(1, puzzle.version === 4 ? 3 : 4)
+                                .map((packet) => (
+                                  <span
+                                    key={packet.id}
+                                    data-flow-packet={packet.id}
+                                    data-flow-linked={packet.link}
+                                    aria-label={
+                                      packet.mystery
+                                        ? "Скрытая команда"
+                                        : `${FLOW_COLORS[packet.color].name}, ${packet.count} кубиков${packet.link ? ", связанная пара" : ""}`
+                                    }
+                                  >
+                                    <FlowCrate
+                                      color={packet.color}
+                                      count={packet.count}
+                                      concealed={packet.mystery}
+                                    />
+                                  </span>
+                                ))}
+                              {remaining.length >
+                                (puzzle.version === 4 ? 3 : 4) && (
+                                <span className="flow-more-packets">
+                                  +
+                                  {remaining.length -
+                                    (puzzle.version === 4 ? 3 : 4)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
                 <div className="flow-game-message" role="status">
                   {message ||
                     (game.stuck ? "Нет свободных слотов. Отмени ход." : "")}

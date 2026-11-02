@@ -147,7 +147,66 @@ describe("Рой: linked boxes retain their physical docks", () => {
     ).not.toBeNull();
   });
 
-  it("holds a delivered half and its bridge until its enclosed partner also delivers", async () => {
+  it("decrements on departure, frees a box before its ants return, and accepts a linked pair", async () => {
+    await act(async () => root!.render(<FlowGame />));
+    await click("Начать уровень 1");
+    const puzzle = makeFlowPuzzle("level", 1);
+    const first = launchFlow(puzzle, initialFlow(puzzle), 2)!;
+    const plan = flowMotion(first.events, 1, puzzle, {
+      cells: puzzle.cells,
+      slots: new Map([[2, 0]]),
+    });
+    await click("Очередь 3:");
+    const firstDeparture = Math.min(...plan.trips.map((t) => t.depart));
+    await advance(firstDeparture + 1);
+    expect(box.querySelector('[data-dock-packet="2"] text')?.textContent).toBe(
+      "9",
+    );
+    expect(
+      box.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow"),
+    ).toBe("0");
+    const release = Math.max(...plan.trips.map((t) => t.depart)) + 300;
+    expect(release).toBeLessThan(
+      Math.max(...plan.trips.map((t) => t.deliveryAt)),
+    );
+    await advance(release - firstDeparture + 1);
+    expect(box.querySelector('[data-dock-packet="2"]')).toBeNull();
+    expect(box.querySelector("[data-ant-id]")).not.toBeNull();
+    await click("Очередь 1:");
+    expect(box.querySelector('[data-flight-link="pair-1"]')).not.toBeNull();
+    expect(box.querySelectorAll('[data-dock-pair="pair-1"]')).toHaveLength(2);
+  });
+
+  it("freezes departures, pickups and delivery while a dialog is open, then resumes", async () => {
+    await act(async () => root!.render(<FlowGame />));
+    await click("Начать уровень 1");
+    await click("Очередь 3:");
+    await advance(400);
+    await click("Пауза");
+    const counter = box.querySelector(
+      '[data-dock-packet="2"] text',
+    )?.textContent;
+    const progress = box
+      .querySelector('[role="progressbar"]')
+      ?.getAttribute("aria-valuenow");
+    expect(box.querySelector(".flow-play")?.getAttribute("data-paused")).toBe(
+      "true",
+    );
+    await advance(10000);
+    expect(box.querySelector('[data-dock-packet="2"] text')?.textContent).toBe(
+      counter,
+    );
+    expect(
+      box.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow"),
+    ).toBe(progress);
+    await click("Продолжить");
+    await advance(800);
+    expect(
+      box.querySelector('[data-dock-packet="2"] text')?.textContent,
+    ).not.toBe(counter);
+  });
+
+  it("holds an empty half blank before delivery and releases the pair after both finish spawning", async () => {
     await act(async () => root!.render(<FlowGame />));
     await click("Начать уровень 1");
     expect(
@@ -168,10 +227,20 @@ describe("Рой: linked boxes retain their physical docks", () => {
       ]),
     });
     await click("Очередь 1:");
-    expect(box.querySelector('[aria-label="Очередь 1 пуста"]')).not.toBeNull();
-    expect(box.querySelector('[aria-label="Очередь 2 пуста"]')).not.toBeNull();
+    expect(box.querySelectorAll(".flow-lane-live")).toHaveLength(1);
+    await advance(Math.ceil(firstTiming.trips[0].depart) + 1);
+    expect(box.querySelector('[data-dock-packet="0"] text')).toBeNull();
+    expect(box.querySelector('[data-dock-packet="1"] text')?.textContent).toBe(
+      "1",
+    );
+    expect(
+      box.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow"),
+    ).toBe("0");
 
-    await advance(Math.ceil(firstTiming.trips[0].deliveryAt) + 1);
+    await advance(
+      Math.ceil(firstTiming.trips[0].deliveryAt - firstTiming.trips[0].depart) +
+        1,
+    );
     const pairNodes = [
       ...box.querySelectorAll(".flow-dock-occupant.is-waiting"),
     ];
@@ -215,7 +284,7 @@ describe("Рой: linked boxes retain their physical docks", () => {
       ]),
     });
     await click("Очередь 3:");
-    await advance(Math.ceil(secondTiming.finish) + 1);
+    await advance(Math.ceil(secondTiming.finish) + 1000);
 
     expect(box.querySelectorAll(".flow-dock-occupant")).toHaveLength(0);
     expect(box.querySelector("[data-dock-link]")).toBeNull();

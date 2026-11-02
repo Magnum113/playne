@@ -8,14 +8,15 @@ export type FlowDockTeam = {
   link?: string;
 };
 
-/** A completed half still occupies its dock until the other half is delivered. */
+/** A completed half still occupies its dock until both halves have finished issuing workers. */
 export function flowDockRemaining(
   teams: readonly FlowDockTeam[],
-  delivered: Readonly<Record<number, number>> = {},
+  departed: Readonly<Record<number, number>> = {},
+  closing: ReadonlySet<number> = new Set(),
 ) {
   const remaining = teams.map((team) => ({
     ...team,
-    left: Math.max(0, team.left - (delivered[team.id] ?? 0)),
+    left: Math.max(0, team.left - (departed[team.id] ?? 0)),
   }));
   const workingLinks = new Set(
     remaining
@@ -23,7 +24,10 @@ export function flowDockRemaining(
       .map((team) => team.link),
   );
   return remaining.filter(
-    (team) => team.left > 0 || (team.link && workingLinks.has(team.link)),
+    (team) =>
+      team.left > 0 ||
+      (team.link && workingLinks.has(team.link)) ||
+      closing.has(team.id),
   );
 }
 

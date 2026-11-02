@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { FlowCrate } from "./FlowArt";
 import { FLOW_COLORS } from "./flow";
 import type { FlowDockTeam } from "./flowDockLayout";
@@ -9,6 +10,7 @@ export function FlowDocks({
   launching,
   full,
   onSlot,
+  closing = new Set<number>(),
 }: {
   teams: FlowDockTeam[];
   count: number;
@@ -16,6 +18,7 @@ export function FlowDocks({
   launching: ReadonlySet<number>;
   full: boolean;
   onSlot: (slot: number, element: HTMLDivElement | null) => void;
+  closing?: ReadonlySet<number>;
 }) {
   const pairs = new Map<string, FlowDockTeam[]>();
   for (const team of teams)
@@ -46,7 +49,7 @@ export function FlowDocks({
         return (
           <span
             key={id}
-            className="flow-dock-bridge"
+            className={`flow-dock-bridge${pair.some((team) => launching.has(team.slot)) ? " is-arriving" : ""}${pair.every((team) => closing.has(team.id)) ? " is-closing" : ""}`}
             data-dock-link={id}
             aria-hidden="true"
             style={{
@@ -60,17 +63,31 @@ export function FlowDocks({
       {teams.map((team) => (
         <div
           key={team.id}
-          className={`flow-dock flow-dock-occupant is-waiting${working.has(team.id) ? " is-working" : ""}${launching.has(team.slot) ? " is-launching" : ""}${team.left === 0 ? " is-complete" : ""}`}
+          className={`flow-dock flow-dock-occupant is-waiting${working.has(team.id) ? " is-working" : ""}${launching.has(team.slot) ? " is-launching" : ""}${team.left === 0 ? " is-complete" : ""}${closing.has(team.id) ? " is-closing" : ""}`}
           data-dock-packet={team.id}
           data-dock-slot={team.slot}
           data-dock-pair={team.link}
-          aria-label={`${FLOW_COLORS[team.color].name} команда: осталось ${team.left}${team.link ? ". Связанная пара" : ""}${team.left === 0 ? ". Ждёт вторую команду" : ""}`}
+          aria-label={`${FLOW_COLORS[team.color].name} команда: осталось ${team.left}${team.link ? ". Связанная пара" : ""}${team.left === 0 ? (closing.has(team.id) ? ". Закрывается" : team.link ? ". Ждёт вторую команду" : "") : ""}`}
           style={{
             left: `calc(${(team.slot / count) * 100}% + var(--flow-dock-gap, 8px) * ${team.slot / count})`,
             width: `calc(${100 / count}% - var(--flow-dock-gap, 8px) * ${(count - 1) / count})`,
           }}
         >
-          <FlowCrate color={team.color} count={team.left} />
+          <FlowCrate
+            color={team.color}
+            count={team.left}
+            blank={team.left === 0}
+          />
+          {closing.has(team.id) && (
+            <span className="flow-dock-sparks" aria-hidden="true">
+              {Array.from({ length: 6 }, (_, i) => (
+                <i
+                  key={i}
+                  style={{ "--spark-angle": `${i * 60}deg` } as CSSProperties}
+                />
+              ))}
+            </span>
+          )}
         </div>
       ))}
     </div>

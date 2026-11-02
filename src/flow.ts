@@ -82,13 +82,15 @@ const v3 = (puzzle: FlowPuzzle) => puzzle as legacyV3.FlowPuzzle;
  * sealed cavity is visited only when it connects to exterior air. Parent paths
  * always pass through cells that have already become empty.
  */
-function flowAccess(puzzle: Pick<FlowPuzzle, "width" | "height">, cells: readonly number[]) {
+function flowAccess(puzzle: Pick<FlowPuzzle, "width" | "height">, cells: readonly number[], from?: { x: number; y: number }) {
   const { width, height } = puzzle;
   const stride = width + 2, total = stride * (height + 2);
   const parents = new Int32Array(total).fill(-1);
   const air = new Uint8Array(total), edge = new Uint8Array(cells.length);
   const queue = new Int32Array(total);
-  const start = (height + 1) * stride + Math.floor(stride / 2);
+  const sx = from ? Math.max(0, Math.min(width + 1, Math.round(from.x) + 1)) : Math.floor(stride / 2);
+  const sy = from ? Math.max(0, Math.min(height + 1, Math.round(from.y) + 1)) : height + 1;
+  const start = sy * stride + sx;
   let head = 0, tail = 1;
   parents[start] = start;
   air[start] = 1;
@@ -171,11 +173,11 @@ function originalOrder(puzzle: FlowPuzzle) {
 /** An approach through presently visible air, without speculative pickups. */
 export function flowApproach(
   puzzle: Pick<FlowPuzzle, "width" | "height"> & Partial<Pick<FlowPuzzle, "version" | "id">>,
-  cells: readonly number[], cell: number,
+  cells: readonly number[], cell: number, from?: { x: number; y: number },
 ): { x: number; y: number }[] | undefined {
   if (puzzleVersion(puzzle) === 2 || !Number.isInteger(cell) || cell < 0 || cell >= cells.length || cells[cell] < 0) return undefined;
   if (puzzleVersion(puzzle) === 3) return legacyV3.flowApproach(puzzle as Parameters<typeof legacyV3.flowApproach>[0], cells, cell);
-  const access = flowAccess(puzzle, cells);
+  const access = flowAccess(puzzle, cells, from);
   return access.edge[cell] ? access.path(cell) : undefined;
 }
 export function flowFrontier(puzzle: FlowPuzzle, cells: number[]) {
@@ -183,6 +185,11 @@ export function flowFrontier(puzzle: FlowPuzzle, cells: number[]) {
   if (puzzleVersion(puzzle) === 3) return legacyV3.flowFrontier(v3(puzzle), cells);
   const edge = flowAccess(puzzle, cells).edge;
   return originalOrder(puzzle).filter(i => edge[i]);
+}
+/** Physical frontier for the presentation planner, independent of level peel order. */
+export function flowOpenCells(puzzle: Pick<FlowPuzzle, "width" | "height">, cells: readonly number[]) {
+  const edge = flowAccess(puzzle, cells).edge;
+  return Array.from(edge.keys()).filter(cell => edge[cell]);
 }
 export function initialFlow(puzzle: FlowPuzzle): FlowState {
   return { cells: [...puzzle.cells], lanes: puzzle.lanes.map(() => 0), active: [], launches: 0, collected: 0 };

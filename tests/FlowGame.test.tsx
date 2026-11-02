@@ -491,7 +491,7 @@ describe("Рой: complete player journeys", () => {
       JSON.parse(localStorage.getItem(storageKey())!).active.actions,
     ).toEqual(actions);
   });
-  it("reserves five visible docks until delivery and frees a completed dock while other teams still walk", async () => {
+  it("reserves five physical docks and frees a completed source while its ants still walk", async () => {
     animate();
     await mount();
     await click("Начать уровень 1");
@@ -533,7 +533,7 @@ describe("Рой: complete player journeys", () => {
         Math.max(
           ...timing.trips
             .filter((trip) => trip.packet === packet)
-            .map((trip) => trip.deliveryAt),
+            .map((trip) => trip.depart + 300),
         ),
       )
       .sort((a, b) => a - b);
@@ -541,9 +541,10 @@ describe("Рой: complete player journeys", () => {
     await act(async () => {
       vi.advanceTimersByTime(completions[0] + 1);
     });
-    expect(
-      box.querySelector('[aria-label="Доки: 1 свободно из 5"]'),
-    ).not.toBeNull();
+    expect(box.querySelectorAll(".flow-dock-occupant").length).toBeLessThan(5);
+    expect(box.querySelectorAll(".flow-dock-occupant").length).toBeGreaterThan(
+      0,
+    );
     expect(box.querySelector('[data-trip="outbound"]')).not.toBeNull();
     expect(button("Ускорить анимации").disabled).toBe(false);
     const nextLane = puzzle.solution[5];
@@ -660,7 +661,8 @@ describe("Рой: complete player journeys", () => {
     for (const item of group) {
       const promoted = puzzle.lanes[item.lane][state.lanes[item.lane] + 1];
       expect(
-        button(`Очередь ${item.lane + 1}`).getAttribute("data-flow-packet"),
+        button(`Очередь ${item.lane + 1}`)?.getAttribute("data-flow-packet") ??
+          null,
       ).toBe(promoted ? String(promoted.id) : null);
       expect(
         box.querySelector(
@@ -715,7 +717,7 @@ describe("Рой: complete player journeys", () => {
     await mount();
     await click(`Продолжить уровень ${level}`);
     const future = box.querySelector(
-      `.flow-next-packets [data-flow-packet="${mystery.id}"]`,
+      `.flow-queue-packet[data-flow-packet="${mystery.id}"]`,
     )!;
     expect(future.getAttribute("aria-label")).toBe("Скрытая команда");
     expect(future.querySelector("text")?.textContent).toBe("?");

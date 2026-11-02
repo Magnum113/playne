@@ -1,4 +1,9 @@
-import { flowApproach, type FlowEvent, type FlowPuzzle } from "./flow";
+import {
+  flowApproach,
+  flowOpenCells,
+  type FlowEvent,
+  type FlowPuzzle,
+} from "./flow";
 import { flowGeometry } from "./flowGeometry";
 
 export const FLOW_WORLDS = [
@@ -168,6 +173,41 @@ export function flowAntRoute(
     x = pickup.x;
     y = pickup.y;
   }
+  if (puzzle.version === 4 && event.path?.length && origin.y >= bottom) {
+    const corridor = event.path.map((point) => ({
+      x: startX + point.x * step + size / 2,
+      y: startY + point.y * step + size / 2,
+    }));
+    corridor[corridor.length - 1] = { x, y };
+    const entry = corridor[0],
+      gridEntry = event.path[0];
+    const spread = (((event.cell * 7 + event.packet * 3) % 5) - 2) * 1.2;
+    const left = startX - 20 + spread,
+      right = startX + puzzle.width * step + 20 + spread;
+    const routeSide =
+      gridEntry.x < 0 || (gridEntry.y < 0 && entry.x < 270) ? left : right;
+    const lower = bottom + 18 + Math.abs(spread);
+    const approach =
+      gridEntry.y >= puzzle.height
+        ? [origin, entry]
+        : [
+            origin,
+            { x: routeSide, y: lower },
+            { x: routeSide, y: entry.y },
+            entry,
+          ];
+    const escape = [...corridor].reverse();
+    outwardPoints = [...approach, ...corridor.slice(1)];
+    homewardPoints =
+      gridEntry.y >= puzzle.height
+        ? [...escape, { x: 270, y: homeY }]
+        : [
+            ...escape,
+            { x: routeSide, y: entry.y },
+            { x: routeSide, y: lower },
+            { x: 270, y: homeY },
+          ];
+  }
   const compact = (points: FlowPoint[]) =>
     points.filter(
       (point, i) =>
@@ -274,9 +314,11 @@ export function flowMotion(
     Partial<Pick<FlowPuzzle, "version" | "id">>,
   context: FlowMotionContext = {},
 ): FlowMotion {
+  if (puzzle.version === 4 && context.cells)
+    return referenceMotion(events, speed, puzzle, context);
   const launch = 220 / speed,
     pickupPause = 260 / speed,
-    stagger = 110 / speed,
+    stagger = (puzzle.version === 4 ? 300 : 110) / speed,
     now = context.now ?? 0;
   const columns = new Map<number, { at: number; y: number }>();
   const trips = (context.trips ?? []).map((trip) => {
@@ -402,5 +444,163 @@ export function flowMotion(
         ? Math.max(...trips.map((t) => t.deliveryAt)) + 240 / speed
         : 0,
     ),
+  };
+}
+
+/** Schedule only physically exposed, unreserved targets on a shared colony clock.
+ * Future openings wake every waiting packet; walking ants outlive their boxes.
+ * The deterministic move journal and packet quotas remain owned by flow.ts.
+ */
+function referenceMotion(
+  events: FlowEvent[],
+  speed: 1 | 2,
+  puzzle: Pick<FlowPuzzle, "width" | "height"> &
+    Partial<Pick<FlowPuzzle, "version" | "id">>,
+  context: FlowMotionContext,
+): FlowMotion {
+  const now = context.now ?? 0,
+    launch = 220 / speed,
+    stagger = 300 / speed,
+    pickupPause = 240 / speed;
+  const geometry = flowGeometry(puzzle);
+  const trips = (context.trips ?? []).map((trip) => {
+    const slot = context.slots?.get(trip.packet);
+    if (slot === undefined || slot === trip.slot || trip.depart <= now)
+      return trip;
+    return {
+      ...trip,
+      ...flowAntRoute(
+        puzzle,
+        { ...trip, slot },
+        context.origins?.get(trip.packet),
+      ),
+      slot,
+    };
+  });
+  const added: FlowTrip[] = [],
+    reserved = new Set(trips.map((t) => t.cell));
+  const pending = events
+    .filter((event) => !reserved.has(event.cell))
+    .map((event) => ({
+      ...event,
+      slot: context.slots?.get(event.packet) ?? event.slot,
+    }));
+  const visible = [...context.cells!];
+  const openings = trips.map((trip) => ({
+    cell: trip.cell,
+    at: trip.at + 40 / speed,
+  }));
+  const nextDeparture = new Map<number, number>();
+  for (const trip of trips)
+    nextDeparture.set(
+      trip.packet,
+      Math.max(nextDeparture.get(trip.packet) ?? 0, trip.depart + stagger),
+    );
+  const origin = (event: FlowEvent) =>
+    context.origins?.get(event.packet) ?? {
+      x: 84 + event.slot * 93,
+      y: geometry.bottom + 126,
+    };
+  let clock = now + launch;
+  while (pending.length) {
+    for (let index = openings.length - 1; index >= 0; index--) {
+      if (openings[index].at <= clock) {
+        visible[openings[index].cell] = -1;
+        openings.splice(index, 1);
+      }
+    }
+    const edge = new Set(flowOpenCells(puzzle, visible));
+    const ready = pending.filter(
+      (event) =>
+        edge.has(event.cell) &&
+        (nextDeparture.get(event.packet) ?? now + launch) <= clock,
+    );
+    if (!ready.length) {
+      const next = Math.min(
+        ...openings.map((point) => (point.at > clock ? point.at : Infinity)),
+        ...pending.map((event) => {
+          const at = nextDeparture.get(event.packet) ?? now + launch;
+          return at > clock ? at : Infinity;
+        }),
+      );
+      if (!Number.isFinite(next)) throw new Error("Unreachable colony target");
+      clock = next;
+      continue;
+    }
+    // Shortlist by distance, then compare actual clear walking routes.
+    ready.sort((a, b) => {
+      const distance = (e: FlowEvent) => {
+        const from = origin(e);
+        return Math.hypot(
+          geometry.startX + (e.cell % puzzle.width) * geometry.step - from.x,
+          geometry.startY +
+            Math.floor(e.cell / puzzle.width) * geometry.step -
+            from.y,
+        );
+      };
+      return distance(a) - distance(b) || a.cell - b.cell;
+    });
+    const choices = ready
+      .slice(0, 8)
+      .map((event) => {
+        const from = origin(event);
+        const path = flowApproach(puzzle, visible, event.cell, {
+          x: (from.x - geometry.startX) / geometry.step,
+          y: puzzle.height,
+        });
+        if (!path) throw new Error("Target is not on the physical frontier");
+        const candidate = { ...event, path };
+        return { candidate, route: flowAntRoute(puzzle, candidate, from) };
+      })
+      .sort(
+        (a, b) =>
+          a.route.outboundLength - b.route.outboundLength ||
+          a.candidate.cell - b.candidate.cell,
+      );
+    const { candidate: event, route } = choices[0];
+    const variation =
+      1 + (((event.cell * 13 + event.packet * 7) % 7) - 3) * 0.012;
+    const outbound =
+      Math.max(650, (route.outboundLength / (165 * variation)) * 1000) / speed;
+    const carry =
+      Math.max(600, (route.returnLength / (150 * variation)) * 1000) / speed;
+    const depart = clock,
+      arrive = depart + outbound,
+      at = arrive + pickupPause * 0.55,
+      returnAt = arrive + pickupPause;
+    const trip: FlowTrip = {
+      ...event,
+      ...route,
+      id: `${context.epoch ?? "flow"}:${event.packet}:${event.cell}`,
+      worker: event.cell,
+      renderAt: now,
+      depart,
+      arrive,
+      at,
+      returnAt,
+      outbound,
+      carry,
+      deliveryAt: returnAt + carry,
+      pickupPause,
+    };
+    trips.push(trip);
+    added.push(trip);
+    reserved.add(trip.cell);
+    openings.push({ cell: trip.cell, at: trip.at + 40 / speed });
+    nextDeparture.set(trip.packet, depart + stagger);
+    pending.splice(
+      pending.findIndex((item) => item.cell === event.cell),
+      1,
+    );
+  }
+  return {
+    launch,
+    stagger,
+    pickupPause,
+    trips,
+    added,
+    pickups: trips,
+    deliveries: trips.map((t) => ({ ...t, at: t.deliveryAt })),
+    finish: Math.max(now, ...trips.map((t) => t.deliveryAt)) + 960 / speed,
   };
 }

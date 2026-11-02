@@ -42,15 +42,10 @@ export function FlowQueueLinks({
               `[data-flow-packet="${packet.id}"]`,
             );
             if (!node) return;
-            // Entrance transforms must not displace the bridge after the deal animation.
-            let x = node.offsetWidth / 2,
-              y = node.offsetHeight / 2;
-            let parent: HTMLElement | null = node;
-            while (parent && parent !== element) {
-              x += parent.offsetLeft;
-              y += parent.offsetTop;
-              parent = parent.offsetParent as HTMLElement | null;
-            }
+            const bounds = node.getBoundingClientRect(),
+              surface = element.getBoundingClientRect();
+            const x = bounds.left - surface.left + bounds.width / 2;
+            const y = bounds.top - surface.top + bounds.height / 2;
             const members = groups.get(packet.link) ?? [];
             members.push({
               x,
@@ -75,8 +70,14 @@ export function FlowQueueLinks({
                   // the unrelated boxes between its two ends.
                   path:
                     Math.abs(pair[1].x - pair[0].x) >
-                      (element.offsetWidth / puzzle.lanes.length) * 1.5 &&
-                    pair.every((point) => point.depth === 0)
+                      (element.offsetWidth /
+                        Math.max(
+                          1,
+                          puzzle.lanes.filter(
+                            (lane, i) => lane.length > positions[i],
+                          ).length,
+                        )) *
+                        1.5 && pair.every((point) => point.depth === 0)
                       ? (() => {
                           const [a, b] = [...pair].sort((a, b) => a.x - b.x);
                           return `M${a.x} ${a.y}V2Q${a.x} -6 ${a.x + 8} -6H${b.x - 8}Q${b.x} -6 ${b.x} 2V${b.y}`;
@@ -89,10 +90,23 @@ export function FlowQueueLinks({
       );
     };
     measure();
-    if (typeof ResizeObserver === "undefined") return;
+    // Follow the actual moving endpoints through promotion and lane recentering.
+    let frame = 0;
+    const until = performance.now() + 360;
+    const follow = () => {
+      measure();
+      if (performance.now() < until) frame = requestAnimationFrame(follow);
+    };
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+      frame = requestAnimationFrame(follow);
+    if (typeof ResizeObserver === "undefined")
+      return () => cancelAnimationFrame(frame);
     const observer = new ResizeObserver(measure);
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
   }, [puzzle, positionKey, supply]);
   return (
     <svg
