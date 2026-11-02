@@ -5,6 +5,7 @@ import {
   type FlowPuzzle,
 } from "./flow";
 import { flowGeometry } from "./flowGeometry";
+import { flowPathSamples } from "./flowPaths";
 
 export const FLOW_WORLDS = [
   {
@@ -36,7 +37,10 @@ export function flowWorld(kind: "level" | "daily", key: string | number) {
 
 export type FlowPoint = { x: number; y: number };
 /** Small rounded corners remain inside the empty grid corridor. */
-function roundPath(points: FlowPoint[], radius = 5) {
+function roundPath(
+  points: FlowPoint[],
+  radius: number | ((point: FlowPoint) => number) = 5,
+) {
   let path = `M ${points[0].x} ${points[0].y}`,
     length = 0,
     last = points[0];
@@ -48,7 +52,11 @@ function roundPath(points: FlowPoint[], radius = 5) {
       c = points[i + 1],
       ab = distance(a, b),
       bc = distance(b, c);
-    const r = Math.min(radius, ab / 2, bc / 2);
+    const r = Math.min(
+      typeof radius === "number" ? radius : radius(b),
+      ab / 2,
+      bc / 2,
+    );
     const before = {
       x: b.x + ((a.x - b.x) * r) / (ab || 1),
       y: b.y + ((a.y - b.y) * r) / (ab || 1),
@@ -82,6 +90,7 @@ export function flowAntRoute(
     Partial<Pick<FlowPuzzle, "version" | "id">>,
   event: FlowEvent,
   originOverride?: FlowPoint,
+  navigationCells?: readonly number[],
 ) {
   const { step, size, startX, startY, bottom, homeY } = flowGeometry(puzzle);
   let x = startX + (event.cell % puzzle.width) * step + size / 2,
@@ -215,8 +224,104 @@ export function flowAntRoute(
     );
   outwardPoints = compact(outwardPoints);
   homewardPoints = compact(homewardPoints);
-  const outward = roundPath(outwardPoints),
-    homeward = roundPath(homewardPoints);
+  const clearAt = (point: FlowPoint, cells: readonly number[]) => {
+    const column = Math.floor((point.x - startX) / step),
+      row = Math.floor((point.y - startY) / step);
+    return (
+      column < 0 ||
+      column >= puzzle.width ||
+      row < 0 ||
+      row >= puzzle.height ||
+      cells[row * puzzle.width + column] < 0
+    );
+  };
+  const clearLine = (a: FlowPoint, b: FlowPoint, cells: readonly number[]) => {
+    const fromX = Math.max(0, Math.floor((Math.min(a.x, b.x) - startX) / step));
+    const toX = Math.min(
+      puzzle.width - 1,
+      Math.floor((Math.max(a.x, b.x) - startX) / step),
+    );
+    const fromY = Math.max(0, Math.floor((Math.min(a.y, b.y) - startY) / step));
+    const toY = Math.min(
+      puzzle.height - 1,
+      Math.floor((Math.max(a.y, b.y) - startY) / step),
+    );
+    for (let row = fromY; row <= toY; row++)
+      for (let column = fromX; column <= toX; column++) {
+        if (cells[row * puzzle.width + column] < 0) continue;
+        let enter = 0,
+          exit = 1;
+        for (const [origin, delta, min, max] of [
+          [
+            a.x,
+            b.x - a.x,
+            startX + column * step + 0.00001,
+            startX + (column + 1) * step - 0.00001,
+          ],
+          [
+            a.y,
+            b.y - a.y,
+            startY + row * step + 0.00001,
+            startY + (row + 1) * step - 0.00001,
+          ],
+        ]) {
+          if (Math.abs(delta) < 0.000001) {
+            if (origin <= min || origin >= max) {
+              enter = 2;
+              break;
+            }
+          } else {
+            const p = (min - origin) / delta,
+              q = (max - origin) / delta;
+            enter = Math.max(enter, Math.min(p, q));
+            exit = Math.min(exit, Math.max(p, q));
+          }
+        }
+        if (enter <= exit) return false;
+      }
+    return true;
+  };
+  const shortcut = (points: FlowPoint[], cells: readonly number[]) => {
+    const result = [points[0]];
+    for (let at = 0; at < points.length - 1;) {
+      let next = points.length - 1;
+      while (next > at + 1 && !clearLine(points[at], points[next], cells))
+        next--;
+      result.push(points[next]);
+      at = next;
+    }
+    return result;
+  };
+  const returnCells = navigationCells ? [...navigationCells] : undefined;
+  if (returnCells) returnCells[event.cell] = -1;
+  if (puzzle.version === 4 && navigationCells) {
+    outwardPoints = shortcut(outwardPoints, navigationCells);
+    homewardPoints = shortcut(homewardPoints, returnCells!);
+  }
+  const radius =
+    puzzle.version === 4
+      ? (point: FlowPoint) =>
+          point.x < startX - step / 2 ||
+          point.x > boardRight + step / 2 ||
+          point.y > bottom + 8 ||
+          point.y < startY - 8
+            ? 20
+            : Math.min(5, step * 0.35)
+      : 5;
+  const safeRound = (points: FlowPoint[], cells?: readonly number[]) => {
+    const rounded = roundPath(points, radius);
+    if (!cells) return rounded;
+    const samples = flowPathSamples(rounded.path);
+    return samples.some(
+      (point, index) =>
+        !clearAt(point, cells) ||
+        (index > 0 && !clearLine(samples[index - 1], point, cells)),
+    )
+      ? roundPath(points, 0)
+      : rounded;
+  };
+  const outward = safeRound(outwardPoints, navigationCells),
+    homeward = safeRound(homewardPoints, returnCells);
   return {
     outboundPath: outward.path,
     returnPath: homeward.path,
@@ -461,7 +566,7 @@ function referenceMotion(
   const now = context.now ?? 0,
     launch = 220 / speed,
     stagger = 300 / speed,
-    pickupPause = 240 / speed;
+    pickupPause = 320 / speed;
   const geometry = flowGeometry(puzzle);
   const trips = (context.trips ?? []).map((trip) => {
     const slot = context.slots?.get(trip.packet);
@@ -485,11 +590,12 @@ function referenceMotion(
       ...event,
       slot: context.slots?.get(event.packet) ?? event.slot,
     }));
-  const visible = [...context.cells!];
-  const openings = trips.map((trip) => ({
-    cell: trip.cell,
-    at: trip.at + 40 / speed,
-  }));
+  // Same-colour followers may head out together. Other colours still open
+  // their passages through real pickups, preserving the original dock puzzle.
+  const clearance = new Map(
+    trips.map((trip) => [trip.cell, trip.at + 40 / speed]),
+  );
+  const reservedColors = new Map(trips.map((trip) => [trip.cell, trip.color]));
   const nextDeparture = new Map<number, number>();
   for (const trip of trips)
     nextDeparture.set(
@@ -503,21 +609,32 @@ function referenceMotion(
     };
   let clock = now + launch;
   while (pending.length) {
-    for (let index = openings.length - 1; index >= 0; index--) {
-      if (openings[index].at <= clock) {
-        visible[openings[index].cell] = -1;
-        openings.splice(index, 1);
+    const navigationByColor = new Map<number, number[]>(),
+      edgeByColor = new Map<number, Set<number>>();
+    const navigation = (color: number) => {
+      let cells = navigationByColor.get(color);
+      if (!cells) {
+        cells = [...context.cells!];
+        for (const [cell, at] of clearance)
+          if (at <= clock || reservedColors.get(cell) === color)
+            cells[cell] = -1;
+        navigationByColor.set(color, cells);
       }
-    }
-    const edge = new Set(flowOpenCells(puzzle, visible));
-    const ready = pending.filter(
-      (event) =>
-        edge.has(event.cell) &&
-        (nextDeparture.get(event.packet) ?? now + launch) <= clock,
-    );
+      return cells;
+    };
+    const ready = pending.filter((event) => {
+      if ((nextDeparture.get(event.packet) ?? now + launch) > clock)
+        return false;
+      let edge = edgeByColor.get(event.color);
+      if (!edge) {
+        edge = new Set(flowOpenCells(puzzle, navigation(event.color)));
+        edgeByColor.set(event.color, edge);
+      }
+      return edge.has(event.cell);
+    });
     if (!ready.length) {
       const next = Math.min(
-        ...openings.map((point) => (point.at > clock ? point.at : Infinity)),
+        ...[...clearance.values()].filter((at) => at > clock),
         ...pending.map((event) => {
           const at = nextDeparture.get(event.packet) ?? now + launch;
           return at > clock ? at : Infinity;
@@ -544,13 +661,16 @@ function referenceMotion(
       .slice(0, 8)
       .map((event) => {
         const from = origin(event);
-        const path = flowApproach(puzzle, visible, event.cell, {
+        const path = flowApproach(puzzle, navigation(event.color), event.cell, {
           x: (from.x - geometry.startX) / geometry.step,
           y: puzzle.height,
         });
         if (!path) throw new Error("Target is not on the physical frontier");
         const candidate = { ...event, path };
-        return { candidate, route: flowAntRoute(puzzle, candidate, from) };
+        return {
+          candidate,
+          route: flowAntRoute(puzzle, candidate, from, navigation(event.color)),
+        };
       })
       .sort(
         (a, b) =>
@@ -560,14 +680,49 @@ function referenceMotion(
     const { candidate: event, route } = choices[0];
     const variation =
       1 + (((event.cell * 13 + event.packet * 7) % 7) - 3) * 0.012;
-    const outbound =
-      Math.max(650, (route.outboundLength / (165 * variation)) * 1000) / speed;
-    const carry =
-      Math.max(600, (route.returnLength / (150 * variation)) * 1000) / speed;
-    const depart = clock,
-      arrive = depart + outbound,
+    const safeDuration = (path: string, start: number, base: number) => {
+      const samples = flowPathSamples(path),
+        length = samples.at(-1)!.distance;
+      const checked = new Set<number>();
+      let duration = base;
+      for (const point of samples) {
+        const column = Math.floor((point.x - geometry.startX) / geometry.step),
+          row = Math.floor((point.y - geometry.startY) / geometry.step);
+        if (
+          column < 0 ||
+          column >= puzzle.width ||
+          row < 0 ||
+          row >= puzzle.height
+        )
+          continue;
+        const cell = row * puzzle.width + column;
+        if (cell === event.cell || checked.has(cell)) continue;
+        checked.add(cell);
+        const clearAt = clearance.get(cell);
+        if (clearAt !== undefined)
+          duration = Math.max(
+            duration,
+            ((clearAt - start) * length) / Math.max(1, point.distance - 2),
+          );
+      }
+      return duration;
+    };
+    // Constrain entry into reserved squares, while allowing a whole visible
+    // wave to leave the box at its regular cadence.
+    const depart = clock;
+    const outbound = safeDuration(
+      route.outboundPath,
+      depart,
+      Math.max(650, (route.outboundLength / (165 * variation)) * 1000) / speed,
+    );
+    const arrive = depart + outbound,
       at = arrive + pickupPause * 0.55,
       returnAt = arrive + pickupPause;
+    const carry = safeDuration(
+      route.returnPath,
+      returnAt,
+      Math.max(600, (route.returnLength / (150 * variation)) * 1000) / speed,
+    );
     const trip: FlowTrip = {
       ...event,
       ...route,
@@ -586,7 +741,8 @@ function referenceMotion(
     trips.push(trip);
     added.push(trip);
     reserved.add(trip.cell);
-    openings.push({ cell: trip.cell, at: trip.at + 40 / speed });
+    clearance.set(trip.cell, trip.at + 40 / speed);
+    reservedColors.set(trip.cell, trip.color);
     nextDeparture.set(trip.packet, depart + stagger);
     pending.splice(
       pending.findIndex((item) => item.cell === event.cell),

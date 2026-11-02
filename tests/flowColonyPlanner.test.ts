@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  flowApproach,
-  initialFlow,
-  launchFlow,
-  makeFlowPuzzle,
-} from "../src/flow";
+import { initialFlow, launchFlow, makeFlowPuzzle } from "../src/flow";
 import { flowGeometry } from "../src/flowGeometry";
+import { flowPathSamples } from "../src/flowPaths";
 import { flowMotion } from "../src/flowPresentation";
 
 const grid = { version: 4 as const, width: 3, height: 3 };
@@ -16,15 +12,30 @@ const event = (cell: number, packet: number) => ({
   slot: packet,
 });
 describe("physical colony scheduling", () => {
-  it("keeps an enclosed target in its box until a real pickup opens its corridor", () => {
+  it("lets a follower leave before the first pickup while delaying entry into its corridor", () => {
+    const plan = flowMotion(
+      [event(7, 0), { ...event(4, 1), color: 0 }],
+      1,
+      grid,
+      {
+        cells: Array(9).fill(0),
+      },
+    );
+    const opening = plan.added.find((t) => t.cell === 7)!,
+      enclosed = plan.added.find((t) => t.cell === 4)!;
+    expect(opening.depart).toBe(220);
+    expect(enclosed.depart).toBe(opening.depart);
+    expect(enclosed.arrive).toBeGreaterThan(opening.at);
+    expect(enclosed.path).toContainEqual({ x: 1, y: 2 });
+  });
+  it("waits for a different colour to open a sealed target, without waiting for delivery", () => {
     const plan = flowMotion([event(7, 0), event(4, 1)], 1, grid, {
       cells: Array(9).fill(0),
     });
     const opening = plan.added.find((t) => t.cell === 7)!,
-      enclosed = plan.added.find((t) => t.cell === 4)!;
-    expect(opening.depart).toBe(220);
-    expect(enclosed.depart).toBeGreaterThan(opening.at);
-    expect(enclosed.path).toContainEqual({ x: 1, y: 2 });
+      follower = plan.added.find((t) => t.cell === 4)!;
+    expect(follower.depart).toBeGreaterThan(opening.at);
+    expect(follower.depart).toBeLessThan(opening.deliveryAt);
   });
   it("sends different boxes together and paces one colony without a four-ant cap", () => {
     const p = { version: 4 as const, width: 9, height: 1 };
@@ -40,6 +51,30 @@ describe("physical colony scheduling", () => {
     ]);
     expect(b.depart).toBe(220);
     expect(new Set(plan.trips.map((t) => t.cell)).size).toBe(8);
+  });
+  it("dispatches all three adjacent final black cubes before the first pickup or delivery", () => {
+    const p = { version: 4 as const, width: 24, height: 24 };
+    const cells = Array(576).fill(-1),
+      ids = [278, 279, 280];
+    ids.forEach((cell) => (cells[cell] = 7));
+    for (const speed of [1, 2] as const) {
+      const plan = flowMotion(
+        ids.map((cell) => ({ ...event(cell, 0), color: 7 })),
+        speed,
+        p,
+        { cells },
+      );
+      expect(plan.trips.map((t) => t.depart)).toEqual(
+        [220, 520, 820].map((t) => t / speed),
+      );
+      expect(plan.trips.at(-1)!.depart).toBeLessThan(
+        Math.min(...plan.trips.map((t) => t.at)),
+      );
+      expect(plan.trips.at(-1)!.depart).toBeLessThan(
+        Math.min(...plan.trips.map((t) => t.deliveryAt)),
+      );
+      expect(new Set(plan.trips.map((t) => t.cell)).size).toBe(3);
+    }
   });
   it("chooses the nearer accessible cube rather than the supplied array order", () => {
     const g = flowGeometry(grid);
@@ -62,7 +97,7 @@ describe("physical colony scheduling", () => {
     expect(next.added.map((t) => t.cell)).toEqual([8]);
   });
   it.each([1, 13, 36])(
-    "only departs through physically open air throughout level %i",
+    "never enters occupied cubes on either leg throughout level %i",
     (level) => {
       const puzzle = makeFlowPuzzle("level", level);
       let state = initialFlow(puzzle),
@@ -75,17 +110,30 @@ describe("physical colony scheduling", () => {
         });
         state = next.state;
       }
-      const picked = [...plan.trips].sort((a, b) => a.at - b.at),
-        visible = [...puzzle.cells];
-      let cursor = 0;
-      for (const trip of [...plan.trips].sort((a, b) => a.depart - b.depart)) {
-        while (cursor < picked.length && picked[cursor].at <= trip.depart)
-          visible[picked[cursor++].cell] = -1;
-        expect(flowApproach(puzzle, visible, trip.cell)).toBeDefined();
-        expect(trip.returnPoints.at(-1)).toEqual({
-          x: 270,
-          y: flowGeometry(puzzle).homeY,
-        });
+      const pickedAt = new Map(plan.trips.map((trip) => [trip.cell, trip.at]));
+      const g = flowGeometry(puzzle);
+      for (const trip of plan.trips) {
+        for (const [path, start, duration] of [
+          [trip.outboundPath, trip.depart, trip.outbound],
+          [trip.returnPath, trip.returnAt, trip.carry],
+        ] as const) {
+          const samples = flowPathSamples(path),
+            length = samples.at(-1)!.distance;
+          for (const point of samples) {
+            const x = Math.floor((point.x - g.startX) / g.step),
+              y = Math.floor((point.y - g.startY) / g.step);
+            if (x < 0 || x >= puzzle.width || y < 0 || y >= puzzle.height)
+              continue;
+            const cell = y * puzzle.width + x;
+            if (puzzle.cells[cell] < 0) continue;
+            const at = start + (duration * point.distance) / length;
+            expect(
+              pickedAt.get(cell),
+              `level ${level}, ant ${trip.cell}, crossing ${cell}`,
+            ).toBeLessThanOrEqual(at + 0.001);
+          }
+        }
+        expect(trip.returnPoints.at(-1)).toEqual({ x: 270, y: g.homeY });
       }
       expect(new Set(plan.trips.map((t) => t.cell)).size).toBe(
         puzzle.cells.filter((c) => c >= 0).length,

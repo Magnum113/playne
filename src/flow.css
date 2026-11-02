@@ -2812,3 +2812,82 @@
     scale: 1;
   }
 }
+
+/* Facing is a continuous, unwrapped heading animation, independent of the path's
+   instantaneous tangent. The whole ant and its cargo share that orientation. */
+.flow-worker-facing {
+  transform-origin: 0 0;
+  transform-box: view-box;
+}
+.flow-worker-home {
+  animation: none;
+}
+.flow-worker-home .flow-worker-body > ellipse {
+  display: none;
+}
+.flow-worker-hop {
+  transform-origin: 0 0;
+}
+.flow-worker-ground-shadow {
+  transform-origin: 0 4px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .flow-worker-home {
+    animation: none;
+  }
+  .flow-worker-hop {
+    animation: flow-hop-into-nest var(--home-time) linear var(--home-delay) both;
+  }
+  .flow-worker-ground-shadow {
+    animation: flow-nest-shadow var(--home-time) linear var(--home-delay) both;
+  }
+}
+@keyframes flow-hop-into-nest {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  12% {
+    transform: translateY(2px) scale(1.06, 0.83);
+    opacity: 1;
+  }
+  43% {
+    transform: translateY(-22px) scale(1.04);
+    opacity: 1;
+  }
+  65% {
+    transform: translateY(-16px) scale(0.98);
+    opacity: 1;
+  }
+  84% {
+    transform: translateY(3px) scale(0.65, 0.8);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(13px) scale(0.12, 0.18);
+    opacity: 0;
+  }
+}
+@keyframes flow-nest-shadow {
+  0%,
+  12% {
+    opacity: 0.18;
+    transform: scale(1);
+  }
+  43% {
+    opacity: 0.07;
+    transform: scale(0.6);
+  }
+  65% {
+    opacity: 0.1;
+    transform: scale(0.75);
+  }
+  84% {
+    opacity: 0.12;
+    transform: scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}

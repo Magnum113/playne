@@ -1,5 +1,7 @@
 import {
   memo,
+  useLayoutEffect,
+  useMemo,
   useEffect,
   useId,
   useRef,
@@ -16,6 +18,7 @@ import {
 } from "./flow";
 import { flowMotion, type FlowMotion, type FlowTrip } from "./flowPresentation";
 import { flowGeometry } from "./flowGeometry";
+import { flowHomeHop, flowJourneyHeading } from "./flowPaths";
 
 /** Shared character: the same little ant appears in previews and carries cubes. */
 function AntFigure({
@@ -333,19 +336,74 @@ const FlowAntJourney = memo(function FlowAntJourney({
   epoch,
   speed,
   scale,
+  pausedAt,
 }: {
   trip: FlowTrip;
   epoch: number;
   speed: 1 | 2;
   scale: number;
+  pausedAt?: number;
 }) {
   const mountedAt = useRef(Math.max(0, performance.now() - epoch));
-  const last = trip.outboundPoints.at(-1)!,
-    before = trip.outboundPoints.at(-2)!;
-  const next = trip.returnPoints[1]!;
-  const incoming = Math.atan2(last.y - before.y, last.x - before.x);
-  const outgoing = Math.atan2(next.y - last.y, next.x - last.x);
-  const turn = ((((outgoing - incoming) * 180) / Math.PI + 540) % 360) - 180;
+  const outboundFacing = useRef<SVGGElement>(null),
+    inboundFacing = useRef<SVGGElement>(null);
+  const headings = useMemo(
+    () => flowJourneyHeading(trip, speed),
+    [
+      trip.outboundPath,
+      trip.returnPath,
+      trip.outbound,
+      trip.carry,
+      trip.pickupPause,
+      speed,
+    ],
+  );
+  const hop = flowHomeHop(trip.carry, speed);
+  useLayoutEffect(() => {
+    const now = pausedAt ?? Math.max(0, performance.now() - epoch);
+    const animate = (
+      element: SVGGElement | null,
+      frames: typeof headings.outbound,
+      duration: number,
+      start: number,
+    ) => {
+      if (!element?.animate) return;
+      const animation = element.animate(
+        frames.map(({ offset, transform }) => ({ offset, transform })),
+        { duration, delay: start - now, easing: "linear", fill: "both" },
+      );
+      // Cancellation is normal during pause, retiming and unmounting.
+      void animation.finished.catch(() => {});
+      void animation.ready.catch(() => {});
+      if (pausedAt !== undefined) animation.pause();
+      return animation;
+    };
+    const outbound = animate(
+      outboundFacing.current,
+      headings.outbound,
+      trip.outbound + trip.pickupPause,
+      trip.depart,
+    );
+    const inbound = animate(
+      inboundFacing.current,
+      headings.inbound,
+      trip.carry,
+      trip.returnAt,
+    );
+    return () => {
+      outbound?.cancel();
+      inbound?.cancel();
+    };
+  }, [
+    headings,
+    epoch,
+    pausedAt,
+    trip.depart,
+    trip.returnAt,
+    trip.outbound,
+    trip.pickupPause,
+    trip.carry,
+  ]);
   return (
     <g data-ant-id={trip.id}>
       <g
@@ -357,11 +415,11 @@ const FlowAntJourney = memo(function FlowAntJourney({
         style={
           {
             offsetPath: `path('${trip.outboundPath}')`,
+            offsetRotate: "0deg",
             "--walk-delay": `${trip.depart - mountedAt.current}ms`,
             "--walk-duration": `${trip.outbound}ms`,
             "--pickup-start": `${trip.arrive - mountedAt.current}ms`,
             "--pickup-time": `${trip.pickupPause}ms`,
-            "--pickup-turn": `${turn}deg`,
             "--cargo-delay": `${trip.at - mountedAt.current}ms`,
             "--stride-time": `${260 / speed}ms`,
             "--visible-duration": `${trip.outbound + trip.pickupPause}ms`,
@@ -372,7 +430,11 @@ const FlowAntJourney = memo(function FlowAntJourney({
         }
       >
         <g transform={`scale(${scale})`}>
-          <g className="flow-worker-turn">
+          <g
+            ref={outboundFacing}
+            className="flow-worker-facing"
+            style={{ transform: headings.outbound[0].transform }}
+          >
             <WalkingAnt color={trip.color} />
           </g>
         </g>
@@ -386,10 +448,11 @@ const FlowAntJourney = memo(function FlowAntJourney({
         style={
           {
             offsetPath: `path('${trip.returnPath}')`,
+            offsetRotate: "0deg",
             "--walk-delay": `${trip.returnAt - mountedAt.current}ms`,
             "--walk-duration": `${trip.carry}ms`,
-            "--home-delay": `${trip.deliveryAt - mountedAt.current - 180 / speed}ms`,
-            "--home-time": `${180 / speed}ms`,
+            "--home-delay": `${trip.deliveryAt - mountedAt.current - hop}ms`,
+            "--home-time": `${hop}ms`,
             "--stride-time": `${260 / speed}ms`,
             "--visible-duration": `${trip.carry}ms`,
             "--step-repeats": Math.ceil(trip.carry / (260 / speed)),
@@ -398,7 +461,23 @@ const FlowAntJourney = memo(function FlowAntJourney({
       >
         <g transform={`scale(${scale})`}>
           <g className="flow-worker-home">
-            <WalkingAnt color={trip.color} loaded />
+            <ellipse
+              className="flow-worker-ground-shadow"
+              cy="4"
+              rx="15"
+              ry="7"
+              fill="#493823"
+              opacity=".18"
+            />
+            <g className="flow-worker-hop">
+              <g
+                ref={inboundFacing}
+                className="flow-worker-facing"
+                style={{ transform: headings.inbound[0].transform }}
+              >
+                <WalkingAnt color={trip.color} loaded />
+              </g>
+            </g>
           </g>
         </g>
       </g>
@@ -441,6 +520,7 @@ const FlowAntTraffic = memo(function FlowAntTraffic({
             epoch={origin}
             speed={speed}
             scale={scale}
+            pausedAt={pausedAt}
           />
         ))}
     </g>
