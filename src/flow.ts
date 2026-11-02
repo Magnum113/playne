@@ -170,6 +170,12 @@ function originalOrder(puzzle: FlowPuzzle) {
   }
   return order;
 }
+/** Reuse one flood fill while comparing several targets from the same origin. */
+export function flowApproaches(puzzle: Parameters<typeof flowApproach>[0], cells: readonly number[], from?: {x:number;y:number}) {
+  if(puzzleVersion(puzzle)!==4)return (cell:number)=>flowApproach(puzzle,cells,cell,from);
+  const access=flowAccess(puzzle,cells,from);
+  return (cell:number)=>Number.isInteger(cell)&&cell>=0&&cell<cells.length&&cells[cell]>=0&&access.edge[cell]?access.path(cell):undefined;
+}
 /** An approach through presently visible air, without speculative pickups. */
 export function flowApproach(
   puzzle: Pick<FlowPuzzle, "width" | "height"> & Partial<Pick<FlowPuzzle, "version" | "id">>,

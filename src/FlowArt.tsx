@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import {
   FLOW_COLORS,
@@ -19,6 +20,7 @@ import {
 import { flowMotion, type FlowMotion, type FlowTrip } from "./flowPresentation";
 import { flowGeometry } from "./flowGeometry";
 import { flowHomeHop, flowJourneyHeading } from "./flowPaths";
+import { FlowAntCanvas } from "./FlowAntCanvas";
 
 /** Shared character: the same little ant appears in previews and carries cubes. */
 function AntFigure({
@@ -527,6 +529,106 @@ const FlowAntTraffic = memo(function FlowAntTraffic({
   );
 });
 
+const FlowBoardCube = memo(
+  function FlowBoardCube({
+    i,
+    x,
+    y,
+    step,
+    size,
+    paint,
+    pickup,
+    concealed,
+    highlighted,
+  }: {
+    i: number;
+    x: number;
+    y: number;
+    step: number;
+    size: number;
+    paint: { hex: string; dark: string };
+    pickup?: FlowTrip;
+    concealed: boolean;
+    highlighted: boolean;
+  }) {
+    return (
+      <g
+        className={`flow-cube${pickup !== undefined ? " is-lifting" : ""}`}
+        style={
+          pickup !== undefined
+            ? ({
+                "--pickup-delay": `${pickup.at - pickup.renderAt}ms`,
+              } as CSSProperties)
+            : undefined
+        }
+        data-cell={i}
+        data-concealed={concealed || undefined}
+      >
+        <rect
+          x={x}
+          y={y + step * (2.5 / 24)}
+          width={size}
+          height={size}
+          rx={step * (4.5 / 24)}
+          fill={paint.dark}
+        />
+        <rect
+          x={x}
+          y={y}
+          width={size}
+          height={size}
+          rx={step * (4.5 / 24)}
+          fill={paint.hex}
+        />
+        <path
+          d={`M${x + step * 0.21} ${y + step * 0.125}h${size - step * 0.42}`}
+          stroke="white"
+          strokeWidth={Math.max(0.65, step / 16)}
+          opacity=".45"
+          strokeLinecap="round"
+        />
+        {concealed && (
+          <text
+            x={x + size / 2}
+            y={y + size * 0.78}
+            textAnchor="middle"
+            fill="#fffefa"
+            fontSize={step * 0.78}
+            fontWeight="850"
+            aria-hidden="true"
+          >
+            ?
+          </text>
+        )}
+        {highlighted && (
+          <rect
+            className="flow-target-cube"
+            x={x - 1}
+            y={y - 1}
+            width={size + 2}
+            height={size + 2}
+            rx="5"
+            fill="none"
+            stroke="white"
+            strokeWidth="2.5"
+          />
+        )}
+      </g>
+    );
+  },
+  (a, b) =>
+    a.i === b.i &&
+    a.x === b.x &&
+    a.y === b.y &&
+    a.step === b.step &&
+    a.size === b.size &&
+    a.paint.hex === b.paint.hex &&
+    a.paint.dark === b.paint.dark &&
+    a.pickup === b.pickup &&
+    a.concealed === b.concealed &&
+    a.highlighted === b.highlighted,
+);
+
 export const FlowScene = memo(function FlowScene({
   puzzle,
   cells,
@@ -555,12 +657,30 @@ export const FlowScene = memo(function FlowScene({
   epoch?: number;
   pausedAt?: number;
 }) {
+  const fallbackEpoch = useRef(performance.now());
+  // Retain unchanged SVG tile elements; a pickup only creates its changed tiles.
+  const tiles = useMemo(
+    () =>
+      new Map<
+        number,
+        {
+          pickup?: FlowTrip;
+          concealed: boolean;
+          highlighted: boolean;
+          node: ReactNode;
+        }
+      >(),
+    [puzzle],
+  );
   const geometry = flowGeometry(puzzle);
   const { step, size, startX, startY, bottom, homeY, viewBox } = geometry;
   const concealedCells = new Set(
     revealHidden ? [] : (puzzle.hiddenCells ?? []),
   );
-  const frontier = new Set(flowFrontier(puzzle, cells));
+  const frontier = useMemo(
+    () => new Set(flowFrontier(puzzle, cells)),
+    [puzzle, cells],
+  );
   const timing = motion ?? flowMotion(events, speed, puzzle);
   const pickups = new Map(
     moving ? timing.trips.map((trip) => [trip.cell, trip]) : [],
@@ -616,79 +736,39 @@ export const FlowScene = memo(function FlowScene({
       )}
       {puzzle.cells.map((color, i) => {
         if (color < 0 || cells[i] < 0) return null;
-        const x = startX + (i % puzzle.width) * step,
-          y = startY + Math.floor(i / puzzle.width) * step;
-        const pickup = pickups.get(i);
-        const concealed = concealedCells.has(i) && !frontier.has(i);
-        const paint = concealed
-          ? { hex: "#9698a4", dark: "#5f6272" }
-          : FLOW_COLORS[color];
-        return (
-          <g
+        const pickup = pickups.get(i),
+          concealed = concealedCells.has(i) && !frontier.has(i),
+          highlighted = highlightColor === color && frontier.has(i);
+        const tile = tiles.get(i);
+        if (
+          tile &&
+          tile.pickup === pickup &&
+          tile.concealed === concealed &&
+          tile.highlighted === highlighted
+        )
+          return tile.node;
+        const node = (
+          <FlowBoardCube
             key={i}
-            className={`flow-cube${pickup !== undefined ? " is-lifting" : ""}`}
-            style={
-              pickup !== undefined
-                ? ({
-                    "--pickup-delay": `${pickup.at - pickup.renderAt}ms`,
-                  } as CSSProperties)
-                : undefined
+            i={i}
+            x={startX + (i % puzzle.width) * step}
+            y={startY + Math.floor(i / puzzle.width) * step}
+            step={step}
+            size={size}
+            pickup={pickup}
+            concealed={concealed}
+            paint={
+              concealed
+                ? { hex: "#9698a4", dark: "#5f6272" }
+                : FLOW_COLORS[color]
             }
-            data-cell={i}
-            data-concealed={concealed || undefined}
-          >
-            <rect
-              x={x}
-              y={y + step * (2.5 / 24)}
-              width={size}
-              height={size}
-              rx={step * (4.5 / 24)}
-              fill={paint.dark}
-            />
-            <rect
-              x={x}
-              y={y}
-              width={size}
-              height={size}
-              rx={step * (4.5 / 24)}
-              fill={paint.hex}
-            />
-            <path
-              d={`M${x + step * 0.21} ${y + step * 0.125}h${size - step * 0.42}`}
-              stroke="white"
-              strokeWidth={Math.max(0.65, step / 16)}
-              opacity=".45"
-              strokeLinecap="round"
-            />
-            {concealed && (
-              <text
-                x={x + size / 2}
-                y={y + size * 0.78}
-                textAnchor="middle"
-                fill="#fffefa"
-                fontSize={step * 0.78}
-                fontWeight="850"
-                aria-hidden="true"
-              >
-                ?
-              </text>
-            )}
-            {highlightColor === color && frontier.has(i) && (
-              <rect
-                className="flow-target-cube"
-                x={x - 1}
-                y={y - 1}
-                width={size + 2}
-                height={size + 2}
-                rx="5"
-                fill="none"
-                stroke="white"
-                strokeWidth="2.5"
-              />
-            )}
-          </g>
+            highlighted={highlighted}
+          />
         );
+        tiles.set(i, { pickup, concealed, highlighted, node });
+        return node;
       })}
+
       <g
         aria-hidden="true"
         className="flow-anthill"
@@ -726,12 +806,22 @@ export const FlowScene = memo(function FlowScene({
         </g>
       </g>
       {moving && (
-        <FlowAntTraffic
+        <FlowAntCanvas
           trips={timing.trips}
-          epoch={epoch}
+          epoch={epoch ?? fallbackEpoch.current}
           speed={speed}
           pausedAt={pausedAt}
           scale={geometry.workerScale}
+          viewBox={viewBox}
+          fallback={
+            <FlowAntTraffic
+              trips={timing.trips}
+              epoch={epoch}
+              speed={speed}
+              pausedAt={pausedAt}
+              scale={geometry.workerScale}
+            />
+          }
         />
       )}
     </svg>

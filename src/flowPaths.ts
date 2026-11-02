@@ -56,6 +56,18 @@ export function flowPathSamples(path: string): FlowPathSample[] {
   }
   return points;
 }
+// A bounded cache shares route sampling between clearance, steering and drawing.
+const sampledPaths = new Map<string, FlowPathSample[]>();
+export function flowCachedPathSamples(path: string) {
+  let samples = sampledPaths.get(path);
+  if (!samples) {
+    samples = flowPathSamples(path);
+    sampledPaths.set(path, samples);
+    if (sampledPaths.size > 128)
+      sampledPaths.delete(sampledPaths.keys().next().value!);
+  }
+  return samples;
+}
 function pointAt(samples: FlowPathSample[], distance: number): FlowPoint {
   let low = 0,
     high = samples.length - 1;
@@ -93,7 +105,7 @@ export function flowHeadingFrames(
   speed: 1 | 2,
   initialAngle?: number,
 ): FlowHeadingFrame[] {
-  const samples = flowPathSamples(path),
+  const samples = flowCachedPathSamples(path),
     count = Math.max(2, Math.ceil(duration / 16));
   let angle = initialAngle ?? headingAt(samples, 0);
   const maxStep = (720 * speed * duration) / count / 1000;

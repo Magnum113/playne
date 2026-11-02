@@ -1,11 +1,13 @@
 import {
   flowApproach,
+  flowApproaches,
   flowOpenCells,
   type FlowEvent,
   type FlowPuzzle,
 } from "./flow";
 import { flowGeometry } from "./flowGeometry";
-import { flowPathSamples } from "./flowPaths";
+import { flowSegmentClear } from "./flowRouteGrid";
+import { flowCachedPathSamples as flowPathSamples } from "./flowPaths";
 
 export const FLOW_WORLDS = [
   {
@@ -91,6 +93,7 @@ export function flowAntRoute(
   event: FlowEvent,
   originOverride?: FlowPoint,
   navigationCells?: readonly number[],
+  deferClearance = false,
 ) {
   const { step, size, startX, startY, bottom, homeY } = flowGeometry(puzzle);
   let x = startX + (event.cell % puzzle.width) * step + size / 2,
@@ -235,55 +238,17 @@ export function flowAntRoute(
       cells[row * puzzle.width + column] < 0
     );
   };
-  const clearLine = (a: FlowPoint, b: FlowPoint, cells: readonly number[]) => {
-    const fromX = Math.max(0, Math.floor((Math.min(a.x, b.x) - startX) / step));
-    const toX = Math.min(
-      puzzle.width - 1,
-      Math.floor((Math.max(a.x, b.x) - startX) / step),
-    );
-    const fromY = Math.max(0, Math.floor((Math.min(a.y, b.y) - startY) / step));
-    const toY = Math.min(
-      puzzle.height - 1,
-      Math.floor((Math.max(a.y, b.y) - startY) / step),
-    );
-    for (let row = fromY; row <= toY; row++)
-      for (let column = fromX; column <= toX; column++) {
-        if (cells[row * puzzle.width + column] < 0) continue;
-        let enter = 0,
-          exit = 1;
-        for (const [origin, delta, min, max] of [
-          [
-            a.x,
-            b.x - a.x,
-            startX + column * step + 0.00001,
-            startX + (column + 1) * step - 0.00001,
-          ],
-          [
-            a.y,
-            b.y - a.y,
-            startY + row * step + 0.00001,
-            startY + (row + 1) * step - 0.00001,
-          ],
-        ]) {
-          if (Math.abs(delta) < 0.000001) {
-            if (origin <= min || origin >= max) {
-              enter = 2;
-              break;
-            }
-          } else {
-            const p = (min - origin) / delta,
-              q = (max - origin) / delta;
-            enter = Math.max(enter, Math.min(p, q));
-            exit = Math.min(exit, Math.max(p, q));
-          }
-        }
-        if (enter <= exit) return false;
-      }
-    return true;
-  };
+  const clearLine = (a: FlowPoint, b: FlowPoint, cells: readonly number[]) =>
+    flowSegmentClear(a, b, cells, {
+      width: puzzle.width,
+      height: puzzle.height,
+      startX,
+      startY,
+      step,
+    });
   const shortcut = (points: FlowPoint[], cells: readonly number[]) => {
     const result = [points[0]];
-    for (let at = 0; at < points.length - 1;) {
+    for (let at = 0; at < points.length - 1; ) {
       let next = points.length - 1;
       while (next > at + 1 && !clearLine(points[at], points[next], cells))
         next--;
@@ -310,7 +275,7 @@ export function flowAntRoute(
       : 5;
   const safeRound = (points: FlowPoint[], cells?: readonly number[]) => {
     const rounded = roundPath(points, radius);
-    if (!cells) return rounded;
+    if (!cells || deferClearance) return rounded;
     const samples = flowPathSamples(rounded.path);
     return samples.some(
       (point, index) =>
@@ -657,19 +622,31 @@ function referenceMotion(
       };
       return distance(a) - distance(b) || a.cell - b.cell;
     });
+    const approaches = new Map<number, ReturnType<typeof flowApproaches>>();
     const choices = ready
       .slice(0, 8)
       .map((event) => {
         const from = origin(event);
-        const path = flowApproach(puzzle, navigation(event.color), event.cell, {
-          x: (from.x - geometry.startX) / geometry.step,
-          y: puzzle.height,
-        });
+        let approach = approaches.get(event.packet);
+        if (!approach) {
+          approach = flowApproaches(puzzle, navigation(event.color), {
+            x: (from.x - geometry.startX) / geometry.step,
+            y: puzzle.height,
+          });
+          approaches.set(event.packet, approach);
+        }
+        const path = approach(event.cell);
         if (!path) throw new Error("Target is not on the physical frontier");
         const candidate = { ...event, path };
         return {
           candidate,
-          route: flowAntRoute(puzzle, candidate, from, navigation(event.color)),
+          route: flowAntRoute(
+            puzzle,
+            candidate,
+            from,
+            navigation(event.color),
+            true,
+          ),
         };
       })
       .sort(
@@ -677,7 +654,27 @@ function referenceMotion(
           a.route.outboundLength - b.route.outboundLength ||
           a.candidate.cell - b.candidate.cell,
       );
-    const { candidate: event, route } = choices[0];
+    // Rounded route lengths are lower bounds: validate the nearest candidate,
+    // and only visit another if it could still beat the validated winner.
+    let best: (typeof choices)[number] | undefined;
+    for (const choice of choices) {
+      if (best && choice.route.outboundLength > best.route.outboundLength)
+        break;
+      const route = flowAntRoute(
+        puzzle,
+        choice.candidate,
+        origin(choice.candidate),
+        navigation(choice.candidate.color),
+      );
+      if (
+        !best ||
+        route.outboundLength < best.route.outboundLength ||
+        (route.outboundLength === best.route.outboundLength &&
+          choice.candidate.cell < best.candidate.cell)
+      )
+        best = { candidate: choice.candidate, route };
+    }
+    const { candidate: event, route } = best!;
     const variation =
       1 + (((event.cell * 13 + event.packet * 7) % 7) - 3) * 0.012;
     const safeDuration = (path: string, start: number, base: number) => {
