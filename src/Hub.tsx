@@ -122,8 +122,8 @@ export default function Hub() {
                     На глаз<span className="brand-dot">.</span>
                   </h2>
                   <p>
-                    Насколько велика ракета рядом с башней?
-                    <br /> Подбери размер и проверь себя.
+                    Сравни размеры, как в Size It Up.
+                    <br /> Подбери масштаб и проверь глазомер.
                   </p>
                 </div>
                 <div className="card-bottom">

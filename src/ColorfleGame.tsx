@@ -1,3 +1,4 @@
+import GameSearchAbout from "./GameSearchAbout";
 import { useGameViewport } from "./useGameViewport";
 import GameResultLayout from "./GameResultLayout";
 import { SaveResult } from "./GameResult";
@@ -712,6 +713,7 @@ export default function ColorfleGame() {
             </GameResultLayout>
           </div>
         )}
+        {phase === "welcome" && <GameSearchAbout game="colorfle" />}
       </main>
       <footer className="color-footer">
         <span>Проверь своё чувство цвета.</span>

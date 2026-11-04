@@ -11,6 +11,8 @@ try {
   const { pressureFaq } = await server.ssrLoadModule("/src/pressureContent.ts");
   const { lineFaq } = await server.ssrLoadModule("/src/lineContent.ts");
   const { brainGames } = await server.ssrLoadModule("/src/brainContent.ts");
+  const { naglazFaq, colorFaq } = await server.ssrLoadModule("/src/gameSeoContent.ts");
+  const aliases = { "/naglaz/": "Size It Up", "/circle/": "Perfect Circle", "/one-line/": "Zip", "/brain/flash/": "Visual Memory", "/brain/slide/": "Rush Hour", "/brain/dispatch/": "Train of Thought" };
   const paths = new Set(pages.map((p) => p.path));
   const titles = new Set();
   const descriptions = new Set();
@@ -97,6 +99,29 @@ try {
       .replace(/<style[\s\S]*?<\/style>/g, "")
       .replace(/<[^>]*>/g, " ")
       .replace(/\s+/g, " ");
+    const alias = aliases[page.path];
+    if (alias) {
+      assert(title.includes(alias), `${page.path}: original game search phrase in title`);
+      assert(description.includes(alias), `${page.path}: original game search phrase in description`);
+      assert(text.includes(alias), `${page.path}: search phrase must also occur in readable content`);
+    }
+    if (page.kind === "game") {
+      const gameSchema = data["@graph"].find(x => x["@type"] === "VideoGame");
+      assert.equal(gameSchema?.name, page.name, `${page.path}: retain Playne's own game name`);
+      assert.equal(gameSchema?.offers?.price, "0");
+      assert.equal(gameSchema?.inLanguage, "ru");
+    }
+    const sharedFaq = page.path === "/naglaz/" ? naglazFaq : page.path === "/colorfle/" ? colorFaq : null;
+    if (sharedFaq) {
+      assert(html.includes(`id="${page.path === "/naglaz/" ? "naglaz" : "colorfle"}-about"`));
+      const faqSchema = data["@graph"].find(x => x["@type"] === "FAQPage");
+      assert.equal(faqSchema?.mainEntity.length, sharedFaq.length);
+      sharedFaq.forEach(({question, answer}, i) => {
+        assert(text.includes(question) && text.includes(answer), `${page.path}: FAQ visible without JS`);
+        assert.equal(faqSchema.mainEntity[i].name, question);
+        assert.equal(faqSchema.mainEntity[i].acceptedAnswer.text, answer);
+      });
+    }
     const brain = brainGames.find((game) => game.path === page.path);
     if (brain) {
       assert(

@@ -1,3 +1,4 @@
+import GameSearchAbout from "./GameSearchAbout";
 import { useGameViewport } from "./useGameViewport";
 import GameResultLayout from "./GameResultLayout";
 import { SaveResult } from "./GameResult";
@@ -274,7 +275,7 @@ export default function App() {
             <GameIntro
               title="На глаз"
               eyebrow="ИГРА В РАЗМЕРЫ"
-              description="Подбери размер одного предмета рядом с другим."
+              description="Игра в духе Size It Up: сравни размеры предметов."
               record={{ game: "naglaz", value: best, max: 500 }}
               onRules={openHelp}
             />
@@ -322,6 +323,7 @@ export default function App() {
                 </li>
               </ol>
             </section>
+            <GameSearchAbout game="naglaz" />
           </>
         )}
         {screen === "game" && reference && target && (

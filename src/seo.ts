@@ -1,3 +1,4 @@
+import { naglazFaq, colorFaq } from "./gameSeoContent";
 import { guides } from "./guides";
 import { pressureFaq } from "./pressureContent";
 import { lineFaq } from "./lineContent";
@@ -13,11 +14,17 @@ export type PageMeta = {
   name: string;
   image?: { path: string; width: number; height: number; alt: string };
 };
+const brainSearch = {
+  flash: { title: "Visual Memory на русском — «Вспышка» бесплатно | Playne", description: "«Вспышка» — бесплатная игра в духе Visual Memory из Human Benchmark на русском. Запоминай клетки и повторяй узор. 5 раундов, задача дня и практика." },
+  rotate: { title: "Мысленное вращение фигур — игра «Поворот» онлайн | Playne", description: "Мысленно поверни фигуры и найди зеркальное отражение. Бесплатная игра на пространственное мышление: 5 раундов, задача дня и практика на русском." },
+  slide: { title: "Rush Hour на русском — аналог «Передвинь» бесплатно | Playne", description: "«Передвинь» — бесплатный аналог Rush Hour на русском. Двигай машины и освободи выход из пробки. 5 задач, подсказки и практика. Первая партия без входа." },
+  dispatch: { title: "Train of Thought на русском — игра «Диспетчер» | Playne", description: "«Диспетчер» — игра с поездами в духе Train of Thought на русском. Переключай стрелки и направляй поезда на станции. 5 волн, задача дня и практика. Бесплатно." },
+} as const;
 export const pages: PageMeta[] = [
   {
     path: "/swarm/",
-    title: "Рой — цветные муравьи, 36 уровней и испытание дня | Playne",
-    description: "Запускай цветных муравьёв, собирай картины из кубиков и береги свободные доки. 36 уровней, сохранение прогресса и общее испытание дня. Бесплатно на телефоне и компьютере.",
+    title: "Рой — игра с цветными муравьями и кубиками бесплатно | Playne",
+    description: "Бесплатная головоломка с цветными муравьями: собирай пиксельные картины из кубиков и освобождай доки. 36 уровней и испытание дня. Играй онлайн на русском.",
     kind: "game",
     name: "Рой",
     image: { path: "/art/flow-social.png", width: 1200, height: 630, alt: "Рой — цветные муравьи, 36 уровней и испытание дня в Playne" },
@@ -39,8 +46,8 @@ export const pages: PageMeta[] = [
   },
   ...brainGames.map((game) => ({
     path: game.path,
-    title: `${game.name} — ${game.id === "flash" ? "запомни клетки, игра на память" : game.id === "rotate" ? "сравни фигуры после поворота" : game.id === "slide" ? "выведи красную машину" : "направляй поезда на станции"} | Playne`,
-    description: `${game.description} Задача дня и практика в браузере. Первая партия без входа, дальше бесплатно через Яндекс.`,
+    title: brainSearch[game.id].title,
+    description: brainSearch[game.id].description,
     kind: "game" as const,
     name: game.name,
     image: {
@@ -75,9 +82,9 @@ export const pages: PageMeta[] = [
   },
   {
     path: "/one-line/",
-    title: "Одной линией — соедини числа, заполни поле | Playne",
+    title: "Zip на русском — «Одной линией», играть бесплатно | Playne",
     description:
-      "Соедини числа по порядку и пройди каждую клетку один раз. Бесплатная головоломка в духе Zip на русском: 5 полей дня, подсказки и до 500 очков. Первая партия без входа.",
+      "Соедини числа по порядку и пройди каждую клетку один раз. Бесплатная головоломка в духе LinkedIn Zip на русском: 5 полей дня, подсказки и до 500 очков. Первая партия без входа.",
     kind: "game",
     name: "Одной линией",
     image: {
@@ -130,15 +137,15 @@ export const pages: PageMeta[] = [
   },
   {
     path: "/naglaz/",
-    title: "На глаз — сравни размеры и проверь глазомер | Playne",
+    title: "Size It Up на русском — играть бесплатно в «На глаз» | Playne",
     description:
-      "Сравни размеры предметов и проверь свой глазомер. Пять раундов, до 500 очков и наглядный разбор каждого ответа. Первая партия без входа. Дальше играй бесплатно через Яндекс.",
+      "«На глаз» — бесплатная игра в духе Size It Up на русском. Сравни размеры животных, зданий и предметов: 5 раундов, до 500 очков. Первая партия без входа, дальше — через Яндекс.",
     kind: "game",
     name: "На глаз",
   },
   {
     path: "/circle/",
-    title: "Нарисуй идеальный круг — игра «Круг» | Playne",
+    title: "Perfect Circle на русском — игра «Круг» бесплатно | Playne",
     description:
       "Нарисуй идеальный круг мышью или пальцем и узнай процент точности. Игра по мотивам Perfect Circle: бесплатно в браузере. Первая попытка без входа, дальше — через Яндекс.",
     kind: "game",
@@ -146,9 +153,9 @@ export const pages: PageMeta[] = [
   },
   {
     path: "/colorfle/",
-    title: "Угадай цвет на палитре — игра «Оттенок» | Playne",
+    title: "Угадай цвет по образцу — игра «Оттенок» бесплатно | Playne",
     description:
-      "Бесплатная игра на подбор цвета: смотри на образец, выбирай оттенок на палитре и получай очки за точность. 150 оттенков, пять раундов. Играй без таймера или с лимитом 30 секунд на цвет. Первая партия без входа, дальше — бесплатно через Яндекс.",
+      "Игра на цветовосприятие: угадай цвет по образцу и подбери оттенок на палитре. 150 цветов, 5 раундов, без таймера или по 30 секунд на цвет. Бесплатно на русском, первая партия без входа.",
     kind: "game",
     name: "Оттенок",
   },
@@ -180,8 +187,9 @@ export const pages: PageMeta[] = [
 export function structuredData(page: PageMeta) {
   const url = SITE_URL + page.path;
   const brainGame = brainGames.find((game) => game.path === page.path);
+  const searchFaq = page.path === "/naglaz/" ? naglazFaq : page.path === "/colorfle/" ? colorFaq : null;
   const faq =
-    brainGame?.faq ??
+    searchFaq ?? brainGame?.faq ??
     (page.path === "/one-line/"
       ? lineFaq
       : page.path === "/pressure/"
@@ -244,31 +252,19 @@ export function structuredData(page: PageMeta) {
               playMode: "https://schema.org/SinglePlayer",
               isAccessibleForFree: true,
               mainEntityOfPage: { "@id": main["@id"] },
-              ...(page.path === "/pressure/" ||
-              page.path === "/one-line/" ||
-              !!brainGame
-                ? {
-                    image: SITE_URL + page.image!.path,
-                    genre: brainGame
-                      ? ["Головоломка", brainGame.skill]
-                      : page.path === "/one-line/"
-                        ? ["Головоломка", "Логика"]
-                        : ["Головоломка", "Логика", "Память", "Реакция"],
-                    operatingSystem: "Any",
-                    browserRequirements: "Requires JavaScript",
-                    offers: {
-                      "@type": "Offer",
-                      price: "0",
-                      priceCurrency: "RUB",
-                      url,
-                    },
-                    publisher: {
-                      "@type": "Organization",
-                      name: "Playne",
-                      url: SITE_URL + "/",
-                    },
-                  }
-                : {}),
+              ...(page.image ? { image: SITE_URL + page.image.path } : {}),
+              genre: brainGame
+                ? ["Головоломка", brainGame.skill]
+                : page.path === "/geo/" ? ["География", "Угадывание мест"]
+                : page.path === "/naglaz/" ? ["Глазомер", "Сравнение размеров"]
+                : page.path === "/circle/" ? ["Рисование", "Точность"]
+                : page.path === "/colorfle/" ? ["Цвет", "Глазомер"]
+                : page.path === "/pressure/" ? ["Головоломка", "Логика", "Память", "Реакция"]
+                : ["Головоломка", "Логика"],
+              operatingSystem: "Any",
+              browserRequirements: "Requires JavaScript",
+              offers: { "@type": "Offer", price: "0", priceCurrency: "RUB", url },
+              publisher: { "@type": "Organization", name: "Playne", url: SITE_URL + "/" },
             },
           ]
         : []),
@@ -278,7 +274,7 @@ export function structuredData(page: PageMeta) {
               "@type": "FAQPage",
               "@id":
                 url +
-                (brainGame
+                (searchFaq ? `#${page.path === "/naglaz/" ? "naglaz" : "colorfle"}-faq` : brainGame
                   ? `#${brainGame.id}-faq`
                   : page.path === "/one-line/"
                     ? "#line-faq"

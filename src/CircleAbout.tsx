@@ -26,6 +26,10 @@ export default function CircleAbout() {
           <div className="faq-items">
             <h3>Перед следующей попыткой</h3>
             <details>
+              <summary>Это Perfect Circle на русском?<span aria-hidden="true">+</span></summary>
+              <p>«Круг» — самостоятельная игра Playne с идеей Draw a Perfect Circle от Neal.fun: обвести точку одной линией и получить процент точности. Здесь собственная оценка, личный рекорд и рейтинг Playne. Играть можно бесплатно на телефоне и компьютере.</p>
+            </details>
+            <details>
               <summary>Почему круг не засчитался?<span aria-hidden="true">+</span></summary>
               <p>
                 Обведи точку целиком, замкни линию близко к началу и сделай
