@@ -7,6 +7,7 @@ import {
   geoModeFor,
   type GeoMode,
 } from "./geo";
+import { geoDailyDate, geoDailyLabel, validGeoDailyDate } from "./geoDaily";
 import StreakLeaderboardPage from "./StreakLeaderboard";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useRef, useState } from "react";
@@ -59,8 +60,12 @@ function ScoreLeaderboardPage() {
     modeForGame(initialGame, query?.get("mode")),
   );
   const geoMode: GeoMode = validGeoMode(mode) ? mode : "classic";
+  const daily = game === "geo" && mode === "daily";
+  const dayParam = query?.get("day");
+  const today = geoDailyDate();
+  const day = daily && validGeoDailyDate(dayParam) && dayParam <= today ? dayParam : today;
   const [period, setPeriod] = useState<"all" | "week">(
-      !(["overall", "brain"] as string[]).includes(initialGame) &&
+      !daily && !(["overall", "brain"] as string[]).includes(initialGame) &&
         query?.get("period") !== "all"
         ? "week"
         : "all",
@@ -77,7 +82,8 @@ function ScoreLeaderboardPage() {
   const currentBoard =
     data?.game === game &&
     data?.page === page &&
-    (aggregate || (data?.mode === mode && data?.period === period));
+    (aggregate || (data?.mode === mode && data?.period === period &&
+      (!daily || data?.day === day)));
   const waiting = loading || (!error && !currentBoard);
   const panelRef = useRef<HTMLElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -102,7 +108,7 @@ function ScoreLeaderboardPage() {
     void api(
       aggregate
         ? `/leaderboard?game=${game}&page=${page}`
-        : `/leaderboard?game=${game}&period=${period}&page=${page}&mode=${mode}`,
+        : `/leaderboard?game=${game}&period=${period}&page=${page}&mode=${mode}${daily ? "&day=" + day : ""}`,
     )
       .then((d) => {
         if (active) {
@@ -125,7 +131,7 @@ function ScoreLeaderboardPage() {
     return () => {
       active = false;
     };
-  }, [game, period, page, mode, retry]);
+  }, [game, period, page, mode, retry, daily, day]);
   function change(next: LeaderboardGame) {
     pageFocusPending.current = false;
     const nextPeriod = next === "overall" || next === "brain" ? "all" : period;
@@ -145,12 +151,14 @@ function ScoreLeaderboardPage() {
   }
   function chooseMode(next: GameMode) {
     pageFocusPending.current = false;
+    const nextPeriod = next === "daily" ? "all" : period;
+    setPeriod(nextPeriod);
     setMode(next);
     setPage(1);
     window.history.replaceState(
       null,
       "",
-      `/leaderboard/?game=${game}&mode=${next}&period=${period}`,
+      `/leaderboard/?game=${game}&mode=${next}&period=${nextPeriod}`,
     );
   }
   const entry = (e: any, key: string) => (
@@ -274,7 +282,7 @@ function ScoreLeaderboardPage() {
               {([false, true] as const).map((landmarks) => (
                 <button
                   key={String(landmarks)}
-                  aria-pressed={geoIsLandmarks(geoMode) === landmarks}
+                  aria-pressed={!daily && geoIsLandmarks(geoMode) === landmarks}
                   onClick={() =>
                     chooseMode(
                       geoModeFor(
@@ -288,6 +296,9 @@ function ScoreLeaderboardPage() {
                   {landmarks ? "Достопримечательности" : "Весь мир"}
                 </button>
               ))}
+              <button aria-pressed={daily} onClick={() => chooseMode("daily")}>
+                Маршрут дня
+              </button>
             </div>
             {!geoIsLandmarks(geoMode) && (
               <div
@@ -308,7 +319,7 @@ function ScoreLeaderboardPage() {
                 ))}
               </div>
             )}
-            <div
+            {!daily && <div
               className="rank-period geo-rank-modes"
               role="group"
               aria-label="Время"
@@ -330,7 +341,7 @@ function ScoreLeaderboardPage() {
                   {timed ? "На время" : "Без таймера"}
                 </button>
               ))}
-            </div>
+            </div>}
           </div>
         )}
         {!waiting && !error && data?.mine && (
@@ -350,6 +361,8 @@ function ScoreLeaderboardPage() {
               {overallNumber(game === "brain" ? 1000 : OVERALL_MAX_POINTS)}{" "}
               баллов
             </span>
+          ) : daily ? (
+            <span className="overall-period-label">Маршрут дня · {geoDailyLabel(day)}</span>
           ) : (
             <div
               className="rank-period"
@@ -385,7 +398,7 @@ function ScoreLeaderboardPage() {
                 ? "Четыре игры · только задачи дня"
                 : isBrain(game)
                   ? "Одна попытка дня · до 500 очков"
-                  : "Один лучший результат на игрока"}
+                  : daily ? "Одна попытка · до 500 очков" : "Один лучший результат на игрока"}
           </span>
         </div>
         <section
@@ -522,15 +535,15 @@ function ScoreLeaderboardPage() {
               равных результатах место одинаковое.
             </p>
             <p>
-              {game === "flow" ? "В таблице — лучшие результаты испытаний дня. У сегодняшней конструкции есть отдельный рейтинг на странице игры." : isBrain(game)
+              {daily ? "У всех игроков пять одинаковых мест и одна попытка на этот маршрут."
+                : game === "flow" ? "В таблице — лучшие результаты испытаний дня. У сегодняшней конструкции есть отдельный рейтинг на странице игры." : isBrain(game)
                 ? "В рейтинге — только задачи дня: одна попытка за московскую дату, одинаковые пять раундов для всех. Практика не публикуется."
                 : game === "line"
                   ? mode === "practice"
                     ? "Практика имеет отдельный рейтинг и не входит в общий зачёт."
                     : "В режиме «Задача дня» учитывается первая попытка за каждую московскую дату. Поля дня одинаковы для всех."
                   : "Случайные задания могут различаться по сложности."}{" "}
-              Неделя начинается в понедельник по московскому времени. Старые
-              рекорды из браузера в рейтинг не переносятся.
+              {!daily && "Неделя начинается в понедельник по московскому времени. Старые рекорды из браузера в рейтинг не переносятся."}
             </p>
           </div>
         )}

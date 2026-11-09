@@ -62,6 +62,7 @@ function supported(run: any) {
   );
   if (
     !(CHALLENGE_GAMES as readonly string[]).includes(run.game) ||
+    (run.game === "geo" && run.mode === "daily") ||
     (run.game === "flow"
       ? ![2, 3, FLOW_VERSION].includes(run.version)
       : run.version !== scoreVersion(run.game)) ||

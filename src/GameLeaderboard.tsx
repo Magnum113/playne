@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, gameNames, resultText, useAuth, type GameId } from "./account";
 import { geoModeName, validGeoMode } from "./geo";
+import { geoDailyBoardUrl, geoDailyLabel } from "./geoDaily";
 import { shadeModeName } from "./colorfle";
 
 export type GameRankEntry = {
@@ -20,6 +21,7 @@ export function gameRankingMode(game: GameId, mode: string) {
 export function GameLeaderboardCard({
   game,
   mode = "classic",
+  day,
   data,
   loading = false,
   error = false,
@@ -27,12 +29,14 @@ export function GameLeaderboardCard({
 }: {
   game: GameId;
   mode?: string;
+  day?: string;
   data: GameRankBoard | null;
   loading?: boolean;
   error?: boolean;
   onRetry?: () => void;
 }) {
-  const href = `/leaderboard/?game=${game}&mode=${mode}&period=all`;
+  const daily = game === "geo" && mode === "daily";
+  const href = daily ? geoDailyBoardUrl(day) : `/leaderboard/?game=${game}&mode=${mode}&period=all`;
   const entries = data?.entries.slice(0, 5) ?? [];
   const outside =
     data?.mine && !entries.some((entry) => entry.isMe) ? data.mine : null;
@@ -74,7 +78,7 @@ export function GameLeaderboardCard({
       <header className="top-five-heading">
         <div>
           <h2>Топ-5 · {gameNames[game]}</h2>
-          <span>{modeLabel ? modeLabel + " · " : ""}За всё время</span>
+          <span>{modeLabel ? modeLabel + " · " : ""}{daily ? day ? geoDailyLabel(day) : "Сегодня" : "За всё время"}</span>
         </div>
         <a
           className="top-five-cta"
@@ -127,15 +131,17 @@ export function GameLeaderboardCard({
 export default function GameLeaderboard({
   game,
   mode = "classic",
+  day,
   refreshKey = "",
 }: {
   game: GameId;
   mode?: string;
+  day?: string;
   refreshKey?: string;
 }) {
   const { user, loading: authLoading } = useAuth();
   const boardMode = gameRankingMode(game, mode);
-  const key = `${game}:${boardMode}:${user?.id ?? "guest"}:${refreshKey}`;
+  const key = `${game}:${boardMode}:${day ?? ""}:${user?.id ?? "guest"}:${refreshKey}`;
   const [state, setState] = useState<{
     key: string;
     data: GameRankBoard | null;
@@ -147,7 +153,7 @@ export default function GameLeaderboard({
     let active = true;
     setState({ key: "", data: null, error: false });
     void api<GameRankBoard>(
-      `/leaderboard?game=${game}&mode=${boardMode}&period=all&limit=5`,
+      `/leaderboard?game=${game}&mode=${boardMode}&period=all&limit=5${day ? "&day=" + encodeURIComponent(day) : ""}`,
     )
       .then((data) => {
         if (active) setState({ key, data, error: false });
@@ -158,12 +164,13 @@ export default function GameLeaderboard({
     return () => {
       active = false;
     };
-  }, [game, boardMode, key, authLoading, retry]);
+  }, [game, boardMode, day, key, authLoading, retry]);
   const current = !authLoading && state.key === key;
   return (
     <GameLeaderboardCard
       game={game}
       mode={boardMode}
+      day={day}
       data={current ? state.data : null}
       loading={!current}
       error={current && state.error}

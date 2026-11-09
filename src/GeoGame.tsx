@@ -13,6 +13,9 @@ import FooterLinks from "./FooterLinks";
 import GeoPreview from "./GeoPreview";
 import GeoAbout from "./GeoAbout";
 import { GEO_GOALS, reachGoal } from "./analytics";
+import { GEO_DAILY_URL, geoDailyBoardUrl, geoDailyLabel } from "./geoDaily";
+import { useGeoDailyStatus } from "./useGeoDailyStatus";
+import "./geo-daily.css";
 import {
   distanceKm,
   geoBounds,
@@ -102,9 +105,14 @@ export default function GeoGame() {
         : null;
     return validGeoMode(value) ? value : "classic";
   });
+  const daily = mode === "daily";
+  const dailyStatus = useGeoDailyStatus(daily);
+  const [routeDay, setRouteDay] = useState<string>();
+  const returnedToResult = useRef(false);
   useEffect(() => {
-    if (access.resume && access.trial?.mode) chooseMode(access.trial.mode);
-  }, [access.resume, access.trial?.mode]);
+    if (!daily && access.resume && access.trial?.mode)
+      chooseMode(access.trial.mode);
+  }, [daily, access.resume, access.trial?.mode]);
   const modeRef = useRef<GeoMode>(mode);
   const [deadline, setDeadline] = useState<number | null>(null);
   const deadlineRef = useRef<number | null>(null);
@@ -500,6 +508,7 @@ export default function GeoGame() {
           if (token !== operation.current) return;
           if (e instanceof RankedSyncError) throw e;
           if (registeredPanoramas.current[index]) throw e;
+          if (modeRef.current === "daily") throw e;
           badPlaces.current.add(place.id);
           const onlineReplacement = await ranked.replaceGeo(index);
           if (onlineReplacement) {
@@ -540,6 +549,7 @@ export default function GeoGame() {
     const resumedMode = online.mode ?? mode;
     chooseMode(resumedMode);
     modeRef.current = resumedMode;
+    setRouteDay(online.challenge.day);
     rounds.current = online.challenge.places;
     registeredPanoramas.current = online.challenge.panoramaIds ?? {};
     const recovered: GeoAnswer[] = (online.answers ?? []).map((a, i) => ({
@@ -548,9 +558,20 @@ export default function GeoGame() {
     }));
     answersRef.current = recovered;
     setAnswers(recovered);
+    if (resumedMode === "daily" && online.completed) {
+      setPhase("finished");
+      return;
+    }
     reachGoal(replay ? GEO_GOALS.gameRestart : GEO_GOALS.gameStart, { mode });
     void loadRound(answersRef.current.length);
   }
+  useEffect(() => {
+    if (!daily || !dailyStatus?.attempt?.completed || returnedToResult.current) return;
+    const saved = new URLSearchParams(window.location.search).get("saved");
+    if (saved !== dailyStatus.attempt.id) return;
+    returnedToResult.current = true;
+    void start();
+  }, [daily, dailyStatus]);
   async function submit(expired = false) {
     if (phaseRef.current !== "guessing") return;
     const timedOut =
@@ -686,13 +707,13 @@ export default function GeoGame() {
         {active && <h1 className="sr-only">Где я?</h1>}
         {phase === "welcome" ? (
           <GameIntro
-            title="Где я"
-            punctuation="?"
-            eyebrow={geoIsLandmarks(mode) ? "ЗНАМЕНИТЫЕ МЕСТА" : "УГАДАЙ МЕСТО"}
-            description={geoIsLandmarks(mode)
+            title={daily ? "Маршрут дня" : "Где я"}
+            punctuation={daily ? "." : "?"}
+            eyebrow={daily ? "ГДЕ Я?" : geoIsLandmarks(mode) ? "ЗНАМЕНИТЫЕ МЕСТА" : "УГАДАЙ МЕСТО"}
+            description={daily ? "Узнай пять достопримечательностей и отметь их на карте." : geoIsLandmarks(mode)
               ? "Узнай достопримечательность по панораме и найди её на карте."
               : "Угадай место по панораме и отметь его на карте."}
-            record={{
+            record={daily ? undefined : {
               game: "geo", mode,
               value: stats.best,
               max: 500,
@@ -726,7 +747,34 @@ export default function GeoGame() {
             </button>
           </div>
         )}
-        {phase === "welcome" && (
+        {phase === "welcome" && daily && (
+          <section className="geo-welcome game-welcome">
+            <div className="geo-welcome-copy game-welcome-copy">
+              <p className="eyebrow">
+                {dailyStatus ? geoDailyLabel(dailyStatus.day) + " · " : ""}
+                5 МЕСТ · 500 ОЧКОВ
+              </p>
+              <h2>Один маршрут для всех.</h2>
+              <p>Одна попытка без таймера и без входа. Новый маршрут в полночь по Москве.</p>
+              <div className="daily-geo-actions daily-geo-entry">
+                <button
+                  className="primary"
+                  disabled={ranked.state.status === "loading"}
+                  onClick={() => void start()}
+                >
+                  {dailyStatus?.attempt?.completed ? "Мой результат"
+                    : dailyStatus?.attempt ? "Продолжить маршрут" : "Начать маршрут"}{" "}
+                  <span aria-hidden="true">→</span>
+                </button>
+                <a className="daily-geo-ranking" href={geoDailyBoardUrl(dailyStatus?.day)}>Рейтинг дня</a>
+              </div>
+              {error && <p role="alert">{error}</p>}
+              <a className="daily-geo-ranking" href="/geo/">Другие режимы «Где я?»</a>
+            </div>
+            <div className="geo-welcome-art game-welcome-art"><GeoPreview /></div>
+          </section>
+        )}
+        {phase === "welcome" && !daily && (
           <section className="geo-welcome game-welcome">
             <div className="geo-welcome-copy game-welcome-copy">
               <p className="eyebrow">ПЯТЬ РАУНДОВ · 500 ОЧКОВ</p>
@@ -846,6 +894,7 @@ export default function GeoGame() {
                   {welcomeAction}
                 </div>
               )}
+              <a className="daily-geo-ranking daily-geo-entry" href={GEO_DAILY_URL}>Маршрут дня →</a>
             </div>
             <div className="geo-welcome-art game-welcome-art">
               <GeoPreview />
@@ -1097,24 +1146,33 @@ export default function GeoGame() {
           <GameResultLayout
             game="geo"
             mode={mode}
+            day={daily ? routeDay : undefined}
             refreshKey={ranked.state.status === "saved" ? ranked.state.id : ""}
           >
             <section className="geo-summary" ref={result} tabIndex={-1}>
               <p className="eyebrow">
                 ТВОЙ РЕЗУЛЬТАТ · {geoModeName(mode).toUpperCase()}
+                {daily && routeDay ? " · " + geoDailyLabel(routeDay) : ""}
               </p>
               <h2 className="geo-final-score">
                 {geoPoints(total)}
                 <span> из 500</span>
               </h2>
-              <div className="geo-summary-stats">
+              {daily ? (
+                <p className="daily-geo-result-links">
+                  {["complete", "saving", "saved"].includes(ranked.state.status)
+                    ? "Огненный день засчитан. "
+                    : ""}
+                  Новый маршрут в полночь по Москве.
+                </p>
+              ) : <div className="geo-summary-stats">
                 <span>
                   Рекорд <strong>{geoPoints(stats.best)} / 500</strong>
                 </span>
                 <span>
                   Партий сыграно <strong>{stats.played}</strong>
                 </span>
-              </div>
+              </div>}
               <details className="game-result-details">
                 <summary>Результаты пяти мест</summary>
                 <ol className="geo-recap">
@@ -1138,7 +1196,14 @@ export default function GeoGame() {
                   ))}
                 </ol>
               </details>
-              <div className="geo-result-actions">
+              {daily ? (
+                <div className="daily-geo-actions daily-geo-result-links">
+                  {!access.user && (
+                    <a className="daily-geo-ranking" href={geoDailyBoardUrl(routeDay)}>Рейтинг маршрута</a>
+                  )}
+                  <a className="daily-geo-ranking" href="/geo/">Другие режимы</a>
+                </div>
+              ) : <div className="geo-result-actions">
                 {access.user && (
                   <button className="primary" onClick={() => void start(true)}>
                     Играть ещё <span aria-hidden="true">↗</span>
@@ -1154,8 +1219,8 @@ export default function GeoGame() {
                 >
                   Выбрать другой режим
                 </button>
-              </div>
-              <SaveResult run={ranked} game="geo" />
+              </div>}
+              <SaveResult run={ranked} game="geo" hideShare={daily} day={routeDay} />
             </section>
           </GameResultLayout>
         )}

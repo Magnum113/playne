@@ -17,12 +17,14 @@ export default function GameResultLayout({
   children,
   game,
   mode,
+  day,
   refreshKey,
   enabled = true,
 }: {
   children: ReactNode;
   game: GameId;
   mode?: string;
+  day?: string;
   refreshKey?: string;
   enabled?: boolean;
 }) {
@@ -35,7 +37,7 @@ export default function GameResultLayout({
       <div className="game-result-main">{children}</div>
       {wide && (
         <aside className="game-result-aside" aria-label="Рейтинг игры">
-          <GameLeaderboard game={game} mode={mode} refreshKey={refreshKey} />
+          <GameLeaderboard game={game} mode={mode} day={day} refreshKey={refreshKey} />
         </aside>
       )}
     </div>

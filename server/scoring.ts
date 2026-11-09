@@ -191,6 +191,7 @@ export function publicChallenge(game: GameId, challenge: any) {
       ...publicComparison(challenge),
       places: challenge.places,
       mode: validGeoMode(challenge.mode) ? challenge.mode : "classic",
+      ...(challenge.mode === "daily" ? { day: challenge.day } : {}),
       panoramaIds: {
         ...challenge.cameraIds,
         ...Object.fromEntries(

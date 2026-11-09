@@ -19,6 +19,8 @@ const state = vi.hoisted(() => ({
   ranked: { state: { status: "idle" } },
 }));
 vi.mock("../src/account", () => ({
+  useAuth: () => state.access,
+  api: vi.fn(async () => ({ day: "2026-11-09", attempt: null })),
   useGuestTrial: () => state.access,
   useRankedRun: () => state.ranked,
   GuestSavedNotice: () => null,
@@ -127,5 +129,14 @@ describe("Geo shared mode choices", () => {
       picker("Время").querySelector<HTMLInputElement>('input[value="timed"]')!
         .checked,
     ).toBe(true);
+  });
+  it("opens the daily route even with an unfinished regular guest attempt", async () => {
+    window.history.replaceState(null, "", "/geo/?mode=daily");
+    state.access.resume = true;
+    state.access.trial = { mode: "moving-timed" };
+    await act(async () => root.render(<GeoGame />));
+    expect(box.querySelector("h1")?.textContent).toContain("Маршрут дня");
+    expect(box.querySelector(".geo-settings")).toBeNull();
+    expect(box.querySelector(".geo-welcome")?.textContent).toContain("Начать маршрут");
   });
 });

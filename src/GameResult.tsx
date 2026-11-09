@@ -7,10 +7,12 @@ export function SaveResult({
   run,
   game,
   hideShare = false,
+  day,
 }: {
   run: RankedRun;
   game: GameId;
   hideShare?: boolean;
+  day?: string;
 }) {
   const token =
     typeof window === "undefined"
@@ -38,7 +40,7 @@ export function SaveResult({
           Сравнение сохранено. Результат не меняет рейтинг.
         </p>
       ) : (
-        <Status run={run} game={game} />
+        <Status run={run} game={game} day={day} />
       )}
       {card && <NextGame game={game} runId={run.state.id} />}
       {complete && !hideShare && <ShareResult runId={run.state.id} />}

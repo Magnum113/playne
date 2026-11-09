@@ -31,6 +31,15 @@ CREATE TABLE IF NOT EXISTS playne_games (
 ALTER TABLE playne_games DROP CONSTRAINT IF EXISTS playne_games_game_check;
 ALTER TABLE playne_games ADD CONSTRAINT playne_games_game_check CHECK(game IN('naglaz','circle','colorfle','geo','pressure','line','flash','rotate','slide','dispatch','flow'));
 ALTER TABLE playne_games ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'classic';
+CREATE TABLE IF NOT EXISTS playne_geo_daily_packs (
+ day date PRIMARY KEY, places jsonb NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS playne_geo_daily_browser
+ ON playne_games ((challenge->>'day'),browser_hash)
+ WHERE game='geo' AND mode='daily' AND owner_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS playne_geo_daily_owner
+ ON playne_games ((challenge->>'day'),owner_id)
+ WHERE game='geo' AND mode='daily' AND owner_id IS NOT NULL;
 ALTER TABLE playne_games DROP CONSTRAINT IF EXISTS playne_games_score_units_check;
 ALTER TABLE playne_games ADD CONSTRAINT playne_games_score_units_check CHECK(score_units IS NULL OR score_units BETWEEN 0 AND 250000);
 CREATE INDEX IF NOT EXISTS playne_games_modes ON playne_games(game,version,mode,score_units DESC,completed_at) WHERE published_at IS NOT NULL;

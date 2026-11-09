@@ -10,7 +10,7 @@ export const GEO_MODES = [
   "landmarks",
   "landmarks-timed",
 ] as const;
-export type GeoMode = (typeof GEO_MODES)[number];
+export type GeoMode = (typeof GEO_MODES)[number] | "daily";
 export const GEO_SCORE_VERSION = 4;
 export const GEO_ROUND_POINTS = 100;
 export const GEO_MAX_POINTS = 500;
@@ -20,7 +20,7 @@ export const geoCanMove = (mode: GeoMode) =>
 export const geoIsTimed = (mode: GeoMode) =>
   mode === "timed" || mode === "moving-timed" || mode === "landmarks-timed";
 export const geoIsLandmarks = (mode: GeoMode) =>
-  mode === "landmarks" || mode === "landmarks-timed";
+  mode === "landmarks" || mode === "landmarks-timed" || mode === "daily";
 export const geoModeFor = (
   moving: boolean,
   timed: boolean,
@@ -42,9 +42,11 @@ export const geoCatalog = (mode: GeoMode) =>
 export const geoTimeName = (mode: GeoMode) =>
   geoIsTimed(mode) ? "На время" : "Без таймера";
 export const geoModeName = (mode: GeoMode) =>
-  `${geoIsLandmarks(mode) ? "Достопримечательности" : geoCanMove(mode) ? "С перемещением" : "Без перемещения"} · ${geoTimeName(mode)}`;
+  mode === "daily"
+    ? "Маршрут дня"
+    : `${geoIsLandmarks(mode) ? "Достопримечательности" : geoCanMove(mode) ? "С перемещением" : "Без перемещения"} · ${geoTimeName(mode)}`;
 export const validGeoMode = (mode: unknown): mode is GeoMode =>
-  typeof mode === "string" && GEO_MODES.includes(mode as GeoMode);
+  mode === "daily" || GEO_MODES.some((option) => option === mode);
 export const geoRemaining = (deadline: number, now = Date.now()) =>
   Math.max(0, Math.ceil((deadline - now) / 1000));
 export const geoClock = (seconds: number) =>

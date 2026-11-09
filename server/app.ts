@@ -12,7 +12,9 @@ import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import { randomBytes, createHash } from "node:crypto";
 import { Pool } from "pg";
-import { LEADERBOARD_SQL } from "./leaderboard";
+import { GEO_DAILY_LEADERBOARD_SQL, LEADERBOARD_SQL } from "./leaderboard";
+import { canClaimDailyGeo, findDailyGeoRun, geoDailyChallenge } from "./geo-daily";
+import { geoDailyDate, validGeoDailyDate } from "../src/geoDaily";
 import { overallLeaderboard } from "./overall";
 import { improvesPersonalRecord } from "./personal-record";
 import { registerPlayProgressRoutes } from "./play-progress";
@@ -69,6 +71,7 @@ import {
   geoIsLandmarks,
   geoCatalog,
   geoPanoramaFits,
+  GEO_SCORE_VERSION,
   GEO_TIME_LIMIT_MS,
 } from "../src/geo";
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
@@ -267,6 +270,21 @@ export async function buildApp(
     await pool.query("SELECT 1");
     return { ok: true, revision: config.revision };
   });
+  app.get("/api/geo/daily", async (req, reply) => {
+    const browserHash = browser(req, reply);
+    const day = geoDailyDate();
+    const run = await findDailyGeoRun(pool, day, browserHash, (await user(req))?.id);
+    reply.header("Cache-Control", "no-store");
+    return {
+      day,
+      attempt: run ? {
+        id: run.id,
+        completed: !!run.completed_at,
+        published: !!run.published_at,
+        score: run.score_units === null ? null : run.score_units / 10,
+      } : null,
+    };
+  });
   app.get("/api/me", async (req, reply) => {
     const b = browser(req, reply);
     const signed = await user(req);
@@ -459,6 +477,18 @@ export async function buildApp(
           "INSERT INTO playne_auth_sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '30 days')",
           [hash(sid), userId],
         );
+        await client.query(
+          `UPDATE playne_games g SET owner_id=$1,
+            published_at=CASE WHEN g.completed_at IS NOT NULL THEN now() ELSE NULL END,
+            answers=CASE WHEN g.completed_at IS NOT NULL THEN
+              (SELECT jsonb_agg(a - 'actual' - 'guess') FROM jsonb_array_elements(g.answers) a)
+              ELSE g.answers END
+          WHERE g.game='geo' AND g.mode='daily' AND g.browser_hash=$2 AND g.owner_id IS NULL
+            AND g.challenge->>'day'>=$3
+            AND NOT EXISTS (SELECT 1 FROM playne_games own WHERE own.game='geo'
+              AND own.mode='daily' AND own.owner_id=$1 AND own.challenge->>'day'=g.challenge->>'day')`,
+          [userId, flow.browser_hash, geoDailyDate(Date.now() - 86_400_000)],
+        );
         const lineTrials = await client.query(
           "SELECT g.* FROM playne_games g JOIN playne_guest_trials t ON t.run_id=g.id WHERE t.browser_hash=$1 AND g.game IN('line','flash','rotate','slide','dispatch') AND (g.owner_id IS NULL OR g.owner_id=$2) FOR UPDATE OF g",
           [flow.browser_hash, userId],
@@ -566,6 +596,8 @@ export async function buildApp(
       const game = (req.body as any)?.game;
       if (!isGame(game)) failure("Неизвестная игра");
       if (game === "flow") failure("Открой игру «Рой», чтобы начать уровень");
+      if ((req.body as any)?.mode === "daily" && game !== "geo")
+        failure("Неизвестный режим");
       const supportedPairIds = (req.body as any)?.supportedPairIds;
       if (
         game === "naglaz" &&
@@ -614,6 +646,40 @@ export async function buildApp(
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
+        if (mode === "daily") {
+          if ((req.body as any)?.geoRulesVersion !== GEO_SCORE_VERSION)
+            failure("Обнови страницу, чтобы открыть маршрут дня");
+          await lockPublications(client);
+          const day = geoDailyDate();
+          let run = await findDailyGeoRun(client, day, b, u?.id);
+          if (run && u && !run.owner_id) {
+            await client.query(
+              "UPDATE playne_games SET owner_id=$1,published_at=CASE WHEN completed_at IS NOT NULL THEN now() ELSE NULL END WHERE id=$2",
+              [u.id, run.id],
+            );
+            if (run.completed_at) run.published_at = new Date();
+          }
+          if (!run) {
+            const challenge = await geoDailyChallenge(client, day);
+            const { rows } = await client.query(
+              "INSERT INTO playne_games(browser_hash,owner_id,game,challenge,version,mode) VALUES($1,$2,'geo',$3,$4,'daily') RETURNING *",
+              [b, u?.id ?? null, JSON.stringify(challenge), GEO_SCORE_VERSION],
+            );
+            run = rows[0];
+          }
+          await client.query("COMMIT");
+          return {
+            id: run.id,
+            game: "geo",
+            version: run.version,
+            mode: "daily",
+            challenge: publicChallenge("geo", run.challenge),
+            answers: run.answers,
+            completed: !!run.completed_at,
+            published: !!run.published_at,
+            score: run.score_units === null ? null : run.score_units / 10,
+          };
+        }
         const shared =
           challengeToken === undefined
             ? null
@@ -1014,6 +1080,7 @@ export async function buildApp(
       const run = await owned(req, reply, (req.params as any).id, c, true);
       if (
         run.game !== "geo" ||
+        run.mode === "daily" ||
         privateComparison(run) ||
         run.completed_at ||
         run.answers.length !== index ||
@@ -1409,7 +1476,9 @@ export async function buildApp(
         units = complete ? scoreUnits(answers) : null;
       const viewer = complete ? await user(req, c) : null;
       const shouldOwn =
-        !!viewer && (!run.owner_id || run.owner_id === viewer.id);
+        !!viewer &&
+        (!run.owner_id || run.owner_id === viewer.id) &&
+        (await canClaimDailyGeo(c, run, viewer.id));
       if (shouldOwn) {
         await claimLineDay(c, run, viewer.id);
         await claimBrainDay(c, run, viewer.id);
@@ -1429,7 +1498,7 @@ export async function buildApp(
           }
         : undefined;
       const before =
-        publish && !run.published_at
+        publish && !run.published_at && run.mode !== "daily"
           ? await notificationSnapshot(c, run.game, run.mode)
           : [];
       const savedAnswers =
@@ -1441,6 +1510,7 @@ export async function buildApp(
           ? {
               places: run.challenge.places,
               mode: run.mode,
+              ...(run.mode === "daily" ? { day: run.challenge.day } : {}),
               cameraIds:
                 run.challenge.cameraIds ??
                 Object.fromEntries(
@@ -1511,6 +1581,8 @@ export async function buildApp(
       if (!run.completed_at) failure("Сначала закончи партию", 409);
       if (run.owner_id && run.owner_id !== u.id)
         failure("Эта партия принадлежит другому аккаунту", 403);
+      if (!(await canClaimDailyGeo(c, run, u.id)))
+        failure("У этого аккаунта уже есть попытка на маршруте дня", 409);
       await claimLineDay(c, run, u.id);
       await claimBrainDay(c, run, u.id);
       if (privateRun(run)) {
@@ -1535,7 +1607,7 @@ export async function buildApp(
         completedAt: new Date(run.completed_at).toISOString(),
         ownerId: u.id,
       };
-      const before = !run.published_at
+      const before = !run.published_at && run.mode !== "daily"
         ? await notificationSnapshot(c, run.game, run.mode)
         : [];
       const answers =
@@ -1547,6 +1619,7 @@ export async function buildApp(
           ? {
               places: run.challenge.places,
               mode: run.mode,
+              ...(run.mode === "daily" ? { day: run.challenge.day } : {}),
               cameraIds:
                 run.challenge.cameraIds ??
                 Object.fromEntries(
@@ -1619,21 +1692,30 @@ export async function buildApp(
           (q.game === "colorfle" && !validShadeMode(mode))
     )
       failure("Неизвестный режим");
-    const base = LEADERBOARD_SQL;
+    const daily = q.game === "geo" && mode === "daily";
+    if (q.mode === "daily" && !daily) failure("Неизвестный режим");
+    const today = geoDailyDate();
+    const day = daily ? q.day ?? today : undefined;
+    if (daily && (!validGeoDailyDate(day) || day > today))
+      failure("Некорректная дата маршрута");
+    const base = daily ? GEO_DAILY_LEADERBOARD_SQL : LEADERBOARD_SQL;
     const requestedVersion =
-      q.game === "geo" ? geoViewerVersion(req, q) : scoreVersion(q.game);
-    const params = [q.game, requestedVersion, period, mode];
+      daily ? GEO_SCORE_VERSION
+        : q.game === "geo" ? geoViewerVersion(req, q) : scoreVersion(q.game);
+    const params = [q.game, requestedVersion, daily ? "all" : period, mode];
+    if (daily) params.push(day);
+    const extra = params.length + 1;
     const [entries, count, mine] = await Promise.all([
       pool.query(
         base +
-          " SELECT id,nickname,score,place,position,answers,version FROM ranked ORDER BY score DESC,completed_at,id LIMIT $5 OFFSET $6",
+          ` SELECT id,nickname,score,place,position,answers,version FROM ranked ORDER BY score DESC,completed_at,id LIMIT $${extra} OFFSET $${extra + 1}`,
         [...params, limit, (page - 1) * limit],
       ),
       pool.query(base + " SELECT count(*)::int AS count FROM ranked", params),
       u
         ? pool.query(
             base +
-              " SELECT id,nickname,score,place,position,answers,version FROM ranked WHERE id=$5",
+              ` SELECT id,nickname,score,place,position,answers,version FROM ranked WHERE id=$${extra}`,
             [...params, u.id],
           )
         : Promise.resolve({ rows: [] }),
@@ -1658,6 +1740,7 @@ export async function buildApp(
       game: q.game,
       mode,
       period,
+      ...(daily ? { day } : {}),
       page,
       limit,
       total: count.rows[0].count,

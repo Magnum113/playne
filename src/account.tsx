@@ -13,6 +13,7 @@ import {
 } from "./resultRecommendation";
 import { GuestTrialPanel, ResultStatus } from "./ResultStatus";
 import { PLAY_PROGRESS_UPDATED } from "./playProgress";
+import { geoDailyBoardUrl } from "./geoDaily";
 import { SHADE_SCORE_VERSION } from "./colorfle";
 import { PRESSURE_RULES_VERSION, formatPressScore } from "./pressure";
 import { pairs } from "./data";
@@ -315,7 +316,7 @@ export function GuestSavedNotice({ game }: { game: GameId }) {
     );
   return null;
 }
-export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
+export function GuestTrialPrompt({ game, id, mode }: { game: GameId; id?: string; mode?: GameMode }) {
   const { user, trial, ready, loading, refresh } = useGuestTrial(game);
   if (user) return null;
   return (
@@ -324,7 +325,7 @@ export function GuestTrialPrompt({ game, id }: { game: GameId; id?: string }) {
         disabled={loading}
         source="guest_party"
         game={game}
-        returnPath={guestLoginReturn(game, id ?? trial?.id, trial?.mode)}
+        returnPath={guestLoginReturn(game, id ?? trial?.id, mode ?? trial?.mode)}
       >
         Войти и сохранить результат <span aria-hidden="true">→</span>
       </YandexLogin>
@@ -775,14 +776,17 @@ export function useRankedRun<G extends GameId>(game: G) {
   };
 }
 export type RankedRun = ReturnType<typeof useRankedRun>;
-export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
+export function SaveResult({ run, game, day }: { run: RankedRun; game: GameId; day?: string }) {
   const { user, loading } = useAuth();
   const s = run.state;
   const privatePractice = isBrain(game) && run.mode === "practice";
   const ranking = privatePractice
     ? "/account/"
-    : `/leaderboard/?game=${game}&mode=${run.mode}`;
-  const rankingLabel = privatePractice ? "Личная история →" : "Рейтинг игры →";
+    : game === "geo" && run.mode === "daily"
+      ? geoDailyBoardUrl(day)
+      : `/leaderboard/?game=${game}&mode=${run.mode}`;
+  const rankingLabel = privatePractice ? "Личная история →"
+    : game === "geo" && run.mode === "daily" ? "Рейтинг маршрута →" : "Рейтинг игры →";
   if (isBrain(game) && run.mode === "practice" && user && s.status === "saved")
     return (
       <p className="save-result" role="status">
@@ -817,7 +821,7 @@ export function SaveResult({ run, game }: { run: RankedRun; game: GameId }) {
       />
     );
   if (!loading && !user && ["complete", "save-error"].includes(s.status))
-    return <GuestTrialPrompt game={game} id={s.id} />;
+    return <GuestTrialPrompt game={game} id={s.id} mode={run.mode === "daily" ? "daily" : undefined} />;
   const waiting =
     loading || s.status === "saving" || (s.status === "complete" && !!user);
   return (

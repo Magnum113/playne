@@ -19,7 +19,7 @@ import RandomGame from "./RandomGame";
 import RecordCelebration from "./RecordCelebration";
 import CategoryGlyph from "./CategoryGlyph";
 import useCardMotion from "./useCardMotion";
-import TodayPlay from "./TodayPlay";
+import DailyGeoCard from "./DailyGeoCard";
 import HubStreakBoard from "./HubStreakBoard";
 
 function Arrow() {
@@ -91,7 +91,7 @@ export default function Hub() {
             </div>
           </div>
           <RecordCelebration />
-          <TodayPlay />
+          <DailyGeoCard />
           <div className="hub-catalog">
             <aside className="hub-leaderboards" aria-label="Рейтинги Playne">
               <HubTopFive />
@@ -357,7 +357,7 @@ export default function Hub() {
                 ✳
               </span>
               <h3>Ещё одна попытка</h3>
-              <p>Войди через Яндекс, чтобы играть дальше бесплатно.</p>
+              <p>Войди через Яндекс, чтобы сохранять результаты и переигрывать обычные партии.</p>
             </div>
           </div>
         </section>
@@ -371,7 +371,8 @@ export default function Hub() {
               <p>
                 Да. В каждой игре первая партия доступна без входа. Затем войди
                 через Яндекс, чтобы играть дальше бесплатно и сохранять
-                результаты в рейтинг.
+                результаты в рейтинг. Маршрут дня можно проходить без входа
+                каждый день.
               </p>
             </details>
             <details>
