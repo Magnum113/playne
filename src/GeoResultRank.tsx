@@ -36,10 +36,14 @@ export function GeoResultRank({
   const content = (
     <>
       <span className="geo-result-place">
-        <span aria-hidden="true">№</span> {geoPoints(rank.place)}
+        {rank.projected ? (
+          <>{geoPoints(rank.place)}<span>-е</span></>
+        ) : (
+          <><span aria-hidden="true">№</span> {geoPoints(rank.place)}</>
+        )}
       </span>
       <span className="geo-result-rank-label">
-        <strong>{rank.projected ? "Возможное место в рейтинге" : "Твоё место в рейтинге"}</strong>
+        <strong>{rank.projected ? "место в рейтинге!" : "Твоё место в рейтинге"}</strong>
         <small>{mode === "daily" ? "Рейтинг маршрута дня" : geoModeName(mode)}</small>
       </span>
     </>
