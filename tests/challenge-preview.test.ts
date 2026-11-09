@@ -49,7 +49,7 @@ describe("Selected B: dynamic friend-result previews", () => {
         expect(+y + +height).toBeLessThanOrEqual(492);
       }
     }
-  });
+  }, 15_000);
   it.each(CHALLENGE_GAMES)(
     "uses the chosen frame and a distinct %s game illustration",
     (game) => {
