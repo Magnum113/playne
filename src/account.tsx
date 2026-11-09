@@ -7,6 +7,10 @@ import {
 } from "./rankedQueue";
 import { YandexLogin } from "./EmailPreferences";
 import { rememberPersonalRecord } from "./recordCelebrationState";
+import {
+  bindRecommendationRun,
+  trackRecommendationCompletion,
+} from "./resultRecommendation";
 import { GuestTrialPanel, ResultStatus } from "./ResultStatus";
 import { PLAY_PROGRESS_UPDATED } from "./playProgress";
 import { SHADE_SCORE_VERSION } from "./colorfle";
@@ -113,7 +117,10 @@ let refreshAuth: () => Promise<void> = async () => {};
 const rankedQueue = createRankedQueue(api, {
   onUnauthorized: () => void refreshAuth(),
   onRecordResult: rememberPersonalRecord,
-  onCompleted: trackChallengeComplete,
+  onCompleted: (run, score) => {
+    trackChallengeComplete(run, score);
+    trackRecommendationCompletion(run.game, run.id);
+  },
   onPublished: (run, score) =>
     trackPublished(run.id, {
       game: run.game,
@@ -489,8 +496,10 @@ export function useRankedRun<G extends GameId>(game: G) {
         }),
       )
       .then((data) => {
-        if (current.current === active && challenge && data && !data.completed)
-          trackChallengeStart(data, !!auth.user);
+        if (current.current === active && data && !data.completed) {
+          if (challenge) trackChallengeStart(data, !!auth.user);
+          else bindRecommendationRun(game, data.id);
+        }
         return activate(data, generation);
       })
       .catch((e) => {

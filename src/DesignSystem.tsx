@@ -2183,6 +2183,7 @@ export default function DesignSystem() {
               <div className="ds-grid">
                 <Sample title="После партии" source="ResultStatus · NextGame">
                   <ResultStatus state="saved" ranking="/leaderboard/" />
+                  <NextGame game="geo" preview />
                   <NextGame game="naglaz" preview />
                 </Sample>
                 <Sample

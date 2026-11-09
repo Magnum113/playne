@@ -1103,15 +1103,10 @@ export default function GeoGame() {
               <p className="eyebrow">
                 ТВОЙ РЕЗУЛЬТАТ · {geoModeName(mode).toUpperCase()}
               </p>
-              <h2>
+              <h2 className="geo-final-score">
                 {geoPoints(total)}
                 <span> из 500</span>
               </h2>
-              <p>
-                {total >= 20000
-                  ? "Ты отлично ориентируешься. Проверим ещё пять мест?"
-                  : "Партия закончена. Сыграешь ещё?"}
-              </p>
               <div className="geo-summary-stats">
                 <span>
                   Рекорд <strong>{geoPoints(stats.best)} / 500</strong>
@@ -1143,21 +1138,23 @@ export default function GeoGame() {
                   ))}
                 </ol>
               </details>
-              {access.user && (
-                <button className="primary" onClick={() => void start(true)}>
-                  Играть ещё <span aria-hidden="true">↗</span>
+              <div className="geo-result-actions">
+                {access.user && (
+                  <button className="primary" onClick={() => void start(true)}>
+                    Играть ещё <span aria-hidden="true">↗</span>
+                  </button>
+                )}
+                <button
+                  className="text-button"
+                  onClick={() => {
+                    setPhase("welcome");
+                    deadlineRef.current = null;
+                    setDeadline(null);
+                  }}
+                >
+                  Выбрать другой режим
                 </button>
-              )}
-              <button
-                className="text-button"
-                onClick={() => {
-                  setPhase("welcome");
-                  deadlineRef.current = null;
-                  setDeadline(null);
-                }}
-              >
-                Выбрать другой режим
-              </button>
+              </div>
               <SaveResult run={ranked} game="geo" />
             </section>
           </GameResultLayout>

@@ -118,3 +118,130 @@
 .result-next-game { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 20px; font-size: 14px; }
 .result-next-game > span { color: var(--muted); }
 .result-next-game a { min-height: 44px; display: flex; align-items: center; }
+
+.result-recommendation {
+  margin-block: var(--space-4);
+}
+
+.result-next-card {
+  --result-next-tint: var(--mint-tint);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: var(--control-size);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--result-next-tint);
+  color: var(--text);
+  text-align: start;
+  text-decoration: none;
+}
+
+.result-next-card--colorfle {
+  --result-next-tint: var(--purple-tint);
+}
+
+.result-next-art {
+  display: grid;
+  place-items: center;
+  inline-size: var(--control-size);
+  block-size: var(--control-size);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+}
+
+.result-next-copy {
+  display: grid;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+
+.result-next-copy > span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.result-next-copy > span:first-child {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.result-next-copy > strong {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.result-next-arrow {
+  color: var(--text);
+}
+
+.result-next-card:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .result-next-card:hover {
+    border-color: var(--mint);
+    color: var(--text);
+    text-decoration: none;
+  }
+}
+
+.geo-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-block-start: var(--space-3);
+}
+
+.geo-result-actions > .text-button {
+  margin: 0;
+}
+
+@media (max-width: 700px) {
+  :is(.summary, .geo-summary) > .guest-trial-prompt {
+    margin-block-start: var(--space-3);
+    padding-block: var(--space-3) 0;
+  }
+  :is(.summary, .geo-summary) > .guest-trial-prompt h2 {
+    margin-block: 0 var(--space-2);
+    font-size: 20px;
+  }
+  :is(.summary, .geo-summary) > .guest-trial-prompt p {
+    margin-block: 0 var(--space-3);
+  }
+  :is(.summary, .geo-summary) > .guest-trial-prompt > .primary {
+    margin-block-start: 0;
+  }
+  .geo-summary > .eyebrow {
+    margin-block-end: var(--space-3);
+  }
+  .geo-summary > .geo-final-score {
+    margin-block: 0 var(--space-3);
+  }
+  .geo-summary > .geo-final-score > span {
+    display: inline;
+    margin-inline-start: var(--space-2);
+  }
+  .geo-summary-stats {
+    margin-block: var(--space-3);
+  }
+}
+
+@media (max-width: 480px) {
+  .geo-result-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .geo-result-actions > .text-button {
+    justify-content: center;
+  }
+  .result-next-card {
+    gap: var(--space-2);
+  }
+}

@@ -2,6 +2,7 @@ import { SaveResult as Status, type RankedRun, type GameId } from "./account";
 import NextGame from "./NextGame";
 import ShareResult from "./ShareResult";
 import ChallengeContext from "./ChallengeContext";
+import { hasResultRecommendation } from "./resultRecommendation";
 export function SaveResult({
   run,
   game,
@@ -19,6 +20,7 @@ export function SaveResult({
   const complete = ["complete", "saved", "save-error"].includes(
     run.state.status,
   );
+  const card = hasResultRecommendation(game);
   return (
     <>
       {token && complete && game !== "flow" && (
@@ -38,8 +40,9 @@ export function SaveResult({
       ) : (
         <Status run={run} game={game} />
       )}
+      {card && <NextGame game={game} runId={run.state.id} />}
       {complete && !hideShare && <ShareResult runId={run.state.id} />}
-      {complete && <NextGame game={game} />}
+      {complete && !card && <NextGame game={game} />}
     </>
   );
 }

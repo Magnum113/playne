@@ -487,12 +487,6 @@ export default function App() {
                   Лучший результат на этом устройстве: {best}
                 </p>
               )}
-              {access.user && (
-                <button className="primary" onClick={() => start("restart")}>
-                  Играть ещё <Arrow />
-                </button>
-              )}
-              <SaveResult run={ranked} game="naglaz" />
               <details className="game-result-details">
                 <summary>Результаты пяти сравнений</summary>
                 <div className="result-list">
@@ -522,6 +516,12 @@ export default function App() {
                   })}
                 </div>
               </details>
+              {access.user && (
+                <button className="primary" onClick={() => start("restart")}>
+                  Играть ещё <Arrow />
+                </button>
+              )}
+              <SaveResult run={ranked} game="naglaz" />
               <button
                 className="text-button result-rules-link"
                 onClick={() => {

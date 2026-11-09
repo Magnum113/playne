@@ -101,6 +101,8 @@ export const SHARE_GOALS = {
 export const PLAY_GOALS = {
   todayGame: "playne_today_game",
   nextGame: "playne_next_game",
+  nextGameShown: "playne_result_next_shown",
+  nextGameCompleted: "playne_result_next_complete",
   weekOpen: "playne_week_open",
 } as const;
 
