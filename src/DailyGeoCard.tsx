@@ -9,6 +9,7 @@ export default function DailyGeoCard() {
   const status = useGeoDailyStatus(true, true);
   const attempt = status?.attempt;
   const leaders = status?.leaders ?? [];
+  const rankingUrl = geoDailyBoardUrl(status?.day);
   const action = attempt?.completed
     ? "Мой результат"
     : attempt ? "Продолжить маршрут" : "Пройти маршрут";
@@ -26,22 +27,29 @@ export default function DailyGeoCard() {
         </p>
         <div className="daily-geo-actions">
           <a
-            className="primary"
+            className="primary daily-geo-launch"
             href={GEO_DAILY_URL}
+            aria-label={action}
             onClick={() => reachGoal(PLAY_GOALS.todayGame, {
               game: "geo", mode: "daily", source: "geo_daily_home", action,
             })}
           >
-            {action} <span aria-hidden="true">→</span>
+            <span className="daily-geo-launch-label">{action}</span>
+            <span aria-hidden="true">→</span>
           </a>
-          <a className="daily-geo-ranking" href={geoDailyBoardUrl(status?.day)}>
+          <a className="daily-geo-ranking" href={rankingUrl}>
             Рейтинг дня
           </a>
         </div>
       </div>
-      {leaders.length ? (
-        <div className="daily-geo-leaders">
+      <div className={leaders.length ? "daily-geo-leaders" : "daily-geo-art"}>
+        <div className="daily-geo-leaders-header">
           <h3>Впереди сегодня</h3>
+          <a className="daily-geo-rank-shortcut" href={rankingUrl} aria-label="Рейтинг дня">
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+        {leaders.length ? (
           <ol>
             {leaders.map((leader) => (
               <li key={leader.position}>
@@ -54,13 +62,13 @@ export default function DailyGeoCard() {
               </li>
             ))}
           </ol>
-        </div>
-      ) : (
-        <div className="daily-geo-art">
-          <LandmarkPreview />
-          {status && <p>Первое место пока свободно</p>}
-        </div>
-      )}
+        ) : (
+          <>
+            <LandmarkPreview />
+            {status && <p>Первое место пока свободно</p>}
+          </>
+        )}
+      </div>
     </section>
   );
 }
