@@ -375,7 +375,7 @@
   width: 100%;
   justify-content: center;
 }
-.geo-summary > .result-recommendation {
+.geo-summary > .result-recommendation:last-child {
   margin-block-end: 0;
 }
 .geo-footer {

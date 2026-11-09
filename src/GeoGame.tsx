@@ -1160,7 +1160,7 @@ export default function GeoGame() {
                 <button className="primary" onClick={() => void start(true)}>Играть ещё</button>
               )
             )}
-            <SaveResult run={ranked} game="geo" hideShare compact />
+            <SaveResult run={ranked} game="geo" hideShare={daily} compact />
           </section>
         )}
         {phase === "welcome" && <GeoAbout />}
