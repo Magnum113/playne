@@ -14,11 +14,9 @@ import "./challenge.css";
 export default function ShareResult({
   runId,
   beforeCreate,
-  className,
 }: {
   runId?: string;
   beforeCreate?: () => Promise<void>;
-  className?: string;
 }) {
   const { user, loading } = useAuth();
   const scope = `${user?.id ?? "guest"}:${runId}`;
@@ -137,17 +135,18 @@ export default function ShareResult({
   }
   return (
     <>
-      <FireButton
-        className={className}
-        aria-label="Бросить вызов другу"
-        onClick={() => {
-          reachGoal(SHARE_GOALS.opened, { game });
-          void create();
-        }}
-        disabled={loading}
-      >
-        Бросить вызов ↗
-      </FireButton>
+      <div className="result-share">
+        <FireButton
+          aria-label="Бросить вызов другу"
+          onClick={() => {
+            reachGoal(SHARE_GOALS.opened, { game });
+            void create();
+          }}
+          disabled={loading}
+        >
+          Бросить вызов ↗
+        </FireButton>
+      </div>
       <dialog
         className="share-dialog ym-hide-content"
         ref={dialog}

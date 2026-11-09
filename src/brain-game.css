@@ -547,7 +547,7 @@
   margin-top: 28px;
 }
 .brain-summary-actions .primary,
-.brain-summary-actions .secondary-button {
+.brain-summary-actions > .secondary-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -1648,6 +1648,32 @@ export async function buildApp(
       c.release();
     }
   });
+  app.get<{ Params: { id: string } }>("/api/games/:id/geo-rank", async (req, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const run = await owned(req, reply, req.params.id, pool);
+    const viewer = await user(req);
+    if (run.owner_id && run.owner_id !== viewer?.id)
+      failure("Партия не найдена", 404);
+    if (
+      run.game !== "geo" || !run.completed_at || privateComparison(run) ||
+      run.score_units === null || !validGeoMode(run.mode) ||
+      (viewer && !run.published_at)
+    ) return null;
+
+    const daily = run.mode === "daily";
+    const version = GEO_SCORE_VERSION;
+    const base = daily ? GEO_DAILY_LEADERBOARD_SQL : LEADERBOARD_SQL;
+    const params = ["geo", version, "all", run.mode];
+    if (daily) params.push(run.challenge.day);
+    const target = `$${params.length + 1}`;
+    const { rows } = viewer
+      ? await pool.query(base + ` SELECT place FROM ranked WHERE id=${target}`, [...params, viewer.id])
+      : await pool.query(
+          base + ` SELECT count(*)+1 AS place FROM ranked WHERE score_units>${target}`,
+          [...params, geoProjection(run, version).score_units],
+        );
+    return rows[0] ? { place: Number(rows[0].place), projected: !viewer } : null;
+  });
   app.get("/api/leaderboard", async (req, reply) => {
     const q = req.query as any;
     if (q.game === "overall" || q.game === "brain") {

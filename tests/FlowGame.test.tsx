@@ -882,7 +882,7 @@ describe("Рой: complete player journeys", () => {
       await click(`Очередь ${lane + 1}:`);
     expect(box.textContent).toContain("Ничья!");
     expect(box.querySelector(".challenge-scores-flow")).not.toBeNull();
-    expect(box.querySelector(".flow-challenge-share canvas")).not.toBeNull();
+    expect(box.querySelector(".result-share .fire-button canvas")).not.toBeNull();
     expect(box.textContent).toContain("Бросить вызов");
     expect(box.textContent).not.toContain("Следующий уровень");
     expect(mocks.api).toHaveBeenCalledWith(

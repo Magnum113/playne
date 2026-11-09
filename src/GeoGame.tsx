@@ -14,6 +14,7 @@ import GeoAbout from "./GeoAbout";
 import { GEO_GOALS, reachGoal } from "./analytics";
 import { GEO_DAILY_URL, geoDailyBoardUrl, geoDailyLabel } from "./geoDaily";
 import { useGeoDailyStatus } from "./useGeoDailyStatus";
+import { GeoResultRank, useGeoResultRank } from "./GeoResultRank";
 import "./geo-daily.css";
 import {
   distanceKm,
@@ -163,6 +164,15 @@ export default function GeoGame() {
   const total =
     Math.round(answers.reduce((sum, answer) => sum + answer.score, 0) * 10) /
     10;
+  const rankReady =
+    !access.loading &&
+    (access.user
+      ? ranked.state.status === "saved"
+      : ranked.state.status === "complete" || ranked.state.status === "save-error");
+  const rank = useGeoResultRank(
+    rankReady ? ranked.state.id : undefined,
+    access.user?.id,
+  );
   const answer = answers[round];
 
   function choosePoint(point: GeoPoint) {
@@ -565,12 +575,29 @@ export default function GeoGame() {
     void loadRound(answersRef.current.length);
   }
   useEffect(() => {
-    if (!daily || !dailyStatus?.attempt?.completed || returnedToResult.current) return;
+    if (!access.ready || phase !== "welcome" || returnedToResult.current) return;
     const saved = new URLSearchParams(window.location.search).get("saved");
-    if (saved !== dailyStatus.attempt.id) return;
+    if (!saved || !/^[0-9a-f-]{36}$/i.test(saved)) return;
     returnedToResult.current = true;
-    void start();
-  }, [daily, dailyStatus]);
+    const token = ++operation.current;
+    void ranked.resume(saved).then((run) => {
+      if (
+        token !== operation.current ||
+        !run?.completed ||
+        !validGeoMode(run.mode)
+      ) return;
+      chooseMode(run.mode);
+      setRouteDay(run.challenge.day);
+      rounds.current = run.challenge.places;
+      const recovered = (run.answers ?? []).map((answer, index) => ({
+        ...answer,
+        location: rounds.current[index],
+      }));
+      answersRef.current = recovered;
+      setAnswers(recovered);
+      setPhase("finished");
+    });
+  }, [access.ready, phase]);
   async function submit(expired = false) {
     if (phaseRef.current !== "guessing") return;
     const timedOut =
@@ -1153,6 +1180,19 @@ export default function GeoGame() {
             {daily && ["complete", "saving", "saved"].includes(ranked.state.status) && (
               <p className="geo-result-streak">Огненный день засчитан</p>
             )}
+            <div aria-live="polite">
+              {rank && (
+                <GeoResultRank
+                  rank={rank}
+                  mode={mode}
+                  href={
+                    !rank.projected && !daily
+                      ? `/leaderboard/?game=geo&mode=${mode}&period=all`
+                      : undefined
+                  }
+                />
+              )}
+            </div>
             {access.user && (
               daily ? (
                 <a className="primary" href={geoDailyBoardUrl(routeDay)}>Рейтинг маршрута</a>

@@ -12,9 +12,6 @@
   color: var(--muted);
   opacity: 0.96;
 }
-.summary > .primary + .secondary-button {
-  margin-top: 12px;
-}
 .result-rules-link.text-button:hover,
 .result-rules-link.text-button:focus-visible {
   opacity: 1;

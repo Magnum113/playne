@@ -1652,7 +1652,6 @@ export function FlowSession({
                 )}
                 <ShareResult
                   runId={active.id}
-                  className="flow-challenge-share"
                   beforeCreate={async () => {
                     if (
                       !latestSave.current.pending.some(

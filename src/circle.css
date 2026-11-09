@@ -307,27 +307,17 @@
 .circle-feedback.has-result .circle-status {
   text-align: center;
 }
-.circle-feedback.has-result .circle-actions > button {
-  flex: 1 1 160px;
-  min-height: var(--control-height);
-  justify-content: center;
-}
 .circle-play > .save-result,
 .circle-play > .challenge-context {
   margin-top: 16px;
 }
 
 .circle-feedback.has-result .circle-actions {
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
 }
-.circle-feedback.has-result .circle-actions > button {
-  height: auto;
-  align-self: stretch;
-}
-
-.circle-feedback.has-result .circle-actions { align-items: center; }
-.circle-feedback.has-result .circle-actions > button { flex: 1 1 160px; min-height: 52px; height: 52px; align-self: center; }
-@media (max-width: 600px) {
-  .circle-feedback.has-result .circle-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .circle-feedback.has-result .circle-actions > button { width: 100%; }
+.circle-feedback.has-result .circle-retry {
+  min-height: var(--control-height);
+  justify-content: center;
 }

@@ -333,7 +333,7 @@ export function GuestTrialPrompt({ game, id, mode, compact = false }: {
         returnPath={guestLoginReturn(game, id ?? trial?.id, mode ?? trial?.mode)}
         showEmailConsent={!compact}
       >
-        {compact ? "Войти и сохранить" : "Войти и сохранить результат"} <span aria-hidden="true">→</span>
+        {compact ? "Войти и сохранить в рейтинг" : "Войти и сохранить результат"} <span aria-hidden="true">→</span>
       </YandexLogin>
       {!ready && (
         <button className="text-button" onClick={() => void refresh()}>
@@ -441,7 +441,7 @@ export function useRankedRun<G extends GameId>(game: G) {
     generation: number,
   ): T | null {
     if (
-      (game === "line" || isBrain(game)) &&
+      (game === "geo" || game === "line" || isBrain(game)) &&
       data &&
       current.current.generation === generation
     )
@@ -838,7 +838,7 @@ export function SaveResult({ run, game, day, compact = false }: {
       />
     );
   if (!loading && !user && ["complete", "save-error"].includes(s.status))
-    return <GuestTrialPrompt game={game} id={s.id} mode={run.mode === "daily" ? "daily" : undefined} compact={compact} />;
+    return <GuestTrialPrompt game={game} id={s.id} mode={game === "geo" ? run.mode : undefined} compact={compact} />;
   const waiting =
     loading || s.status === "saving" || (s.status === "complete" && !!user);
   return (
