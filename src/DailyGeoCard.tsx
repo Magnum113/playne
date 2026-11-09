@@ -35,7 +35,8 @@ export default function DailyGeoCard() {
             })}
           >
             <span className="daily-geo-launch-label">{action}</span>
-            <span aria-hidden="true">→</span>
+            <span className="daily-geo-launch-arrow" aria-hidden="true">→</span>
+            <span className="daily-geo-launch-play" aria-hidden="true">▶</span>
           </a>
           <a className="daily-geo-ranking" href={rankingUrl}>
             Рейтинг дня

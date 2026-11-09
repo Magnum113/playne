@@ -45,7 +45,8 @@
   font-size: 14px;
 }
 .daily-geo-art .daily-geo-leaders-header,
-.daily-geo-rank-shortcut {
+.daily-geo-rank-shortcut,
+.daily-geo-launch-play {
   display: none;
 }
 .daily-geo-leaders ol {
@@ -115,8 +116,10 @@
     min-block-size: var(--control-size);
     padding: 0;
     border-radius: 50%;
-    font-size: 22px;
+    font-size: 18px;
   }
+  .daily-geo-launch-play { display: block; }
+  .daily-geo-launch-arrow,
   .daily-geo-card .daily-geo-launch-label,
   .daily-geo-card .daily-geo-ranking,
   .daily-geo-art .landmark-preview,
@@ -145,11 +148,9 @@
     flex: 0 0 var(--control-size);
     min-block-size: var(--control-size);
     border-radius: 50%;
-    background: var(--panel);
     color: var(--purple);
     font-size: 19px;
     text-decoration: none;
   }
-  .daily-geo-rank-shortcut:hover { background: var(--hover); }
   .daily-geo-leaders ol { margin-block-start: var(--space-1); }
 }
