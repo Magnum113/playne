@@ -103,7 +103,7 @@ describe("explicit result sharing", () => {
     await render();
     expect(mock.api).not.toHaveBeenCalled();
     expect(dialog().open).toBe(false);
-    await click("Бросить вызов ↗");
+    await click("Бросить вызов другу");
     expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalledTimes(1);
     expect(mock.api).toHaveBeenCalledExactlyOnceWith("/challenges", "POST", {
       runId: "run-one",
@@ -130,7 +130,7 @@ describe("explicit result sharing", () => {
     await act(async () =>
       root.render(<ShareResult runId="flow-run" beforeCreate={beforeCreate} />),
     );
-    await click("Бросить вызов ↗");
+    await click("Бросить вызов другу");
     expect(beforeCreate).toHaveBeenCalledTimes(1);
     expect(mock.api).not.toHaveBeenCalled();
     expect(box.textContent).toContain("Готовим превью");
@@ -145,9 +145,9 @@ describe("explicit result sharing", () => {
   });
   it("uses the labelled native dialog, returns focus on close, and reopens the existing link", async () => {
     await render();
-    const trigger = button("Бросить вызов ↗");
+    const trigger = button("Бросить вызов другу");
     trigger.focus();
-    await click("Бросить вызов ↗");
+    await click("Бросить вызов другу");
     expect(dialog().getAttribute("aria-labelledby")).toBe(
       box.querySelector("h2")!.id,
     );
@@ -161,7 +161,7 @@ describe("explicit result sharing", () => {
     );
     expect(dialog().open).toBe(false);
     expect(document.activeElement).toBe(trigger);
-    await click("Бросить вызов ↗");
+    await click("Бросить вызов другу");
     expect(mock.api).toHaveBeenCalledTimes(1);
     expect(dialog().open).toBe(true);
     await act(async () =>
@@ -171,7 +171,7 @@ describe("explicit result sharing", () => {
   });
   it("copies the public link, and falls back to selecting it when clipboard fails", async () => {
     await render();
-    await click("Бросить вызов ↗");
+    await click("Бросить вызов другу");
     await click("Скопировать ссылку");
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(value().url);
     expect(box.textContent).toContain("Ссылка скопирована");
@@ -197,7 +197,7 @@ describe("explicit result sharing", () => {
       value: share,
     });
     await render();
-    await click("Бросить вызов ↗");
+    await click("Бросить вызов другу");
     await click("Поделиться");
     expect(share).toHaveBeenCalledWith({
       title: "Вспышка · 400 / 500",
@@ -221,7 +221,7 @@ describe("explicit result sharing", () => {
     });
     mock.api.mockResolvedValue(value("perfect", 500));
     await render();
-    await click("Бросить вызов ↗");
+    await click("Бросить вызов другу");
     await click("Поделиться");
     expect(share.mock.calls[0][0].text).toBe(
       "Сможешь повторить мой результат?",
@@ -234,7 +234,7 @@ describe("explicit result sharing", () => {
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce(value());
     await render();
-    await click("Бросить вызов ↗");
+    await click("Бросить вызов другу");
     expect(box.textContent).toContain("Не удалось подготовить ссылку");
     expect(dialog().open).toBe(true);
     await click("Подготовить ссылку");
@@ -247,12 +247,12 @@ describe("explicit result sharing", () => {
       .mockReturnValueOnce(old.promise)
       .mockResolvedValueOnce(value("new-account"));
     await render();
-    await click("Бросить вызов ↗");
+    await click("Бросить вызов другу");
     expect(box.textContent).toContain("Готовим превью");
     mock.user = { id: "two" };
     await render("run-two");
     expect(dialog().open).toBe(false);
-    await click("Бросить вызов ↗");
+    await click("Бросить вызов другу");
     await act(async () => old.resolve(value("private-old")));
     expect(box.querySelector("input")!.value).toContain("new-account");
     expect(box.textContent).not.toContain("private-old");
@@ -274,11 +274,11 @@ describe("explicit result sharing", () => {
         .mockResolvedValueOnce(value())
         .mockResolvedValueOnce(value("new-scope"));
       await render();
-      await click("Бросить вызов ↗");
+      await click("Бросить вызов другу");
       await click(action === "copy" ? "Скопировать ссылку" : "Поделиться");
       mock.user = { id: "two" };
       await render("run-two");
-      await click("Бросить вызов ↗");
+      await click("Бросить вызов другу");
       await act(async () => old.reject(new Error("late denied")));
       expect(box.querySelector("input")?.value).toContain("new-scope");
       expect(box.textContent).not.toContain("скопируй её вручную");
@@ -291,8 +291,8 @@ describe("explicit result sharing", () => {
     expect(box.innerHTML).toBe("");
     mock.loading = true;
     await render();
-    expect(button("Бросить вызов ↗").disabled).toBe(true);
-    await click("Бросить вызов ↗");
+    expect(button("Бросить вызов другу").disabled).toBe(true);
+    await click("Бросить вызов другу");
     expect(mock.api).not.toHaveBeenCalled();
   });
 });

@@ -334,7 +334,7 @@ function ButtonExamples() {
                 setNotice("Это пример кнопки. Приглашение не создаётся.")
               }
             >
-              Бросить вызов ↗
+              Бросить вызов другу
             </FireButton>
           </div>
         </Sample>
@@ -2204,7 +2204,7 @@ export default function DesignSystem() {
                   <div className="circle-feedback has-result">
                     <div className="circle-actions">
                       <button className="secondary-button">Ещё раз ↻</button>
-                      <FireButton>Бросить вызов ↗</FireButton>
+                      <FireButton>Бросить вызов другу</FireButton>
                     </div>
                   </div>
                 </Sample>

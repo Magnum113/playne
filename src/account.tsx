@@ -333,7 +333,9 @@ export function GuestTrialPrompt({ game, id, mode, compact = false }: {
         returnPath={guestLoginReturn(game, id ?? trial?.id, mode ?? trial?.mode)}
         showEmailConsent={!compact}
       >
-        {compact ? "Войти и сохранить в рейтинг" : "Войти и сохранить результат"} <span aria-hidden="true">→</span>
+        {compact ? "Войти и сохранить в рейтинг" : (
+          <>Войти и сохранить результат <span aria-hidden="true">→</span></>
+        )}
       </YandexLogin>
       {!ready && (
         <button className="text-button" onClick={() => void refresh()}>

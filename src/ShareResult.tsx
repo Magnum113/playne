@@ -137,14 +137,13 @@ export default function ShareResult({
     <>
       <div className="result-share">
         <FireButton
-          aria-label="Бросить вызов другу"
           onClick={() => {
             reachGoal(SHARE_GOALS.opened, { game });
             void create();
           }}
           disabled={loading}
         >
-          Бросить вызов ↗
+          Бросить вызов другу
         </FireButton>
       </div>
       <dialog

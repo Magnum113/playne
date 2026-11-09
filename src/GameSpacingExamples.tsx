@@ -96,7 +96,7 @@ export default function GameSpacingExamples() {
               Следующий уровень →
             </button>
             <FireButton aria-label="Пример кнопки вызова">
-              Бросить вызов ↗
+              Бросить вызов другу
             </FireButton>
           </div>
           <button type="button" className="text-button ds-spacing-replay">
