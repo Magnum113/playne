@@ -316,11 +316,12 @@ export function GuestSavedNotice({ game }: { game: GameId }) {
     );
   return null;
 }
-export function GuestTrialPrompt({ game, id, mode, compact = false }: {
+export function GuestTrialPrompt({ game, id, mode, compact = false, showIntro = true }: {
   game: GameId;
   id?: string;
   mode?: GameMode;
   compact?: boolean;
+  showIntro?: boolean;
 }) {
   const { user, trial, ready, loading, refresh } = useGuestTrial(game);
   if (user) return null;
@@ -345,7 +346,7 @@ export function GuestTrialPrompt({ game, id, mode, compact = false }: {
     </>
   );
   return compact ? actions : (
-    <GuestTrialPanel practice={isBrain(game) && trial?.mode === "practice"}>
+    <GuestTrialPanel practice={isBrain(game) && trial?.mode === "practice"} showIntro={showIntro}>
       {actions}
     </GuestTrialPanel>
   );
@@ -840,7 +841,15 @@ export function SaveResult({ run, game, day, compact = false }: {
       />
     );
   if (!loading && !user && ["complete", "save-error"].includes(s.status))
-    return <GuestTrialPrompt game={game} id={s.id} mode={game === "geo" ? run.mode : undefined} compact={compact} />;
+    return (
+      <GuestTrialPrompt
+        game={game}
+        id={s.id}
+        mode={game === "geo" ? run.mode : undefined}
+        compact={compact}
+        showIntro={game !== "naglaz"}
+      />
+    );
   const waiting =
     loading || s.status === "saving" || (s.status === "complete" && !!user);
   return (

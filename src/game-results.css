@@ -187,21 +187,27 @@
   }
 }
 
-@media (max-width: 700px) {
-  .summary > .guest-trial-prompt {
-    margin-block-start: var(--space-3);
-    padding-block: var(--space-3) 0;
-  }
-  .summary > .guest-trial-prompt h2 {
-    margin-block: 0 var(--space-2);
-    font-size: 20px;
-  }
-  .summary > .guest-trial-prompt p {
-    margin-block: 0 var(--space-3);
-  }
-  .summary > .guest-trial-prompt > .primary {
-    margin-block-start: 0;
-  }
+.summary > .game-result-details {
+  margin-block-end: var(--space-4);
+  border-block-end: 1px solid var(--line);
+}
+
+.summary .result-list {
+  margin-block-end: 0;
+}
+
+.summary .result-row:last-child {
+  border-block-end: 0;
+}
+
+.summary > .guest-trial-prompt {
+  margin-block: 0;
+  padding-block: 0;
+  border-block-start: 0;
+}
+
+.summary > .guest-trial-prompt > .email-login {
+  justify-items: center;
 }
 
 @media (max-width: 480px) {

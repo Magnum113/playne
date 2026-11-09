@@ -64,19 +64,25 @@ export function ResultStatus({
 
 export function GuestTrialPanel({
   practice = false,
+  showIntro = true,
   children,
 }: {
   practice?: boolean;
+  showIntro?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="guest-trial-prompt">
-      <h2>Сохрани результат</h2>
-      <p>
-        {practice
-          ? "Войди через Яндекс — практика останется в твоей истории."
-          : "Войди через Яндекс — результат попадёт в рейтинг."}
-      </p>
+      {showIntro && (
+        <>
+          <h2>Сохрани результат</h2>
+          <p>
+            {practice
+              ? "Войди через Яндекс — практика останется в твоей истории."
+              : "Войди через Яндекс — результат попадёт в рейтинг."}
+          </p>
+        </>
+      )}
       {children}
     </div>
   );
