@@ -1,4 +1,5 @@
 import { lineMoscowDate } from "./line";
+import { geoClock, type GeoAnswer } from "./geo";
 
 export const GEO_DAILY_URL = "/geo/?mode=daily";
 export const geoDailyBoardUrl = (day?: string) =>
@@ -7,6 +8,14 @@ export const geoDailyBoardUrl = (day?: string) =>
 
 export type GeoDailyStatus = {
   day: string;
+  speedScoring: boolean;
+  leaders: {
+    nickname: string;
+    place: number;
+    position: number;
+    score: number;
+    elapsedMs: number | null;
+  }[];
   attempt: {
     id: string;
     completed: boolean;
@@ -14,6 +23,22 @@ export type GeoDailyStatus = {
     score: number | null;
   } | null;
 };
+
+// Speed can preserve up to 10% of the points earned by the guess.
+export function geoDailyScore(accuracy: number, elapsedMs: number) {
+  const speed = Math.max(0, 1 - elapsedMs / 180_000);
+  return Math.round(accuracy * (0.9 + 0.1 * speed));
+}
+
+export function geoDailyElapsed(answers: Pick<GeoAnswer, "elapsedMs">[]) {
+  return answers.length && answers.every((answer) => answer.elapsedMs !== undefined)
+    ? answers.reduce((sum, answer) => sum + answer.elapsedMs!, 0)
+    : null;
+}
+
+export function geoDailyTime(elapsedMs: number) {
+  return geoClock(Math.floor(elapsedMs / 1000));
+}
 
 export const geoDailyDate = lineMoscowDate;
 

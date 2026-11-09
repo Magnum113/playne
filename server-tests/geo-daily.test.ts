@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, expect, it, describe, vi } from "vitest
 import { Pool } from "pg";
 import { readFileSync } from "node:fs";
 import { buildApp } from "../server/app";
+import { chooseDailyGeoPlaces } from "../server/geo-daily";
 import { geoDailyDate } from "../src/geoDaily";
 import { GEO_SCORE_VERSION } from "../src/geo";
 
@@ -53,17 +54,29 @@ const db = process.env.TEST_DATABASE_URL;
   const start = (cookie: string, mode = "daily", game = "geo") =>
     post("/api/games", cookie, { game, mode, geoRulesVersion: GEO_SCORE_VERSION });
 
-  async function finish(cookie: string, run: any, firstGuess?: { lat: number; lng: number }) {
+  async function finish(cookie: string, run: any, firstGuess?: { lat: number; lng: number }, delayMs = 0) {
     for (const [index, place] of run.challenge.places.entries()) {
       const point = place.view ?? place;
       const panorama = await post(`/api/games/${run.id}/panorama`, cookie, {
         index, pano: `${point.lat},${point.lng}`,
       });
       expect(panorama.statusCode, panorama.body).toBe(200);
+      if (delayMs) {
+        vi.setSystemTime(Date.now() + delayMs / 2);
+        // Reopening a round must leave its original clock running.
+        if (index === 0) {
+          expect((await post(`/api/games/${run.id}/panorama`, cookie, {
+            index, pano: `${point.lat},${point.lng}`,
+          })).statusCode).toBe(200);
+        }
+        vi.setSystemTime(Date.now() + delayMs / 2);
+      }
       const response = await post(`/api/games/${run.id}/answers`, cookie, {
-        index, answer: { guess: index === 0 && firstGuess ? firstGuess : { lat: place.lat, lng: place.lng } },
+        index, answer: { guess: index === 0 && firstGuess ? firstGuess : { lat: place.lat, lng: place.lng }, elapsedMs: 0 },
       });
       expect(response.statusCode, response.body).toBe(200);
+      if (delayMs && run.challenge.speedScoring)
+        expect(response.json().answer).toMatchObject({ elapsedMs: delayMs, score: 95 });
       expect(response.json().completed).toBe(index === 4);
     }
   }
@@ -74,7 +87,7 @@ const db = process.env.TEST_DATABASE_URL;
     const regular = (await start(guest, "classic")).json();
     const before = await get("/api/geo/daily", guest);
     expect(before.headers["cache-control"]).toBe("no-store");
-    expect(before.json()).toEqual({ day: geoDailyDate(), attempt: null });
+    expect(before.json()).toEqual({ day: geoDailyDate(), speedScoring: true, leaders: [], attempt: null });
 
     const [first, concurrent] = await Promise.all([start(guest), start(guest)]);
     expect(first.statusCode, first.body).toBe(200);
@@ -91,19 +104,34 @@ const db = process.env.TEST_DATABASE_URL;
   });
 
   it("counts a guest finish for the streak, claims it at login and keeps rankings separate by Moscow date", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(geoDailyDate() + "T12:00:00Z"));
     const guest = cookies(await get("/api/me"));
     const run = (await start(guest)).json();
     const day = run.challenge.day;
-    await finish(guest, run);
+    await finish(guest, run, undefined, 90_000);
     expect((await get("/api/geo/daily", guest)).json().attempt).toEqual({
-      id: run.id, completed: true, published: false, score: 500,
+      id: run.id, completed: true, published: false, score: 475,
     });
     expect((await get("/api/play/progress", guest)).json().streak.playedToday).toBe(true);
     expect((await start(guest)).json().completed).toBe(true);
     const board = "/api/leaderboard?game=geo&mode=daily";
     const rank = `/api/games/${run.id}/geo-rank`;
     expect((await get(board, guest)).json().total).toBe(0);
-    expect((await get(rank, guest)).json()).toEqual({ place: 1, projected: true });
+    await pool.query(
+      `WITH players AS (
+        INSERT INTO playne_users(nickname) VALUES ('Быстрый'),('Уверенный'),('Спокойный')
+        RETURNING id,nickname
+      )
+      INSERT INTO playne_games(browser_hash,owner_id,game,mode,version,challenge,answers,score_units,completed_at,published_at)
+      SELECT repeat('b',64),id,'geo','daily',$1,jsonb_build_object('day',$2::text),
+        (SELECT jsonb_agg(jsonb_build_object('score',95,'elapsedMs',
+          CASE nickname WHEN 'Быстрый' THEN 10000 WHEN 'Уверенный' THEN 40000 ELSE 100000 END)
+          ORDER BY round)
+         FROM generate_series(1,5) AS rounds(round)),4750,now(),now() FROM players`,
+      [GEO_SCORE_VERSION, day],
+    );
+    expect((await get(rank, guest)).json()).toEqual({ place: 3, projected: true });
 
     const authStart = await get("/api/auth/yandex/start?return=%2Fgeo%2F%3Fmode%3Ddaily", guest);
     const state = new URL(authStart.headers.location!).searchParams.get("state");
@@ -112,25 +140,47 @@ const db = process.env.TEST_DATABASE_URL;
     expect(callback.headers.location).toContain("auth=success");
     expect((await get("/api/geo/daily", signed)).json().attempt.published).toBe(true);
     expect((await get(board, signed)).json()).toMatchObject({
-      total: 1, day, mine: { score: 500, place: 1 },
+      total: 4, day, speedScoring: true, mine: { score: 475, place: 3, elapsedMs: 450_000 },
     });
-    expect((await get(rank, signed)).json()).toEqual({ place: 1, projected: false });
+    expect((await get(rank, signed)).json()).toEqual({ place: 3, projected: false });
+    expect((await get("/api/geo/daily", signed)).json().leaders).toEqual([
+      { nickname: "Быстрый", place: 1, position: 1, score: 475, elapsedMs: 50_000 },
+      { nickname: "Уверенный", place: 2, position: 2, score: 475, elapsedMs: 200_000 },
+      { nickname: "Игрок", place: 3, position: 3, score: 475, elapsedMs: 450_000 },
+    ]);
 
     const otherBrowser = cookies(await get("/api/me")) + "; " + cookies(callback);
     expect((await start(otherBrowser)).json().id).toBe(run.id);
     expect((await get("/api/leaderboard?game=geo&mode=landmarks&version=4", signed)).json().total).toBe(0);
 
-    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(day + "T21:00:01Z"));
     expect((await get(board, signed)).json().total).toBe(0);
-    expect((await get(board + "&day=" + day, signed)).json().total).toBe(1);
-    expect((await get(rank, signed)).json()).toEqual({ place: 1, projected: false });
+    expect((await get(board + "&day=" + day, signed)).json().total).toBe(4);
+    expect((await get(rank, signed)).json()).toEqual({ place: 3, projected: false });
     expect((await get("/api/geo/daily", signed)).json().attempt).toBeNull();
     const next = (await start(signed)).json();
     expect(next.challenge.day).not.toBe(day);
     expect(next.challenge.places.map((p: any) => p.id)).not.toEqual(
       run.challenge.places.map((p: any) => p.id),
     );
+  });
+
+  it("keeps the original scoring for a daily pack that was already issued", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const day = geoDailyDate(Date.now() - 86_400_000);
+    vi.setSystemTime(new Date(day + "T12:00:00Z"));
+    await pool.query(
+      "INSERT INTO playne_geo_daily_packs(day,places) VALUES($1,$2)",
+      [day, JSON.stringify(chooseDailyGeoPlaces(day))],
+    );
+    const guest = cookies(await get("/api/me"));
+    expect((await get("/api/geo/daily", guest)).json().speedScoring).toBe(false);
+    const run = (await start(guest)).json();
+    expect(run.challenge.speedScoring).toBe(false);
+    await finish(guest, run, undefined, 90_000);
+    const finished = (await get(`/api/games/${run.id}`, guest)).json();
+    expect(finished.score).toBe(500);
+    expect(finished.answers[0]).not.toHaveProperty("elapsedMs");
   });
 
   it("previews a regular place across the full board and returns the account's best place after login", async () => {

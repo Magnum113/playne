@@ -7,7 +7,7 @@ import {
   geoModeFor,
   type GeoMode,
 } from "./geo";
-import { geoDailyDate, geoDailyLabel, validGeoDailyDate } from "./geoDaily";
+import { geoDailyDate, geoDailyLabel, geoDailyTime, validGeoDailyDate } from "./geoDaily";
 import StreakLeaderboardPage from "./StreakLeaderboard";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useRef, useState } from "react";
@@ -181,6 +181,9 @@ function ScoreLeaderboardPage() {
         {aggregate
           ? overallNumber(e.score)
           : resultText(game as GameId, e.score)}
+        {daily && typeof e.elapsedMs === "number" && (
+          <small className="rank-route-time">За {geoDailyTime(e.elapsedMs)}</small>
+        )}
       </td>
     </tr>
   );
@@ -531,8 +534,10 @@ function ScoreLeaderboardPage() {
         ) : (
           <div className="ranking-rules">
             <p>
-              В таблице — только завершённые и проверенные сервером партии. При
-              равных результатах место одинаковое.
+              В таблице — только завершённые и проверенные сервером партии.{" "}
+              {daily && currentBoard && data?.speedScoring
+                ? "При равных очках выше тот, кто ответил быстрее."
+                : "При равных результатах место одинаковое."}
             </p>
             <p>
               {daily ? "У всех игроков пять одинаковых мест и одна попытка на этот маршрут."
@@ -545,6 +550,9 @@ function ScoreLeaderboardPage() {
                   : "Случайные задания могут различаться по сложности."}{" "}
               {!daily && "Неделя начинается в понедельник по московскому времени. Старые рекорды из браузера в рейтинг не переносятся."}
             </p>
+            {daily && currentBoard && data?.speedScoring && (
+              <p>Близость к месту определяет очки за раунд. Быстрый ответ сохраняет до 10% этих очков. Время считается от загрузки каждой панорамы до отправки ответа.</p>
+            )}
           </div>
         )}
       </main>

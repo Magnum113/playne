@@ -34,6 +34,7 @@ ALTER TABLE playne_games ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'cl
 CREATE TABLE IF NOT EXISTS playne_geo_daily_packs (
  day date PRIMARY KEY, places jsonb NOT NULL
 );
+ALTER TABLE playne_geo_daily_packs ADD COLUMN IF NOT EXISTS speed_scoring boolean NOT NULL DEFAULT false;
 CREATE UNIQUE INDEX IF NOT EXISTS playne_geo_daily_browser
  ON playne_games ((challenge->>'day'),browser_hash)
  WHERE game='geo' AND mode='daily' AND owner_id IS NULL;

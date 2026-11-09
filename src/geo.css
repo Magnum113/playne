@@ -370,6 +370,15 @@
   color: var(--mint);
   font-size: 14px;
 }
+.geo-result-time {
+  margin-block: 0 var(--space-4);
+  color: var(--muted);
+  font-size: 14px;
+}
+.geo-result-time strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
 .geo-result-rank {
   display: flex;
   align-items: center;

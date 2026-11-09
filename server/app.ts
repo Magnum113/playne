@@ -14,7 +14,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { Pool } from "pg";
 import { GEO_DAILY_LEADERBOARD_SQL, LEADERBOARD_SQL } from "./leaderboard";
 import { canClaimDailyGeo, findDailyGeoRun, geoDailyChallenge } from "./geo-daily";
-import { geoDailyDate, validGeoDailyDate } from "../src/geoDaily";
+import { geoDailyDate, geoDailyElapsed, validGeoDailyDate } from "../src/geoDaily";
 import { overallLeaderboard } from "./overall";
 import { improvesPersonalRecord } from "./personal-record";
 import { registerPlayProgressRoutes } from "./play-progress";
@@ -273,10 +273,27 @@ export async function buildApp(
   app.get("/api/geo/daily", async (req, reply) => {
     const browserHash = browser(req, reply);
     const day = geoDailyDate();
-    const run = await findDailyGeoRun(pool, day, browserHash, (await user(req))?.id);
+    const viewer = await user(req);
+    const [run, pack, leaders] = await Promise.all([
+      findDailyGeoRun(pool, day, browserHash, viewer?.id),
+      pool.query("SELECT speed_scoring FROM playne_geo_daily_packs WHERE day=$1", [day]),
+      pool.query(
+        GEO_DAILY_LEADERBOARD_SQL +
+          " SELECT nickname,score,place,position,elapsed_ms FROM ranked ORDER BY position LIMIT 3",
+        ["geo", GEO_SCORE_VERSION, "all", "daily", day],
+      ),
+    ]);
     reply.header("Cache-Control", "no-store");
     return {
       day,
+      speedScoring: pack.rows[0]?.speed_scoring ?? true,
+      leaders: leaders.rows.map((entry) => ({
+        nickname: entry.nickname,
+        score: Number(entry.score),
+        place: Number(entry.place),
+        position: Number(entry.position),
+        elapsedMs: entry.elapsed_ms === null ? null : Number(entry.elapsed_ms),
+      })),
       attempt: run ? {
         id: run.id,
         completed: !!run.completed_at,
@@ -1190,6 +1207,9 @@ export async function buildApp(
         locked.challenge.panoramas[body.index] = {
           pano: body.pano,
           actual: metadata.location,
+          ...(locked.mode === "daily" && locked.challenge.speedScoring
+            ? { startedAt: Date.now() }
+            : {}),
         };
         await c.query("UPDATE playne_games SET challenge=$1 WHERE id=$2", [
           JSON.stringify(locked.challenge),
@@ -1402,6 +1422,7 @@ export async function buildApp(
     });
   app.post("/api/games/:id/answers", async (req, reply) => {
     const input = req.body as any;
+    const receivedAt = Date.now();
     if (!Number.isInteger(input?.index) || input.index < 0 || input.index > 4)
       failure("Некорректный раунд");
     const c = await pool.connect();
@@ -1463,7 +1484,7 @@ export async function buildApp(
           run.challenge,
           input.index,
           input.answer,
-          Date.now(),
+          run.mode === "daily" ? receivedAt : Date.now(),
           run.version,
         );
       } catch (e) {
@@ -1510,7 +1531,9 @@ export async function buildApp(
           ? {
               places: run.challenge.places,
               mode: run.mode,
-              ...(run.mode === "daily" ? { day: run.challenge.day } : {}),
+              ...(run.mode === "daily"
+                ? { day: run.challenge.day, speedScoring: !!run.challenge.speedScoring }
+                : {}),
               cameraIds:
                 run.challenge.cameraIds ??
                 Object.fromEntries(
@@ -1619,7 +1642,9 @@ export async function buildApp(
           ? {
               places: run.challenge.places,
               mode: run.mode,
-              ...(run.mode === "daily" ? { day: run.challenge.day } : {}),
+              ...(run.mode === "daily"
+                ? { day: run.challenge.day, speedScoring: !!run.challenge.speedScoring }
+                : {}),
               cameraIds:
                 run.challenge.cameraIds ??
                 Object.fromEntries(
@@ -1666,11 +1691,15 @@ export async function buildApp(
     const params = ["geo", version, "all", run.mode];
     if (daily) params.push(run.challenge.day);
     const target = `$${params.length + 1}`;
+    const elapsedMs = daily ? geoDailyElapsed(run.answers) : null;
+    const faster = elapsedMs === null
+      ? ""
+      : ` OR (score_units=${target} AND elapsed_ms<$${params.length + 2})`;
     const { rows } = viewer
       ? await pool.query(base + ` SELECT place FROM ranked WHERE id=${target}`, [...params, viewer.id])
       : await pool.query(
-          base + ` SELECT count(*)+1 AS place FROM ranked WHERE score_units>${target}`,
-          [...params, geoProjection(run, version).score_units],
+          base + ` SELECT count(*)+1 AS place FROM ranked WHERE score_units>${target}${faster}`,
+          [...params, geoProjection(run, version).score_units, ...(elapsedMs === null ? [] : [elapsedMs])],
         );
     return rows[0] ? { place: Number(rows[0].place), projected: !viewer } : null;
   });
@@ -1731,17 +1760,24 @@ export async function buildApp(
     const params = [q.game, requestedVersion, daily ? "all" : period, mode];
     if (daily) params.push(day);
     const extra = params.length + 1;
+    const fields = "id,nickname,score,place,position,answers,version" +
+      (daily ? ",elapsed_ms" : "");
     const [entries, count, mine] = await Promise.all([
       pool.query(
         base +
-          ` SELECT id,nickname,score,place,position,answers,version FROM ranked ORDER BY score DESC,completed_at,id LIMIT $${extra} OFFSET $${extra + 1}`,
+          ` SELECT ${fields} FROM ranked ORDER BY position LIMIT $${extra} OFFSET $${extra + 1}`,
         [...params, limit, (page - 1) * limit],
       ),
-      pool.query(base + " SELECT count(*)::int AS count FROM ranked", params),
+      pool.query(
+        base + " SELECT count(*)::int AS count" +
+          (daily ? ", (SELECT speed_scoring FROM playne_geo_daily_packs WHERE day=$5::date) AS speed_scoring" : "") +
+          " FROM ranked",
+        params,
+      ),
       u
         ? pool.query(
             base +
-              ` SELECT id,nickname,score,place,position,answers,version FROM ranked WHERE id=$${extra}`,
+              ` SELECT ${fields} FROM ranked WHERE id=$${extra}`,
             [...params, u.id],
           )
         : Promise.resolve({ rows: [] }),
@@ -1751,6 +1787,7 @@ export async function buildApp(
       score: Number(r.score),
       place: Number(r.place),
       position: Number(r.position),
+      ...(daily && r.elapsed_ms !== null ? { elapsedMs: Number(r.elapsed_ms) } : {}),
       rounds: geoProjection(
         {
           game: q.game,
@@ -1766,7 +1803,7 @@ export async function buildApp(
       game: q.game,
       mode,
       period,
-      ...(daily ? { day } : {}),
+      ...(daily ? { day, speedScoring: count.rows[0].speed_scoring ?? day === today } : {}),
       page,
       limit,
       total: count.rows[0].count,

@@ -9,6 +9,7 @@ import { FLOW_VERSION } from "../src/flow";
 import { chooseRounds, legacyPairIds, objects, pairs } from "../src/data";
 import { score } from "../src/game";
 import { evaluateCircle } from "../src/circle";
+import { geoDailyScore } from "../src/geoDaily";
 import {
   isBrainGame,
   createBrain,
@@ -191,7 +192,9 @@ export function publicChallenge(game: GameId, challenge: any) {
       ...publicComparison(challenge),
       places: challenge.places,
       mode: validGeoMode(challenge.mode) ? challenge.mode : "classic",
-      ...(challenge.mode === "daily" ? { day: challenge.day } : {}),
+      ...(challenge.mode === "daily"
+        ? { day: challenge.day, speedScoring: !!challenge.speedScoring }
+        : {}),
       panoramaIds: {
         ...challenge.cameraIds,
         ...Object.fromEntries(
@@ -338,11 +341,16 @@ export function validateAnswer(
                 Math.min(4999, Math.round(5000 * Math.exp(-distance / 2000))),
               )
           : geoScore(distance);
+  const speedScoring = challenge.mode === "daily" && challenge.speedScoring;
+  if (speedScoring && !Number.isFinite(panorama.startedAt))
+    throw new Error("Время раунда ещё не отсчитывается");
+  const elapsedMs = speedScoring ? Math.max(0, now - panorama.startedAt) : null;
   return {
     guess: { lat: guess.lat, lng: guess.lng },
     actual,
     distance,
-    score: points,
+    score: elapsedMs === null ? points : geoDailyScore(points, elapsedMs),
+    ...(elapsedMs === null ? {} : { elapsedMs }),
     timedOut,
     location: challenge.places[index],
   };

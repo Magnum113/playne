@@ -849,3 +849,9 @@
 
 .rank-own-summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 12px 16px; border-radius: var(--radius-inner); background: var(--mint-tint); margin: 16px 0; font-size: 14px; }
 @media (max-width: 600px) { .rank-games { gap: 6px; } .rank-games button { min-height: 44px; padding: 8px 10px; font-size: 12px; } }
+.rank-route-time {
+  display: block;
+  margin-block-start: 2px;
+  color: var(--muted);
+  font-weight: 400;
+}

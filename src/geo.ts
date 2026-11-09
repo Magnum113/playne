@@ -67,6 +67,7 @@ export type GeoAnswer = {
   actual: GeoPoint;
   distance: number | null;
   timedOut?: boolean;
+  elapsedMs?: number;
   score: number;
 };
 export const GEO_ROUNDS = 5;

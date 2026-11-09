@@ -13,14 +13,20 @@ export function chooseDailyGeoPlaces(day: string) {
 
 export async function geoDailyChallenge(client: PoolClient, day: string) {
   await client.query(
-    "INSERT INTO playne_geo_daily_packs(day,places) VALUES($1,$2) ON CONFLICT(day) DO NOTHING",
+    "INSERT INTO playne_geo_daily_packs(day,places,speed_scoring) VALUES($1,$2,true) ON CONFLICT(day) DO NOTHING",
     [day, JSON.stringify(chooseDailyGeoPlaces(day))],
   );
   const { rows } = await client.query(
-    "SELECT places FROM playne_geo_daily_packs WHERE day=$1",
+    "SELECT places,speed_scoring FROM playne_geo_daily_packs WHERE day=$1",
     [day],
   );
-  return { day, places: rows[0].places, mode: "daily", panoramas: {} };
+  return {
+    day,
+    places: rows[0].places,
+    mode: "daily",
+    speedScoring: rows[0].speed_scoring,
+    panoramas: {},
+  };
 }
 
 export async function findDailyGeoRun(

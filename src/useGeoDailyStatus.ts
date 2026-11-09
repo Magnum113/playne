@@ -3,7 +3,7 @@ import { api, useAuth } from "./account";
 import { geoDailyDate, type GeoDailyStatus } from "./geoDaily";
 import { PLAY_PROGRESS_UPDATED } from "./playProgress";
 
-export function useGeoDailyStatus(enabled = true) {
+export function useGeoDailyStatus(enabled = true, liveLeaders = false) {
   const auth = useAuth();
   const identity = auth.user?.id ?? "guest";
   const [day, setDay] = useState(geoDailyDate);
@@ -20,7 +20,10 @@ export function useGeoDailyStatus(enabled = true) {
       setDay(geoDailyDate());
       setRefresh((n) => n + 1);
     };
-    const timer = window.setInterval(() => setDay(geoDailyDate()), 30_000);
+    const timer = window.setInterval(() => {
+      if (liveLeaders && !document.hidden) update();
+      else setDay(geoDailyDate());
+    }, 30_000);
     window.addEventListener("focus", update);
     window.addEventListener("pageshow", update);
     window.addEventListener(PLAY_PROGRESS_UPDATED, update);
@@ -30,7 +33,7 @@ export function useGeoDailyStatus(enabled = true) {
       window.removeEventListener("pageshow", update);
       window.removeEventListener(PLAY_PROGRESS_UPDATED, update);
     };
-  }, [enabled]);
+  }, [enabled, liveLeaders]);
 
   useEffect(() => {
     if (!enabled || auth.loading) return;

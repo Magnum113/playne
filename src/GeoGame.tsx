@@ -12,7 +12,13 @@ import FooterLinks from "./FooterLinks";
 import GeoPreview from "./GeoPreview";
 import GeoAbout from "./GeoAbout";
 import { GEO_GOALS, reachGoal } from "./analytics";
-import { GEO_DAILY_URL, geoDailyBoardUrl, geoDailyLabel } from "./geoDaily";
+import {
+  GEO_DAILY_URL,
+  geoDailyBoardUrl,
+  geoDailyElapsed,
+  geoDailyLabel,
+  geoDailyTime,
+} from "./geoDaily";
 import { useGeoDailyStatus } from "./useGeoDailyStatus";
 import { GeoResultRank, useGeoResultRank } from "./GeoResultRank";
 import "./geo-daily.css";
@@ -164,6 +170,7 @@ export default function GeoGame() {
   const total =
     Math.round(answers.reduce((sum, answer) => sum + answer.score, 0) * 10) /
     10;
+  const routeElapsed = daily && phase === "finished" ? geoDailyElapsed(answers) : null;
   const rankReady =
     !access.loading &&
     (access.user
@@ -623,6 +630,11 @@ export default function GeoGame() {
     if (timedOut) rules.current?.close();
     const verified = await ranked.geoAnswer(round, selected, timedOut);
     if (token !== operation.current) return;
+    if (!verified && modeRef.current === "daily") {
+      setPhase("guessing");
+      setError("Не удалось подтвердить ответ. Проверь соединение и нажми «Ответить» ещё раз.");
+      return;
+    }
     const distance = selected ? distanceKm(selected, correct) : null;
     const result: GeoAnswer = {
       location: place,
@@ -781,7 +793,10 @@ export default function GeoGame() {
                 5 МЕСТ · 500 ОЧКОВ
               </p>
               <h2>Один маршрут для всех.</h2>
-              <p>Одна попытка без таймера и без входа. Новый маршрут в полночь по Москве.</p>
+              <p>Одна попытка без входа. Новый маршрут в полночь по Москве.</p>
+              {dailyStatus?.speedScoring && (
+                <p>Чем ближе точка и быстрее ответ, тем больше очков. Скорость влияет на 10% очков.</p>
+              )}
               <div className="daily-geo-actions daily-geo-entry">
                 <button
                   className="primary"
@@ -1155,6 +1170,9 @@ export default function GeoGame() {
                   </>
                 )}
               </span>
+              {answer.elapsedMs !== undefined && (
+                <span>Время ответа — <b>{geoDailyTime(answer.elapsedMs)}</b></span>
+              )}
               <button className="primary" onClick={next}>
                 {round === 4 ? "Мой результат" : "Следующее место"}{" "}
                 <span aria-hidden="true">→</span>
@@ -1179,6 +1197,9 @@ export default function GeoGame() {
             </h1>
             {daily && ["complete", "saving", "saved"].includes(ranked.state.status) && (
               <p className="geo-result-streak">Огненный день засчитан</p>
+            )}
+            {routeElapsed !== null && (
+              <p className="geo-result-time">Время ответов — <strong>{geoDailyTime(routeElapsed)}</strong></p>
             )}
             <div aria-live="polite">
               {rank && (
