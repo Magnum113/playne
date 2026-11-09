@@ -3,15 +3,18 @@ import NextGame from "./NextGame";
 import ShareResult from "./ShareResult";
 import ChallengeContext from "./ChallengeContext";
 import { hasResultRecommendation } from "./resultRecommendation";
+import "./game-results.css";
 export function SaveResult({
   run,
   game,
   hideShare = false,
+  compact = false,
   day,
 }: {
   run: RankedRun;
   game: GameId;
   hideShare?: boolean;
+  compact?: boolean;
   day?: string;
 }) {
   const token =
@@ -40,9 +43,9 @@ export function SaveResult({
           Сравнение сохранено. Результат не меняет рейтинг.
         </p>
       ) : (
-        <Status run={run} game={game} day={day} />
+        <Status run={run} game={game} day={day} compact={compact} />
       )}
-      {card && <NextGame game={game} runId={run.state.id} />}
+      {card && <NextGame game={game} runId={run.state.id} compact={compact} />}
       {complete && !hideShare && <ShareResult runId={run.state.id} />}
       {complete && !card && <NextGame game={game} />}
     </>

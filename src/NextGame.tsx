@@ -20,10 +20,12 @@ export default function NextGame({
   game,
   runId,
   preview = false,
+  compact = false,
 }: {
   game: GameId;
   runId?: string;
   preview?: boolean;
+  compact?: boolean;
 }) {
   const card = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
@@ -92,7 +94,7 @@ export default function NextGame({
           <span className="result-next-copy">
             <span>Следующая игра</span>
             <strong>{item.name}</strong>
-            <span>{item.hint}</span>
+            {!compact && <span>{item.hint}</span>}
           </span>
           <svg
             className="result-next-arrow"

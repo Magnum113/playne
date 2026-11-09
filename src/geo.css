@@ -343,72 +343,40 @@
   color: var(--text);
 }
 .geo-summary {
-  max-width: 850px;
-  margin: auto;
-  padding: 40px;
+  max-width: 480px;
+  margin-inline: auto;
+  padding: clamp(20px, 5vw, 36px);
   border: 1px solid var(--line);
-  border-radius: 28px;
+  border-radius: var(--radius-panel);
   background: var(--panel);
 }
-.geo-summary h2 {
-  font-size: clamp(52px, 8vw, 76px);
-  letter-spacing: -3px;
-  margin: 16px 0;
+.geo-summary > .eyebrow {
+  margin-block: 0 var(--space-2);
 }
-.geo-summary h2 > span {
-  font-size: 24px;
-  letter-spacing: -0.5px;
-  color: var(--muted);
+.geo-final-score {
+  font-size: clamp(48px, 9vw, 70px);
+  letter-spacing: -0.055em;
+  line-height: 1.05;
+  margin-block: 0 var(--space-6);
 }
-.geo-summary > p:not(.eyebrow) {
-  font-size: 17px;
-  color: var(--muted);
-  line-height: 1.6;
-}
-.geo-summary-stats {
-  display: flex;
-  gap: 28px;
-  flex-wrap: wrap;
-  color: var(--muted);
-  font-size: 14px;
-  margin: 24px 0;
-}
-.geo-summary-stats strong {
-  color: var(--text);
-  margin-left: 6px;
-}
-.geo-recap {
-  list-style: none;
-  padding: 0;
-  margin: 24px 0 30px;
-}
-.geo-recap li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
-}
-.geo-recap li > div {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.geo-recap strong {
-  font-weight: 550;
-  font-size: 15px;
-}
-.geo-recap li > div > span,
-.geo-recap li > b > span {
-  font-size: 12px;
-  color: var(--muted);
-  font-weight: 400;
-}
-.geo-recap li > b {
+.geo-final-score > span {
   font-size: 20px;
+  letter-spacing: -0.02em;
+  color: var(--muted);
   white-space: nowrap;
+}
+.geo-result-streak {
+  margin-block: calc(-1 * var(--space-3)) var(--space-4);
   color: var(--mint);
+  font-size: 14px;
+}
+.geo-summary > .primary,
+.geo-summary > .email-login > .primary {
+  width: 100%;
+  justify-content: center;
+}
+.geo-summary > .result-recommendation {
+  margin-block-end: 0;
 }
 .geo-footer {
   padding: 28px 0;
@@ -566,15 +534,6 @@
   .geo-score strong {
     font-size: 26px;
   }
-  .geo-summary {
-    padding: 24px;
-  }
-  .geo-summary-stats {
-    gap: 12px;
-  }
-  .geo-summary > .primary {
-    width: 100%;
-  }
   .geo-footer {
     font-size: 12px;
   }
@@ -611,15 +570,6 @@
   }
   .geo-map-tools {
     padding: 10px 14px;
-  }
-  .geo-recap strong {
-    font-size: 13px;
-  }
-  .geo-recap li {
-    gap: 12px;
-  }
-  .geo-summary h2 {
-    font-size: 64px;
   }
   .geo-rules-dialog {
     padding: 22px;
@@ -727,14 +677,6 @@
 .geo-timeout-note {
   color: var(--purple);
   font-weight: 600;
-}
-.geo-summary h2 {
-  font-size: clamp(42px, 7vw, 70px);
-}
-.geo-summary h2 > span {
-  display: block;
-  margin-top: 10px;
-  font-size: 20px;
 }
 .geo-rank-modes {
   margin-bottom: 16px;

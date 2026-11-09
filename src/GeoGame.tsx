@@ -1,6 +1,5 @@
 import { panoramaPaint } from "./panoramaPaint";
 import { useGameViewport } from "./useGameViewport";
-import GameResultLayout from "./GameResultLayout";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
@@ -725,7 +724,7 @@ export default function GeoGame() {
               reachGoal(GEO_GOALS.rulesOpen);
             }}
           />
-        ) : (
+        ) : phase !== "finished" && (
           <div className="geo-heading">
             <div>
               <p className="eyebrow">УГАДАЙ МЕСТО</p>
@@ -1143,94 +1142,36 @@ export default function GeoGame() {
           </section>
         )}
         {phase === "finished" && (
-          <GameResultLayout
-            game="geo"
-            mode={mode}
-            day={daily ? routeDay : undefined}
-            refreshKey={ranked.state.status === "saved" ? ranked.state.id : ""}
-          >
-            <section className="geo-summary" ref={result} tabIndex={-1}>
-              <p className="eyebrow">
-                ТВОЙ РЕЗУЛЬТАТ · {geoModeName(mode).toUpperCase()}
-                {daily && routeDay ? " · " + geoDailyLabel(routeDay) : ""}
-              </p>
-              <h2 className="geo-final-score">
-                {geoPoints(total)}
-                <span> из 500</span>
-              </h2>
-              {daily ? (
-                <p className="daily-geo-result-links">
-                  {["complete", "saving", "saved"].includes(ranked.state.status)
-                    ? "Огненный день засчитан. "
-                    : ""}
-                  Новый маршрут в полночь по Москве.
-                </p>
-              ) : <div className="geo-summary-stats">
-                <span>
-                  Рекорд <strong>{geoPoints(stats.best)} / 500</strong>
-                </span>
-                <span>
-                  Партий сыграно <strong>{stats.played}</strong>
-                </span>
-              </div>}
-              <details className="game-result-details">
-                <summary>Результаты пяти мест</summary>
-                <ol className="geo-recap">
-                  {answers.map((item) => (
-                    <li key={item.location.id}>
-                      <div>
-                        <strong>{item.location.name}</strong>
-                        <span>
-                          {item.location.country} ·{" "}
-                          {item.distance === null
-                            ? "Точка не выбрана"
-                            : geoDistance(item.distance)}
-                          {item.timedOut ? " · Время вышло" : ""}
-                        </span>
-                      </div>
-                      <b>
-                        {geoPoints(item.score)}
-                        <span> / 100</span>
-                      </b>
-                    </li>
-                  ))}
-                </ol>
-              </details>
-              {daily ? (
-                <div className="daily-geo-actions daily-geo-result-links">
-                  {!access.user && (
-                    <a className="daily-geo-ranking" href={geoDailyBoardUrl(routeDay)}>Рейтинг маршрута</a>
-                  )}
-                  <a className="daily-geo-ranking" href="/geo/">Другие режимы</a>
-                </div>
-              ) : <div className="geo-result-actions">
-                {access.user && (
-                  <button className="primary" onClick={() => void start(true)}>
-                    Играть ещё <span aria-hidden="true">↗</span>
-                  </button>
-                )}
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    setPhase("welcome");
-                    deadlineRef.current = null;
-                    setDeadline(null);
-                  }}
-                >
-                  Выбрать другой режим
-                </button>
-              </div>}
-              <SaveResult run={ranked} game="geo" hideShare={daily} day={routeDay} />
-            </section>
-          </GameResultLayout>
+          <section className="geo-summary" ref={result} tabIndex={-1}>
+            <p className="eyebrow">
+              {daily ? "Маршрут дня" : "Где я? · Результат"}
+              {daily && routeDay ? " · " + geoDailyLabel(routeDay) : ""}
+            </p>
+            <h1 className="geo-final-score">
+              {geoPoints(total)} <span>из 500</span>
+            </h1>
+            {daily && ["complete", "saving", "saved"].includes(ranked.state.status) && (
+              <p className="geo-result-streak">Огненный день засчитан</p>
+            )}
+            {access.user && (
+              daily ? (
+                <a className="primary" href={geoDailyBoardUrl(routeDay)}>Рейтинг маршрута</a>
+              ) : (
+                <button className="primary" onClick={() => void start(true)}>Играть ещё</button>
+              )
+            )}
+            <SaveResult run={ranked} game="geo" hideShare compact />
+          </section>
         )}
-        {(phase === "welcome" || phase === "finished") && <GeoAbout />}
+        {phase === "welcome" && <GeoAbout />}
       </main>
-      <footer className="geo-footer">
-        <span>Замечай детали. Находи своё место.</span>
-        <a href="/">Все игры Playne ↗</a>
-        <FooterLinks />
-      </footer>
+      {phase !== "finished" && (
+        <footer className="geo-footer">
+          <span>Замечай детали. Находи своё место.</span>
+          <a href="/">Все игры Playne ↗</a>
+          <FooterLinks />
+        </footer>
+      )}
       <RulesDialog
         dialogRef={rules}
         className="geo-rules-dialog"

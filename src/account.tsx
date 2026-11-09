@@ -316,24 +316,35 @@ export function GuestSavedNotice({ game }: { game: GameId }) {
     );
   return null;
 }
-export function GuestTrialPrompt({ game, id, mode }: { game: GameId; id?: string; mode?: GameMode }) {
+export function GuestTrialPrompt({ game, id, mode, compact = false }: {
+  game: GameId;
+  id?: string;
+  mode?: GameMode;
+  compact?: boolean;
+}) {
   const { user, trial, ready, loading, refresh } = useGuestTrial(game);
   if (user) return null;
-  return (
-    <GuestTrialPanel practice={isBrain(game) && trial?.mode === "practice"}>
+  const actions = (
+    <>
       <YandexLogin
         disabled={loading}
         source="guest_party"
         game={game}
         returnPath={guestLoginReturn(game, id ?? trial?.id, mode ?? trial?.mode)}
+        showEmailConsent={!compact}
       >
-        Войти и сохранить результат <span aria-hidden="true">→</span>
+        {compact ? "Войти и сохранить" : "Войти и сохранить результат"} <span aria-hidden="true">→</span>
       </YandexLogin>
       {!ready && (
         <button className="text-button" onClick={() => void refresh()}>
           Проверить соединение
         </button>
       )}
+    </>
+  );
+  return compact ? actions : (
+    <GuestTrialPanel practice={isBrain(game) && trial?.mode === "practice"}>
+      {actions}
     </GuestTrialPanel>
   );
 }
@@ -776,17 +787,23 @@ export function useRankedRun<G extends GameId>(game: G) {
   };
 }
 export type RankedRun = ReturnType<typeof useRankedRun>;
-export function SaveResult({ run, game, day }: { run: RankedRun; game: GameId; day?: string }) {
+export function SaveResult({ run, game, day, compact = false }: {
+  run: RankedRun;
+  game: GameId;
+  day?: string;
+  compact?: boolean;
+}) {
   const { user, loading } = useAuth();
   const s = run.state;
   const privatePractice = isBrain(game) && run.mode === "practice";
-  const ranking = privatePractice
+  const ranking = compact ? undefined : privatePractice
     ? "/account/"
     : game === "geo" && run.mode === "daily"
       ? geoDailyBoardUrl(day)
       : `/leaderboard/?game=${game}&mode=${run.mode}`;
   const rankingLabel = privatePractice ? "Личная история →"
     : game === "geo" && run.mode === "daily" ? "Рейтинг маршрута →" : "Рейтинг игры →";
+  if (compact && s.status === "saved") return null;
   if (isBrain(game) && run.mode === "practice" && user && s.status === "saved")
     return (
       <p className="save-result" role="status">
@@ -821,7 +838,7 @@ export function SaveResult({ run, game, day }: { run: RankedRun; game: GameId; d
       />
     );
   if (!loading && !user && ["complete", "save-error"].includes(s.status))
-    return <GuestTrialPrompt game={game} id={s.id} mode={run.mode === "daily" ? "daily" : undefined} />;
+    return <GuestTrialPrompt game={game} id={s.id} mode={run.mode === "daily" ? "daily" : undefined} compact={compact} />;
   const waiting =
     loading || s.status === "saving" || (s.status === "complete" && !!user);
   return (

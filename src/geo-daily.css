@@ -37,7 +37,6 @@
 }
 .daily-geo-ranking { display: inline-flex; align-items: center; min-block-size: 44px; }
 .daily-geo-entry { margin-block-start: var(--space-4); }
-.daily-geo-result-links { margin-block: var(--space-3); }
 
 @media (max-width: 620px) {
   .daily-geo-card { grid-template-columns: minmax(0, 1fr); }

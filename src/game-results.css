@@ -78,7 +78,6 @@
       .brain-summary,
       .line-summary,
       .pressure-result,
-      .geo-summary,
       .challenge-results-panel
     ) {
     width: 100%;
@@ -191,56 +190,24 @@
   }
 }
 
-.geo-result-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-  margin-block-start: var(--space-3);
-}
-
-.geo-result-actions > .text-button {
-  margin: 0;
-}
-
 @media (max-width: 700px) {
-  :is(.summary, .geo-summary) > .guest-trial-prompt {
+  .summary > .guest-trial-prompt {
     margin-block-start: var(--space-3);
     padding-block: var(--space-3) 0;
   }
-  :is(.summary, .geo-summary) > .guest-trial-prompt h2 {
+  .summary > .guest-trial-prompt h2 {
     margin-block: 0 var(--space-2);
     font-size: 20px;
   }
-  :is(.summary, .geo-summary) > .guest-trial-prompt p {
+  .summary > .guest-trial-prompt p {
     margin-block: 0 var(--space-3);
   }
-  :is(.summary, .geo-summary) > .guest-trial-prompt > .primary {
+  .summary > .guest-trial-prompt > .primary {
     margin-block-start: 0;
-  }
-  .geo-summary > .eyebrow {
-    margin-block-end: var(--space-3);
-  }
-  .geo-summary > .geo-final-score {
-    margin-block: 0 var(--space-3);
-  }
-  .geo-summary > .geo-final-score > span {
-    display: inline;
-    margin-inline-start: var(--space-2);
-  }
-  .geo-summary-stats {
-    margin-block: var(--space-3);
   }
 }
 
 @media (max-width: 480px) {
-  .geo-result-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .geo-result-actions > .text-button {
-    justify-content: center;
-  }
   .result-next-card {
     gap: var(--space-2);
   }
