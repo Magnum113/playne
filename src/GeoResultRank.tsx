@@ -49,7 +49,7 @@ export function GeoResultRank({
     </>
   );
   return href ? (
-    <a href={href} className="geo-result-rank">
+    <a href={href} className="geo-result-rank" data-geo-result-action="leaderboard">
       {content}
       <span className="geo-result-rank-arrow" aria-hidden="true">↗</span>
     </a>

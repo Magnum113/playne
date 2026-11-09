@@ -33,6 +33,12 @@ export const GEO_GOALS = {
   gameComplete: "geo_game_complete",
   gameRestart: "geo_game_restart",
   loadError: "geo_load_error",
+  dailyView: "geo_daily_view",
+  dailyAction: "geo_daily_action",
+  resultView: "geo_result_view",
+  resultRankView: "geo_result_rank_view",
+  resultAction: "geo_result_action",
+  resultSavedAfterLogin: "geo_result_saved_after_login",
 } as const;
 
 export const PRESSURE_GOALS = {

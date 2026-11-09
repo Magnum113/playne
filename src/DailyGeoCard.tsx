@@ -1,15 +1,18 @@
 import { PLAY_GOALS, reachGoal } from "./analytics";
 import { GEO_DAILY_URL, geoDailyBoardUrl, geoDailyLabel, geoDailyTime } from "./geoDaily";
 import { geoPoints } from "./geo";
+import { geoDailyAction, trackDailyAction, useDailyImpression } from "./geoAnalytics";
 import LandmarkPreview from "./LandmarkPreview";
 import { useGeoDailyStatus } from "./useGeoDailyStatus";
 import "./geo-daily.css";
 
 export default function DailyGeoCard() {
   const status = useGeoDailyStatus(true, true);
+  const heading = useDailyImpression("home", status);
   const attempt = status?.attempt;
   const leaders = status?.leaders ?? [];
   const rankingUrl = geoDailyBoardUrl(status?.day);
+  const trackRanking = () => trackDailyAction("home", "leaderboard", status?.day);
   const action = attempt?.completed
     ? "Мой результат"
     : attempt ? "Продолжить маршрут" : "Пройти маршрут";
@@ -19,7 +22,7 @@ export default function DailyGeoCard() {
         <p className="eyebrow">
           «ГДЕ Я?» · {status ? geoDailyLabel(status.day) : "КАЖДЫЙ ДЕНЬ"}
         </p>
-        <h2 id="daily-geo-title">Маршрут дня<span className="brand-dot">.</span></h2>
+        <h2 id="daily-geo-title" ref={heading}>Маршрут дня<span className="brand-dot">.</span></h2>
         <p>
           {attempt?.completed
             ? `Твой результат — ${attempt.score ?? 0} из 500. Новый маршрут завтра.`
@@ -30,15 +33,18 @@ export default function DailyGeoCard() {
             className="primary daily-geo-launch"
             href={GEO_DAILY_URL}
             aria-label={action}
-            onClick={() => reachGoal(PLAY_GOALS.todayGame, {
-              game: "geo", mode: "daily", source: "geo_daily_home", action,
-            })}
+            onClick={() => {
+              reachGoal(PLAY_GOALS.todayGame, {
+                game: "geo", mode: "daily", source: "geo_daily_home", action,
+              });
+              trackDailyAction("home", geoDailyAction(attempt), status?.day);
+            }}
           >
             <span className="daily-geo-launch-label">{action}</span>
             <span className="daily-geo-launch-arrow" aria-hidden="true">→</span>
             <span className="daily-geo-launch-play" aria-hidden="true">▶</span>
           </a>
-          <a className="daily-geo-ranking" href={rankingUrl}>
+          <a className="daily-geo-ranking" href={rankingUrl} onClick={trackRanking}>
             Рейтинг дня
           </a>
         </div>
@@ -46,7 +52,7 @@ export default function DailyGeoCard() {
       <div className={leaders.length ? "daily-geo-leaders" : "daily-geo-art"}>
         <div className="daily-geo-leaders-header">
           <h3>Впереди сегодня</h3>
-          <a className="daily-geo-rank-shortcut" href={rankingUrl} aria-label="Рейтинг дня">
+          <a className="daily-geo-rank-shortcut" href={rankingUrl} aria-label="Рейтинг дня" onClick={trackRanking}>
             <span aria-hidden="true">↗</span>
           </a>
         </div>

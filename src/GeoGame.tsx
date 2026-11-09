@@ -13,6 +13,13 @@ import GeoPreview from "./GeoPreview";
 import GeoAbout from "./GeoAbout";
 import { GEO_GOALS, reachGoal } from "./analytics";
 import {
+  geoDailyAction,
+  trackDailyAction,
+  useDailyImpression,
+  useGeoResultAnalytics,
+  type GeoResultOrigin,
+} from "./geoAnalytics";
+import {
   GEO_DAILY_URL,
   geoDailyBoardUrl,
   geoDailyElapsed,
@@ -115,6 +122,7 @@ export default function GeoGame() {
   const dailyStatus = useGeoDailyStatus(daily);
   const [routeDay, setRouteDay] = useState<string>();
   const returnedToResult = useRef(false);
+  const resultOrigin = useRef<GeoResultOrigin>("played");
   useEffect(() => {
     if (!daily && access.resume && access.trial?.mode)
       chooseMode(access.trial.mode);
@@ -125,6 +133,7 @@ export default function GeoGame() {
   const [remaining, setRemaining] = useState(GEO_TIME_LIMIT_MS / 1000);
   const timeoutAction = useRef<() => void>(() => {});
   const [phase, setPhaseState] = useState<Phase>("welcome");
+  const dailyHeading = useDailyImpression("daily_intro", dailyStatus, daily && phase === "welcome");
   const phaseRef = useRef<Phase>("welcome");
   const setPhase = (value: Phase) => {
     phaseRef.current = value;
@@ -180,6 +189,15 @@ export default function GeoGame() {
     rankReady ? ranked.state.id : undefined,
     access.user?.id,
   );
+  const resultAnalytics = useGeoResultAnalytics({
+    runId: phase === "finished" ? ranked.state.id : undefined,
+    mode,
+    player: access.loading ? undefined : access.user ? "account" : "guest",
+    origin: resultOrigin.current,
+    score: total,
+    projected: rank?.projected,
+    saved: ranked.state.status === "saved",
+  });
   const answer = answers[round];
 
   function choosePoint(point: GeoPoint) {
@@ -574,11 +592,18 @@ export default function GeoGame() {
     }));
     answersRef.current = recovered;
     setAnswers(recovered);
+    resultOrigin.current = "played";
     if (resumedMode === "daily" && online.completed) {
+      resultOrigin.current = "reopened";
       setPhase("finished");
       return;
     }
-    reachGoal(replay ? GEO_GOALS.gameRestart : GEO_GOALS.gameStart, { mode });
+    reachGoal(replay ? GEO_GOALS.gameRestart : GEO_GOALS.gameStart, {
+      mode: resumedMode,
+      ...(resumedMode === "daily" && online.challenge.day
+        ? { route_day: online.challenge.day, resumed: recovered.length > 0 }
+        : {}),
+    });
     void loadRound(answersRef.current.length);
   }
   useEffect(() => {
@@ -602,6 +627,7 @@ export default function GeoGame() {
       }));
       answersRef.current = recovered;
       setAnswers(recovered);
+      resultOrigin.current = "restored";
       setPhase("finished");
     });
   }, [access.ready, phase]);
@@ -698,7 +724,11 @@ export default function GeoGame() {
       statsRef.current = nextStats;
       setStats(nextStats);
       saveGeoStats(nextStats, modeRef.current);
-      reachGoal(GEO_GOALS.gameComplete, { score, mode: modeRef.current });
+      reachGoal(GEO_GOALS.gameComplete, {
+        score,
+        mode: modeRef.current,
+        ...(modeRef.current === "daily" && routeDay ? { route_day: routeDay } : {}),
+      });
     }
   }
   function next() {
@@ -792,7 +822,7 @@ export default function GeoGame() {
                 {dailyStatus ? geoDailyLabel(dailyStatus.day) + " · " : ""}
                 5 МЕСТ · 500 ОЧКОВ
               </p>
-              <h2>Один маршрут для всех.</h2>
+              <h2 ref={dailyHeading}>Один маршрут для всех.</h2>
               <p>Одна попытка без входа. Новый маршрут в полночь по Москве.</p>
               {dailyStatus?.speedScoring && (
                 <p>Чем ближе точка и быстрее ответ, тем больше очков. Скорость влияет на 10% очков.</p>
@@ -801,16 +831,31 @@ export default function GeoGame() {
                 <button
                   className="primary"
                   disabled={ranked.state.status === "loading"}
-                  onClick={() => void start()}
+                  onClick={() => {
+                    trackDailyAction("daily_intro", geoDailyAction(dailyStatus?.attempt), dailyStatus?.day);
+                    void start();
+                  }}
                 >
                   {dailyStatus?.attempt?.completed ? "Мой результат"
                     : dailyStatus?.attempt ? "Продолжить маршрут" : "Начать маршрут"}{" "}
                   <span aria-hidden="true">→</span>
                 </button>
-                <a className="daily-geo-ranking" href={geoDailyBoardUrl(dailyStatus?.day)}>Рейтинг дня</a>
+                <a
+                  className="daily-geo-ranking"
+                  href={geoDailyBoardUrl(dailyStatus?.day)}
+                  onClick={() => trackDailyAction("daily_intro", "leaderboard", dailyStatus?.day)}
+                >
+                  Рейтинг дня
+                </a>
               </div>
               {error && <p role="alert">{error}</p>}
-              <a className="daily-geo-ranking" href="/geo/">Другие режимы «Где я?»</a>
+              <a
+                className="daily-geo-ranking"
+                href="/geo/"
+                onClick={() => trackDailyAction("daily_intro", "other_modes", dailyStatus?.day)}
+              >
+                Другие режимы «Где я?»
+              </a>
             </div>
             <div className="geo-welcome-art game-welcome-art"><GeoPreview /></div>
           </section>
@@ -935,7 +980,13 @@ export default function GeoGame() {
                   {welcomeAction}
                 </div>
               )}
-              <a className="daily-geo-ranking daily-geo-entry" href={GEO_DAILY_URL}>Маршрут дня →</a>
+              <a
+                className="daily-geo-ranking daily-geo-entry"
+                href={GEO_DAILY_URL}
+                onClick={() => trackDailyAction("geo_intro", "open_route")}
+              >
+                Маршрут дня →
+              </a>
             </div>
             <div className="geo-welcome-art game-welcome-art">
               <GeoPreview />
@@ -1187,12 +1238,12 @@ export default function GeoGame() {
           </section>
         )}
         {phase === "finished" && (
-          <section className="geo-summary" ref={result} tabIndex={-1}>
+          <section className="geo-summary" ref={result} tabIndex={-1} onClickCapture={resultAnalytics.trackResultClick}>
             <p className="eyebrow">
               {daily ? "Маршрут дня" : "Где я? · Результат"}
               {daily && routeDay ? " · " + geoDailyLabel(routeDay) : ""}
             </p>
-            <h1 className="geo-final-score">
+            <h1 className="geo-final-score" ref={resultAnalytics.scoreRef}>
               {geoPoints(total)} <span>из 500</span>
             </h1>
             {daily && ["complete", "saving", "saved"].includes(ranked.state.status) && (
@@ -1201,7 +1252,7 @@ export default function GeoGame() {
             {routeElapsed !== null && (
               <p className="geo-result-time">Время ответов — <strong>{geoDailyTime(routeElapsed)}</strong></p>
             )}
-            <div aria-live="polite">
+            <div aria-live="polite" ref={resultAnalytics.rankRef}>
               {rank && (
                 <GeoResultRank
                   rank={rank}
@@ -1216,9 +1267,18 @@ export default function GeoGame() {
             </div>
             {access.user && (
               daily ? (
-                <a className="primary" href={geoDailyBoardUrl(routeDay)}>Рейтинг маршрута</a>
+                <a
+                  className="primary"
+                  href={geoDailyBoardUrl(routeDay)}
+                  data-geo-result-action="leaderboard"
+                  onClick={() => trackDailyAction("result", "leaderboard", routeDay)}
+                >
+                  Рейтинг маршрута
+                </a>
               ) : (
-                <button className="primary" onClick={() => void start(true)}>Играть ещё</button>
+                <button className="primary" data-geo-result-action="replay" onClick={() => void start(true)}>
+                  Играть ещё
+                </button>
               )
             )}
             <SaveResult run={ranked} game="geo" hideShare={daily} compact />
