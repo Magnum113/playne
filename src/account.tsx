@@ -6,6 +6,7 @@ import {
   type ServerRun,
 } from "./rankedQueue";
 import { YandexLogin } from "./EmailPreferences";
+import { trackEmailSignup } from "./emailSignupAnalytics";
 import { rememberPersonalRecord } from "./recordCelebrationState";
 import {
   bindRecommendationRun,
@@ -181,6 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ) {
         loginReported.current = true;
         reachGoal(ACCOUNT_GOALS.loginSuccess, { provider: "yandex" });
+        trackEmailSignup("activated", data.emailSignup);
         const url = new URL(window.location.href);
         url.searchParams.delete("auth");
         window.history.replaceState(
@@ -316,12 +318,13 @@ export function GuestSavedNotice({ game }: { game: GameId }) {
     );
   return null;
 }
-export function GuestTrialPrompt({ game, id, mode, compact = false, showIntro = true }: {
+export function GuestTrialPrompt({ game, id, mode, compact = false, showIntro = true, atResult = false }: {
   game: GameId;
   id?: string;
   mode?: GameMode;
   compact?: boolean;
   showIntro?: boolean;
+  atResult?: boolean;
 }) {
   const { user, trial, ready, loading, refresh } = useGuestTrial(game);
   if (user) return null;
@@ -333,6 +336,7 @@ export function GuestTrialPrompt({ game, id, mode, compact = false, showIntro = 
         game={game}
         returnPath={guestLoginReturn(game, id ?? trial?.id, mode ?? trial?.mode)}
         showEmailConsent={!compact}
+        signupSurface={atResult ? "game_result" : "game_entry"}
       >
         {compact ? "Войти и сохранить в рейтинг" : (
           <>Войти и сохранить результат <span aria-hidden="true">→</span></>
@@ -848,6 +852,7 @@ export function SaveResult({ run, game, day, compact = false }: {
         mode={game === "geo" ? run.mode : undefined}
         compact={compact}
         showIntro={game !== "naglaz"}
+        atResult
       />
     );
   const waiting =

@@ -116,6 +116,11 @@ export const THEME_GOALS = {
   darkEnabled: "playne_dark_theme_enabled",
 } as const;
 
+export const EMAIL_GOALS = {
+  requested: "playne_email_signup_request",
+  activated: "playne_email_signup_active",
+} as const;
+
 export const ACCOUNT_GOALS = {
   loginStart: "account_yandex_login_start",
   loginSuccess: "account_yandex_login_success",
@@ -143,6 +148,7 @@ export type MetrikaGoal =
   | Values<typeof SHADE_GOALS>
   | Values<typeof GEO_GOALS>
   | Values<typeof ACCOUNT_GOALS>
+  | Values<typeof EMAIL_GOALS>
   | Values<typeof PRESSURE_GOALS>
   | Values<typeof LINE_GOALS>
   | Values<typeof BRAIN_GOALS>

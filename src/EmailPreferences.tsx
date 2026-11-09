@@ -4,6 +4,8 @@ import { TextField, FieldFeedback } from "./FormField";
 import { api, useAuth } from "./account";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { getEmailAction } from "./emailNavigation";
+import { emailSignupOrigin } from "./emailSignup";
+import { trackEmailSignup } from "./emailSignupAnalytics";
 import {
   EMAIL_CONSENT_VERSION,
   EMAIL_LABEL,
@@ -72,6 +74,7 @@ export function YandexLogin({
   children,
   disabled = false,
   showEmailConsent = true,
+  signupSurface = "account_login",
 }: {
   returnPath: string;
   source?: string;
@@ -79,6 +82,7 @@ export function YandexLogin({
   children?: ReactNode;
   disabled?: boolean;
   showEmailConsent?: boolean;
+  signupSurface?: "account_login" | "game_result" | "game_entry";
 }) {
   const { emailSignupAvailable } = useAuth();
   const [checked, setChecked] = useState(false),
@@ -96,11 +100,14 @@ export function YandexLogin({
           setError("Подтверди обработку email или убери подписку.");
           return;
         }
+        const signupOrigin = emailSignupOrigin(signupSurface);
+        trackEmailSignup("requested", signupOrigin);
         const result = await api("/auth/yandex/start", "POST", {
           return: returnPath,
           emailOptIn: true,
           consentVersion: EMAIL_CONSENT_VERSION,
           dataConsent: true,
+          signupOrigin,
         });
         window.location.assign(result.url);
       } else
@@ -165,7 +172,8 @@ export function EmailAction() {
     setBusy(true);
     setError("");
     try {
-      await api("/email/" + action.kind, "POST", { token: action.token });
+      const result = await api("/email/" + action.kind, "POST", { token: action.token });
+      if (action.kind === "confirm") trackEmailSignup("activated", result.emailSignup);
       setDone(true);
       window.dispatchEvent(new Event(EMAIL_SETTINGS_UPDATED));
     } catch (e) {
@@ -320,6 +328,8 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
     setBusy(true);
     setError("");
     setMessage("");
+    const signupOrigin = enabled ? emailSignupOrigin("account_settings") : null;
+    if (signupOrigin) trackEmailSignup("requested", signupOrigin);
     try {
       const s = await api(
         "/email/settings",
@@ -330,9 +340,11 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
               email: address,
               consentVersion: EMAIL_CONSENT_VERSION,
               dataConsent: data,
+              signupOrigin,
             }
           : { enabled: false },
       );
+      if (enabled) trackEmailSignup("activated", s.emailSignup);
       apply(s);
       window.dispatchEvent(new Event(EMAIL_SETTINGS_UPDATED));
       setChecked(false);

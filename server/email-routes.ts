@@ -21,6 +21,7 @@ import {
 } from "./email-templates";
 
 import { emailConsentPurpose } from "../src/emailConsent";
+import { parseEmailSignupOrigin } from "../src/emailSignup";
 import { validReminderSchedule } from "./email-reminders-policy";
 const activeEmailConsentSQL =
   "EXISTS(SELECT 1 FROM playne_email_contacts contact WHERE contact.user_id=o.user_id AND contact.generation=o.generation AND contact.enabled AND contact.verified_at IS NOT NULL AND (o.kind<>'reminder' OR (contact.purpose='general' AND contact.consent_version='playne-emails-2026-10-30-v1')))";
@@ -62,6 +63,7 @@ export async function registerEmailRoutes(
     async (req, reply) => {
       const user = await requireUser(req),
         body = req.body as any;
+      let emailSignup: string | null = null;
       if (body?.enabled === false) {
         await transaction(async (c) => {
           await c.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
@@ -79,7 +81,11 @@ export async function registerEmailRoutes(
           throw emailError("Подтверди согласие на письма и обработку адреса.");
         if (!mailConfigured(config))
           throw emailError("Письма пока недоступны. Попробуй позже.", 503);
-        await transaction((c) =>
+        const origin = parseEmailSignupOrigin(body.signupOrigin);
+        const signupOrigin = origin && ["footer", "account_settings"].includes(origin.surface)
+          ? body.signupOrigin as string
+          : null;
+        emailSignup = (await transaction((c) =>
           requestEmailSubscription(
             c,
             config,
@@ -88,10 +94,11 @@ export async function registerEmailRoutes(
             "account",
             Date.now(),
             body.consentVersion,
+            signupOrigin,
           ),
-        );
+        )) ?? null;
       }
-      return emailSettings(pool, config, user.id);
+      return { ...await emailSettings(pool, config, user.id), emailSignup };
     },
   );
   app.post("/api/email/reminders", async (req) => {
@@ -126,10 +133,10 @@ export async function registerEmailRoutes(
     "/api/email/confirm",
     { config: { rateLimit: { max: 15, timeWindow: "1 minute" } } },
     async (req) => {
-      await transaction((c) =>
+      const emailSignup = await transaction((c) =>
         confirmEmailSubscription(c, config, (req.body as any)?.token),
       );
-      return { ok: true };
+      return { ok: true, emailSignup };
     },
   );
   const unsubscribe = async (value: unknown) => {

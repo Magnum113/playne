@@ -1,9 +1,11 @@
 // @vitest-environment happy-dom
+// @vitest-environment-options {"url":"https://playne.ru/"}
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import FooterSignup from "../src/FooterSignup";
 import FooterLinks from "../src/FooterLinks";
+import { EMAIL_GOALS, METRIKA_COUNTER_ID } from "../src/analytics";
 import {
   EMAIL_CONSENT_VERSION,
   EMAIL_SETTINGS_UPDATED,
@@ -44,6 +46,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   box.remove();
+  delete window.ym;
   vi.unstubAllGlobals();
 });
 
@@ -68,10 +71,13 @@ it("does not offer sign-in or subscription until auth has resolved", async () =>
 });
 
 it("keeps subscriptions opt-in, including upgrading a rank-only subscriber, and hides the saved offer", async () => {
+  const ym = vi.fn();
+  window.ym = ym;
   mock.api.mockImplementation(async (_path, method) => ({
     ...base,
     enabled: true,
     purpose: method === "POST" ? "general" : "rank",
+    emailSignup: method === "POST" ? "footer:home" : null,
   }));
   await act(async () => root.render(<FooterSignup />));
   const input = box.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
@@ -79,17 +85,23 @@ it("keeps subscriptions opt-in, including upgrading a rank-only subscriber, and 
   expect(box.querySelectorAll("input")).toHaveLength(1);
   expect(box.textContent).not.toContain(base.email);
   expect(mock.api).toHaveBeenCalledTimes(1);
+  expect(ym).not.toHaveBeenCalled();
   await act(async () => input.click());
   expect(mock.api).toHaveBeenCalledWith("/email/settings", "POST", {
     enabled: true,
     email: base.email,
     consentVersion: EMAIL_CONSENT_VERSION,
     dataConsent: true,
+    signupOrigin: "footer:home",
   });
   expect(box.querySelector(".footer-signup")).toBeNull();
   expect(box.querySelector('[role="status"]')?.textContent).toBe(
     "Подписка включена.",
   );
+  expect(ym.mock.calls).toEqual([
+    [METRIKA_COUNTER_ID, "reachGoal", EMAIL_GOALS.requested, { surface: "footer", screen: "home" }],
+    [METRIKA_COUNTER_ID, "reachGoal", EMAIL_GOALS.activated, { surface: "footer", screen: "home" }],
+  ]);
 });
 
 it("does not show an offer to existing general subscribers", async () => {

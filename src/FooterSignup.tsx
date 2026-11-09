@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { api, useAuth } from "./account";
 import { YandexLogin } from "./EmailPreferences";
+import { emailSignupOrigin } from "./emailSignup";
+import { trackEmailSignup } from "./emailSignupAnalytics";
 import {
   EMAIL_CONSENT_VERSION,
   EMAIL_LABEL,
@@ -13,6 +15,7 @@ type Settings = {
   enabled: boolean;
   pending: boolean;
   purpose?: "general" | "rank" | null;
+  emailSignup?: string | null;
 };
 type FooterSignupState =
   | "guest"
@@ -133,13 +136,17 @@ function MemberSignup() {
     request.current++;
     setBusy(true);
     setError("");
+    const signupOrigin = emailSignupOrigin("footer");
+    trackEmailSignup("requested", signupOrigin);
     try {
       const value = await api<Settings>("/email/settings", "POST", {
         enabled: true,
         email: settings.email,
         consentVersion: EMAIL_CONSENT_VERSION,
         dataConsent: true,
+        signupOrigin,
       });
+      trackEmailSignup("activated", value.emailSignup);
       setSettings(value);
       setAnnouncement(
         value.enabled ? "Подписка включена." : "Подтверди подписку в письме.",

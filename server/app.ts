@@ -33,6 +33,7 @@ import {
   registerBrainRoutes,
 } from "./brain";
 import { emailConsentPurpose } from "../src/emailConsent";
+import { parseEmailSignupOrigin } from "../src/emailSignup";
 import {
   lockPublications,
   notificationSnapshot,
@@ -40,6 +41,8 @@ import {
   requestEmailSubscription,
   mailConfigured,
   normalizeEmail,
+  readEmailToken,
+  signEmailToken,
   type EmailConfig,
 } from "./email-core";
 import {
@@ -305,12 +308,18 @@ export async function buildApp(
   app.get("/api/me", async (req, reply) => {
     const b = browser(req, reply);
     const signed = await user(req);
+    const receipt = readEmailToken(emailConfig, req.cookies.playne_email_signup, "signup_receipt");
+    const emailSignup = signed && receipt?.session === hash(req.cookies.playne_session ?? "")
+      ? receipt?.origin : undefined;
+    if (req.cookies.playne_email_signup)
+      reply.clearCookie("playne_email_signup", { path: "/api/me" });
     const trials = await pool.query(
       "SELECT t.game,t.run_id AS id,t.consumed_at,g.mode,g.score_units,g.completed_at,g.published_at,g.owner_id FROM playne_guest_trials t LEFT JOIN playne_games g ON g.id=t.run_id WHERE t.browser_hash=$1",
       [b],
     );
     return {
       user: signed,
+      ...(emailSignup ? { emailSignup } : {}),
       emailSignupAvailable:
         !!emailConfig.yandexEmail && mailConfigured(emailConfig),
       trials: Object.fromEntries(
@@ -354,8 +363,11 @@ export async function buildApp(
       verifier = token();
     const input = (req.method === "POST" ? req.body : req.query) as any;
     const returnPath = safeReturn(input?.return);
+    const origin = optIn ? parseEmailSignupOrigin(input.signupOrigin) : null;
+    const signupOrigin = origin && ["account_login", "game_result", "game_entry"].includes(origin.surface)
+      ? input.signupOrigin : null;
     await pool.query(
-      "INSERT INTO playne_oauth_states(state_hash,browser_hash,verifier,return_path,expires_at,email_opt_in,email_consent_version) VALUES($1,$2,$3,$4,now()+interval '10 minutes',$5,$6)",
+      "INSERT INTO playne_oauth_states(state_hash,browser_hash,verifier,return_path,expires_at,email_opt_in,email_consent_version,email_signup_origin) VALUES($1,$2,$3,$4,now()+interval '10 minutes',$5,$6,$7)",
       [
         hash(state),
         browser(req, reply),
@@ -363,6 +375,7 @@ export async function buildApp(
         returnPath,
         optIn,
         optIn ? input.consentVersion : null,
+        signupOrigin,
       ],
     );
     const query = new URLSearchParams({
@@ -567,6 +580,7 @@ export async function buildApp(
           );
         for (const claim of claims)
           await recordEmailGameCompletion(client, claim.id);
+        let signupReceipt: string | undefined;
         if (
           flow.email_opt_in &&
           emailConsentPurpose(flow.email_consent_version)
@@ -574,7 +588,7 @@ export async function buildApp(
           // Mail setup must never roll back a successful sign-in or saved game.
           await client.query("SAVEPOINT email_signup");
           try {
-            await requestEmailSubscription(
+            const emailSignup = await requestEmailSubscription(
               client,
               emailConfig,
               userId,
@@ -582,15 +596,27 @@ export async function buildApp(
               "yandex",
               Date.now(),
               flow.email_consent_version,
+              flow.email_signup_origin,
             );
+            if (emailSignup)
+              signupReceipt = signEmailToken(emailConfig, "signup_receipt", {
+                origin: emailSignup,
+                session: hash(sid),
+                exp: Date.now() + 5 * 60_000,
+              });
             await client.query("RELEASE SAVEPOINT email_signup");
           } catch {
+            signupReceipt = undefined;
             await client.query("ROLLBACK TO SAVEPOINT email_signup");
             await client.query("RELEASE SAVEPOINT email_signup");
           }
         }
         await client.query("COMMIT");
         reply.setCookie("playne_session", sid, options);
+        if (signupReceipt)
+          reply.setCookie("playne_email_signup", signupReceipt, {
+            ...options, path: "/api/me", maxAge: 5 * 60,
+          });
       } catch (e) {
         await client.query("ROLLBACK");
         throw e;

@@ -287,6 +287,7 @@ export async function requestEmailSubscription(
   source: string,
   now = Date.now(),
   consentVersion = EMAIL_CONSENT_VERSION,
+  signupOrigin: string | null = null,
 ) {
   const purpose = emailConsentPurpose(consentVersion);
   if (!purpose) throw emailError("Подтверди согласие на письма.");
@@ -371,7 +372,7 @@ export async function requestEmailSubscription(
     existing?.variant ?? (["A", "B", "C"] as const)[randomInt(3)];
   const contact = (
     await c.query(
-      `INSERT INTO playne_email_contacts(user_id,email,variant,consent_at,consent_version,consent_source,requested_at,purpose,reminders_enabled) VALUES($1,$2,$3,$4,$5,$6,$4,$7,$8) ON CONFLICT(user_id) DO UPDATE SET email=excluded.email,provider_unsubscribed=CASE WHEN playne_email_contacts.email=excluded.email THEN playne_email_contacts.provider_unsubscribed ELSE false END,verified_at=NULL,enabled=false,generation=gen_random_uuid(),requested_at=excluded.requested_at,consent_at=excluded.consent_at,consent_version=excluded.consent_version,consent_source=excluded.consent_source,purpose=excluded.purpose,reminders_enabled=excluded.reminders_enabled,updated_at=now() RETURNING *`,
+      `INSERT INTO playne_email_contacts(user_id,email,variant,consent_at,consent_version,consent_source,requested_at,purpose,reminders_enabled,signup_origin) VALUES($1,$2,$3,$4,$5,$6,$4,$7,$8,$9) ON CONFLICT(user_id) DO UPDATE SET email=excluded.email,provider_unsubscribed=CASE WHEN playne_email_contacts.email=excluded.email THEN playne_email_contacts.provider_unsubscribed ELSE false END,verified_at=NULL,enabled=false,generation=gen_random_uuid(),requested_at=excluded.requested_at,consent_at=excluded.consent_at,consent_version=excluded.consent_version,consent_source=excluded.consent_source,purpose=excluded.purpose,reminders_enabled=excluded.reminders_enabled,signup_origin=excluded.signup_origin,updated_at=now() RETURNING *`,
       [
         userId,
         email,
@@ -381,12 +382,13 @@ export async function requestEmailSubscription(
         source,
         purpose,
         purpose === "general",
+        signupOrigin,
       ],
     )
   ).rows[0];
   await c.query(
-    "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,$2,$3,$4)",
-    [userId, "requested", consentVersion, source],
+    "INSERT INTO playne_email_consents(user_id,action,version,source,signup_origin) VALUES($1,$2,$3,$4,$5)",
+    [userId, "requested", consentVersion, source, signupOrigin],
   );
   await c.query(
     "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,$2,$3,$4)",
@@ -402,13 +404,15 @@ export async function requestEmailSubscription(
       [new Date(now), userId],
     );
     await c.query(
-      "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,'confirmed',$2,$3)",
+      "INSERT INTO playne_email_consents(user_id,action,version,source,signup_origin) VALUES($1,'confirmed',$2,$3,$4)",
       [
         userId,
         consentVersion,
         yandexAddress ? "yandex_profile" : "verified_address",
+        signupOrigin,
       ],
     );
+    return signupOrigin;
   } else if (email)
     await c.query(
       `INSERT INTO playne_email_outbox(user_id,generation,kind,variant,experiment,payload) VALUES($1,$2,'verify',$3,$4,$5)`,
@@ -454,7 +458,7 @@ export async function confirmEmailSubscription(
   ).rows[0];
   if (!contact?.email || !contact.requested_at)
     throw emailError("Ссылка устарела. Запроси новое письмо в кабинете.", 410);
-  if (contact.enabled && contact.verified_at) return contact.user_id as string;
+  if (contact.enabled && contact.verified_at) return null;
   const blocked = (
     await c.query(
       "SELECT reason FROM playne_email_suppressions WHERE address_hash=$1 AND expires_at>now()",
@@ -472,10 +476,10 @@ export async function confirmEmailSubscription(
     [new Date(now), contact.user_id],
   );
   await c.query(
-    "INSERT INTO playne_email_consents(user_id,action,version,source) VALUES($1,$2,$3,$4)",
-    [contact.user_id, "confirmed", contact.consent_version, "confirmation"],
+    "INSERT INTO playne_email_consents(user_id,action,version,source,signup_origin) VALUES($1,$2,$3,$4,$5)",
+    [contact.user_id, "confirmed", contact.consent_version, "confirmation", contact.signup_origin],
   );
-  return contact.user_id as string;
+  return contact.signup_origin as string | null;
 }
 export async function emailSettings(
   c: DB,

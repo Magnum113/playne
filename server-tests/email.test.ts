@@ -148,7 +148,7 @@ describe("Email capabilities and templates", () => {
 (db ? describe : describe.skip)("Email PostgreSQL integration", () => {
   let pool: Pool, admin: Pool, app: Awaited<ReturnType<typeof buildApp>>;
   let oauthEmail: unknown = "oauth@example.com";
-  async function login(optIn = false) {
+  async function login(optIn = false, signupOrigin?: string) {
     const start = await app.inject(
       optIn
         ? {
@@ -159,6 +159,7 @@ describe("Email capabilities and templates", () => {
               emailOptIn: true,
               consentVersion: EMAIL_CONSENT_VERSION,
               dataConsent: true,
+              signupOrigin,
               return: "/account/",
             },
           }
@@ -333,19 +334,27 @@ describe("Email capabilities and templates", () => {
   });
   it("confirms idempotently; old token cannot reenable after unsubscribe", async () => {
     const id = await user();
-    const c = await subscribe(id);
+    await tx((c) => requestEmailSubscription(
+      c, config, id, "confirm@example.com", "account",
+      Date.now(), EMAIL_CONSENT_VERSION, "footer:colorfle",
+    ));
+    const contact = (
+      await pool.query("SELECT generation FROM playne_email_contacts WHERE user_id=$1", [id])
+    ).rows[0];
     const token = signEmailToken(config, "confirm", {
-      g: c.generation,
+      g: contact.generation,
       exp: Date.now() + 3600000,
     });
-    await tx((c) => confirmEmailSubscription(c, config, token));
-    expect(
-      (
-        await pool.query(
-          "SELECT count(*)::int n FROM playne_email_consents WHERE action='confirmed'",
-        )
-      ).rows[0].n,
-    ).toBe(1);
+    const confirm = () => app.inject({
+      method: "POST",
+      url: "/api/email/confirm",
+      headers: { origin: config.origin },
+      payload: { token },
+    });
+    expect((await confirm()).json()).toEqual({ ok: true, emailSignup: "footer:colorfle" });
+    expect((await confirm()).json()).toEqual({ ok: true, emailSignup: null });
+    const confirmed = await pool.query("SELECT signup_origin FROM playne_email_consents WHERE action='confirmed'");
+    expect(confirmed.rows).toEqual([{ signup_origin: "footer:colorfle" }]);
     await tx((c) => stopEmails(c, config, id));
     await expect(
       tx((c) => confirmEmailSubscription(c, config, token)),
@@ -784,12 +793,19 @@ describe("Email capabilities and templates", () => {
     });
   });
   it("activates opted-in Yandex email immediately without sending any confirmation", async () => {
-    expect((await login(true)).headers.location).toContain("auth=success");
+    const callback = await login(true, "game_result:naglaz");
+    expect(callback.headers.location).toContain("auth=success");
+    const cookie = callback.cookies.map((item) => item.name + "=" + item.value).join("; ");
+    const me = await app.inject({ url: "/api/me", headers: { cookie } });
+    expect(me.json().emailSignup).toBe("game_result:naglaz");
+    expect(me.cookies.find((item) => item.name === "playne_email_signup"))
+      .toMatchObject({ value: "", path: "/api/me" });
     const contact = (await pool.query("SELECT * FROM playne_email_contacts"))
       .rows[0];
     expect(contact).toMatchObject({
       email: "oauth@example.com",
       enabled: true,
+      signup_origin: "game_result:naglaz",
     });
     expect(contact.verified_at).toBeTruthy();
     expect(

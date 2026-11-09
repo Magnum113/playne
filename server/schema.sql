@@ -91,6 +91,7 @@ CREATE INDEX IF NOT EXISTS playne_brain_completed_history ON playne_games(owner_
 CREATE INDEX IF NOT EXISTS playne_brain_private_history ON playne_games(owner_id,created_at DESC) WHERE game IN('flash','rotate','slide','dispatch');
 ALTER TABLE playne_oauth_states ADD COLUMN IF NOT EXISTS email_opt_in boolean NOT NULL DEFAULT false;
 ALTER TABLE playne_oauth_states ADD COLUMN IF NOT EXISTS email_consent_version text;
+ALTER TABLE playne_oauth_states ADD COLUMN IF NOT EXISTS email_signup_origin text;
 CREATE TABLE IF NOT EXISTS playne_email_contacts (
  user_id uuid PRIMARY KEY REFERENCES playne_users(id) ON DELETE CASCADE,
  email text, verified_at timestamptz, enabled boolean NOT NULL DEFAULT false,
@@ -102,6 +103,7 @@ CREATE TABLE IF NOT EXISTS playne_email_contacts (
  CHECK(NOT enabled OR (email IS NOT NULL AND verified_at IS NOT NULL AND consent_at IS NOT NULL))
 );
 ALTER TABLE playne_email_contacts ADD COLUMN IF NOT EXISTS provider_unsubscribed boolean NOT NULL DEFAULT false;
+ALTER TABLE playne_email_contacts ADD COLUMN IF NOT EXISTS signup_origin text;
 CREATE UNIQUE INDEX IF NOT EXISTS playne_email_one_address ON playne_email_contacts(lower(email)) WHERE email IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS playne_email_generation ON playne_email_contacts(generation);
 CREATE TABLE IF NOT EXISTS playne_email_consents (
@@ -110,6 +112,7 @@ CREATE TABLE IF NOT EXISTS playne_email_consents (
  action text NOT NULL, version text NOT NULL, source text NOT NULL,
  created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE playne_email_consents ADD COLUMN IF NOT EXISTS signup_origin text;
 CREATE TABLE IF NOT EXISTS playne_email_suppressions (
  address_hash char(64) PRIMARY KEY, reason text NOT NULL,
  expires_at timestamptz NOT NULL DEFAULT now()+interval '180 days'
