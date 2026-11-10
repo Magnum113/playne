@@ -645,6 +645,17 @@
   padding-inline: var(--space-3);
   font-size: 14px;
 }
+.flow-result .result-recommendation {
+  margin-block: var(--control-group-gap) 0;
+}
+.flow-result .result-next-card {
+  --result-next-tint: #e7edd6;
+  --text: #25463d;
+  --muted: #365b40;
+  --line: #c9d7bb;
+  --mint: #4b7634;
+  --panel: #fff9e8;
+}
 .flow-result-links {
   display: flex;
   flex-wrap: wrap;

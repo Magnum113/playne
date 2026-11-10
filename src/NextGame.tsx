@@ -9,6 +9,7 @@ import {
   trackRecommendationShown,
   type ResultOffer,
 } from "./resultRecommendation";
+import "./game-results.css";
 
 const next: Partial<Record<GameId, GameId>> = {
   circle: "pressure",
@@ -99,7 +100,11 @@ export function ResultRecommendationCard({
   );
 }
 
-function RecommendationArt({ game }: { game: "naglaz" | "colorfle" | "circle" }) {
+function RecommendationArt({
+  game,
+}: {
+  game: (typeof resultRecommendations)[keyof typeof resultRecommendations];
+}) {
   return (
     <svg viewBox="0 0 36 36" width="32" height="32" fill="none">
       {game === "naglaz" && (
@@ -124,6 +129,20 @@ function RecommendationArt({ game }: { game: "naglaz" | "colorfle" | "circle" })
         <>
           <circle cx="18" cy="18" r="12" stroke="var(--purple)" strokeWidth="3" />
           <circle cx="18" cy="18" r="2.5" fill="var(--mint)" />
+        </>
+      )}
+      {game === "line" && (
+        <>
+          <path
+            d="M9 25V11h18v14"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinejoin="round"
+          />
+          <circle cx="9" cy="25" r="3.5" fill="currentColor" />
+          <circle cx="9" cy="11" r="3.5" fill="currentColor" />
+          <circle cx="27" cy="11" r="3.5" fill="currentColor" />
+          <circle cx="27" cy="25" r="3.5" fill="currentColor" />
         </>
       )}
     </svg>

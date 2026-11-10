@@ -832,6 +832,9 @@ describe("Рой: complete player journeys", () => {
       await click(`Очередь ${lane + 1}:`);
     expect(box.textContent).toContain("Готово!");
     expect(box.textContent).toContain("1000");
+    const recommendation = box.querySelector(".flow-result .result-next-card");
+    expect(recommendation?.getAttribute("href")).toBe("/one-line/");
+    expect(recommendation?.textContent).toContain("Одной линией");
     expect(mocks.api).toHaveBeenCalledWith(
       "/flow/finish",
       "POST",

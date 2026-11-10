@@ -60,6 +60,7 @@ import {
 } from "./flowPresentation";
 import { flowSoundscape } from "./flowSoundscape";
 import ShareResult from "./ShareResult";
+import NextGame from "./NextGame";
 import ChallengeComparison from "./ChallengeComparison";
 import { readChallengeToken } from "./ChallengeContext";
 import { challengeTask, type PublicChallenge } from "./challenges";
@@ -1672,6 +1673,7 @@ export function FlowSession({
                   }}
                 />
               </div>
+              <NextGame game="flow" runId={active.id} />
               <div className="flow-result-links">
                 <button type="button" onClick={() => replayAttempt("replay")}>
                   Переиграть

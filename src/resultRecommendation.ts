@@ -6,6 +6,7 @@ export const resultRecommendations = {
   geo: "naglaz",
   naglaz: "colorfle",
   colorfle: "circle",
+  flow: "line",
 } as const;
 
 type Source = keyof typeof resultRecommendations;

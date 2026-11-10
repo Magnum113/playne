@@ -79,3 +79,15 @@ it("measures both Colorfle cards separately and attributes the selected mode onl
     [PLAY_GOALS.nextGameCompleted, { source: "result_card", from_game: "colorfle", game: "circle" }],
   ]);
 });
+
+it("attributes a Swarm recommendation to the accepted One Line result", () => {
+  const offer = { from: "flow" } as const;
+  trackRecommendationShown(offer, "swarm-result");
+  trackRecommendationClick(offer, "swarm-result", true);
+  bindRecommendationRun("line", "line-run", "classic");
+  trackRecommendationCompletion("line", "line-run", "classic");
+  expect(ym.mock.calls.map((call) => call.slice(2))).toEqual(
+    [PLAY_GOALS.nextGameShown, PLAY_GOALS.nextGame, PLAY_GOALS.nextGameCompleted]
+      .map((goal) => [goal, { source: "result_card", from_game: "flow", game: "line" }]),
+  );
+});
