@@ -1,5 +1,5 @@
 /*! @license React Bits ElectricBorder — Copyright (c) 2026 David Haz
- * MIT + Commons Clause. Full terms: /licenses/react-bits-electric-border.md
+ * MIT + Commons Clause. Full terms: licenses/react-bits-electric-border.md
  * Source: https://reactbits.dev/animations/electric-border
  */
 import { useEffect, useRef, useState } from 'react';
