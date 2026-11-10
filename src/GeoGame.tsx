@@ -1200,6 +1200,9 @@ export default function GeoGame() {
             <div>
               <p className="eyebrow">{answer.location.country}</p>
               <h2>{answer.location.name}</h2>
+              {answer.location.note && (
+                <p className="geo-location-description">{answer.location.note}</p>
+              )}
             </div>
             <div className="geo-round-result">
               {answer.timedOut && (

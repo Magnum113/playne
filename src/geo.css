@@ -315,6 +315,12 @@
   line-height: 1.6;
   margin-bottom: 0;
 }
+.geo-result .geo-location-description {
+  margin-block: 0;
+}
+.geo-result .geo-location-note {
+  display: none;
+}
 .geo-round-result {
   display: flex;
   flex-direction: column;
@@ -1120,6 +1126,12 @@ a.geo-result-rank:hover {
   .geo-playing .geo-result {
     padding: 16px;
     gap: 16px;
+  }
+  .geo-result .geo-location-description {
+    display: none;
+  }
+  .geo-result .geo-location-note {
+    display: block;
   }
 }
 @media (max-width: 420px) {
