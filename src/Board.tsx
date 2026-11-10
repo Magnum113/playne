@@ -5,6 +5,8 @@ import Silhouette from "./Silhouette";
 import { resultLayout } from "./resultLayout";
 import { clamp, MAX_RATIO, meters, score, errorLabel } from "./game";
 
+const FIELD_HEIGHT = 390;
+
 function labelLines(name: string) {
   const lines: string[] = [];
   for (const word of name.split(" ")) {
@@ -68,9 +70,22 @@ export default function Board({
     m.addEventListener("change", update);
     return () => m.removeEventListener("change", update);
   }, []);
+  // A short viewport caps the SVG height. Widen its coordinates to fill the panel without stretching the objects.
+  const [fittedWidth, setFittedWidth] = useState(0);
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (height > 0) setFittedWidth(Math.round((width / height) * FIELD_HEIGHT));
+    });
+    observer.observe(svg);
+    return () => observer.disconnect();
+  }, []);
   const horizontal = reference.axis === "x";
-  const W = narrow ? 420 : 840,
-    H = horizontal ? 255 : 390;
+  const sceneWidth = narrow ? 420 : 840;
+  const W = Math.max(sceneWidth, fittedWidth),
+    H = FIELD_HEIGHT;
   const referenceLane = horizontal ? W * .42 - 24 : W / 2 - 60;
   const targetLane = horizontal ? W * .54 - 24 : W / 2 - 60;
   // Both dimensions share one ground line and two side-by-side lanes.
@@ -89,7 +104,7 @@ export default function Board({
   const targetScale = (r: number) => ((reference.size * r) / target.size) * k;
   const s = targetScale(ratio),
     correct = targetScale(ratio + (actual - ratio) * progress);
-  const baseY = horizontal ? 185 : 320;
+  const baseY = H - 70;
   const originX = horizontal ? W * 0.46 : W * 0.72;
   const targetX = (scale: number) =>
     horizontal ? originX : originX - (target.width * scale) / 2;
@@ -161,11 +176,12 @@ export default function Board({
     </g>
   );
   return (
-    <div className={`board-wrap${horizontal ? " board-wrap-horizontal" : ""}`}>
+    <div className="board-wrap">
       <svg
         ref={svgRef}
         className="board"
         viewBox={`0 0 ${W} ${H}`}
+        style={{ aspectRatio: `${sceneWidth} / ${H}` }}
         aria-label={`Сравнение: ${reference.name} и ${target.name}`}
         onPointerMove={move}
         onPointerUp={end}

@@ -1758,9 +1758,6 @@ footer { flex-wrap: wrap; }
   overflow-wrap: anywhere;
 }
 
-.board-wrap-horizontal .board { aspect-ratio: 840 / 255; }
-@media (max-width: 599px) { .board-wrap-horizontal .board { aspect-ratio: 420 / 255; height: auto; min-height: 0; } }
-
 /* Navigation and email share one footer row when the content fits. */
 .site-footer-content {
   flex: 0 0 100%;
