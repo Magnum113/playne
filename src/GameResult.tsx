@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { SaveResult as Status, type RankedRun, type GameId } from "./account";
 import NextGame from "./NextGame";
 import ShareResult from "./ShareResult";
@@ -10,12 +11,14 @@ export function SaveResult({
   hideShare = false,
   compact = false,
   day,
+  children,
 }: {
   run: RankedRun;
   game: GameId;
   hideShare?: boolean;
   compact?: boolean;
   day?: string;
+  children?: ReactNode;
 }) {
   const token =
     typeof window === "undefined"
@@ -45,6 +48,7 @@ export function SaveResult({
       ) : (
         <Status run={run} game={game} day={day} compact={compact} />
       )}
+      {children}
       {card && <NextGame game={game} runId={run.state.id} compact={compact} />}
       {complete && !hideShare && <ShareResult runId={run.state.id} />}
       {complete && !card && <NextGame game={game} />}

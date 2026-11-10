@@ -119,9 +119,10 @@ let refreshAuth: () => Promise<void> = async () => {};
 const rankedQueue = createRankedQueue(api, {
   onUnauthorized: () => void refreshAuth(),
   onRecordResult: rememberPersonalRecord,
+  onStarted: (run) => bindRecommendationRun(run.game, run.id, run.mode),
   onCompleted: (run, score) => {
     trackChallengeComplete(run, score);
-    trackRecommendationCompletion(run.game, run.id);
+    trackRecommendationCompletion(run.game, run.id, run.mode);
   },
   onPublished: (run, score) =>
     trackPublished(run.id, {
@@ -517,7 +518,7 @@ export function useRankedRun<G extends GameId>(game: G) {
       .then((data) => {
         if (current.current === active && data && !data.completed) {
           if (challenge) trackChallengeStart(data, !!auth.user);
-          else bindRecommendationRun(game, data.id);
+          else bindRecommendationRun(game, data.id, data.mode ?? data.challenge.mode);
         }
         return activate(data, generation);
       })

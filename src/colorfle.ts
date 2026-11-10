@@ -6,6 +6,8 @@ export const SHADE_TIME_LIMIT_MS = 30_000;
 export type ShadeMode = "classic" | "timed";
 export const validShadeMode = (v: unknown): v is ShadeMode =>
   v === "classic" || v === "timed";
+export const alternateShadeMode = (mode: ShadeMode): ShadeMode =>
+  mode === "classic" ? "timed" : "classic";
 export const shadeModeName = (mode: ShadeMode) =>
   mode === "timed" ? "На время" : "Без таймера";
 export type HSV = { h: number; s: number; v: number };

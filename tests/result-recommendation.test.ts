@@ -21,9 +21,9 @@ afterEach(() => {
 });
 
 it("attributes only the accepted destination run, and counts each step once", () => {
-  trackRecommendationShown("geo", "private-geo-run");
-  trackRecommendationShown("geo", "private-geo-run");
-  trackRecommendationClick("geo", "private-geo-run", true);
+  trackRecommendationShown({ from: "geo" }, "private-geo-run");
+  trackRecommendationShown({ from: "geo" }, "private-geo-run");
+  trackRecommendationClick({ from: "geo" }, "private-geo-run", true);
   bindRecommendationRun("colorfle", "unrelated-color-run");
   bindRecommendationRun("naglaz", "private-first-size-run");
   bindRecommendationRun("naglaz", "private-second-size-run");
@@ -44,14 +44,38 @@ it("attributes only the accepted destination run, and counts each step once", ()
 
 it("does not attribute a new-tab click or a completion outside the 24-hour window", () => {
   vi.useFakeTimers();
-  trackRecommendationClick("naglaz", "new-tab", false);
+  trackRecommendationClick({ from: "naglaz" }, "new-tab", false);
   bindRecommendationRun("colorfle", "new-tab-color");
   trackRecommendationCompletion("colorfle", "new-tab-color");
-  trackRecommendationClick("naglaz", "old-result", true);
+  trackRecommendationClick({ from: "naglaz" }, "old-result", true);
   bindRecommendationRun("colorfle", "old-color");
   vi.advanceTimersByTime(24 * 60 * 60 * 1000);
   trackRecommendationCompletion("colorfle", "old-color");
   expect(ym.mock.calls.map((call) => call[2])).not.toContain(
     PLAY_GOALS.nextGameCompleted,
   );
+});
+
+it("measures both Colorfle cards separately and attributes the selected mode only", () => {
+  const mode = { from: "colorfle", fromMode: "classic" } as const;
+  const game = { from: "colorfle" } as const;
+  trackRecommendationShown(mode, "shade-result");
+  trackRecommendationShown(game, "shade-result");
+  trackRecommendationShown(mode, "shade-result");
+  trackRecommendationClick(mode, "shade-result", true);
+  bindRecommendationRun("colorfle", "classic-replay", "classic");
+  trackRecommendationCompletion("colorfle", "classic-replay", "classic");
+  bindRecommendationRun("colorfle", "timed-run", "timed");
+  trackRecommendationCompletion("colorfle", "timed-run", "timed");
+  trackRecommendationClick(game, "shade-result", true);
+  bindRecommendationRun("circle", "circle-result");
+  trackRecommendationCompletion("circle", "circle-result");
+  expect(ym.mock.calls.map((call) => call.slice(2))).toEqual([
+    [PLAY_GOALS.nextGameShown, { source: "result_mode_card", from_game: "colorfle", game: "colorfle", from_mode: "classic", mode: "timed" }],
+    [PLAY_GOALS.nextGameShown, { source: "result_card", from_game: "colorfle", game: "circle" }],
+    [PLAY_GOALS.nextGame, { source: "result_mode_card", from_game: "colorfle", game: "colorfle", from_mode: "classic", mode: "timed" }],
+    [PLAY_GOALS.nextGameCompleted, { source: "result_mode_card", from_game: "colorfle", game: "colorfle", from_mode: "classic", mode: "timed" }],
+    [PLAY_GOALS.nextGame, { source: "result_card", from_game: "colorfle", game: "circle" }],
+    [PLAY_GOALS.nextGameCompleted, { source: "result_card", from_game: "colorfle", game: "circle" }],
+  ]);
 });

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
 import type { GameId } from "./account";
 import { playCatalog } from "./playSuggestions";
 import { reachGoal, PLAY_GOALS } from "./analytics";
@@ -7,14 +7,128 @@ import {
   resultRecommendations,
   trackRecommendationClick,
   trackRecommendationShown,
+  type ResultOffer,
 } from "./resultRecommendation";
 
 const next: Partial<Record<GameId, GameId>> = {
-  colorfle: "circle",
   circle: "pressure",
   pressure: "line",
   line: "flash",
 };
+
+export function ResultRecommendationCard({
+  offer,
+  runId,
+  href,
+  variant,
+  label,
+  title,
+  hint,
+  art,
+  onFollow,
+  preview = false,
+}: {
+  offer: ResultOffer;
+  runId?: string;
+  href: string;
+  variant: string;
+  label: string;
+  title: string;
+  hint?: string;
+  art: ReactNode;
+  onFollow?: (event: MouseEvent<HTMLAnchorElement>) => void;
+  preview?: boolean;
+}) {
+  const card = useRef<HTMLAnchorElement>(null);
+  const { from, fromMode } = offer;
+  useEffect(() => {
+    const element = card.current;
+    if (!element || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.5) return;
+        element.dataset.visible = "";
+        if (!preview && runId) {
+          const shown: ResultOffer =
+            fromMode === undefined ? { from } : { from: "colorfle", fromMode };
+          trackRecommendationShown(shown, runId);
+        }
+        observer.disconnect();
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [from, fromMode, preview, runId]);
+
+  return (
+    <a
+      ref={card}
+      className={`result-next-card result-next-card--${variant}`}
+      href={href}
+      onClick={(event) => {
+        if (preview) return;
+        const sameTab = !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+        trackRecommendationClick(offer, runId, sameTab);
+        if (sameTab) onFollow?.(event);
+      }}
+    >
+      <span className="result-next-art" aria-hidden="true">{art}</span>
+      <span className="result-next-copy">
+        <span>{label}</span>
+        <strong>{title}</strong>
+        {hint && <span>{hint}</span>}
+      </span>
+      <svg
+        className="result-next-arrow"
+        viewBox="0 0 24 24"
+        width="20"
+        height="20"
+        aria-hidden="true"
+      >
+        <path
+          d="M5 12h14m-6-6 6 6-6 6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </a>
+  );
+}
+
+function RecommendationArt({ game }: { game: "naglaz" | "colorfle" | "circle" }) {
+  return (
+    <svg viewBox="0 0 36 36" width="32" height="32" fill="none">
+      {game === "naglaz" && (
+        <>
+          <rect x="7" y="17" width="9" height="12" rx="2" fill="var(--mint)" />
+          <rect x="20" y="7" width="9" height="22" rx="2" fill="var(--purple)" />
+        </>
+      )}
+      {game === "colorfle" && (
+        <>
+          <rect
+            x="5" y="11" width="14" height="17" rx="4"
+            fill="var(--mint)" transform="rotate(-13 12 19)"
+          />
+          <rect
+            x="17" y="9" width="14" height="17" rx="4"
+            fill="var(--purple)" transform="rotate(13 24 17)"
+          />
+        </>
+      )}
+      {game === "circle" && (
+        <>
+          <circle cx="18" cy="18" r="12" stroke="var(--purple)" strokeWidth="3" />
+          <circle cx="18" cy="18" r="2.5" fill="var(--mint)" />
+        </>
+      )}
+    </svg>
+  );
+}
 
 export default function NextGame({
   game,
@@ -27,92 +141,22 @@ export default function NextGame({
   preview?: boolean;
   compact?: boolean;
 }) {
-  const card = useRef<HTMLAnchorElement>(null);
-  useEffect(() => {
-    if (
-      preview ||
-      !runId ||
-      !hasResultRecommendation(game) ||
-      !card.current ||
-      typeof IntersectionObserver === "undefined"
-    )
-      return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting || entry.intersectionRatio < 0.5) return;
-        trackRecommendationShown(game, runId);
-        observer.disconnect();
-      },
-      { threshold: 0.5 },
-    );
-    observer.observe(card.current);
-    return () => observer.disconnect();
-  }, [game, preview, runId]);
-
   if (hasResultRecommendation(game)) {
     const id = resultRecommendations[game];
     const item = playCatalog[id];
     return (
       <aside className="result-recommendation" aria-label="Следующая игра">
-        <a
-          ref={card}
-          className={`result-next-card result-next-card--${id}`}
+        <ResultRecommendationCard
+          offer={{ from: game }}
+          runId={runId}
           href={item.path}
-          onClick={(event) => {
-            if (!preview)
-              trackRecommendationClick(
-                game,
-                runId,
-                !event.metaKey &&
-                  !event.ctrlKey &&
-                  !event.shiftKey &&
-                  !event.altKey,
-              );
-          }}
-        >
-          <span className="result-next-art" aria-hidden="true">
-            <svg viewBox="0 0 36 36" width="32" height="32" fill="none">
-              {id === "naglaz" ? (
-                <>
-                  <rect x="7" y="17" width="9" height="12" rx="2" fill="var(--mint)" />
-                  <rect x="20" y="7" width="9" height="22" rx="2" fill="var(--purple)" />
-                </>
-              ) : (
-                <>
-                  <rect
-                    x="5" y="11" width="14" height="17" rx="4"
-                    fill="var(--mint)" transform="rotate(-13 12 19)"
-                  />
-                  <rect
-                    x="17" y="9" width="14" height="17" rx="4"
-                    fill="var(--purple)" transform="rotate(13 24 17)"
-                  />
-                </>
-              )}
-            </svg>
-          </span>
-          <span className="result-next-copy">
-            <span>Следующая игра</span>
-            <strong>{item.name}</strong>
-            {!compact && <span>{item.hint}</span>}
-          </span>
-          <svg
-            className="result-next-arrow"
-            viewBox="0 0 24 24"
-            width="20"
-            height="20"
-            aria-hidden="true"
-          >
-            <path
-              d="M5 12h14m-6-6 6 6-6 6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </a>
+          variant={id}
+          label="Следующая игра"
+          title={item.name}
+          hint={compact ? undefined : item.hint}
+          art={<RecommendationArt game={id} />}
+          preview={preview}
+        />
       </aside>
     );
   }

@@ -1,14 +1,19 @@
 import type { GameId } from "./account";
-import { PLAY_GOALS, reachGoal, reachGoalOnce } from "./analytics";
+import { PLAY_GOALS, reachGoal, reachGoalOnce, type MetrikaParams } from "./analytics";
+import { alternateShadeMode, validShadeMode, type ShadeMode } from "./colorfle";
 
 export const resultRecommendations = {
   geo: "naglaz",
   naglaz: "colorfle",
+  colorfle: "circle",
 } as const;
 
 type Source = keyof typeof resultRecommendations;
-type Recommendation = {
-  from: Source;
+export type ResultOffer =
+  | { from: Source; fromMode?: never }
+  | { from: "colorfle"; fromMode: ShadeMode };
+
+type Recommendation = ResultOffer & {
   sourceRun: string;
   expiresAt: number;
   destinationRun?: string;
@@ -18,15 +23,23 @@ const key = "playne:result-recommendation";
 const day = 24 * 60 * 60 * 1000;
 
 export function hasResultRecommendation(game: GameId): game is Source {
-  return game === "geo" || game === "naglaz";
+  return Object.hasOwn(resultRecommendations, game);
 }
 
-function params(from: Source) {
-  return {
-    source: "result_card",
-    from_game: from,
-    game: resultRecommendations[from],
-  };
+function params({ from, fromMode }: ResultOffer): MetrikaParams {
+  if (fromMode !== undefined)
+    return {
+      source: "result_mode_card",
+      from_game: from,
+      game: from,
+      from_mode: fromMode,
+      mode: alternateShadeMode(fromMode),
+    };
+  return { source: "result_card", from_game: from, game: resultRecommendations[from] };
+}
+
+function offerKey(offer: ResultOffer, runId: string) {
+  return offer.fromMode === undefined ? runId : `${runId}:mode:${offer.fromMode}`;
 }
 
 function read(): Recommendation | undefined {
@@ -37,6 +50,8 @@ function read(): Recommendation | undefined {
     if (!value) return;
     if (
       hasResultRecommendation(value.from) &&
+      (value.fromMode === undefined ||
+        (value.from === "colorfle" && validShadeMode(value.fromMode))) &&
       typeof value.sourceRun === "string" &&
       Number.isFinite(value.expiresAt) &&
       Date.now() < value.expiresAt
@@ -57,49 +72,45 @@ function write(value: Recommendation) {
   }
 }
 
-export function trackRecommendationShown(from: Source, sourceRun: string) {
-  reachGoalOnce(PLAY_GOALS.nextGameShown, sourceRun, params(from));
+export function trackRecommendationShown(offer: ResultOffer, sourceRun: string) {
+  reachGoalOnce(PLAY_GOALS.nextGameShown, offerKey(offer, sourceRun), params(offer));
 }
 
 export function trackRecommendationClick(
-  from: Source,
+  offer: ResultOffer,
   sourceRun: string | undefined,
   sameTab: boolean,
 ) {
   if (!sourceRun) {
-    reachGoal(PLAY_GOALS.nextGame, params(from));
+    reachGoal(PLAY_GOALS.nextGame, params(offer));
     return;
   }
-  trackRecommendationShown(from, sourceRun);
-  reachGoalOnce(PLAY_GOALS.nextGame, sourceRun, params(from));
-  if (sameTab) write({ from, sourceRun, expiresAt: Date.now() + day });
+  trackRecommendationShown(offer, sourceRun);
+  reachGoalOnce(PLAY_GOALS.nextGame, offerKey(offer, sourceRun), params(offer));
+  if (sameTab) write({ ...offer, sourceRun, expiresAt: Date.now() + day });
 }
 
-export function bindRecommendationRun(game: GameId, runId: string) {
-  if (game !== "naglaz" && game !== "colorfle") return;
+function matches(offer: ResultOffer, game: GameId, mode?: string) {
+  const destination = params(offer);
+  return destination.game === game &&
+    (destination.mode === undefined || destination.mode === mode);
+}
+
+export function bindRecommendationRun(game: GameId, runId: string, mode?: string) {
   const value = read();
-  if (
-    value &&
-    !value.destinationRun &&
-    resultRecommendations[value.from] === game
-  ) {
+  if (value && !value.destinationRun && matches(value, game, mode)) {
     write({ ...value, destinationRun: runId });
   }
 }
 
-export function trackRecommendationCompletion(game: GameId, runId: string) {
-  if (game !== "naglaz" && game !== "colorfle") return;
+export function trackRecommendationCompletion(game: GameId, runId: string, mode?: string) {
   const value = read();
-  if (
-    !value ||
-    value.destinationRun !== runId ||
-    resultRecommendations[value.from] !== game
-  )
+  if (!value || value.destinationRun !== runId || !matches(value, game, mode))
     return;
   try {
     sessionStorage.removeItem(key);
   } catch {
     // The one-shot goal also deduplicates within the current page.
   }
-  reachGoalOnce(PLAY_GOALS.nextGameCompleted, value.sourceRun, params(value.from));
+  reachGoalOnce(PLAY_GOALS.nextGameCompleted, offerKey(value, value.sourceRun), params(value));
 }

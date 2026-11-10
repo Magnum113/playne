@@ -2,6 +2,7 @@ import GameSearchAbout from "./GameSearchAbout";
 import { useGameViewport } from "./useGameViewport";
 import GameResultLayout from "./GameResultLayout";
 import { SaveResult } from "./GameResult";
+import { ResultRecommendationCard } from "./NextGame";
 import { RulesDialog } from "./RulesDialog";
 import { useGuestTrial } from "./account";
 import { GameIntro, GameStartAction } from "./GameIntro";
@@ -17,7 +18,7 @@ import {
   type PointerEvent,
 } from "react";
 import FooterLinks from "./FooterLinks";
-import { SHADE_GOALS, reachGoal } from "./analytics";
+import { ACCOUNT_GOALS, SHADE_GOALS, reachGoal } from "./analytics";
 import { shadeTransitionGoals } from "./gameAnalytics";
 import { GameHeader } from "./SiteHeader";
 import {
@@ -30,6 +31,7 @@ import {
   shadeReducer,
   shadeTotal,
   shadeModeName,
+  alternateShadeMode,
   validShadeMode,
   SHADE_TIME_LIMIT_MS,
   type ShadeMode,
@@ -293,13 +295,13 @@ export default function ColorfleGame() {
       reachGoal(goal, params),
     );
   }
-  async function beginOnline(replay = false) {
+  async function beginOnline(replay = false, nextMode = mode) {
     if (ranked.state.status === "loading") return;
     const generation = entryGeneration.current;
-    const online = await ranked.begin(mode);
+    const online = await ranked.begin(nextMode);
     if (!online || generation !== entryGeneration.current) return;
     setShowFinal(false);
-    if (online.answers?.length || online.mode !== mode) {
+    if (online.answers?.length || online.mode !== nextMode) {
       const session = newShadeSession(
         current.current,
         Math.random,
@@ -324,7 +326,10 @@ export default function ColorfleGame() {
       return;
     }
     if (replay)
-      dispatch({ type: "new", session: newShadeSession(current.current) });
+      dispatch({
+        type: "new",
+        session: newShadeSession(current.current, Math.random, nextMode),
+      });
     if (online)
       dispatch({
         type: "ranked",
@@ -416,6 +421,13 @@ export default function ColorfleGame() {
     playRegion,
     phase === "welcome" ? null : phase === "finished" ? phase : round,
   );
+
+  const otherMode = alternateShadeMode(mode);
+  const modePath = `/colorfle/?mode=${otherMode}`;
+  const modeRunId = state.rankedId ?? ranked.state.id;
+  const canOfferMode =
+    !!access.user ||
+    (modeRunId && ["complete", "saved", "save-error"].includes(ranked.state.status));
 
   return (
     <div className="app color-app">
@@ -618,15 +630,55 @@ export default function ColorfleGame() {
                         Играть ещё →
                       </button>
                     )}
-                    {access.user && (
-                      <button
-                        className="text-button shade-other-mode"
-                        onClick={() => dispatch({ type: "menu" })}
-                      >
-                        Выбрать другой режим
-                      </button>
-                    )}
-                    <SaveResult run={ranked} game="colorfle" />
+                    <SaveResult run={ranked} game="colorfle">
+                      {canOfferMode && (
+                        <ResultRecommendationCard
+                          offer={{ from: "colorfle", fromMode: mode }}
+                          runId={modeRunId}
+                          href={
+                            access.user
+                              ? modePath
+                              : `/api/auth/yandex/start?return=${encodeURIComponent(modePath)}`
+                          }
+                          variant={otherMode === "timed" ? "shade-timed" : "shade-classic"}
+                          label={access.user ? "Другой режим" : "После входа"}
+                          title={shadeModeName(otherMode)}
+                          hint={
+                            otherMode === "timed"
+                              ? `${SHADE_TIME_LIMIT_MS / 1000} секунд на цвет`
+                              : "Подбирай цвет в своём темпе"
+                          }
+                          onFollow={(event) => {
+                            if (!access.user) {
+                              reachGoal(ACCOUNT_GOALS.loginStart, {
+                                source: "result_mode_card",
+                                game: "colorfle",
+                                mode: otherMode,
+                              });
+                            } else if (!ranked.comparisonToken) {
+                              event.preventDefault();
+                              void beginOnline(true, otherMode);
+                            }
+                          }}
+                          art={
+                            <svg
+                              viewBox="0 0 36 36"
+                              width="32"
+                              height="32"
+                              fill="none"
+                              stroke="var(--purple)"
+                              strokeWidth="2.4"
+                              strokeLinecap="round"
+                            >
+                              <circle cx="18" cy="20" r="11" />
+                              <path d="M15 5h6m-3 0v4m7.5 2.5 2-2" />
+                              <path className="shade-mode-clock-hand" d="M18 20v-7" />
+                              <circle cx="18" cy="20" r="1.6" fill="var(--purple)" stroke="none" />
+                            </svg>
+                          }
+                        />
+                      )}
+                    </SaveResult>
                   </section>
                 </div>
               ) : (

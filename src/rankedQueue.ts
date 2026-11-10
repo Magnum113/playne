@@ -82,6 +82,7 @@ export function createRankedQueue(
   options: {
     storage?: Storage;
     onPublished?: (run: ServerRun, score: number) => void;
+    onStarted?: (run: ServerRun) => void;
     onCompleted?: (run: ServerRun, score: number) => void;
     onUnauthorized?: () => void;
     onRecordResult?: (
@@ -287,6 +288,7 @@ export function createRankedQueue(
           if (p.game !== "circle" || !p.tasks.length) return;
           state(p, { status: "checking" });
           p.run = await request("/games", "POST", { game: "circle" });
+          if (p.run && !p.run.completed) options.onStarted?.(p.run);
           changed(p);
         }
         while (p.tasks.length || Object.keys(p.pins).length) {

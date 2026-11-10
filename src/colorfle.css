@@ -125,7 +125,6 @@
 .shade-timer.urgent { color: var(--danger); }
 .shade-timer[aria-hidden="true"] { visibility: hidden; }
 .shade-active-mode { margin: -4px 0 20px; color: var(--muted); font-size: 12px; }
-.shade-other-mode { display: block; margin-top: 16px; min-height: 44px; }
 @media (min-width: 900px) and (max-height: 850px) {
   .shade-game-region .shade-square {
     height: clamp(180px, calc(100svh - 510px), 300px);
@@ -185,4 +184,27 @@
 }
 
 .shade-play-area.is-finished { display: block; }
-.shade-result > .save-result, .shade-result > .guest-trial-prompt { margin-block: 20px; }
+.shade-result > .save-result { margin-block: 20px; }
+.shade-result > .guest-trial-prompt {
+  margin-block: 20px 0;
+  padding-block-end: 0;
+}
+
+.shade-result > .result-next-card {
+  margin-block-start: var(--space-4);
+}
+.result-next-card--shade-timed,
+.result-next-card--shade-classic {
+  --result-next-tint: var(--purple-tint);
+}
+.shade-mode-clock-hand {
+  transform-origin: 18px 20px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .result-next-card--shade-timed[data-visible] .shade-mode-clock-hand {
+    animation: shade-mode-clock-tick 850ms cubic-bezier(.25, .65, .35, 1) both;
+  }
+}
+@keyframes shade-mode-clock-tick {
+  to { transform: rotate(360deg); }
+}
