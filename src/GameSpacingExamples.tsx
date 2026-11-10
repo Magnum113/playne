@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FlowAnt, FlowCrate, FlowScene } from "./FlowArt";
 import { makeFlowPuzzle } from "./flow";
-import FireButton from "./FireButton";
+import ChallengeButton from "./ChallengeButton";
 
 const puzzle = makeFlowPuzzle("level", 1);
 const spacingRoles = [
@@ -10,7 +10,7 @@ const spacingRoles = [
   ["--compact-control-gap", "Компактные элементы"],
   ["--control-gap", "Соседние действия"],
   ["--control-group-gap", "Между группами"],
-  ["--effect-control-gap", "Рядом с огненной кнопкой"],
+  ["--effect-control-gap", "Рядом с кнопкой вызова"],
   ["--effect-clearance", "Запас для эффекта"],
 ] as const;
 
@@ -95,9 +95,9 @@ export default function GameSpacingExamples() {
             <button type="button" className="primary">
               Следующий уровень →
             </button>
-            <FireButton aria-label="Пример кнопки вызова">
+            <ChallengeButton aria-label="Пример кнопки вызова">
               Бросить вызов другу
-            </FireButton>
+            </ChallengeButton>
           </div>
           <button type="button" className="text-button ds-spacing-replay">
             Переиграть

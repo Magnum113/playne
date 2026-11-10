@@ -24,7 +24,7 @@
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-.flow-page button:where(:not(.fire-button)) {
+.flow-page button:where(:not(.challenge-button)) {
   font: inherit;
   cursor: pointer;
 }

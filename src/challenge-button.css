@@ -1,0 +1,38 @@
+.challenge-button {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.challenge-electric-layer {
+  position: absolute;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.challenge-electric-canvas {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.challenge-button[data-electric-ready] .challenge-electric-canvas {
+  visibility: visible;
+}
+
+.challenge-button-label {
+  position: relative;
+  z-index: 2;
+}
+
+.challenge-button:not(:disabled):not([data-electric-ready]) {
+  border-color: var(--mint);
+}
+
+@media (forced-colors: active) {
+  .challenge-button:not(:disabled):not([data-electric-ready]) {
+    border-color: ButtonText;
+  }
+}

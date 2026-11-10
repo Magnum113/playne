@@ -18,7 +18,7 @@ import { RulesDialog } from "./RulesDialog";
 import DesignNavigation from "./DesignNavigation";
 import ActivityExamples from "./ActivityExamples";
 import ReturnExamples from "./ReturnExamples";
-import FireButton from "./FireButton";
+import ChallengeButton from "./ChallengeButton";
 import { DesignPrinciples, ComponentContracts } from "./DesignPrinciplesPanel";
 import { GameIntro, GameRecord, GameStartAction } from "./GameIntro";
 import {
@@ -318,24 +318,24 @@ function ButtonExamples() {
           </p>
         </Sample>
         <Sample
-          title="Вызов другу: огненный контур"
-          source="FireButton.tsx · buttonFire.ts · fire-button.css"
+          title="Вызов другу с электрическим контуром"
+          source="ChallengeButton.tsx · ElectricBorder.tsx · challenge-button.css"
         >
           <p className="ds-note">
-            Цельное низкое пламя. Поджигание за 0,7 секунды при появлении кнопки
-            на экране. Высота огня — 12 px, скорость — 1,5×. Контур, фон и текст
-            уменьшаются вместе при нажатии. При уменьшении движения — статичный
-            контур. На итогах игр кнопка занимает ширину по тексту и стоит по центру.
+            Электрический контур появляется, когда кнопка входит в область
+            просмотра. Разряды реагируют на курсор и касание. Контур и кнопка
+            уменьшаются вместе при нажатии. При уменьшении движения рамка
+            остаётся статичной.
           </p>
-          <div className="ds-fire-button-demo">
-            <FireButton
+          <div className="ds-electric-button-demo">
+            <ChallengeButton
               aria-label="Бросить вызов другу"
               onClick={() =>
                 setNotice("Это пример кнопки. Приглашение не создаётся.")
               }
             >
               Бросить вызов другу
-            </FireButton>
+            </ChallengeButton>
           </div>
         </Sample>
         <Sample title="Ссылки" source="style.css">
@@ -1751,8 +1751,8 @@ export default function DesignSystem() {
                     Основная кнопка — минимум 52 px высотой; компактное действие
                     на карте — 48 px. Иконки — область нажатия 44 × 44 px. Между
                     компактными элементами — 8 px, обычными действиями — 12 px,
-                    группами — 24 px. Для огненной кнопки — 24 px до соседнего
-                    действия и от 12 px свободного пространства под эффект.
+                    группами — 24 px. Для кнопки вызова — 24 px до соседнего
+                    действия и 18 px свободного пространства для эффекта.
                   </dd>
                 </div>
                 <div>
@@ -2194,17 +2194,17 @@ export default function DesignSystem() {
                 </Sample>
                 <Sample
                   title="Действия после круга"
-                  source="circle-actions · FireButton"
+                  source="circle-actions · ChallengeButton"
                   wide
                 >
                   <p className="ds-note">
-                    Пример кнопок без сохранения партии. Огонь не увеличивает
+                    Пример кнопок без сохранения партии. Контур не увеличивает
                     высоту строки.
                   </p>
                   <div className="circle-feedback has-result">
                     <div className="circle-actions">
                       <button className="secondary-button">Ещё раз ↻</button>
-                      <FireButton>Бросить вызов другу</FireButton>
+                      <ChallengeButton>Бросить вызов другу</ChallengeButton>
                     </div>
                   </div>
                 </Sample>

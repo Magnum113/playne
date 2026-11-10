@@ -8,7 +8,7 @@ import {
 } from "./challenges";
 import { reachGoal, SHARE_GOALS } from "./analytics";
 import { trackFlowShareCreated } from "./flowAnalytics";
-import FireButton from "./FireButton";
+import ChallengeButton from "./ChallengeButton";
 import "./challenge.css";
 
 export default function ShareResult({
@@ -136,7 +136,7 @@ export default function ShareResult({
   return (
     <>
       <div className="result-share">
-        <FireButton
+        <ChallengeButton
           onClick={() => {
             reachGoal(SHARE_GOALS.opened, { game });
             void create();
@@ -144,7 +144,7 @@ export default function ShareResult({
           disabled={loading}
         >
           Бросить вызов другу
-        </FireButton>
+        </ChallengeButton>
       </div>
       <dialog
         className="share-dialog ym-hide-content"
