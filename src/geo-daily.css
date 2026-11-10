@@ -80,13 +80,33 @@
 }
 .daily-geo-leader-score {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
+  line-height: 1.25;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .daily-geo-leader-score strong { color: var(--purple); }
 .daily-geo-leader-score small { color: var(--muted); }
+
+@supports (grid-template-columns: subgrid) {
+  .daily-geo-leaders ol {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    column-gap: var(--space-3);
+  }
+  .daily-geo-leaders li {
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+  .daily-geo-leader-score {
+    display: grid;
+    grid-column: span 2;
+    grid-template-columns: subgrid;
+    justify-items: end;
+  }
+}
+
 .daily-geo-actions {
   display: flex;
   flex-wrap: wrap;
