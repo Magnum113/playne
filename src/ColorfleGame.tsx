@@ -685,8 +685,8 @@ export default function ColorfleGame() {
                           {answer.timedOut && (
                             <p className="shade-timeout">
                               {answer.noChoice
-                                ? "Время вышло. Цвет не выбран."
-                                : "Время вышло. Засчитан последний оттенок."}
+                                ? "Время вышло. Цвет не выбран — 0 очков."
+                                : "Время вышло. Засчитан последний выбранный оттенок."}
                             </p>
                           )}
                         </div>
