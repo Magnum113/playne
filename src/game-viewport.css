@@ -306,9 +306,6 @@
   .shade-game-region .shade-hue-label {
     margin-top: 8px;
   }
-  .shade-game-region .shade-actions {
-    margin-bottom: 8px;
-  }
   .geo-playing .geo-revealed {
     height: clamp(180px, calc(100svh - 350px), 380px);
   }

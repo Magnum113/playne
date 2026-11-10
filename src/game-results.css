@@ -94,9 +94,6 @@
   .game-result-main .shade-play-area.is-finished {
     display: block;
   }
-  .game-result-main .shade-play-area.is-finished .shade-board {
-    display: none;
-  }
   .game-result-main .shade-play-area.is-finished .shade-result {
     max-width: none;
   }
