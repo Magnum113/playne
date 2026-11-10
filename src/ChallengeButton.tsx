@@ -19,6 +19,7 @@ export default function ChallengeButton({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement>) {
   const { theme } = useTheme();
+  const lightTheme = theme === "light";
   const staticEffect = useSyncExternalStore(subscribe, staticBorder, () => true);
   return (
     <button
@@ -27,7 +28,13 @@ export default function ChallengeButton({
       disabled={disabled}
       className={`secondary-button challenge-button ${className}`.trim()}
     >
-      {!disabled && !staticEffect && <ElectricBorder theme={theme === "dark" ? "dark" : "light"} />}
+      {!disabled && !staticEffect && (
+        <ElectricBorder
+          theme={lightTheme ? "light" : "dark"}
+          color={lightTheme ? "#b8310d" : undefined}
+          glowColor={lightTheme ? "#d64a10" : undefined}
+        />
+      )}
       <span className="challenge-button-label">{children}</span>
     </button>
   );

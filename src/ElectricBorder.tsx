@@ -483,8 +483,9 @@ const ElectricBorder = ({
   const [generation, setGeneration] = useState(0);
 
   const base = parseColor(color);
+  const coreLift = theme === 'light' ? 0.2 : 0.55;
   const settings: Settings = {
-    core: base.map(channel => channel + (1 - channel) * 0.55),
+    core: base.map(channel => channel + (1 - channel) * coreLift),
     glowColor: glowColor ? parseColor(glowColor) : base,
     speed: Math.max(0, speed),
     chaos: clamp(chaos, 0, 2),
