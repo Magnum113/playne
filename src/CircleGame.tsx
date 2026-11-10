@@ -1,6 +1,7 @@
 import { useGameViewport } from "./useGameViewport";
 import GameResultLayout from "./GameResultLayout";
 import ShareResult from "./ShareResult";
+import NextGame from "./NextGame";
 import { SaveResult } from "./GameResult";
 import { RulesDialog } from "./RulesDialog";
 import { GuestSavedNotice, GuestTrialPrompt, useGuestTrial } from "./account";
@@ -189,7 +190,7 @@ export default function CircleGame() {
         ? `result:${canShare}`
         : "ready"
       : null,
-    ".circle-legend",
+    success ? ".circle-feedback" : ".circle-legend",
   );
 
   return (
@@ -331,6 +332,16 @@ export default function CircleGame() {
                       : "БЕЗ ЛИНЕЙКИ И ЦИРКУЛЯ"}
                 </span>
               </div>
+              {success && (
+                <div className="circle-legend circle-result-legend">
+                  <span>
+                    <i aria-hidden="true" /> Твоя линия
+                  </span>
+                  <span>
+                    <i className="ideal" aria-hidden="true" /> Идеальный круг
+                  </span>
+                </div>
+              )}
               <div className={`circle-feedback${success ? " has-result" : ""}`}>
                 <div
                   className={`circle-status${record ? " is-record" : ""}`}
@@ -359,26 +370,22 @@ export default function CircleGame() {
                       Ещё раз <span aria-hidden="true">↻</span>
                     </button>
                   )}
-                  {canShare && ranked.state && (
-                    <ShareResult runId={ranked.state.id} />
+                  {canShare && (
+                    <>
+                      <ShareResult runId={ranked.state.id} />
+                      <NextGame game="circle" runId={ranked.state.id} />
+                    </>
                   )}
                 </div>
               </div>
-              <div className="circle-legend" aria-hidden="true">
-                {success ? (
-                  <>
-                    <span>
-                      <i /> Твоя линия
-                    </span>
-                    <span>
-                      <i className="ideal" /> Идеальный круг
-                    </span>
-                  </>
-                ) : (
+              {!success && (
+                <div className="circle-legend" aria-hidden="true">
                   <span>Без таймера. Обведи точку одним движением.</span>
-                )}
-              </div>
-              {success && <SaveResult run={ranked} game="circle" hideShare />}
+                </div>
+              )}
+              {success && (
+                <SaveResult run={ranked} game="circle" hideShare hideRecommendation />
+              )}
             </section>
           )}
         </GameResultLayout>

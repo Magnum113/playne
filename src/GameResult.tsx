@@ -9,6 +9,7 @@ export function SaveResult({
   run,
   game,
   hideShare = false,
+  hideRecommendation = false,
   compact = false,
   day,
   children,
@@ -16,6 +17,7 @@ export function SaveResult({
   run: RankedRun;
   game: GameId;
   hideShare?: boolean;
+  hideRecommendation?: boolean;
   compact?: boolean;
   day?: string;
   children?: ReactNode;
@@ -49,9 +51,9 @@ export function SaveResult({
         <Status run={run} game={game} day={day} compact={compact} />
       )}
       {children}
-      {card && <NextGame game={game} runId={run.state.id} compact={compact} />}
+      {!hideRecommendation && card && <NextGame game={game} runId={run.state.id} compact={compact} />}
       {complete && !hideShare && <ShareResult runId={run.state.id} />}
-      {complete && !card && <NextGame game={game} />}
+      {!hideRecommendation && complete && !card && <NextGame game={game} />}
     </>
   );
 }

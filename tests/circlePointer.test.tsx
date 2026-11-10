@@ -21,7 +21,9 @@ const ranked = vi.hoisted(() => ({
   begin: vi.fn(),
   submit: vi.fn(),
 }));
-vi.mock("../src/ShareResult", () => ({ default: () => null }));
+vi.mock("../src/ShareResult", () => ({
+  default: () => <button className="test-share">Бросить вызов другу</button>,
+}));
 vi.mock("../src/GameResult", () => ({ SaveResult: () => null }));
 vi.mock("../src/account", () => ({
   useGuestTrial: () => access,
@@ -73,6 +75,7 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
   access.user = { id: "test" };
+  ranked.state.status = "idle";
   ranked.begin.mockReset();
   ranked.submit.mockReset();
   container = document.createElement("div");
@@ -126,6 +129,18 @@ describe("circle pointer endings", () => {
     arc();
     event("pointerup", 470, 300);
     expect(ranked.submit).toHaveBeenCalledTimes(1);
+  });
+  it("places the result legend by the drawing and the game card below the share button", () => {
+    expect(container.querySelector(".result-next-card")).toBeNull();
+    arc();
+    event("pointerup", 470, 300);
+    const legend = container.querySelector(".circle-surface + .circle-result-legend");
+    expect(legend?.textContent).toContain("Идеальный круг");
+    ranked.state.status = "complete";
+    act(() => root.render(<CircleGame />));
+    const card = container.querySelector(".test-share + .result-recommendation a");
+    expect(card?.getAttribute("href")).toBe("/pressure/");
+    expect(card?.textContent).toContain("Жми");
   });
   it("scores a mouse stroke on ordinary release", () => {
     pointerType = "mouse";

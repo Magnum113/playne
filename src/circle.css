@@ -171,6 +171,10 @@
   color: var(--muted);
   font-size: 12px;
 }
+.circle-result-legend {
+  min-height: 0;
+  margin-top: var(--space-2);
+}
 .circle-legend span {
   display: inline-flex;
   align-items: center;
@@ -316,6 +320,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
+}
+.circle-actions > .result-recommendation {
+  margin-block: 0;
 }
 .circle-feedback.has-result .circle-retry {
   min-height: var(--control-height);

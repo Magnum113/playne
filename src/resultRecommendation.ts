@@ -6,6 +6,7 @@ export const resultRecommendations = {
   geo: "naglaz",
   naglaz: "colorfle",
   colorfle: "circle",
+  circle: "pressure",
   flow: "line",
 } as const;
 

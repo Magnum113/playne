@@ -12,7 +12,6 @@ import {
 import "./game-results.css";
 
 const next: Partial<Record<GameId, GameId>> = {
-  circle: "pressure",
   pressure: "line",
   line: "flash",
 };
@@ -129,6 +128,16 @@ function RecommendationArt({
         <>
           <circle cx="18" cy="18" r="12" stroke="var(--purple)" strokeWidth="3" />
           <circle cx="18" cy="18" r="2.5" fill="var(--mint)" />
+        </>
+      )}
+      {game === "pressure" && (
+        <>
+          <rect x="6" y="9" width="24" height="21" rx="6" fill="var(--purple)" opacity=".25" />
+          <rect x="6" y="6" width="24" height="21" rx="6" fill="var(--purple)" />
+          <path
+            d="M18 10l-5 7h5l-1 6 6-8h-5z"
+            fill="var(--panel)"
+          />
         </>
       )}
       {game === "line" && (
