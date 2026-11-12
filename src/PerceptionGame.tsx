@@ -380,7 +380,6 @@ export default function PerceptionGame() {
                 </button><span className="perception-hint">Нажимай на поле, кнопку или пробел</span>
               </>}
               {error && <div role="status" className="perception-error"><p>{error}</p>{lastInput.current && <button className="text-button" disabled={busy} onClick={() => void submit(lastInput.current!)}>Отправить ещё раз</button>}</div>}
-              <button className="text-button perception-skip" disabled={busy || !!lastInput.current} onClick={() => void submit({ skipped: true })}>Пропустить</button>
             </>}
           </div>
         </div>}
