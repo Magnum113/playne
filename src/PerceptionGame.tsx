@@ -364,7 +364,7 @@ export default function PerceptionGame() {
                 </form>
               )}
               {(task.kind === "angle" || task.kind === "split") && <p className="perception-hint">
-                {busy ? "Проверяем…" : task.kind === "angle" ? "Поверни луч и отпусти." : "Передвинь отметку и отпусти."} {!busy && "Клавиатура: стрелки, затем Enter."}
+                {busy ? "Проверяем…" : task.kind === "angle" ? "Поверни луч и отпусти." : "Наведи курсор и кликни. На телефоне — поставь метку пальцем."} {!busy && "Клавиатура: стрелки, затем Enter."}
               </p>}
               {task.kind === "track" && <p className="perception-hint">
                 {busy ? "Проверяем…" : elapsed < task.flightMs * task.visibleFraction ? "Следи за шаром…" : "Нажми там, где шар приземлится."}

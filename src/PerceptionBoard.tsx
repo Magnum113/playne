@@ -30,6 +30,13 @@ export default function PerceptionBoard({
     }
     return Math.max(0, Math.min(1, (x - 40) / 520));
   }
+  function previewPointer(event: PointerEvent<SVGSVGElement>) {
+    if (!editable || !event.isPrimary) return;
+    const hoveringSplit = task.kind === "split" && event.pointerType === "mouse";
+    if (!hoveringSplit && !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    const next = pointerValue(event);
+    if (next !== null) onChange(next);
+  }
   const tempoInteractive = task.kind === "tempo" && !result && !locked;
   const pos = (n: number) => 40 + n * 520;
   const ray = (angle: number, color: string, dashed = false) => <line x1="300" y1="180" x2={300 + 128 * Math.cos(angle * Math.PI / 180)} y2={180 - 128 * Math.sin(angle * Math.PI / 180)} stroke={color} strokeWidth="5" strokeLinecap="round" strokeDasharray={dashed ? "7 6" : undefined} />;
@@ -53,11 +60,8 @@ export default function PerceptionBoard({
           onChange(next);
         }
       }}
-      onPointerMove={event => {
-        if (!editable || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
-        const next = pointerValue(event);
-        if (next !== null) onChange(next);
-      }}
+      onPointerEnter={previewPointer}
+      onPointerMove={previewPointer}
       onPointerUp={event => {
         if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
         event.currentTarget.releasePointerCapture(event.pointerId);
@@ -92,6 +96,15 @@ export default function PerceptionBoard({
       </>}
       {task.kind === "split" && <>
         <line x1="40" y1="190" x2="560" y2="190" stroke="var(--line-strong)" strokeWidth="4" strokeLinecap="round" />
+        {value !== null && <rect
+          className="perception-split-selection"
+          x={pos(task.fromRight ? value : 0)}
+          y="184"
+          width={task.fromRight ? pos(1) - pos(value) : pos(value) - pos(0)}
+          height="12"
+          fill="var(--purple)"
+          fillOpacity=".35"
+        />}
         {[0, 1].map(n => <line key={n} x1={pos(n)} x2={pos(n)} y1="177" y2="203" stroke="var(--line-strong)" strokeWidth="3" />)}
         <text x={task.fromRight ? 560 : 40} y="240" textAnchor={task.fromRight ? "end" : "start"} className="perception-edge">{task.fromRight ? "← Отсюда" : "Отсюда →"}</text>
         {value !== null && mark(value, "var(--purple)", 190)}
