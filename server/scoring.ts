@@ -229,7 +229,9 @@ export function validateAnswer(
     // the four reference cues; the evaluator grades how the next eight differ.
     const minimumMs = task.kind === "tempo" ? 800 + 3 * 60000 / task.bpm : perceptionMinimumMs(task);
     if (input?.skipped !== true && elapsedMs < minimumMs) throw new Error("Дождись окончания показа");
-    if (task.kind === "tempo" && Array.isArray(input?.taps) && input.taps.some((tap: number) => tap > elapsedMs + 250))
+    if (task.kind === "tempo" && [input?.taps, input?.calibration].some(
+      (taps) => Array.isArray(taps) && taps.some((tap: number) => tap > elapsedMs + 250),
+    ))
       throw new Error("Некорректное время нажатий");
     const result = evaluatePerception(task, input);
     return { ...result, elapsedMs: Math.max(0, now - startedAt), kind: task.kind };

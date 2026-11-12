@@ -15,7 +15,8 @@ import ChallengeContext, { readChallengeToken } from "./ChallengeContext";
 import PerceptionPreview from "./PerceptionPreview";
 import PerceptionBoard from "./PerceptionBoard";
 import { PERCEPTION_GOALS, reachGoal } from "./analytics";
-import { PERCEPTION_KINDS, perceptionBoardUrl, perceptionDayLabel, perceptionNames, perceptionRules, type PerceptionAnswer, type PerceptionInput, type PerceptionTask } from "./perception";
+import { PERCEPTION_COUNTDOWN_MS, PERCEPTION_KINDS, perceptionBoardUrl, perceptionDayLabel, perceptionNames, perceptionRules, type PerceptionAnswer, type PerceptionInput, type PerceptionTask } from "./perception";
+import { RHYTHM_CUE_START, RHYTHM_GUIDED_TAPS, RHYTHM_SOLO_TAPS, rhythmCueAt } from "./perceptionRhythm";
 import "./perception.css";
 
 type DailyStatus = { day: string; attempt: { id: string; completed: boolean; score: number | null } | null };
@@ -37,6 +38,7 @@ export default function PerceptionGame() {
   const [task, setTask] = useState<PerceptionTask | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [value, setValue] = useState<number | null>(null);
+  const [guidedCount, setGuidedCount] = useState(0);
   const [taps, setTaps] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -45,8 +47,11 @@ export default function PerceptionGame() {
   const pending = useRef(false);
   const lastInput = useRef<PerceptionInput | null>(null);
   const tapRef = useRef<number[]>([]);
+  const calibration = useRef<number[]>([]);
+  const soloAt = useRef(Infinity);
+  const countInput = useRef<HTMLInputElement>(null);
   const audio = useRef<AudioContext | null>(null);
-  const oscillators = useRef<OscillatorNode[]>([]);
+  const oscillators = useRef(new Set<OscillatorNode>());
   const rules = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const tapButton = useRef<HTMLButtonElement>(null);
@@ -94,49 +99,78 @@ export default function PerceptionGame() {
   }, [phase, index]);
   useEffect(() => {
     if (phase !== "playing" || !task) return;
-    const end = task.kind === "count" ? task.durationMs : task.kind === "track" ? task.flightMs * task.visibleFraction : task.kind === "tempo" ? 800 + 4 * 60000 / task.bpm : 0;
-    if (!end) return;
+    const period = task.kind === "tempo" ? 60000 / task.bpm : 0;
+    const end = task.kind === "count"
+      ? PERCEPTION_COUNTDOWN_MS + task.durationMs
+      : task.kind === "track" ? task.flightMs * task.visibleFraction : 0;
+    if (!end && !period) return;
+    let nextCue = RHYTHM_CUE_START;
     let frame = 0;
     const tick = () => {
       const now = Math.max(0, performance.now() - startAt.current);
-      setElapsed(Math.min(now, end));
-      // Static answer screens need no continuous rerenders or battery use.
-      if (now < end) frame = requestAnimationFrame(tick);
+      if (period && now < soloAt.current && calibration.current.length < RHYTHM_GUIDED_TAPS) {
+        // Skip elapsed beats after a reload or a background tab.
+        if (nextCue < now) nextCue += Math.ceil((now - nextCue) / period) * period;
+        if (nextCue - now < 100) {
+          playCue(nextCue - now);
+          nextCue += period;
+        }
+      }
+      const stopAt = period ? soloAt.current : end;
+      setElapsed(Math.min(now, stopAt));
+      if (now < stopAt) frame = requestAnimationFrame(tick);
     };
     tick();
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (period) stopCues();
+    };
   }, [phase, task]);
+  const countReady = task?.kind === "count" && elapsed >= PERCEPTION_COUNTDOWN_MS + task.durationMs;
+  useEffect(() => {
+    if (phase === "playing" && countReady) countInput.current?.focus({ preventScroll: true });
+  }, [phase, countReady]);
   useEffect(() => () => {
-    for (const node of oscillators.current) { try { node.stop(); } catch { /* Already stopped. */ } }
-    void audio.current?.close();
+    stopCues();
+    void audio.current?.close().catch(() => {});
   }, []);
   useEffect(() => {
     if (phase !== "finished" || !run) return;
     emit("resultView", { score, signed_in: !!user }, `view:${run.id}:${!!user}`);
   }, [phase, run?.id, user?.id]);
   function prepareAudio() {
-    if (!sound) return;
-    try { audio.current ??= new AudioContext(); void audio.current.resume(); } catch { /* Visual pulses are always available. */ }
+    if (!sound || kind !== "tempo") return;
+    try {
+      audio.current ??= new AudioContext();
+      void audio.current.resume().catch(() => {});
+    } catch { /* Visual pulses are always available. */ }
   }
   function stopCues() {
-    for (const node of oscillators.current) { try { node.stop(); } catch { /* Already stopped. */ } }
-    oscillators.current = [];
-  }
-  function scheduleCues(item: PerceptionTask, alreadyElapsed: number) {
-    stopCues();
-    if (item.kind !== "tempo" || !sound || !audio.current) return;
-    const context = audio.current;
-    for (let i = 0; i < 4; i++) {
-      const delay = (800 + i * 60000 / item.bpm - alreadyElapsed) / 1000;
-      if (delay < 0) continue;
-      const oscillator = context.createOscillator(), gain = context.createGain();
-      oscillator.frequency.value = 660;
-      oscillator.connect(gain); gain.connect(context.destination);
-      const time = context.currentTime + delay;
-      gain.gain.setValueAtTime(0, time); gain.gain.linearRampToValueAtTime(.12, time + .008); gain.gain.exponentialRampToValueAtTime(.001, time + .11);
-      oscillator.start(time); oscillator.stop(time + .12);
-      oscillators.current.push(oscillator);
+    for (const node of oscillators.current) {
+      try { node.stop(); } catch { /* Already stopped. */ }
     }
+    oscillators.current.clear();
+  }
+  function playCue(delayMs: number) {
+    const context = audio.current;
+    if (!sound || !context || context.state !== "running") return;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const time = context.currentTime + delayMs / 1000;
+    oscillator.frequency.value = 660;
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    gain.gain.setValueAtTime(.001, time);
+    gain.gain.linearRampToValueAtTime(.16, time + .006);
+    gain.gain.exponentialRampToValueAtTime(.001, time + .07);
+    oscillator.onended = () => {
+      oscillators.current.delete(oscillator);
+      oscillator.disconnect();
+      gain.disconnect();
+    };
+    oscillators.current.add(oscillator);
+    oscillator.start(time);
+    oscillator.stop(time + .08);
   }
   async function begin() {
     if (pending.current) return;
@@ -161,7 +195,8 @@ export default function PerceptionGame() {
       setElapsed(offset); setTask(data.task);
       setValue(data.task.kind === "angle" ? data.task.initial : null);
       setTaps([]); tapRef.current = []; lastInput.current = null;
-      scheduleCues(data.task, offset); setPhase("playing");
+      setGuidedCount(0); calibration.current = []; soloAt.current = Infinity;
+      setPhase("playing");
       emit("roundStart", { round: index + 1, kind, resumed: offset > 1000 }, `${run?.id}:round:${index}`);
     } catch (e) { setError(errorText(e)); }
     finally { pending.current = false; setBusy(false); }
@@ -182,13 +217,25 @@ export default function PerceptionGame() {
     finally { pending.current = false; setBusy(false); }
   }
   function tap() {
-    if (task?.kind !== "tempo" || pending.current || tapRef.current.length >= 8) return;
+    if (task?.kind !== "tempo" || pending.current || lastInput.current) return;
     const time = performance.now() - startAt.current;
-    if (time < 800 + 3.5 * 60000 / task.bpm) return;
+    const period = 60000 / task.bpm;
+    if (calibration.current.length < RHYTHM_GUIDED_TAPS) {
+      const cue = rhythmCueAt(time, period);
+      const previousTap = calibration.current.at(-1);
+      if (cue === null || (previousTap !== undefined && rhythmCueAt(previousTap, period) === cue)) return;
+      calibration.current.push(time);
+      setGuidedCount(calibration.current.length);
+      if (calibration.current.length === RHYTHM_GUIDED_TAPS) soloAt.current = cue + period / 2;
+      return;
+    }
+    if (time < soloAt.current || tapRef.current.length >= RHYTHM_SOLO_TAPS) return;
     const previous = tapRef.current.at(-1);
     if (previous !== undefined && time - previous < 80) return;
-    const next = [...tapRef.current, time]; tapRef.current = next; setTaps(next);
-    if (next.length === 8) void submit({ taps: next });
+    const next = [...tapRef.current, time];
+    tapRef.current = next;
+    setTaps(next);
+    if (next.length === RHYTHM_SOLO_TAPS) void submit({ taps: next, calibration: [...calibration.current] });
   }
   useEffect(() => {
     if (task?.kind !== "tempo" || phase !== "playing") return;
@@ -200,8 +247,18 @@ export default function PerceptionGame() {
     window.addEventListener("keydown", press);
     return () => window.removeEventListener("keydown", press);
   }, [task, phase]);
-  const canAnswer = task && value !== null && (task.kind !== "count" || (elapsed >= task.durationMs && Number.isInteger(value) && value >= 1 && value <= 150)) && (task.kind !== "track" || elapsed >= task.flightMs * task.visibleFraction);
-  const goNext = () => { setError(""); if (index === 4) setPhase("finished"); else { setIndex(index + 1); setTask(null); setPhase("ready"); } };
+  const canAnswerCount = countReady && value !== null && Number.isInteger(value) && value >= 1 && value <= 150;
+  const solo = guidedCount === RHYTHM_GUIDED_TAPS && elapsed >= soloAt.current;
+  const goNext = () => {
+    setError("");
+    if (index === 4) setPhase("finished");
+    else { setIndex(index + 1); setTask(null); setPhase("ready"); }
+  };
+  useEffect(() => {
+    if (phase !== "round-result") return;
+    const timer = window.setTimeout(goNext, 3000);
+    return () => window.clearTimeout(timer);
+  }, [phase, index]);
   const openRules = () => { rules.current?.showModal(); emit("rulesOpen"); };
   const boardLink = perceptionBoardUrl(day);
   return <div className="app perception-app">
@@ -260,29 +317,65 @@ export default function PerceptionGame() {
         </div> : task && <div className="perception-task">
           <div className="perception-task-heading">
             <div><p className="eyebrow">{perceptionNames[kind]}</p><h2 ref={heading} tabIndex={-1}>
-              {phase === "round-result" ? `${answer.score} из 100` : task.kind === "angle" ? `Выставь ${task.target}°` : task.kind === "split" ? `Отметь ${task.label} ${task.fromRight ? "справа" : "слева"}` : task.kind === "count" ? "Сколько точек?" : task.kind === "track" ? "Где окажется шар?" : "Удержи ритм"}
+              {phase === "round-result" ? `${answer.score} из 100` : task.kind === "angle" ? `Выставь ${task.target}°` : task.kind === "split" ? `Отметь ${task.label} ${task.fromRight ? "справа" : "слева"}` : task.kind === "count" ? (countReady ? "Сколько точек было?" : "Запомни точки") : task.kind === "track" ? "Где окажется шар?" : "Удержи ритм"}
             </h2></div>
             <span className="perception-round-label">{index + 1} / 5</span>
           </div>
-          <PerceptionBoard task={task} elapsed={elapsed} value={value} onChange={next => { if (!pending.current && !lastInput.current) setValue(next); }} result={phase === "round-result" ? answer : undefined} taps={taps} />
-          <div className="perception-controls">
+          {(!countReady || phase !== "playing") && <PerceptionBoard
+            task={task}
+            elapsed={elapsed}
+            value={value}
+            locked={busy || !!lastInput.current}
+            onChange={setValue}
+            onCommit={next => { setValue(next); void submit({ value: next }); }}
+            onTap={tap}
+            result={phase === "round-result" ? answer : undefined}
+            guidedCount={guidedCount}
+            solo={solo}
+            tapCount={taps.length}
+          />}
+          <div className={`perception-controls${countReady && phase === "playing" ? " perception-count-answer" : ""}`}>
             {phase === "round-result" ? <>
               {answer.skipped ? <p className="perception-feedback">Задание пропущено</p> : task.kind === "count" ? <p className="perception-feedback">Твой ответ: <b>{answer.guess}</b> · Было точек: <b>{answer.actual}</b></p>
-                : <><div className="perception-legend"><span>Твой ответ</span><span>Точное попадание</span></div><p className="perception-feedback">Отклонение: <b>{answer.error.toLocaleString("ru-RU")} {answer.unit}</b></p></>}
+                : <>
+                    <div className="perception-legend"><span>Твой ответ</span><span>Точное попадание</span></div>
+                    <p className="perception-feedback">Отклонение: <b>{answer.error.toLocaleString("ru-RU")} {answer.unit}</b></p>
+                    {answer.rhythm && <p className="perception-feedback">
+                      Твой темп <b>{answer.guess}</b> · Метроном <b>{answer.actual} уд/мин</b>
+                      {" · "}{answer.rhythm.phase === 0 ? "В такт" : `${answer.rhythm.phase < 0 ? "Раньше" : "Позже"} на ${Math.abs(answer.rhythm.phase)} мс`}
+                      {" · "}Разброс <b>±{answer.rhythm.jitter} мс</b>
+                    </p>}
+                  </>}
               <button className="primary" onClick={goNext}>{index === 4 ? "Итог дня" : "Дальше"}<span aria-hidden="true">→</span></button>
             </> : <>
-              {task.kind === "count" && <label className="perception-count-label">Твоё число
-                <input type="number" inputMode="numeric" min="1" max="150" value={value ?? ""} placeholder="?" disabled={elapsed < task.durationMs || busy || !!lastInput.current} onChange={e => setValue(e.target.value === "" ? null : Number(e.target.value))} onKeyDown={e => { if (e.key === "Enter" && canAnswer) void submit({ value: value! }); }} />
-              </label>}
-              {task.kind === "angle" && <p className="perception-hint">Потяни луч. Для точной настройки — стрелки на клавиатуре.</p>}
-              {(task.kind === "track" || task.kind === "split") && <p className="perception-hint">{task.kind === "track" && elapsed < task.flightMs * task.visibleFraction ? "Следи за шаром…" : "Поставь отметку на линии. Её можно передвинуть."}</p>}
-              {task.kind === "tempo" ? <>
-                <button ref={tapButton} type="button" className="primary perception-tap" disabled={busy || taps.length >= 8 || elapsed < 800 + 3.5 * 60000 / task.bpm}
+              {task.kind === "count" && countReady && (
+                <form className="perception-count-form" onSubmit={event => {
+                  event.preventDefault();
+                  if (canAnswerCount) void submit({ value: value! });
+                }}>
+                  <label className="perception-count-label">Твоё число
+                    <input ref={countInput} type="number" inputMode="numeric" autoComplete="off" min="1" max="150"
+                      value={value ?? ""} placeholder="?" disabled={busy || !!lastInput.current}
+                      onChange={e => setValue(e.target.value === "" ? null : Number(e.target.value))} />
+                  </label>
+                  <button className="primary" disabled={!canAnswerCount || busy || !!lastInput.current}>
+                    {busy ? "Проверяем…" : "Ответить"}<span aria-hidden="true">→</span>
+                  </button>
+                </form>
+              )}
+              {(task.kind === "angle" || task.kind === "split") && <p className="perception-hint">
+                {busy ? "Проверяем…" : task.kind === "angle" ? "Поверни луч и отпусти." : "Передвинь отметку и отпусти."} {!busy && "Клавиатура: стрелки, затем Enter."}
+              </p>}
+              {task.kind === "track" && <p className="perception-hint">
+                {busy ? "Проверяем…" : elapsed < task.flightMs * task.visibleFraction ? "Следи за шаром…" : "Нажми там, где шар приземлится."}
+              </p>}
+              {task.kind === "tempo" && <>
+                <button ref={tapButton} type="button" className="primary perception-tap" disabled={busy || !!lastInput.current}
                   onPointerDown={e => { if (e.button === 0) { e.preventDefault(); tap(); } }}
                   onClick={e => { if (e.detail === 0) tap(); }}>
-                  {taps.length >= 8 ? "Проверяем…" : `${elapsed < 800 + 3.5 * 60000 / task.bpm ? "Слушай" : "Нажимай"} · ${taps.length} / 8`}
-                </button><span className="perception-hint">Или нажимай пробел</span>
-              </> : <button className="primary" disabled={!canAnswer || busy || !!lastInput.current} onClick={() => void submit({ value: value! })}>{busy ? "Проверяем…" : "Проверить"}<span aria-hidden="true">→</span></button>}
+                  {busy ? "Проверяем…" : solo ? `Держи темп · ${taps.length} / 8` : `В такт · ${guidedCount} / 4`}
+                </button><span className="perception-hint">Нажимай на поле, кнопку или пробел</span>
+              </>}
               {error && <div role="status" className="perception-error"><p>{error}</p>{lastInput.current && <button className="text-button" disabled={busy} onClick={() => void submit(lastInput.current!)}>Отправить ещё раз</button>}</div>}
               <button className="text-button perception-skip" disabled={busy || !!lastInput.current} onClick={() => void submit({ skipped: true })}>Пропустить</button>
             </>}

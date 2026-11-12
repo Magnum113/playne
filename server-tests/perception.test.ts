@@ -4,10 +4,17 @@ import { Pool } from "pg";
 import { buildApp } from "../server/app";
 import { validateAnswer, safeReturn } from "../server/scoring";
 import { createPerceptionTasks, perceptionMinimumMs, type PerceptionTask } from "../src/perception";
+import { RHYTHM_CUE_START } from "../src/perceptionRhythm";
 import { geoDailyDate } from "../src/geoDaily";
 
 function exactInput(task: PerceptionTask) {
-  if (task.kind === "tempo") return { taps: Array.from({ length: 8 }, (_, i) => 800 + (4 + i) * 60000 / task.bpm) };
+  if (task.kind === "tempo") {
+    const period = 60000 / task.bpm;
+    return {
+      calibration: Array.from({ length: 4 }, (_, i) => RHYTHM_CUE_START + i * period),
+      taps: Array.from({ length: 8 }, (_, i) => RHYTHM_CUE_START + (4 + i) * period),
+    };
+  }
   return { value: task.kind === "count" ? task.dots.length : task.kind === "angle" ? task.target : task.kind === "track" ? task.startX + task.travel : task.fromRight ? 1 - task.fraction : task.fraction };
 }
 
@@ -30,7 +37,8 @@ it("requires a server start, elapsed presentation and real tap timestamps", () =
   }
   expect(() => validateAnswer("perception", challenge, 3, { taps: [10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000] }, 1000 + minimum + 1)).toThrow("время");
   const resumedTaps = Array.from({ length: 8 }, (_, i) => 180000 + i * 600);
-  expect(validateAnswer("perception", challenge, 3, { taps: resumedTaps }, 190000)).toMatchObject({ score: 0, elapsedMs: 189000 });
+  expect(validateAnswer("perception", challenge, 3, { taps: resumedTaps }, 190000)).toMatchObject({ elapsedMs: 189000 });
+  expect(() => validateAnswer("perception", challenge, 3, { taps: resumedTaps, calibration: [210000, 210600, 211200, 211800] }, 190000)).toThrow("время");
   expect(() => validateAnswer("perception", challenge, 3, { taps: resumedTaps }, 180000)).toThrow("время");
   expect(() => validateAnswer("perception", challenge, 3, { taps: [0, 1, 2, 3, 4, 5, 6, Infinity] }, 190000)).toThrow();
   expect(safeReturn("/perception/?claim=11111111-1111-4111-8111-111111111111&mode=daily")).toContain("/perception/");

@@ -114,3 +114,24 @@
 }
 /* Programmatic screen announcements are not interactive focus targets. */
 .perception-main h2[tabindex="-1"]:focus { outline: none; }
+
+.perception-count-answer {
+  margin-top: 20px;
+  min-height: clamp(230px, 34svh, 320px);
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-inner);
+  background: var(--bg);
+}
+.perception-count-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.perception-count-form .primary { min-width: 0; }
+@media (max-width: 700px) {
+  .perception-count-answer { min-height: 220px; }
+  .perception-count-form { width: min(100%, 300px); }
+}

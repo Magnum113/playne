@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { RHYTHM_CUE_START } from "../src/perceptionRhythm";
 import { createPerceptionTasks, evaluatePerception, perceptionDay, PERCEPTION_KINDS } from "../src/perception";
 
 describe("Приметь: daily stimuli and accuracy", () => {
@@ -49,4 +50,22 @@ describe("Приметь: daily stimuli and accuracy", () => {
     expect(() => evaluatePerception(t, { taps: taps.slice().reverse() })).toThrow();
     expect(() => evaluatePerception(t, { taps: [...taps.slice(0,7), Infinity] })).toThrow();
   });
+  it("calibrates input latency and ignores a whole-beat delay", () => {
+    const task = { kind: "tempo", bpm: 100, cues: 4, beats: 8 } as const;
+    const period = 600;
+    const calibration = Array.from({ length: 4 }, (_, i) => RHYTHM_CUE_START + i * period + 85);
+    const taps = Array.from({ length: 8 }, (_, i) => calibration[3] + (i + 4) * period);
+    expect(evaluatePerception(task, { taps, calibration })).toMatchObject({
+      score: 100, error: 0, guess: 100, rhythm: { phase: 0, jitter: 0, shiftedBeats: 3 },
+    });
+    const rushed = taps.map((tap, index) => tap - 45 * index);
+    const result = evaluatePerception(task, { taps: rushed, calibration });
+    expect(result.score).toBeLessThan(50);
+    expect(result.rhythm?.jitter).toBeGreaterThan(0);
+    expect(() => evaluatePerception(task, { taps, calibration: [985, 1000, 1585, 2185] })).toThrow("четыре удара");
+    expect(() => evaluatePerception(task, { taps, calibration: calibration.slice(0, 3) })).toThrow();
+    const premature = taps.map((_, index) => calibration[3] + 100 + index * period);
+    expect(() => evaluatePerception(task, { taps: premature, calibration })).toThrow();
+  });
+
 });

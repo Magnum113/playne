@@ -1,5 +1,8 @@
+import { evaluateRhythm } from "./perceptionRhythm";
+
 /** Original Playne tasks. Coordinates are normalized so every screen has the same problem. */
 export const PERCEPTION_VERSION = 1;
+export const PERCEPTION_COUNTDOWN_MS = 1950;
 export const PERCEPTION_KINDS = ["count", "track", "angle", "tempo", "split"] as const;
 export type PerceptionKind = (typeof PERCEPTION_KINDS)[number];
 export type PerceptionTask =
@@ -8,8 +11,8 @@ export type PerceptionTask =
   | { kind: "angle"; target: number; initial: number }
   | { kind: "tempo"; bpm: number; cues: 4; beats: 8 }
   | { kind: "split"; fraction: number; label: string; fromRight: boolean };
-export type PerceptionInput = { value?: number; taps?: number[]; skipped?: boolean };
-export type PerceptionAnswer = { score: number; error: number; unit: string; guess: number | null; actual: number; elapsedMs?: number; skipped?: boolean };
+export type PerceptionInput = { value?: number; taps?: number[]; calibration?: number[]; skipped?: boolean };
+export type PerceptionAnswer = { score: number; error: number; unit: string; guess: number | null; actual: number; elapsedMs?: number; skipped?: boolean; rhythm?: ReturnType<typeof evaluateRhythm>["rhythm"] };
 export const perceptionNames: Record<PerceptionKind, string> = {
   count: "Счёт", track: "Траектория", angle: "Угол", tempo: "Ритм", split: "Доля",
 };
@@ -17,7 +20,7 @@ export const perceptionRules: Record<PerceptionKind, string> = {
   count: "Посмотри на точки. Через две секунды они исчезнут — укажи, сколько их было.",
   track: "Шар исчезнет на полпути. Отметь на нижней линии, где он приземлится.",
   angle: "Поверни луч и выставь заданный угол против часовой стрелки от правого луча.",
-  tempo: "Поймай ритм четырёх сигналов. Затем нажми ещё восемь раз в том же темпе.",
+  tempo: "Нажми четыре раза в такт метроному. Когда он стихнет, продолжи в том же ритме ещё восемь раз.",
   split: "Отметь указанную долю отрезка. Обрати внимание, с какого края считать.",
 };
 export function perceptionDay(now = new Date()) {
@@ -69,13 +72,7 @@ const points = (error: number, scale: number) => error < .000001 ? 100 : Math.mi
 export function evaluatePerception(task: PerceptionTask, input: PerceptionInput): PerceptionAnswer {
   if (!input || typeof input !== "object") throw new Error("Некорректный ответ");
   if (input.skipped === true) return { score: 0, error: 0, unit: "", guess: null, actual: 0, skipped: true };
-  if (task.kind === "tempo") {
-    const taps = input.taps;
-    const beat = 60000 / task.bpm;
-    if (!Array.isArray(taps) || taps.length !== 8 || taps.some((tap, i) => !Number.isFinite(tap) || tap < 0 || (i > 0 && tap <= taps[i - 1]))) throw new Error("Нужно восемь нажатий по порядку");
-    const timing = taps.reduce((sum, tap, i) => sum + Math.abs(tap - (800 + (task.cues + i) * beat)), 0) / taps.length;
-    return { score: points(timing / beat, .42), error: Math.round(timing), unit: "мс", guess: Math.round(60000 / ((taps[7] - taps[0]) / 7)), actual: task.bpm };
-  }
+  if (task.kind === "tempo") return evaluateRhythm(task.bpm, input.taps, input.calibration);
   const guess = input.value;
   if (typeof guess !== "number" || !Number.isFinite(guess)) throw new Error("Укажи свой ответ");
   if (task.kind === "count") {
