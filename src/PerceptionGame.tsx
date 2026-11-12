@@ -93,9 +93,16 @@ export default function PerceptionGame() {
     heading.current?.focus({ preventScroll: true });
   }, [phase, index]);
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || !task) return;
+    const end = task.kind === "count" ? task.durationMs : task.kind === "track" ? task.flightMs * task.visibleFraction : task.kind === "tempo" ? 800 + 4 * 60000 / task.bpm : 0;
+    if (!end) return;
     let frame = 0;
-    const tick = () => { setElapsed(Math.max(0, performance.now() - startAt.current)); frame = requestAnimationFrame(tick); };
+    const tick = () => {
+      const now = Math.max(0, performance.now() - startAt.current);
+      setElapsed(Math.min(now, end));
+      // Static answer screens need no continuous rerenders or battery use.
+      if (now < end) frame = requestAnimationFrame(tick);
+    };
     tick();
     return () => cancelAnimationFrame(frame);
   }, [phase, task]);
@@ -193,7 +200,7 @@ export default function PerceptionGame() {
     window.addEventListener("keydown", press);
     return () => window.removeEventListener("keydown", press);
   }, [task, phase]);
-  const canAnswer = task && value !== null && (task.kind !== "count" || elapsed >= task.durationMs) && (task.kind !== "track" || elapsed >= task.flightMs * task.visibleFraction);
+  const canAnswer = task && value !== null && (task.kind !== "count" || (elapsed >= task.durationMs && Number.isInteger(value) && value >= 1 && value <= 150)) && (task.kind !== "track" || elapsed >= task.flightMs * task.visibleFraction);
   const goNext = () => { setError(""); if (index === 4) setPhase("finished"); else { setIndex(index + 1); setTask(null); setPhase("ready"); } };
   const openRules = () => { rules.current?.showModal(); emit("rulesOpen"); };
   const boardLink = perceptionBoardUrl(day);
@@ -275,7 +282,7 @@ export default function PerceptionGame() {
                   onClick={e => { if (e.detail === 0) tap(); }}>
                   {taps.length >= 8 ? "Проверяем…" : `${elapsed < 800 + 3.5 * 60000 / task.bpm ? "Слушай" : "Нажимай"} · ${taps.length} / 8`}
                 </button><span className="perception-hint">Или нажимай пробел</span>
-              </> : <button className="primary" disabled={!canAnswer || busy || !!lastInput.current || (task.kind === "count" && (!Number.isInteger(value) || value! < 1 || value! > 150))} onClick={() => void submit({ value: value! })}>{busy ? "Проверяем…" : "Проверить"}<span aria-hidden="true">→</span></button>}
+              </> : <button className="primary" disabled={!canAnswer || busy || !!lastInput.current} onClick={() => void submit({ value: value! })}>{busy ? "Проверяем…" : "Проверить"}<span aria-hidden="true">→</span></button>}
               {error && <div role="status" className="perception-error"><p>{error}</p>{lastInput.current && <button className="text-button" disabled={busy} onClick={() => void submit(lastInput.current!)}>Отправить ещё раз</button>}</div>}
               <button className="text-button perception-skip" disabled={busy || !!lastInput.current} onClick={() => void submit({ skipped: true })}>Пропустить</button>
             </>}
