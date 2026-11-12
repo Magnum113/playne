@@ -90,6 +90,20 @@ describe("catalog preview motion", () => {
     vi.advanceTimersByTime(CARD_PREVIEW_DURATION);
     expect(playing()).toEqual([]);
   });
+  it("plays an opted-in desktop card on first appearance only", () => {
+    const [ordinary, featured] = [...root.children] as HTMLElement[];
+    featured.setAttribute("data-preview-on-view", "");
+    cleanup = attachCardMotion(root);
+
+    visible(ordinary, featured);
+    expect(playing()).toEqual([featured]);
+    vi.advanceTimersByTime(CARD_PREVIEW_DURATION);
+    visible(ordinary, featured);
+    expect(playing()).toEqual([]);
+
+    setMedia(touch, true);
+    expect(playing()).toEqual([ordinary]);
+  });
   it("does not restart when the pointer crosses children inside a card", () => {
     cleanup = attachCardMotion(root);
     const card = root.firstElementChild as HTMLElement;

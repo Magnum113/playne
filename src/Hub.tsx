@@ -1,7 +1,7 @@
 import FlowPreview from "./FlowArt";
 import { PressurePreview } from "./PressureGame";
 import LinePreview from "./LinePreview";
-import PerceptionPreview from "./PerceptionPreview";
+import DailyPerceptionCard from "./DailyPerceptionCard";
 import { readPressStats, formatPressScore } from "./pressure";
 import { HeaderAccount } from "./SiteHeader";
 import HubTopFive from "./OverallLeaderboard";
@@ -99,12 +99,6 @@ export default function Hub() {
               <HubStreakBoard />
             </aside>
             <div className="game-cards">
-              <a className="game-card game-card-live" href="/perception/" aria-label="Играть в Приметь — пять заданий на восприятие каждый день">
-                <div className="card-topline"><span className="card-category"><CategoryGlyph kind="size" /> ВОСПРИЯТИЕ</span></div>
-                <PerceptionPreview />
-                <div className="card-copy"><h2>Приметь<span className="brand-dot">.</span></h2><p>Проверь глазомер и чувство ритма.<br />Пять заданий дня в духе Perceptle.</p></div>
-                <div className="card-bottom"><span>5 заданий · рейтинг дня</span><span className="card-play">Играть <Arrow /></span></div>
-              </a>
               <a className="game-card game-card-live flow-feature-card" href="/swarm/" aria-label="Играть в Рой — цветные муравьи, уровни и испытание дня">
                 <div className="card-topline"><span className="card-category">✦ НОВАЯ ИГРА · ПЛАНИРОВАНИЕ</span></div>
                 <FlowPreview />
@@ -269,6 +263,7 @@ export default function Hub() {
                   </span>
                 </div>
               </a>
+              <DailyPerceptionCard />
               <a
                 className="game-card game-card-live"
                 href="/pressure/"

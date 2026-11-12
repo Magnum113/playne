@@ -1,0 +1,159 @@
+.game-card.perception-home-card {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: clamp(16px, 3vw, 32px);
+  border-color: color-mix(in srgb, var(--purple) 24%, var(--line));
+}
+
+.perception-home-game {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-inline-size: 0;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.perception-home-game .card-category { margin-block-end: 10px; }
+.perception-home-game .card-copy h2 { margin: 0 0 4px; }
+.perception-home-game .card-copy p { margin: 0; }
+.perception-home-game .perception-preview {
+  inline-size: min(100%, 300px);
+  block-size: 110px;
+  margin: auto auto 8px;
+}
+.perception-home-game .card-play {
+  min-block-size: 44px;
+  transition: background-color 150ms ease;
+}
+.perception-home-game:is(:hover, :focus-visible) .card-play {
+  background-color: color-mix(in srgb, var(--purple-soft) 82%, var(--purple));
+}
+
+.perception-home-ranking {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  padding: clamp(12px, 2vw, 20px);
+  border: 1px solid color-mix(in srgb, var(--purple) 25%, var(--line));
+  border-radius: var(--radius-inner);
+  background: var(--purple-tint);
+}
+
+.perception-ranking-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0 8px;
+}
+.perception-ranking-heading h3 { margin: 0 0 3px; font-size: 17px; }
+.perception-ranking-heading time,
+.perception-ranking-list small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.perception-ranking-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-block-size: 44px;
+  color: var(--purple);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.perception-ranking-link:hover { text-decoration: underline; }
+
+.perception-ranking-list {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto 4ch;
+  gap: 3px 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.perception-ranking-list li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 2ch minmax(0, 1fr) auto 4ch;
+  align-items: center;
+  min-block-size: 39px;
+  padding-inline: 8px;
+  border-radius: var(--radius-control);
+}
+@supports (grid-template-columns: subgrid) {
+  .perception-ranking-list li { grid-template-columns: subgrid; }
+}
+.perception-ranking-list li:first-child { background: var(--panel); }
+.perception-ranking-place { color: var(--purple); font-weight: 650; }
+.perception-ranking-name { overflow-wrap: anywhere; }
+.perception-ranking-list :is(strong, small) { text-align: end; }
+
+.perception-ranking-status {
+  display: grid;
+  align-content: center;
+  flex: 1;
+  min-block-size: 86px;
+  gap: 4px;
+}
+.perception-ranking-status p { margin: 0; color: var(--muted); font-size: 13px; }
+
+.perception-ranking-spark { display: none; }
+@supports (offset-path: border-box) {
+  @media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
+    .perception-home-card.is-preview-playing .perception-ranking-spark {
+      display: block;
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+    }
+    .perception-ranking-spark::before,
+    .perception-ranking-spark::after {
+      content: "";
+      position: absolute;
+      width: 30px;
+      height: 3px;
+      border-radius: 50%;
+      offset-path: border-box;
+      background: linear-gradient(90deg, transparent, var(--purple), var(--panel));
+      box-shadow: 2px 0 7px var(--purple);
+      animation: perception-ranking-pulse 2.35s linear both;
+    }
+    .perception-ranking-spark::before {
+      width: 38px;
+      height: 8px;
+      clip-path: polygon(0 48%, 38% 42%, 52% 10%, 63% 43%, 100% 27%, 69% 78%, 53% 58%, 44% 87%);
+    }
+    .perception-ranking-spark::after {
+      width: 15px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--mint));
+      box-shadow: 1px 0 5px var(--mint);
+      animation-delay: 180ms;
+    }
+  }
+}
+
+@keyframes perception-ranking-pulse {
+  from { offset-distance: 0%; opacity: 0; }
+  10%, 88% { opacity: 1; }
+  to { offset-distance: 100%; opacity: 0; }
+}
+
+@media (max-width: 620px) {
+  .game-card.perception-home-card { grid-template-columns: minmax(0, 1fr); }
+  .perception-home-game .perception-preview { block-size: 95px; margin-block: 4px 8px; }
+}
+
+@media (max-width: 360px) {
+  .perception-ranking-heading { gap: 0 6px; }
+  .perception-ranking-heading h3 { font-size: 16px; }
+  .perception-ranking-link { font-size: 12px; }
+}

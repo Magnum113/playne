@@ -4,7 +4,7 @@ import "./card-motion.css";
 export const CARD_PREVIEW_DURATION = 2700;
 const CARD_SELECTOR = ".game-card, .brain-card";
 
-/** One finite preview at a time. Touch cards play once when visible. */
+/** One finite preview at a time. Touch cards and opt-in cards play once when visible. */
 export function attachCardMotion(root: HTMLElement): () => void {
   if (typeof window.matchMedia !== "function") return () => {};
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -33,10 +33,11 @@ export function attachCardMotion(root: HTMLElement): () => void {
     }, CARD_PREVIEW_DURATION);
   };
   const next = () => {
-    if (current || !touch.matches || reduced.matches || document.hidden) return;
+    if (current || reduced.matches || document.hidden) return;
     while (queue.length) {
       const card = queue.shift()!;
       if (!visible.has(card) || played.has(card)) continue;
+      if (!touch.matches && !card.hasAttribute("data-preview-on-view")) continue;
       play(card);
       return;
     }
@@ -77,6 +78,11 @@ export function attachCardMotion(root: HTMLElement): () => void {
   cards.forEach((card) => observer?.observe(card));
   const preferencesChanged = () => {
     stop();
+    if (touch.matches) {
+      for (const card of visible) {
+        if (!played.has(card) && !queue.includes(card)) queue.push(card);
+      }
+    }
     if (!reduced.matches) next();
   };
   const visibilityChanged = () => {
