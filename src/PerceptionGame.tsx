@@ -250,6 +250,9 @@ export default function PerceptionGame() {
   }, [task, phase]);
   const canAnswerCount = countReady && value !== null && Number.isInteger(value) && value >= 1 && value <= 150;
   const solo = guidedCount === RHYTHM_GUIDED_TAPS && elapsed >= soloAt.current;
+  const tapLabel = solo ? "Держи темп" : "В такт";
+  const tapCount = solo ? taps.length : guidedCount;
+  const tapTotal = solo ? RHYTHM_SOLO_TAPS : RHYTHM_GUIDED_TAPS;
   const goNext = () => {
     setError("");
     if (index === 4) setPhase("finished");
@@ -363,9 +366,17 @@ export default function PerceptionGame() {
               </p>}
               {task.kind === "tempo" && <>
                 <button ref={tapButton} type="button" className="primary perception-tap" disabled={busy || !!lastInput.current}
+                  aria-label={busy ? "Проверяем…" : `${tapLabel}, ${tapCount} из ${tapTotal}`}
                   onPointerDown={e => { if (e.button === 0) { e.preventDefault(); tap(); } }}
                   onClick={e => { if (e.detail === 0) tap(); }}>
-                  {busy ? "Проверяем…" : solo ? `Держи темп · ${taps.length} / 8` : `В такт · ${guidedCount} / 4`}
+                  {busy ? "Проверяем…" : <>
+                    <span>{tapLabel}</span>
+                    <span className="perception-tap-dots" aria-hidden="true">
+                      {Array.from({ length: tapTotal }, (_, i) => (
+                        <span key={i} className={i < tapCount ? "is-filled" : undefined} />
+                      ))}
+                    </span>
+                  </>}
                 </button><span className="perception-hint">Нажимай на поле, кнопку или пробел</span>
               </>}
               {error && <div role="status" className="perception-error"><p>{error}</p>{lastInput.current && <button className="text-button" disabled={busy} onClick={() => void submit(lastInput.current!)}>Отправить ещё раз</button>}</div>}
