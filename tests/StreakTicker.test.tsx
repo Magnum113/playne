@@ -20,7 +20,7 @@ const board: StreakBoard = { day: "2026-11-01", page: 1, limit: 5, total: 3, min
   { nickname: "Третий игрок", days: 12, place: 2, isMe: false },
 ] };
 const summary = () => box.querySelector("summary")!;
-const advance = async () => act(async () => { vi.advanceTimersByTime(4000); });
+const advance = async (ms = 2500) => act(async () => { vi.advanceTimersByTime(ms); });
 const see = async (visible = true) => act(async () => observer([{ isIntersecting: visible }]));
 const render = async (data: StreakBoard | null = board, error = false) => act(async () => root.render(<StreakTicker data={data} error={error}><p>Весь список</p></StreakTicker>));
 beforeEach(() => {
@@ -50,7 +50,8 @@ it("rotates only when visible, preserves tied ranks and loops without reverse sc
   const event = new Event("transitionend", { bubbles: true }); Object.defineProperty(event, "propertyName", { value: "transform" });
   await act(async () => box.querySelector(".streak-ticker-track")!.dispatchEvent(event));
   expect((box.querySelector(".streak-ticker-track") as HTMLElement).style.transform).toBe("translateY(-0em)");
-  await advance(); expect(summary().getAttribute("aria-label")).toContain("Очень длинное");
+  await advance(2499); expect(summary().getAttribute("aria-label")).toContain("Первый");
+  await advance(1); expect(summary().getAttribute("aria-label")).toContain("Очень длинное");
 });
 it("opens the native disclosure and stops rotation, with no explanatory copy", async () => {
   await render(); await see();

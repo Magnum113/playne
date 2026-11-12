@@ -1,9 +1,11 @@
+import { useState, type CSSProperties } from "react";
 import { PLAY_GOALS, reachGoal } from "./analytics";
 import { GEO_DAILY_URL, geoDailyBoardUrl, geoDailyLabel, geoDailyTime } from "./geoDaily";
 import { geoPoints } from "./geo";
 import { geoDailyAction, trackDailyAction, useDailyImpression } from "./geoAnalytics";
 import LandmarkPreview from "./LandmarkPreview";
 import { useGeoDailyStatus } from "./useGeoDailyStatus";
+import { useLeaderboardTicker } from "./useLeaderboardTicker";
 import "./geo-daily.css";
 
 export default function DailyGeoCard() {
@@ -11,6 +13,10 @@ export default function DailyGeoCard() {
   const heading = useDailyImpression("home", status);
   const attempt = status?.attempt;
   const leaders = status?.leaders ?? [];
+  const [rankingFocused, setRankingFocused] = useState(false);
+  const { viewport, position, onTransitionEnd } = useLeaderboardTicker(
+    leaders.length, JSON.stringify([status?.day, leaders]), rankingFocused, "(max-width: 620px)",
+  );
   const rankingUrl = geoDailyBoardUrl(status?.day);
   const trackRanking = () => trackDailyAction("home", "leaderboard", status?.day);
   const action = attempt?.completed
@@ -49,26 +55,40 @@ export default function DailyGeoCard() {
           </a>
         </div>
       </div>
-      <div className={leaders.length ? "daily-geo-leaders" : "daily-geo-art"}>
+      <div ref={viewport} className={leaders.length ? "daily-geo-leaders" : "daily-geo-art"}>
         <div className="daily-geo-leaders-header">
           <h3>Впереди сегодня</h3>
-          <a className="daily-geo-rank-shortcut" href={rankingUrl} aria-label="Рейтинг дня" onClick={trackRanking}>
+          <a className="daily-geo-rank-shortcut" href={rankingUrl} aria-label="Рейтинг дня"
+            onClick={trackRanking}
+            onFocus={(event) => setRankingFocused(event.currentTarget.matches(":focus-visible"))}
+            onBlur={() => setRankingFocused(false)}>
             <span aria-hidden="true">↗</span>
           </a>
         </div>
         {leaders.length ? (
-          <ol>
-            {leaders.map((leader) => (
-              <li key={leader.position}>
-                <span className="daily-geo-leader-place">{leader.place}</span>
-                <span className="daily-geo-leader-name">{leader.nickname}</span>
-                <span className="daily-geo-leader-score">
-                  <strong>{geoPoints(leader.score)}</strong>
-                  {leader.elapsedMs !== null && <small>{geoDailyTime(leader.elapsedMs)}</small>}
-                </span>
-              </li>
-            ))}
-          </ol>
+          <div className="daily-geo-leader-window">
+            <ol
+              className={position.snap ? "is-resetting" : undefined}
+              style={{ "--daily-geo-leader-index": position.index } as CSSProperties}
+              onTransitionEnd={onTransitionEnd}
+            >
+              {(leaders.length > 1 ? [...leaders, leaders[0]] : leaders).map((leader, index) => {
+                const repeat = index === leaders.length;
+                return (
+                  <li key={repeat ? "repeat" : leader.position}
+                    className={repeat ? "daily-geo-leader-repeat" : undefined}
+                    aria-hidden={repeat || undefined}>
+                    <span className="daily-geo-leader-place">{leader.place}</span>
+                    <span className="daily-geo-leader-name">{leader.nickname}</span>
+                    <span className="daily-geo-leader-score">
+                      <strong>{geoPoints(leader.score)}</strong>
+                      {leader.elapsedMs !== null && <small>{geoDailyTime(leader.elapsedMs)}</small>}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
         ) : (
           <>
             <LandmarkPreview />
