@@ -65,7 +65,7 @@ export async function registerPerceptionRoutes(
       `WITH peers AS (
          SELECT score_units, answers FROM playne_games
          WHERE game='perception' AND mode='daily' AND version=$4
-           AND challenge->>'day'=$1 AND published_at IS NOT NULL AND id<>$5
+           AND challenge->>'day'=$1 AND completed_at IS NOT NULL AND id<>$5
        )
        SELECT count(*)::int AS players,
               count(*) FILTER (WHERE score_units<$3)::int AS beaten,

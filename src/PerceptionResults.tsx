@@ -76,13 +76,15 @@ export default function PerceptionResults({ answers, score, runId }: {
   score: number;
   runId?: string;
 }) {
-  const [comparison, setComparison] = useState<{ id: string; data: PerceptionComparison } | null>(null);
+  const [comparison, setComparison] = useState<{ id: string; data: PerceptionComparison | null } | null>(null);
   useEffect(() => {
     if (!runId) return;
     let active = true;
     void api<PerceptionComparison>(`/games/${runId}/perception/comparison`).then(data => {
       if (active) setComparison({ id: runId, data });
-    }).catch(() => { /* Scores and the chart are already available. */ });
+    }).catch(() => {
+      if (active) setComparison({ id: runId, data: null });
+    });
     return () => { active = false; };
   }, [runId]);
   const stats = comparison?.id === runId ? comparison?.data : undefined;
@@ -94,9 +96,13 @@ export default function PerceptionResults({ answers, score, runId }: {
         {overallGrade}
       </b>
     </div>
-    {!!stats?.players && <p className="perception-comparison">
-      Выше {stats.beaten}% в рейтинге дня · {format(stats.players)} {["результат", "результата", "результатов"][pluralIndex(stats.players)]} · Среднее {stats.averageScore} из 500
-    </p>}
+    <p className="perception-comparison" role="status">
+      {stats === undefined ? "Сравниваем с другими игроками…"
+        : stats === null ? "Сравнение временно недоступно"
+        : stats.players === 0 ? "Пока это первая завершённая партия дня"
+        : <>Выше {stats.beaten}% из {format(stats.players)} {["результата", "результатов", "результатов"][pluralIndex(stats.players)]} за день
+            {" · "}Среднее {format(stats.averageScore ?? 0)} из 500</>}
+    </p>
     <Radar answers={answers} />
     <table className="perception-result-table" role="table" aria-label="Результаты пяти заданий">
       <thead className="sr-only">
@@ -110,7 +116,7 @@ export default function PerceptionResults({ answers, score, runId }: {
             <td className="perception-result-detail" role="cell">
               {perceptionFeedback(kind, answer, true)}
               {!!stats?.players && !answer.skipped && <span className="perception-result-percentile">
-                Выше {stats.rounds[index]}%
+                · Выше {stats.rounds[index]}%
               </span>}
             </td>
             <td className="perception-result-score" role="cell">{answer.score}</td>

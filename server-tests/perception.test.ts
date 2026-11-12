@@ -157,10 +157,10 @@ const db = process.env.TEST_DATABASE_URL;
     expect((await start(cookie)).statusCode).toBe(403);
   });
 
-  it("compares with other published results from the same day and handles ties", async () => {
+  it("compares with completed results from the same day, including guests", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-07T12:00:00Z"));
-    const viewer = await login(await guest(), "perception-comparison-viewer");
+    const viewer = await guest();
     const own = (await start(viewer)).json();
     const url = `/api/games/${own.id}/perception/comparison`;
     expect((await get(url, viewer)).statusCode).toBe(404);
@@ -168,17 +168,23 @@ const db = process.env.TEST_DATABASE_URL;
     expect((await get(url, viewer)).json()).toEqual({
       players: 0, averageScore: null, beaten: 0, rounds: [0, 0, 0, 0, 0],
     });
-    const peer = await login(await guest(), "perception-comparison-peer");
+    const peer = await guest();
     await finish(peer, (await start(peer)).json(), 0, true);
     const anonymous = await guest();
-    await finish(anonymous, (await start(anonymous)).json());
+    const guestRun = (await start(anonymous)).json();
+    await finish(anonymous, guestRun);
+    await start(await guest()); // An unfinished party does not contribute.
     expect((await get(url, anonymous)).statusCode).toBe(404);
-    expect((await get(url, viewer)).json()).toEqual({
-      players: 1, averageScore: 400, beaten: 100, rounds: [100, 0, 0, 0, 0],
-    });
+    const expected = {
+      players: 2, averageScore: 450, beaten: 50, rounds: [50, 0, 0, 0, 0],
+    };
+    expect((await get("/api/leaderboard?game=perception&mode=daily", viewer)).json().total).toBe(0);
+    expect((await get(url, viewer)).json()).toEqual(expected);
+    expect((await get(`/api/games/${guestRun.id}/perception/comparison`, anonymous)).json()).toEqual(expected);
     vi.setSystemTime(new Date("2026-11-08T12:00:00Z"));
-    await finish(peer, (await start(peer)).json());
-    expect((await get(url, viewer)).json().players).toBe(1);
+    const signed = await login(peer, "perception-comparison-peer");
+    await finish(signed, (await start(signed)).json());
+    expect((await get(url, viewer)).json()).toEqual(expected);
   });
 
   it("does not replace an account's first daily attempt with a second guest result", async () => {
