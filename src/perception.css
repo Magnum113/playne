@@ -138,11 +138,15 @@
   .perception-progress { margin-bottom: 16px; gap: 8px; }
   .perception-progress > span { font-size: 12px; gap: 5px; }
   .perception-progress > span strong { font-size: 24px; }
-  .perception-finish { padding: 28px 20px; }
+  .perception-finish { padding: 22px 20px; }
+  .perception-finish h2 { margin-block: 12px; }
+  .perception-total { margin-bottom: 18px; }
+  .perception-radar { width: min(100%, 285px); margin-bottom: 6px; }
   .perception-result-table { font-size: 12px; }
-  .perception-result-table :is(th, td) { padding-inline: 6px; }
+  .perception-result-table :is(th, td) { padding: 6px; }
+  .perception-result-percentile { display: inline; margin-inline-start: 7px; white-space: nowrap; }
+  .perception-finish-time { margin-block: 14px; }
 }
-@media (prefers-reduced-motion: reduce) { .perception-score-bar i { transition: none; } }
 
 .perception-board:focus-within { outline: var(--focus-width) solid var(--focus); outline-offset: 4px; }
 .perception-rank-date { display: flex; align-items: center; gap: 12px; margin: 24px 0; font-size: 14px; color: var(--muted); }
@@ -188,15 +192,15 @@
   .perception-count-form { width: min(100%, 300px); }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 360px) {
   .perception-result-table { display: block; }
   .perception-result-table tbody { display: grid; gap: 6px; }
   .perception-result-table tr {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto 16px;
     align-items: baseline;
-    gap: 2px 8px;
-    padding: 8px 10px;
+    gap: 1px 8px;
+    padding: 6px 9px;
     border: 1px solid var(--line);
     border-radius: var(--radius-control);
     background: var(--bg);
@@ -209,5 +213,4 @@
   .perception-result-detail { grid-area: 2 / 1 / 3 / -1; }
   .perception-result-score { grid-area: 1 / 2; }
   .perception-result-grade { grid-area: 1 / 3; }
-  .perception-result-percentile { display: inline; margin-inline-start: 8px; }
 }
