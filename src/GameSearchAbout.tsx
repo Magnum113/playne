@@ -1,8 +1,13 @@
 import GameAbout from "./GameAbout";
-import { naglazFaq, colorFaq } from "./gameSeoContent";
+import { naglazFaq, colorFaq, perceptionFaq } from "./gameSeoContent";
 import "./game-search-about.css";
 
 const content = {
+  perception: {
+    title: "Perceptle на русском: пять заданий на восприятие",
+    intro: "«Приметь» — бесплатная игра Playne в духе Perceptle. Посчитай точки на глаз, продолжи траекторию, оцени угол, повтори ритм и найди нужную долю отрезка. Каждый день — новые условия, пять заданий и отдельный рейтинг.",
+    guide: "/leaderboard/?game=perception&mode=daily", guideLabel: "Рейтинг дня «Приметь»", faq: perceptionFaq,
+  },
   naglaz: {
     title: "Size It Up на русском: сравни размеры в «На глаз»",
     intro: "«На глаз» — бесплатная игра на глазомер в духе Size It Up. Сравнивай реальные размеры животных, зданий и предметов: один силуэт служит ориентиром, а размер второго нужно подобрать самому.",

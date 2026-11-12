@@ -9,6 +9,16 @@ export const METRIKA_GOALS = {
   gameRestart: "naglaz_game_restart",
 } as const;
 
+export const PERCEPTION_GOALS = {
+  rulesOpen: "perception_rules_open",
+  gameStart: "perception_game_start",
+  roundStart: "perception_round_start",
+  roundComplete: "perception_round_complete",
+  gameComplete: "perception_game_complete",
+  resultView: "perception_result_view",
+  leaderboardOpen: "perception_leaderboard_open",
+} as const;
+
 export const CIRCLE_GOALS = {
   rulesOpen: "circle_rules_open",
   attemptStart: "circle_attempt_start",
@@ -143,6 +153,7 @@ export const BRAIN_GAME_GOALS = {
 
 type Values<T> = T[keyof T];
 export type MetrikaGoal =
+  | Values<typeof PERCEPTION_GOALS>
   | Values<typeof METRIKA_GOALS>
   | Values<typeof CIRCLE_GOALS>
   | Values<typeof SHADE_GOALS>

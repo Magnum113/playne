@@ -5,6 +5,7 @@ export const playCatalog: Record<
   GameId,
   { name: string; path: string; skill: string; hint: string }
 > = {
+  perception: { name: "Приметь", path: "/perception/", skill: "Восприятие", hint: "Пять новых заданий на глазомер и ритм" },
   flow: { name: "Рой", path: "/swarm/", skill: "Планирование", hint: "Отправь цветных муравьёв за кубиками" },
   naglaz: {
     name: "На глаз",

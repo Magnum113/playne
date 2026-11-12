@@ -15,6 +15,7 @@ export default function FooterLinks() {
           <a href="/pressure/">Жми</a>
           <a href="/one-line/">Одной линией</a>
           <a href="/swarm/">Рой</a>
+          <a href="/perception/">Приметь</a>
         </div>
         <div>
           <a className="footer-heading" href="/brain/">

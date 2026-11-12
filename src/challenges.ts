@@ -1,4 +1,5 @@
 export const CHALLENGE_GAMES = [
+  "perception",
   "line",
   "flash",
   "rotate",
@@ -35,7 +36,7 @@ export type PublicChallenge = {
 };
 
 export type ChallengeStart =
-  | { kind: "daily"; mode: "classic"; reference: PublicChallenge }
+  | { kind: "daily"; mode: "classic" | "daily"; reference: PublicChallenge }
   | {
       kind: "comparison";
       mode: import("./account").GameMode;

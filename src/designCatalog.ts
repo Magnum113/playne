@@ -56,6 +56,11 @@ export const tokenGroups = [
 // The source paths identify the production components used by these examples.
 export const componentInventory = [
   [
+    "Приметь: пять заданий, ответ и дневной рейтинг",
+    "PerceptionGame.tsx · PerceptionPreview.tsx · perception.ts",
+    "gameplay",
+  ],
+  [
     "Безопасные поля игры, интервалы действий и запас для огня/фокуса",
     "GameSpacingExamples.tsx · ui-action-stack · design-tokens.css · flow.css",
     "layout",

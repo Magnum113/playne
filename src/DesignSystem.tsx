@@ -49,6 +49,7 @@ import GeoPreview from "./GeoPreview";
 import LandmarkPreview from "./LandmarkPreview";
 import { PressurePreview, PressureTimer } from "./PressureGame";
 import LinePreview from "./LinePreview";
+import PerceptionPreview from "./PerceptionPreview";
 import { lineRules, lineScoreText } from "./lineContent";
 import { BrainFeature } from "./BrainHub";
 import { Palette, Swatch } from "./ColorfleGame";
@@ -589,6 +590,15 @@ function Navigation() {
   );
 }
 const gameCards = [
+  {
+    name: "Приметь",
+    label: "ВОСПРИЯТИЕ",
+    kind: "size" as CategoryKind,
+    path: "/perception/",
+    description: "Проверь глазомер и чувство ритма.",
+    Preview: PerceptionPreview,
+    detail: "5 заданий · рейтинг дня",
+  },
   {
     name: "На глаз",
     label: "ГЛАЗОМЕР",
@@ -1964,6 +1974,18 @@ export default function DesignSystem() {
                   </ol>
                   <p>{lineScoreText}</p>
                   <a href="/one-line/">Открыть игру «Одной линией» →</a>
+                </div>
+              </Sample>
+              <Sample
+                title="Приметь: ежедневные задания на восприятие"
+                source="PerceptionPreview.tsx · PerceptionGame.tsx"
+              >
+                <PerceptionPreview />
+                <div className="ds-prose">
+                  <p>Счёт, траектория, угол, ритм и доля отрезка. Пять новых заданий каждый день, единый набор для всех игроков.</p>
+                  <p>Общие шапка, счётчик раундов, результат и сохранение. Инструкция предшествует запуску задания: чтение правил не расходует время ответа.</p>
+                  <p>Результат показывает ответ игрока и эталон. Дневной рейтинг сортирует по очкам, при равенстве — по времени.</p>
+                  <a href="/perception/">Открыть «Приметь» →</a>
                 </div>
               </Sample>
               <Sample

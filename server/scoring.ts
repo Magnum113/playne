@@ -1,3 +1,4 @@
+import { evaluatePerception, perceptionMinimumMs, type PerceptionTask } from "../src/perception";
 import {
   makePressDeck,
   replayPressRun,
@@ -56,6 +57,7 @@ export const GAME_NAMES = {
   slide: "Передвинь",
   dispatch: "Диспетчер",
   flow: "Рой",
+  perception: "Приметь",
 } as const;
 export type GameId = keyof typeof GAME_NAMES;
 export const isGame = (v: unknown): v is GameId =>
@@ -125,6 +127,7 @@ export function makeChallenge(
   difficulty = 1,
   brainPack?: BrainChallenge,
 ): any {
+  if (game === "perception") throw Error("Открой пять заданий дня");
   if (game === "flow") throw Error("Используй отдельный маршрут игры «Рой»");
   if (isBrainGame(game))
     return createBrain(
@@ -173,6 +176,7 @@ export function makeChallenge(
   return {};
 }
 export function publicChallenge(game: GameId, challenge: any) {
+  if (game === "perception") return { day: challenge.day, count: 5, mode: "daily", rounds: challenge.rounds ?? {} };
   if (isBrainGame(game)) return publicBrain(challenge);
   if (game === "line")
     return {
@@ -216,6 +220,20 @@ export function validateAnswer(
   version = 4,
 ) {
   if (game === "flow") throw Error("Используй отдельный маршрут игры «Рой»");
+  if (game === "perception") {
+    const task: PerceptionTask | undefined = challenge.tasks?.[index];
+    const startedAt = challenge.rounds?.[index]?.startedAt;
+    if (!task || !Number.isFinite(startedAt) || now < startedAt) throw new Error("Сначала начни задание");
+    const elapsedMs = Math.max(0, now - startedAt);
+    // Fast taps are an inaccurate answer, not an invalid request. Only wait for
+    // the four reference cues; the evaluator grades how the next eight differ.
+    const minimumMs = task.kind === "tempo" ? 800 + 3 * 60000 / task.bpm : perceptionMinimumMs(task);
+    if (input?.skipped !== true && elapsedMs < minimumMs) throw new Error("Дождись окончания показа");
+    if (task.kind === "tempo" && Array.isArray(input?.taps) && input.taps.some((tap: number) => tap > elapsedMs + 250))
+      throw new Error("Некорректное время нажатий");
+    const result = evaluatePerception(task, input);
+    return { ...result, elapsedMs: Math.max(0, now - startedAt), kind: task.kind };
+  }
   if (isBrainGame(game)) return brainAnswer(challenge, index, input, now);
   if (game === "line") {
     const puzzle = challenge.puzzles?.[index];
@@ -387,7 +405,7 @@ export function initialNickname(profile: any) {
 export function safeReturn(value: unknown) {
   if (
     typeof value !== "string" ||
-    !/^\/(?:account|naglaz|circle|colorfle|geo|pressure|swarm|line|one-line|brain\/(?:flash|rotate|slide|dispatch)|leaderboard)\/(?:\?[^#]*)?$/.test(
+    !/^\/(?:account|naglaz|circle|colorfle|geo|pressure|swarm|perception|line|one-line|brain\/(?:flash|rotate|slide|dispatch)|leaderboard)\/(?:\?[^#]*)?$/.test(
       value,
     )
   )
@@ -406,7 +424,7 @@ export function safeReturn(value: unknown) {
         return "/account/";
     } else if (key === "challenge") {
       if (
-        !/^\/(?:naglaz|circle|colorfle|geo|pressure|swarm|line|one-line|brain\/(?:flash|rotate|slide|dispatch))\/$/.test(
+        !/^\/(?:naglaz|circle|colorfle|geo|pressure|swarm|perception|line|one-line|brain\/(?:flash|rotate|slide|dispatch))\/$/.test(
           url.pathname,
         ) ||
         !/^[A-Za-z0-9_-]{43}$/.test(item)
@@ -414,7 +432,9 @@ export function safeReturn(value: unknown) {
         return "/account/";
     } else if (key === "mode") {
       if (
-        url.pathname === "/swarm/"
+        url.pathname === "/perception/"
+          ? item !== "daily"
+          : url.pathname === "/swarm/"
           ? !["daily", "level"].includes(item)
           : url.pathname === "/geo/"
           ? !validGeoMode(item)

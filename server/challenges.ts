@@ -40,6 +40,7 @@ const names: Record<ChallengeGame, string> = {
   slide: "Передвинь",
   dispatch: "Диспетчер",
   flow: "Рой",
+  perception: "Приметь",
 };
 export const privateComparison = (run: any): boolean =>
   run.challenge?.comparison === true;
@@ -79,9 +80,15 @@ function supported(run: any) {
           : run.game === "circle"
             ? 1000
             : 5000) ||
-    (brain && (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)))
+    ((brain || run.game === "perception") && (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)))
   )
     failure("Для вызова нужна завершённая партия текущей версии игры.", 409);
+  if (run.game === "perception") {
+    if (run.mode !== "daily" || !Array.isArray(challenge.tasks) || challenge.tasks.length !== 5 ||
+      challenge.tasks.some((task: any, index: number) => task?.kind !== ["count", "track", "angle", "tempo", "split"][index]))
+      failure("Эту версию заданий нельзя открыть.", 409);
+    return;
+  }
   if (run.game === "flow") {
     try {
       if (
@@ -181,8 +188,8 @@ function metadata(
       }).format(new Date(run.completed_at)),
     mode: run.mode,
     isTodayDaily:
-      ["line", "flash", "rotate", "slide", "dispatch"].includes(run.game) &&
-      run.mode === "classic" &&
+      ((["line", "flash", "rotate", "slide", "dispatch"].includes(run.game) && run.mode === "classic") ||
+        (run.game === "perception" && run.mode === "daily")) &&
       run.challenge.day === today &&
       !privateComparison(run),
   };
@@ -251,6 +258,11 @@ export async function resolveChallengeStart(
   const source = await sharedSource(client, token);
   const reference = metadata(source, origin, today);
   if (reference.game !== game) failure("Вызов относится к другой игре.", 400);
+  if (source.game === "perception") {
+    if (forceComparison || !reference.isTodayDaily)
+      failure("Этот день завершён. Открой сегодняшние пять заданий без старого вызова.", 409);
+    return { kind: "daily", mode: "daily", reference };
+  }
   if (reference.isTodayDaily && !forceComparison)
     return { kind: "daily", mode: "classic", reference };
   if (!["line", "flash", "rotate", "slide", "dispatch"].includes(source.game)) {

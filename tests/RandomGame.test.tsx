@@ -125,9 +125,10 @@ describe("random game launch", () => {
 
 describe("random game catalog", () => {
   it("includes each public start route exactly once, including all four warmup games", () => {
-    expect(randomGameChoices).toHaveLength(12);
-    expect(new Set(randomGameChoices.map(({ href }) => href)).size).toBe(12);
+    expect(randomGameChoices).toHaveLength(13);
+    expect(new Set(randomGameChoices.map(({ href }) => href)).size).toBe(randomGameChoices.length);
     expect(randomGameChoices.some(({ href }) => href === "/swarm/")).toBe(true);
+    expect(randomGameChoices.some(({ href }) => href === "/perception/")).toBe(true);
     for (const game of ["flash", "rotate", "slide", "dispatch"])
       expect(randomGameChoices.some(({ href }) => href === `/brain/${game}/`)).toBe(true);
   });

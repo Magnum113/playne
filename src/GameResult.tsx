@@ -33,7 +33,7 @@ export function SaveResult({
   const card = hasResultRecommendation(game);
   return (
     <>
-      {token && complete && game !== "flow" && (
+      {token && complete && game !== "flow" && game !== "perception" && (
         <ChallengeContext
           game={game}
           token={token}
@@ -52,7 +52,7 @@ export function SaveResult({
       )}
       {children}
       {!hideRecommendation && card && <NextGame game={game} runId={run.state.id} compact={compact} />}
-      {complete && !hideShare && <ShareResult runId={run.state.id} />}
+      {complete && !hideShare && game !== "perception" && <ShareResult runId={run.state.id} />}
       {!hideRecommendation && complete && !card && <NextGame game={game} />}
     </>
   );

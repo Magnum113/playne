@@ -127,6 +127,7 @@ export function createRankedQueue(
           !p ||
           !uuid(p.key) ||
           ![
+            "perception",
             "naglaz",
             "circle",
             "colorfle",

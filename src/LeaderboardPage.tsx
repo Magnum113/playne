@@ -33,6 +33,7 @@ const boardNames = {
 const isBrain = (game: string) => BRAIN_GAME_IDS.includes(game as BrainGameId);
 
 function modeForGame(game: LeaderboardGame, value: unknown): GameMode {
+  if (game === "perception") return "daily";
   if (game === "geo" && validGeoMode(value)) return value;
   if (game === "colorfle" && value === "timed") return "timed";
   if (game === "line" && value === "practice") return "practice";
@@ -60,7 +61,7 @@ function ScoreLeaderboardPage() {
     modeForGame(initialGame, query?.get("mode")),
   );
   const geoMode: GeoMode = validGeoMode(mode) ? mode : "classic";
-  const daily = game === "geo" && mode === "daily";
+  const daily = (game === "geo" || game === "perception") && mode === "daily";
   const dayParam = query?.get("day");
   const today = geoDailyDate();
   const day = daily && validGeoDailyDate(dayParam) && dayParam <= today ? dayParam : today;
@@ -134,7 +135,7 @@ function ScoreLeaderboardPage() {
   }, [game, period, page, mode, retry, daily, day]);
   function change(next: LeaderboardGame) {
     pageFocusPending.current = false;
-    const nextPeriod = next === "overall" || next === "brain" ? "all" : period;
+    const nextPeriod = next === "overall" || next === "brain" || next === "perception" ? "all" : period;
     const nextMode = modeForGame(next, mode);
     setPeriod(nextPeriod);
     setGame(next);
@@ -241,6 +242,7 @@ function ScoreLeaderboardPage() {
             ))}
           </div>
         )}
+        {game === "perception" && <label className="perception-rank-date">День <input type="date" value={day} max={today} onChange={e => { if (validGeoDailyDate(e.target.value) && e.target.value <= today) window.location.assign(`/leaderboard/?game=perception&mode=daily&day=${e.target.value}`); }} /></label>}
         {game === "colorfle" && (
           <div
             className="rank-period geo-rank-modes"
@@ -365,7 +367,7 @@ function ScoreLeaderboardPage() {
               баллов
             </span>
           ) : daily ? (
-            <span className="overall-period-label">Маршрут дня · {geoDailyLabel(day)}</span>
+            <span className="overall-period-label">{game === "perception" ? "Приметь" : "Маршрут дня"} · {geoDailyLabel(day)}</span>
           ) : (
             <div
               className="rank-period"
@@ -535,12 +537,12 @@ function ScoreLeaderboardPage() {
           <div className="ranking-rules">
             <p>
               В таблице — только завершённые и проверенные сервером партии.{" "}
-              {daily && currentBoard && data?.speedScoring
+              {daily && currentBoard && (data?.speedScoring || game === "perception")
                 ? "При равных очках выше тот, кто ответил быстрее."
                 : "При равных результатах место одинаковое."}
             </p>
             <p>
-              {daily ? "У всех игроков пять одинаковых мест и одна попытка на этот маршрут."
+              {game === "perception" ? "У всех игроков пять одинаковых заданий и одна попытка в день. Очки зависят от точности; при равенстве учитывается время заданий. Новый день начинается в 00:00 по Москве." : daily ? "У всех игроков пять одинаковых мест и одна попытка на этот маршрут."
                 : game === "flow" ? "В таблице — лучшие результаты испытаний дня. У сегодняшней конструкции есть отдельный рейтинг на странице игры." : isBrain(game)
                 ? "В рейтинге — только задачи дня: одна попытка за московскую дату, одинаковые пять раундов для всех. Практика не публикуется."
                 : game === "line"

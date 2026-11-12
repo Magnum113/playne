@@ -35,8 +35,8 @@ export function GameLeaderboardCard({
   error?: boolean;
   onRetry?: () => void;
 }) {
-  const daily = game === "geo" && mode === "daily";
-  const href = daily ? geoDailyBoardUrl(day) : `/leaderboard/?game=${game}&mode=${mode}&period=all`;
+  const daily = (game === "geo" || game === "perception") && mode === "daily";
+  const href = game === "perception" ? `/leaderboard/?game=perception&mode=daily${day ? `&day=${day}` : ""}` : daily ? geoDailyBoardUrl(day) : `/leaderboard/?game=${game}&mode=${mode}&period=all`;
   const entries = data?.entries.slice(0, 5) ?? [];
   const outside =
     data?.mine && !entries.some((entry) => entry.isMe) ? data.mine : null;

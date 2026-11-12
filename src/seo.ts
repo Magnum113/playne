@@ -1,4 +1,4 @@
-import { naglazFaq, colorFaq } from "./gameSeoContent";
+import { naglazFaq, colorFaq, perceptionFaq } from "./gameSeoContent";
 import { guides } from "./guides";
 import { pressureFaq } from "./pressureContent";
 import { lineFaq } from "./lineContent";
@@ -21,6 +21,14 @@ const brainSearch = {
   dispatch: { title: "Train of Thought на русском — игра «Диспетчер» | Playne", description: "«Диспетчер» — игра с поездами в духе Train of Thought на русском. Переключай стрелки и направляй поезда на станции. 5 волн, задача дня и практика. Бесплатно." },
 } as const;
 export const pages: PageMeta[] = [
+  {
+    path: "/perception/",
+    title: "Perceptle на русском — игра «Приметь» бесплатно | Playne",
+    description: "«Приметь» — бесплатная игра в духе Perceptle на русском. Счёт на глаз, траектория, угол, ритм и доля: 5 новых заданий каждый день и отдельный рейтинг дня.",
+    kind: "game",
+    name: "Приметь",
+    image: { path: "/art/perception-social.png", width: 1200, height: 630, alt: "Приметь — пять заданий на восприятие каждый день в Playne" },
+  },
   {
     path: "/swarm/",
     title: "Рой — игра с цветными муравьями и кубиками бесплатно | Playne",
@@ -187,7 +195,7 @@ export const pages: PageMeta[] = [
 export function structuredData(page: PageMeta) {
   const url = SITE_URL + page.path;
   const brainGame = brainGames.find((game) => game.path === page.path);
-  const searchFaq = page.path === "/naglaz/" ? naglazFaq : page.path === "/colorfle/" ? colorFaq : null;
+  const searchFaq = page.path === "/naglaz/" ? naglazFaq : page.path === "/colorfle/" ? colorFaq : page.path === "/perception/" ? perceptionFaq : null;
   const faq =
     searchFaq ?? brainGame?.faq ??
     (page.path === "/one-line/"
@@ -260,6 +268,7 @@ export function structuredData(page: PageMeta) {
                 : page.path === "/circle/" ? ["Рисование", "Точность"]
                 : page.path === "/colorfle/" ? ["Цвет", "Глазомер"]
                 : page.path === "/pressure/" ? ["Головоломка", "Логика", "Память", "Реакция"]
+                : page.path === "/perception/" ? ["Восприятие", "Глазомер", "Ритм"]
                 : ["Головоломка", "Логика"],
               operatingSystem: "Any",
               browserRequirements: "Requires JavaScript",
@@ -274,7 +283,7 @@ export function structuredData(page: PageMeta) {
               "@type": "FAQPage",
               "@id":
                 url +
-                (searchFaq ? `#${page.path === "/naglaz/" ? "naglaz" : "colorfle"}-faq` : brainGame
+                (searchFaq ? `#${page.path.slice(1, -1)}-faq` : brainGame
                   ? `#${brainGame.id}-faq`
                   : page.path === "/one-line/"
                     ? "#line-faq"

@@ -1,0 +1,116 @@
+.perception-main { padding-block: var(--space-12); }
+.perception-main .game-intro { margin-bottom: var(--space-8); }
+.perception-welcome { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: var(--space-12); padding: var(--space-12); border: 1px solid var(--line); border-radius: var(--radius-large); background: var(--panel); }
+.perception-welcome > .perception-preview { width: 100%; }
+.perception-welcome h2 { margin: 12px 0 16px; font-size: clamp(28px, 3vw, 38px); line-height: 1.15; letter-spacing: -.035em; }
+.perception-welcome-copy > p:not(.eyebrow) { color: var(--muted); line-height: 1.6; }
+.perception-skills { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0; }
+.perception-skills span { padding: 7px 10px; border-radius: 8px; background: var(--purple-tint); font-size: 12px; color: var(--purple); }
+.perception-welcome .game-start-action { align-items: stretch; }
+.perception-board-link { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; gap: 8px; }
+.perception-welcome .perception-board-link { display: flex; margin: 8px auto 0; }
+.perception-play { max-width: 760px; margin-inline: auto; }
+.perception-progress { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.perception-progress > span { display: flex; align-items: baseline; gap: 8px; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.perception-progress > span strong { color: var(--text); font-size: 28px; font-variant-numeric: tabular-nums; }
+.perception-progress small { font-size: 13px; }
+.perception-ready, .perception-task, .perception-finish { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-large); }
+.perception-ready { text-align: center; min-height: 540px; padding: 40px 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.perception-step-number { display: grid; place-items: center; border-radius: 22px; width: 88px; height: 88px; color: var(--purple); background: var(--purple-tint); font-size: 40px; font-weight: 600; margin-bottom: 24px; font-variant-numeric: tabular-nums; }
+.perception-ready h2 { margin: 12px 0; font-size: 36px; letter-spacing: -.03em; }
+.perception-ready > p:not(.eyebrow) { max-width: 450px; margin: 0; color: var(--muted); line-height: 1.6; }
+.perception-ready .primary { min-width: 220px; margin-top: 28px; }
+.perception-ready > small { margin-top: 16px; color: var(--muted); font-size: 12px; }
+.perception-sound { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 16px; cursor: pointer; font-size: 14px; }
+.perception-sound input { width: 18px; height: 18px; accent-color: var(--purple); }
+.perception-task { padding: 24px; }
+.perception-task-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 68px; }
+.perception-task-heading .eyebrow { margin: 0 0 8px; }
+.perception-task-heading h2 { font-size: clamp(24px, 3vw, 32px); margin: 0; line-height: 1.2; letter-spacing: -.03em; }
+.perception-round-label { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.perception-board { margin-top: 20px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-inner); overflow: hidden; }
+.perception-board svg { display: block; width: 100%; aspect-ratio: 5 / 3; user-select: none; }
+.perception-board.is-interactive svg { touch-action: none; cursor: crosshair; }
+.perception-board-text { fill: var(--muted); font-size: 22px; text-anchor: middle; }
+.perception-question { fill: var(--purple); font-size: 42px; font-weight: 600; text-anchor: middle; }
+.perception-edge { fill: var(--muted); font-size: 20px; }
+.perception-beat { fill: var(--mint); font-size: 48px; font-weight: 650; text-anchor: middle; font-variant-numeric: tabular-nums; }
+.perception-beat.is-lit { fill: var(--panel); }
+.perception-controls { display: flex; min-height: 168px; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding-top: 20px; }
+.perception-controls .primary { min-width: 220px; }
+.perception-hint, .perception-feedback { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; text-align: center; }
+.perception-feedback b { color: var(--text); font-variant-numeric: tabular-nums; }
+.perception-count-label { display: flex; align-items: center; gap: 16px; color: var(--muted); font-size: 14px; }
+.perception-count-label input { width: 110px; height: 52px; padding: 8px 12px; border: 1px solid var(--field-border); border-radius: var(--radius-control); background: var(--panel); color: var(--text); text-align: center; font: inherit; font-size: 24px; font-variant-numeric: tabular-nums; }
+.perception-count-label input:disabled { opacity: .5; }
+.perception-skip { min-height: 44px; padding: 8px 16px; color: var(--muted); font-size: 13px; }
+.perception-controls .perception-tap { touch-action: manipulation; width: min(100%, 300px); min-height: 64px; font-size: 18px; }
+.perception-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; font-size: 12px; color: var(--muted); }
+.perception-legend span { display: flex; align-items: center; gap: 8px; }
+.perception-legend span::before { content: ""; width: 14px; height: 3px; background: var(--purple); }
+.perception-legend span + span::before { background: none; border-top: 3px dashed var(--mint); height: 0; }
+.perception-error { color: var(--danger); font-size: 14px; line-height: 1.5; text-align: center; max-width: 500px; }
+.perception-error p { margin: 8px 0; }
+.perception-error button { min-height: 44px; }
+.perception-finish { padding: 32px; max-width: 760px; text-align: center; margin-inline: auto; }
+.perception-finish h2 { margin: 16px 0; font-size: 28px; letter-spacing: -.03em; }
+.perception-total { display: flex; align-items: baseline; justify-content: center; gap: 12px; margin: 12px 0 28px; }
+.perception-total strong { font-size: clamp(64px, 8vw, 88px); line-height: 1; letter-spacing: -.06em; color: var(--purple); font-variant-numeric: tabular-nums; }
+.perception-total span { font-size: 18px; color: var(--muted); }
+.perception-summary { display: grid; gap: 14px; max-width: 460px; margin-inline: auto; }
+.perception-summary > div { display: grid; grid-template-columns: 100px minmax(30px, 1fr) 28px; align-items: center; gap: 16px; font-size: 13px; text-align: left; }
+.perception-summary strong { text-align: right; font-variant-numeric: tabular-nums; }
+.perception-score-bar { height: 8px; border-radius: var(--radius-pill); background: var(--purple-tint); overflow: hidden; }
+.perception-score-bar i { display: block; height: 100%; border-radius: inherit; background: var(--purple); }
+.perception-finish-time { margin: 24px 0; font-size: 13px; color: var(--muted); }
+.perception-finish .perception-board-link { margin-top: 16px; width: 100%; text-decoration: none; }
+.perception-tomorrow { color: var(--muted); font-size: 13px; margin: 20px 0 0; }
+.perception-mobile-rank { margin-top: 24px; }
+@media (min-width: 1100px) { .perception-mobile-rank { display: none; } }
+@media (max-width: 700px) {
+  .perception-main { padding-block: 24px; }
+  .perception-main .game-intro { margin-bottom: 24px; }
+  .perception-welcome { grid-template-columns: 1fr; padding: 24px; gap: 20px; }
+  .perception-welcome > .perception-preview { max-height: 180px; }
+  .perception-welcome h2 { font-size: 28px; }
+  .perception-welcome-copy > p:not(.eyebrow) { font-size: 14px; }
+  .perception-skills { gap: 6px; margin: 20px 0; }
+  .perception-skills span { padding: 6px 8px; }
+  .perception-ready { min-height: 460px; padding: 28px 20px; }
+  .perception-ready h2 { font-size: 30px; }
+  .perception-task { padding: 20px 16px; }
+  .perception-task-heading { min-height: 62px; }
+  .perception-board { margin-top: 16px; }
+  .perception-board svg { min-height: 205px; }
+  .perception-controls { min-height: 186px; }
+  .perception-controls .primary { width: 100%; }
+  .perception-progress { margin-bottom: 16px; gap: 8px; }
+  .perception-progress > span { font-size: 12px; gap: 5px; }
+  .perception-progress > span strong { font-size: 24px; }
+  .perception-finish { padding: 28px 20px; }
+  .perception-summary > div { grid-template-columns: 90px minmax(24px, 1fr) 28px; gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .perception-score-bar i { transition: none; } }
+
+.perception-board:focus-within { outline: var(--focus-width) solid var(--focus); outline-offset: 4px; }
+.perception-rank-date { display: flex; align-items: center; gap: 12px; margin: 24px 0; font-size: 14px; color: var(--muted); }
+.perception-rank-date input { font: inherit; min-height: 44px; border: 1px solid var(--field-border); border-radius: var(--radius-control); padding: 8px 12px; background: var(--panel); color: var(--text); }
+
+.perception-finish .result-share { justify-content: center; margin: 28px 0 20px; }
+.perception-welcome .game-start-action { max-width: none; width: 100%; }
+.perception-welcome .game-start-action .primary { width: 100%; }
+/* Keep the decision and next action in the same viewport as the task. */
+.perception-main:has(.perception-play) { padding-top: 24px; }
+.perception-main:has(.perception-play) .game-intro { margin-bottom: 24px; }
+.perception-main:has(.perception-play) .game-intro-heading { font-size: 34px; }
+.perception-board svg { height: clamp(230px, 34svh, 320px); aspect-ratio: auto; }
+.perception-finish .email-login { align-items: center; }
+.perception-finish .email-login .yandex-login { margin-inline: auto; width: min(100%, 360px); }
+.perception-finish .email-login { margin-top: 20px; }
+@media (max-width:700px) {
+  .perception-board svg { height: 220px; }
+  .perception-main:has(.perception-play) { padding-top: 20px; }
+  .perception-finish .email-login { width: 100%; }
+}
+/* Programmatic screen announcements are not interactive focus targets. */
+.perception-main h2[tabindex="-1"]:focus { outline: none; }

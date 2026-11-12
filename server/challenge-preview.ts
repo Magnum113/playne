@@ -37,7 +37,7 @@ const prompt = (data: PublicChallenge) =>
     ? "Сможешь повторить?"
     : "Побьёшь мой результат?";
 
-export const CHALLENGE_PREVIEW_VERSION = "field-b-v4";
+export const CHALLENGE_PREVIEW_VERSION = "field-b-v5";
 
 export function challengeSvg(data: PublicChallenge) {
   const circle = data.game === "circle";
@@ -74,7 +74,7 @@ export function challengeSvg(data: PublicChallenge) {
     ${previewBrand}
     <g font-family="Noto Sans" fill="#252a2d">
       <text x="142" y="68" font-size="38" font-weight="700" letter-spacing="-1.8">playne<tspan fill="#7953b4">.</tspan></text>
-      <text x="90" y="143" font-size="40" font-weight="700" letter-spacing="-1.3">${xml(data.gameName + (data.flow?.kind === "daily" ? " · " + dateText(data.flow.key).replace(/\.$/, "") : ""))}</text>
+      <text x="90" y="143" font-size="40" font-weight="700" letter-spacing="-1.3">${xml(data.gameName + ((data.flow?.kind === "daily" || data.game === "perception") ? " · " + dateText(data.flow?.key ?? data.day).replace(/\.$/, "") : ""))}</text>
       <text x="148" y="${circle ? 402 : 384}" font-size="${fontSize}" font-weight="700" letter-spacing="${data.flow ? "-3" : "-7"}">${xml(main)}</text>
       ${circle ? "" : `<text x="155" y="434" font-size="28" fill="#5f6b6e">${xml(detail)}</text>`}
       ${data.flow ? `<g data-stars="${data.flow.stars}" transform="translate(354 409)">${[0, 1, 2].map((i) => `<path transform="translate(${i * 30} 0)" d="m12 0 3.5 8 8.5 1-6.4 5.9 1.7 8.6L12 19l-7.3 4.5 1.7-8.6L0 9l8.5-1Z" fill="${i < data.flow!.stars ? "#b68324" : "#dfdbd1"}"/>`).join("")}</g>` : ""}
@@ -148,10 +148,13 @@ export function challengeHtml(data: PublicChallenge) {
   const title = `${data.nickname}: ${data.flow ? challengeTask(data) + " · " : ""}${challengeScore(data)} · ${data.gameName}`;
   const imageAlt = `${data.gameName}: ${data.flow ? challengeTask(data) + " · " : ""}${challengeScore(data)}. ${prompt(data)}`;
   const description = `${prompt(data)} ${data.gameName}${data.flow ? ", " + challengeTask(data) : ""}, ${dateText(data.day).replace(/\.$/, "")}. Прими вызов и сравни результат на Playne.`;
-  const status = data.isTodayDaily
-    ? "Сегодняшняя задача дня. В зачёт идёт твоя первая попытка."
-    : "Те же условия в отдельном вызове. Результат не меняет рейтинг.";
-  const playUrl =
+  const expiredDaily = data.game === "perception" && !data.isTodayDaily;
+  const status = expiredDaily
+    ? "Этот день завершён. Сегодня — новые пять заданий."
+    : data.isTodayDaily
+      ? (data.game === "perception" ? "Пять заданий дня. В зачёт идёт твоя первая попытка." : "Сегодняшняя задача дня. В зачёт идёт твоя первая попытка.")
+      : "Те же условия в отдельном вызове. Результат не меняет рейтинг.";
+  const playUrl = expiredDaily ? challengePath(data.game) :
     challengePath(data.game) + `?challenge=${encodeURIComponent(data.token)}`;
   return `<!doctype html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${xml(title)} · Playne</title><meta name="description" content="${xml(description)}">
@@ -162,9 +165,9 @@ export function challengeHtml(data: PublicChallenge) {
     <meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${xml(data.imageUrl)}">
     <style>body{margin:0;background:#f7f7f2;color:#252a2d;font-family:Inter,system-ui,sans-serif}main{max-width:700px;margin:8vh auto;padding:32px}a{color:#137866}header{font-size:32px;font-weight:750}header a{text-decoration:none;color:inherit}.dot{color:#137866}article{background:#fffefa;border:1px solid #dedfd8;border-radius:24px;padding:clamp(24px,6vw,48px);margin-top:32px}.eyebrow{color:#5f6b6e}h1{font-size:clamp(30px,6vw,52px);line-height:1.12}.score{font-size:clamp(64px,13vw,104px);font-weight:750;line-height:1.15;margin:24px 0}.score span{font-size:28px;color:#5f6b6e}.cta{display:inline-block;border-radius:12px;background:#bea5f7;color:#17131e;text-decoration:none;padding:16px 22px;font-weight:700}.cta:focus-visible,a:focus-visible{outline:3px solid #137866;outline-offset:4px}p{line-height:1.6}footer{font-size:14px;color:#5f6b6e;margin-top:28px}@media(max-width:500px){main{margin:3vh auto;padding:20px}}</style>
-  </head><body data-game="${data.game}" data-mode="${xml(data.mode)}"><script src="/api/challenges/analytics.js" defer></script><main><header><a href="/">playne<span class="dot">.</span></a></header><article>
+  </head><body data-game="${data.game}" data-mode="${xml(data.mode)}"${expiredDaily ? ' data-challenge-expired="true"' : ""}><script src="/api/challenges/analytics.js" defer></script><main><header><a href="/">playne<span class="dot">.</span></a></header><article>
     <p class="eyebrow">${xml(data.gameName)} · ${xml(data.flow ? challengeTask(data) : dateText(data.day))}</p><h1>${prompt(data)}</h1>
     <p>${xml(data.nickname)}</p><p class="score">${xml(challengeScore(data))}</p><p>${xml(status)}</p>
-    <a class="cta" href="${xml(playUrl)}">Принять вызов →</a><footer>Сыграй и сравни результат с другом</footer>
+    <a class="cta" href="${xml(playUrl)}">${expiredDaily ? "Играть сегодня" : "Принять вызов"} →</a><footer>${expiredDaily ? "Новый день — новый вызов" : "Сыграй и сравни результат с другом"}</footer>
     </article></main></body></html>`;
 }

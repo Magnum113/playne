@@ -40,6 +40,17 @@ export function challengeArt(
         `<g transform="translate(${x} 469)" stroke="#38534c" stroke-width="2" stroke-linecap="round"><path d="m-5-7-9-7m19 7 9-7m-20 12-10 2m22-2 10 2m-20 2-8 10m18-10 8 10"/><ellipse cy="8" rx="7" ry="9" fill="${color}"/><ellipse cy="-1" rx="5" ry="6" fill="${color}"/><path d="m-4-14-4-8m12 8 4-8"/><ellipse cy="-12" rx="9" ry="8" fill="${color}"/><circle cx="-4" cy="-14" r="3" fill="white" stroke="none"/><circle cx="4" cy="-14" r="3" fill="white" stroke="none"/><circle cx="-4" cy="-15" r="1.5" fill="#26362e" stroke="none"/><circle cx="4" cy="-15" r="1.5" fill="#26362e" stroke="none"/></g>`;
       return `<rect x="710" y="180" width="336" height="312" rx="20" fill="#ffe1b3"/><rect x="${dense ? 737 : left - 9}" y="${dense ? 182 : top - 6}" width="${dense ? 282 : puzzle.width * step + 18}" height="${dense ? 282 : puzzle.height * step + 18}" rx="10" fill="#fff6e0"/>${cubes}<ellipse cx="878" cy="475" rx="21" ry="8" fill="#484a42"/>${ant(819, "#ff887c")}${ant(937, "#62cfb4")}`;
     },
+    perception: () => `<g transform="translate(709 234) scale(.86)">
+      <rect x="20" y="34" width="118" height="132" rx="20" fill="#e1f3ec" transform="rotate(-7 79 100)"/>
+      <g fill="#137866">${[[48,66],[77,58],[106,70],[43,98],[74,91],[104,103],[54,127],[86,125]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="7"/>`).join("")}</g>
+      <rect x="148" y="18" width="124" height="148" rx="20" fill="#eee6fb"/>
+      <path d="M171 133h76M184 133l43-80" stroke="#7953b4" stroke-width="5" stroke-linecap="round"/>
+      <path d="M215 133a31 31 0 0 0-16-27" fill="none" stroke="#7953b4" stroke-width="2" stroke-dasharray="4 4"/>
+      <circle cx="227" cy="53" r="8" fill="#7953b4"/><circle cx="184" cy="133" r="5" fill="#fffefa" stroke="#7953b4" stroke-width="3"/>
+      <rect x="282" y="34" width="118" height="132" rx="20" fill="#f9e9d8" transform="rotate(7 341 100)"/>
+      <path d="M298 109h11l8-22 12 43 13-63 12 42h30" fill="none" stroke="#995726" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <g fill="#995726"><circle cx="318" cy="148" r="3"/><circle cx="339" cy="148" r="3"/><circle cx="360" cy="148" r="3"/></g>
+    </g>`,
     circle: () =>
       `<path d="M877 195C955 192 1020 257 1020 337s-59 142-140 143c-79 1-143-62-143-141s59-143 140-144Z" fill="none" stroke="#137866" stroke-width="3.5" stroke-linecap="round"/><circle cx="879" cy="337" r="4.5" fill="#137866"/>`,
     flash: () =>

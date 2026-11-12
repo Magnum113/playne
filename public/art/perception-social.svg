@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<rect width="1200" height="630" fill="#f7f7f2"/>
+<rect x="28" y="28" width="1144" height="574" rx="44" fill="#fffefa" stroke="#dfe1d9" stroke-width="2"/>
+<svg x="594" y="116" width="564" height="270" class="size-preview" viewBox="0 0 420 190" aria-hidden="true"><rect x="20" y="34" width="118" height="132" rx="20" fill="#e0f4ec" transform="rotate(-7 79 100)"></rect><g fill="#117e6d"><circle cx="48" cy="66" r="7"></circle><circle cx="77" cy="58" r="7"></circle><circle cx="106" cy="70" r="7"></circle><circle cx="43" cy="98" r="7"></circle><circle cx="74" cy="91" r="7"></circle><circle cx="104" cy="103" r="7"></circle><circle cx="54" cy="127" r="7"></circle><circle cx="86" cy="125" r="7"></circle></g><rect x="148" y="18" width="124" height="148" rx="20" fill="#eee6fb"></rect><path d="M171 133h76M184 133l43-80" stroke="#7d54b9" stroke-width="5" stroke-linecap="round"></path><path d="M215 133a31 31 0 0 0-16-27" fill="none" stroke="#7d54b9" stroke-width="2" stroke-dasharray="4 4"></path><circle cx="227" cy="53" r="8" fill="#7d54b9"></circle><circle cx="184" cy="133" r="5" fill="#fffefa" stroke="#7d54b9" stroke-width="3"></circle><rect x="282" y="34" width="118" height="132" rx="20" fill="#f8e8d6" transform="rotate(7 341 100)"></rect><path d="M298 109h11l8-22 12 43 13-63 12 42h30" fill="none" stroke="#b76a27" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path><g fill="#b76a27"><circle cx="318" cy="148" r="3"></circle><circle cx="339" cy="148" r="3"></circle><circle cx="360" cy="148" r="3"></circle></g></svg>
+<g font-family="Noto Sans" fill="#262b2c">
+<text x="76" y="104" font-size="35" font-weight="700">playne<tspan fill="#7d54b9">.</tspan></text>
+<text x="72" y="258" font-size="96" font-weight="700" letter-spacing="-5">Приметь<tspan fill="#7d54b9">.</tspan></text>
+<text x="78" y="320" font-size="27">Глазомер. Ритм. Точность.</text>
+<text x="78" y="365" font-size="25" fill="#697579">Пять заданий каждый день.</text>
+<rect x="76" y="444" width="330" height="65" rx="20" fill="#bda6f8"/>
+<text x="106" y="486" font-size="24" font-weight="700" fill="#2b2338">Играть бесплатно</text>
+<text x="629" y="453" font-size="24" fill="#697579">В духе Perceptle. На русском.</text>
+<text x="78" y="557" font-size="21" fill="#697579">playne.ru/perception</text>
+</g></svg>

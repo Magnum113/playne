@@ -42,6 +42,7 @@ import {
   type ReactNode,
 } from "react";
 export type GameId =
+  | "perception"
   | "naglaz"
   | "circle"
   | "colorfle"
@@ -57,6 +58,7 @@ const isBrain = (game: string) =>
   ["flash", "rotate", "slide", "dispatch"].includes(game);
 export type GameMode = GeoMode | "practice";
 export const gameNames: Record<GameId, string> = {
+  perception: "Приметь",
   naglaz: "На глаз",
   circle: "Круг",
   colorfle: "Оттенок",
@@ -430,7 +432,7 @@ export function useRankedRun<G extends GameId>(game: G) {
       invite.current &&
       state.id &&
       ["complete", "saved"].includes(state.status) &&
-      !["line", "flash", "rotate", "slide", "dispatch"].includes(game)
+      !["perception", "line", "flash", "rotate", "slide", "dispatch"].includes(game)
     ) {
       window.dispatchEvent(
         new CustomEvent("playne:challenge-completed", {
@@ -449,7 +451,7 @@ export function useRankedRun<G extends GameId>(game: G) {
     generation: number,
   ): T | null {
     if (
-      (game === "geo" || game === "line" || isBrain(game)) &&
+      (game === "geo" || game === "perception" || game === "line" || isBrain(game)) &&
       data &&
       current.current.generation === generation
     )
@@ -457,7 +459,7 @@ export function useRankedRun<G extends GameId>(game: G) {
     if (
       data?.completed &&
       invite.current &&
-      !["line", "flash", "rotate", "slide", "dispatch"].includes(game)
+      !["perception", "line", "flash", "rotate", "slide", "dispatch"].includes(game)
     ) {
       window.location.assign(
         `/${game}/?result=${data.id}&challenge=${invite.current}`,
@@ -717,6 +719,7 @@ export function useRankedRun<G extends GameId>(game: G) {
     submit,
     resumeColor,
     resume,
+    perceptionStart: (index: number) => geoRequest("perception/start", { index }),
     brainStart: (index: number) => geoRequest("brain/start", { index }),
     brainHint: (index: number, moves: unknown[], requestId: string) =>
       geoRequest("brain/hint", { index, moves, requestId }),
@@ -806,7 +809,9 @@ export function SaveResult({ run, game, day, compact = false }: {
   const privatePractice = isBrain(game) && run.mode === "practice";
   const ranking = compact ? undefined : privatePractice
     ? "/account/"
-    : game === "geo" && run.mode === "daily"
+    : game === "perception"
+      ? `/leaderboard/?game=perception&mode=daily${day ? `&day=${day}` : ""}`
+      : game === "geo" && run.mode === "daily"
       ? geoDailyBoardUrl(day)
       : `/leaderboard/?game=${game}&mode=${run.mode}`;
   const rankingLabel = privatePractice ? "Личная история →"

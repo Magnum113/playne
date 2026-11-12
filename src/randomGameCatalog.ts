@@ -12,6 +12,7 @@ export const randomGameChoices: readonly RandomGameChoice[] = [
   { name: "Жми", href: "/pressure/" },
   { name: "Одной линией", href: "/one-line/" },
   { name: "Рой", href: "/swarm/" },
+  { name: "Приметь", href: "/perception/" },
   ...brainGames.map(({ name, path }) => ({ name, href: path })),
 ];
 

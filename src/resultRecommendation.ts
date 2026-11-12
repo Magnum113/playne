@@ -3,6 +3,7 @@ import { PLAY_GOALS, reachGoal, reachGoalOnce, type MetrikaParams } from "./anal
 import { alternateShadeMode, validShadeMode, type ShadeMode } from "./colorfle";
 
 export const resultRecommendations = {
+  perception: "naglaz",
   geo: "naglaz",
   naglaz: "colorfle",
   colorfle: "circle",
