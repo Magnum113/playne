@@ -5,15 +5,6 @@ import {
   type PerceptionAnswer, type PerceptionComparison, type PerceptionKind,
 } from "./perception";
 
-function grade(score: number) {
-  if (score >= 95) return "S";
-  if (score >= 85) return "A";
-  if (score >= 70) return "B";
-  if (score >= 55) return "C";
-  if (score >= 40) return "D";
-  return "F";
-}
-
 const format = (value: number) => value.toLocaleString("ru-RU");
 const phaseText = (phase: number) => phase === 0
   ? "В такт"
@@ -88,13 +79,9 @@ export default function PerceptionResults({ answers, score, runId }: {
     return () => { active = false; };
   }, [runId]);
   const stats = comparison?.id === runId ? comparison?.data : undefined;
-  const overallGrade = grade(Math.round(score / PERCEPTION_KINDS.length));
   return <>
     <div className="perception-total">
       <strong>{score}</strong><span>из 500</span>
-      <b className="perception-grade" aria-label={`Оценка ${overallGrade}`}>
-        {overallGrade}
-      </b>
     </div>
     <p className="perception-comparison" role="status">
       {stats === undefined ? "Сравниваем с другими игроками…"
@@ -106,7 +93,7 @@ export default function PerceptionResults({ answers, score, runId }: {
     <Radar answers={answers} />
     <table className="perception-result-table" role="table" aria-label="Результаты пяти заданий">
       <thead className="sr-only">
-        <tr><th scope="col">Задание</th><th scope="col">Разбор</th><th scope="col">Очки</th><th scope="col">Оценка</th></tr>
+        <tr><th scope="col">Задание</th><th scope="col">Разбор</th><th scope="col">Очки</th></tr>
       </thead>
       <tbody role="rowgroup">
         {answers.map((answer, index) => {
@@ -120,7 +107,6 @@ export default function PerceptionResults({ answers, score, runId }: {
               </span>}
             </td>
             <td className="perception-result-score" role="cell">{answer.score}</td>
-            <td className="perception-result-grade" role="cell">{grade(answer.score)}</td>
           </tr>;
         })}
       </tbody>
