@@ -12,6 +12,12 @@ export type PerceptionTask =
   | { kind: "tempo"; bpm: number; cues: 4; beats: 8 }
   | { kind: "split"; fraction: number; label: string; fromRight: boolean };
 export type PerceptionInput = { value?: number; taps?: number[]; calibration?: number[]; skipped?: boolean };
+export type PerceptionComparison = {
+  players: number;
+  beaten: number;
+  averageScore: number | null;
+  rounds: number[];
+};
 export type PerceptionAnswer = { score: number; error: number; unit: string; guess: number | null; actual: number; elapsedMs?: number; skipped?: boolean; rhythm?: ReturnType<typeof evaluateRhythm>["rhythm"] };
 export const perceptionNames: Record<PerceptionKind, string> = {
   count: "Счёт", track: "Траектория", angle: "Угол", tempo: "Ритм", split: "Доля",

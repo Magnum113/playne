@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Pool, PoolClient } from "pg";
-import { createPerceptionTasks, publicPerceptionTask } from "../src/perception";
+import { createPerceptionTasks, publicPerceptionTask, type PerceptionAnswer } from "../src/perception";
 import { geoDailyDate } from "../src/geoDaily";
 import { GEO_DAILY_LEADERBOARD_SQL } from "./leaderboard";
 
@@ -52,6 +52,40 @@ export async function registerPerceptionRoutes(
       day,
       leaders: leaders.rows.map((entry) => ({ nickname: entry.nickname, score: Number(entry.score), place: Number(entry.place), position: Number(entry.position), elapsedMs: Number(entry.elapsed_ms) })),
       attempt: run ? { id: run.id, completed: !!run.completed_at, published: !!run.published_at, score: run.score_units === null ? null : run.score_units / 10 } : null,
+    };
+  });
+
+  app.get("/api/games/:id/perception/comparison", async (req, reply) => {
+    const run = await owned(req, reply, (req.params as { id: string }).id, pool);
+    if (run.game !== "perception" || !run.completed_at) {
+      failure("Результат ещё недоступен", 404);
+    }
+    const scores = (run.answers as PerceptionAnswer[]).map(answer => answer.score);
+    const { rows: [stats] } = await pool.query(
+      `WITH peers AS (
+         SELECT score_units, answers FROM playne_games
+         WHERE game='perception' AND mode='daily' AND version=$4
+           AND challenge->>'day'=$1 AND published_at IS NOT NULL AND id<>$5
+       )
+       SELECT count(*)::int AS players,
+              count(*) FILTER (WHERE score_units<$3)::int AS beaten,
+              round(avg(score_units)/10)::int AS average,
+              ARRAY(
+                SELECT (SELECT count(*)::int FROM peers
+                        WHERE (answers->(step.number-1)->>'score')::int < ($2::int[])[step.number])
+                FROM generate_subscripts($2::int[], 1) AS step(number)
+                ORDER BY step.number
+              ) AS rounds
+       FROM peers`,
+      [run.challenge.day, scores, run.score_units, run.version, run.id],
+    );
+    const percent = (count: number) => stats.players ? Math.round(100 * count / stats.players) : 0;
+    reply.header("Cache-Control", "no-store");
+    return {
+      players: stats.players,
+      averageScore: stats.average,
+      beaten: percent(stats.beaten),
+      rounds: (stats.rounds as number[]).map(percent),
     };
   });
 

@@ -75,16 +75,18 @@ const db = process.env.TEST_DATABASE_URL;
     expect(callback.headers.location).toBe("/perception/?auth=success");
     return cookie + "; " + jar(callback);
   }
-  async function finish(cookie: string, run: any, extra = 0) {
+  async function finish(cookie: string, run: any, extra = 0, skipFirst = false) {
     for (let index = 0; index < 5; index++) {
       const started = await post(`/api/games/${run.id}/perception/start`, cookie, { index });
       expect(started.statusCode, started.body).toBe(200);
       const { task, startedAt } = started.json();
       const delay = task.kind === "tempo" ? 800 + 11 * 60000 / task.bpm + 1000 : perceptionMinimumMs(task) + 1000;
       vi.setSystemTime(startedAt + delay + extra);
-      const answer = await post(`/api/games/${run.id}/answers`, cookie, { index, answer: { ...exactInput(task), elapsedMs: 0, score: 500 } });
+      const skipped = skipFirst && index === 0;
+      const input = skipped ? { skipped: true } : exactInput(task);
+      const answer = await post(`/api/games/${run.id}/answers`, cookie, { index, answer: { ...input, elapsedMs: 0, score: 500 } });
       expect(answer.statusCode, answer.body).toBe(200);
-      expect(answer.json().answer).toMatchObject({ score: 100, elapsedMs: Math.floor(delay + extra) });
+      expect(answer.json().answer).toMatchObject({ score: skipped ? 0 : 100, elapsedMs: Math.floor(delay + extra) });
       expect(answer.json().completed).toBe(index === 4);
     }
     return (await get(`/api/games/${run.id}`, cookie)).json();
@@ -153,6 +155,30 @@ const db = process.env.TEST_DATABASE_URL;
     expect(tomorrow.id).not.toBe(run.id);
     expect(tomorrow.challenge.day).toBe("2026-11-11");
     expect((await start(cookie)).statusCode).toBe(403);
+  });
+
+  it("compares with other published results from the same day and handles ties", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-07T12:00:00Z"));
+    const viewer = await login(await guest(), "perception-comparison-viewer");
+    const own = (await start(viewer)).json();
+    const url = `/api/games/${own.id}/perception/comparison`;
+    expect((await get(url, viewer)).statusCode).toBe(404);
+    await finish(viewer, own);
+    expect((await get(url, viewer)).json()).toEqual({
+      players: 0, averageScore: null, beaten: 0, rounds: [0, 0, 0, 0, 0],
+    });
+    const peer = await login(await guest(), "perception-comparison-peer");
+    await finish(peer, (await start(peer)).json(), 0, true);
+    const anonymous = await guest();
+    await finish(anonymous, (await start(anonymous)).json());
+    expect((await get(url, anonymous)).statusCode).toBe(404);
+    expect((await get(url, viewer)).json()).toEqual({
+      players: 1, averageScore: 400, beaten: 100, rounds: [100, 0, 0, 0, 0],
+    });
+    vi.setSystemTime(new Date("2026-11-08T12:00:00Z"));
+    await finish(peer, (await start(peer)).json());
+    expect((await get(url, viewer)).json().players).toBe(1);
   });
 
   it("does not replace an account's first daily attempt with a second guest result", async () => {

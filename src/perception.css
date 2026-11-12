@@ -57,11 +57,62 @@
 .perception-total { display: flex; align-items: baseline; justify-content: center; gap: 12px; margin: 12px 0 28px; }
 .perception-total strong { font-size: clamp(64px, 8vw, 88px); line-height: 1; letter-spacing: -.06em; color: var(--purple); font-variant-numeric: tabular-nums; }
 .perception-total span { font-size: 18px; color: var(--muted); }
-.perception-summary { display: grid; gap: 14px; max-width: 460px; margin-inline: auto; }
-.perception-summary > div { display: grid; grid-template-columns: 100px minmax(30px, 1fr) 28px; align-items: center; gap: 16px; font-size: 13px; text-align: left; }
-.perception-summary strong { text-align: right; font-variant-numeric: tabular-nums; }
-.perception-score-bar { height: 8px; border-radius: var(--radius-pill); background: var(--purple-tint); overflow: hidden; }
-.perception-score-bar i { display: block; height: 100%; border-radius: inherit; background: var(--purple); }
+.perception-grade {
+  align-self: center;
+  min-width: 44px;
+  padding: 7px 10px;
+  border-radius: var(--radius-control);
+  background: var(--purple-tint);
+  color: var(--purple);
+  font-size: 22px;
+}
+.perception-comparison {
+  margin: -10px 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.perception-radar {
+  display: block;
+  width: min(100%, 320px);
+  height: auto;
+  margin: 0 auto 12px;
+}
+.perception-radar text { fill: var(--muted); font-size: 12px; }
+.perception-result-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 6px;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.perception-result-table :is(th, td) {
+  padding: 10px 8px;
+  border-block: 1px solid var(--line);
+  background: var(--bg);
+}
+.perception-result-table th[scope="row"] {
+  border-inline-start: 1px solid var(--line);
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+.perception-result-table td { color: var(--muted); }
+.perception-result-table .perception-result-score {
+  color: var(--purple);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.perception-result-grade {
+  text-align: center;
+  border-inline-end: 1px solid var(--line);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+.perception-result-percentile {
+  display: block;
+  color: var(--mint);
+  font-size: 12px;
+}
 .perception-finish-time { margin: 24px 0; font-size: 13px; color: var(--muted); }
 .perception-finish .perception-board-link { margin-top: 16px; width: 100%; text-decoration: none; }
 .perception-tomorrow { color: var(--muted); font-size: 13px; margin: 20px 0 0; }
@@ -88,7 +139,8 @@
   .perception-progress > span { font-size: 12px; gap: 5px; }
   .perception-progress > span strong { font-size: 24px; }
   .perception-finish { padding: 28px 20px; }
-  .perception-summary > div { grid-template-columns: 90px minmax(24px, 1fr) 28px; gap: 12px; }
+  .perception-result-table { font-size: 12px; }
+  .perception-result-table :is(th, td) { padding-inline: 6px; }
 }
 @media (prefers-reduced-motion: reduce) { .perception-score-bar i { transition: none; } }
 
@@ -134,4 +186,28 @@
 @media (max-width: 700px) {
   .perception-count-answer { min-height: 220px; }
   .perception-count-form { width: min(100%, 300px); }
+}
+
+@media (max-width: 420px) {
+  .perception-result-table { display: block; }
+  .perception-result-table tbody { display: grid; gap: 6px; }
+  .perception-result-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 16px;
+    align-items: baseline;
+    gap: 2px 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-control);
+    background: var(--bg);
+  }
+  .perception-result-table th[scope="row"], .perception-result-table tr td {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .perception-result-detail { grid-area: 2 / 1 / 3 / -1; }
+  .perception-result-score { grid-area: 1 / 2; }
+  .perception-result-grade { grid-area: 1 / 3; }
+  .perception-result-percentile { display: inline; margin-inline-start: 8px; }
 }

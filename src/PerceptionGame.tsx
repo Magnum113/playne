@@ -12,6 +12,7 @@ import GameLeaderboard from "./GameLeaderboard";
 import NextGame from "./NextGame";
 import ShareResult from "./ShareResult";
 import ChallengeContext, { readChallengeToken } from "./ChallengeContext";
+import PerceptionResults, { perceptionFeedback } from "./PerceptionResults";
 import PerceptionPreview from "./PerceptionPreview";
 import PerceptionBoard from "./PerceptionBoard";
 import { PERCEPTION_GOALS, reachGoal } from "./analytics";
@@ -290,10 +291,7 @@ export default function PerceptionGame() {
         <section className="perception-finish">
           <p className="eyebrow">{day && perceptionDayLabel(day)} · ПЯТЬ ЗАДАНИЙ ПОЗАДИ</p>
           <h2 tabIndex={-1} ref={heading}>Твоя точность</h2>
-          <div className="perception-total"><strong>{score}</strong><span>из 500</span></div>
-          <div className="perception-summary">{answers.map((item, i) => <div key={i}>
-            <span>{perceptionNames[PERCEPTION_KINDS[i]]}</span><div className="perception-score-bar"><i style={{ width: `${item.score}%` }} /></div><strong>{item.score}</strong>
-          </div>)}</div>
+          <PerceptionResults answers={answers} score={score} runId={run?.id} />
           <p className="perception-finish-time">Время заданий: {timeText(answers.reduce((sum, a) => sum + (a.elapsedMs ?? 0), 0))}</p>
           <ChallengeContext game="perception" token={challengeToken} completed runDay={day} runMode="daily" runId={run?.id} score={score} />
           <SaveResult run={ranked} game="perception" day={day} compact />
@@ -336,16 +334,10 @@ export default function PerceptionGame() {
           />}
           <div className={`perception-controls${countReady && phase === "playing" ? " perception-count-answer" : ""}`}>
             {phase === "round-result" ? <>
-              {answer.skipped ? <p className="perception-feedback">Задание пропущено</p> : task.kind === "count" ? <p className="perception-feedback">Твой ответ: <b>{answer.guess}</b> · Было точек: <b>{answer.actual}</b></p>
-                : <>
-                    <div className="perception-legend"><span>Твой ответ</span><span>Точное попадание</span></div>
-                    <p className="perception-feedback">Отклонение: <b>{answer.error.toLocaleString("ru-RU")} {answer.unit}</b></p>
-                    {answer.rhythm && <p className="perception-feedback">
-                      Твой темп <b>{answer.guess}</b> · Метроном <b>{answer.actual} уд/мин</b>
-                      {" · "}{answer.rhythm.phase === 0 ? "В такт" : `${answer.rhythm.phase < 0 ? "Раньше" : "Позже"} на ${Math.abs(answer.rhythm.phase)} мс`}
-                      {" · "}Разброс <b>±{answer.rhythm.jitter} мс</b>
-                    </p>}
-                  </>}
+              {!answer.skipped && task.kind !== "count" && (
+                <div className="perception-legend"><span>Твой ответ</span><span>Точное попадание</span></div>
+              )}
+              <p className="perception-feedback">{perceptionFeedback(task.kind, answer)}</p>
               <button className="primary" onClick={goNext}>{index === 4 ? "Итог дня" : "Дальше"}<span aria-hidden="true">→</span></button>
             </> : <>
               {task.kind === "count" && countReady && (
