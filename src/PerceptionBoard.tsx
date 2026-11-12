@@ -39,6 +39,8 @@ export default function PerceptionBoard({
   }
   const tempoInteractive = task.kind === "tempo" && !result && !locked;
   const pos = (n: number) => 40 + n * 520;
+  const splitResult = task.kind === "split" && result && !result.skipped ? result : null;
+  const splitLineY = splitResult ? 145 : 190;
   const ray = (angle: number, color: string, dashed = false) => <line x1="300" y1="180" x2={300 + 128 * Math.cos(angle * Math.PI / 180)} y2={180 - 128 * Math.sin(angle * Math.PI / 180)} stroke={color} strokeWidth="5" strokeLinecap="round" strokeDasharray={dashed ? "7 6" : undefined} />;
   const mark = (n: number, color: string, y: number, correct = false) => <g>
     <line x1={pos(n)} x2={pos(n)} y1={y - 34} y2={y + 18} stroke={color} strokeWidth="3" strokeDasharray={correct ? "5 4" : undefined} />
@@ -95,8 +97,8 @@ export default function PerceptionBoard({
         <circle cx="300" cy="180" r="7" fill="var(--text)" />
       </>}
       {task.kind === "split" && <>
-        <line x1="40" y1="190" x2="560" y2="190" stroke="var(--line-strong)" strokeWidth="4" strokeLinecap="round" />
-        {value !== null && <rect
+        <line x1="40" y1={splitLineY} x2="560" y2={splitLineY} stroke="var(--line-strong)" strokeWidth="4" strokeLinecap="round" />
+        {!result && value !== null && <rect
           className="perception-split-selection"
           x={pos(task.fromRight ? value : 0)}
           y="184"
@@ -105,10 +107,27 @@ export default function PerceptionBoard({
           fill="var(--purple)"
           fillOpacity=".35"
         />}
-        {[0, 1].map(n => <line key={n} x1={pos(n)} x2={pos(n)} y1="177" y2="203" stroke="var(--line-strong)" strokeWidth="3" />)}
-        <text x={task.fromRight ? 560 : 40} y="240" textAnchor={task.fromRight ? "end" : "start"} className="perception-edge">{task.fromRight ? "← Отсюда" : "Отсюда →"}</text>
-        {value !== null && mark(value, "var(--purple)", 190)}
-        {result && !result.skipped && mark(result.actual, "var(--mint)", 190, true)}
+        {[0, 1].map(n => <line key={n} x1={pos(n)} x2={pos(n)} y1={splitLineY - 13} y2={splitLineY + 13} stroke="var(--line-strong)" strokeWidth="3" />)}
+        {!result && <text x={task.fromRight ? 560 : 40} y="240" textAnchor={task.fromRight ? "end" : "start"} className="perception-edge">{task.fromRight ? "← Отсюда" : "Отсюда →"}</text>}
+        {splitResult && <line
+          x1={pos(splitResult.actual)} x2={pos(splitResult.actual)}
+          y1={splitLineY - 41} y2={splitLineY + 29}
+          stroke="var(--mint)" strokeWidth="3" strokeDasharray="5 4"
+        />}
+        {value !== null && mark(value, "var(--purple)", splitLineY)}
+        {splitResult && (() => {
+          const divisions = Number(task.label.split("/")[1]);
+          const start = task.fromRight ? splitResult.actual : 0;
+          const end = task.fromRight ? 1 : splitResult.actual;
+          return <g className="perception-split-ruler">
+            <rect x={pos(start)} y="255" width={pos(end) - pos(start)} height="18" fill="var(--mint)" fillOpacity=".22" />
+            <line x1={pos(0)} x2={pos(1)} y1="264" y2="264" stroke="var(--line-strong)" strokeWidth="2" />
+            {Array.from({ length: divisions + 1 }, (_, i) => (
+              <line key={i} x1={pos(i / divisions)} x2={pos(i / divisions)} y1="254" y2="274" stroke="var(--muted)" strokeWidth="2" />
+            ))}
+            <text x={pos((start + end) / 2)} y="314" textAnchor="middle" fill="var(--mint)" fontSize="26" fontWeight="600">{task.label}</text>
+          </g>;
+        })()}
       </>}
       {task.kind === "tempo" && (() => {
         const period = 60000 / task.bpm;
@@ -143,6 +162,9 @@ export default function PerceptionBoard({
         </>;
       })()}
     </svg>
+    {task.kind === "split" && splitResult && <p className="sr-only">
+      Правильная отметка — {task.label} от {task.fromRight ? "правого" : "левого"} края.
+    </p>}
     {editable && <label className="sr-only">
       {task.kind === "angle" ? "Положение луча" : "Положение отметки"}
       <input type="range" min="0" max={task.kind === "angle" ? 360 : 1} step={task.kind === "angle" ? .25 : .002}
