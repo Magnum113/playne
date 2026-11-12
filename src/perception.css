@@ -96,6 +96,7 @@
   border-radius: var(--radius-control) 0 0 var(--radius-control);
 }
 .perception-result-table td { color: var(--muted); }
+.perception-result-detail { font-size: 12px; }
 .perception-result-table .perception-result-score {
   color: var(--purple);
   font-size: 16px;
@@ -111,7 +112,6 @@
 .perception-result-percentile {
   display: block;
   color: var(--mint);
-  font-size: 12px;
 }
 .perception-finish-time { margin: 24px 0; font-size: 13px; color: var(--muted); }
 .perception-finish .perception-board-link { margin-top: 16px; width: 100%; text-decoration: none; }
@@ -143,6 +143,7 @@
   .perception-total { margin-bottom: 18px; }
   .perception-radar { width: min(100%, 285px); margin-bottom: 6px; }
   .perception-result-table { font-size: 12px; }
+  .perception-result-detail { font-size: 11px; }
   .perception-result-table :is(th, td) { padding: 6px; }
   .perception-result-percentile { display: inline; margin-inline-start: 7px; white-space: nowrap; }
   .perception-finish-time { margin-block: 14px; }
