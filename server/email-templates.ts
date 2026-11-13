@@ -187,7 +187,7 @@ export function renderStreakEmail(args: {
 }) {
   const { origin, days, playUrl, brainUrl, sizeUrl, unsubscribeUrl } = args;
   const subject = "Одна игра спасёт твою серию 🔥";
-  const text = "Мы заморозили серию на один день. Закончи любую игру до полуночи по Москве, и серия продолжится.";
+  const text = "Мы заморозили серию на один день. Закончи любую игру до полуночи, и серия продолжится.";
   const suggestions = [
     { name: "Разминка для ума", description: "Задачки на память, логику и внимание.", url: brainUrl },
     { name: "На глаз", description: "Пять сравнений, которые удивляют.", url: sizeUrl },
@@ -204,7 +204,7 @@ export function renderStreakEmail(args: {
   const footer = `Ты получаешь напоминания Playne.<br><a class="email-link" href="${emailEscape(origin)}/account/#email-settings" style="color:#137866">Настроить письма</a> · <a class="email-link" href="${emailEscape(unsubscribeUrl)}" style="color:#137866">Отписаться</a>`;
   return {
     subject,
-    html: frame(origin, "До полуночи по Москве можно сохранить серию. Выбери игру на пару минут.", inner, footer),
+    html: frame(origin, "До полуночи можно сохранить серию. Выбери игру на пару минут.", inner, footer),
     plaintext: [subject, `Ударная серия: ${streakDays(days)}.`, text,
       `Сохранить серию: ${playUrl}`,
       ...suggestions.map(({ name, description, url }) => `${name}. ${description} ${url}`),
