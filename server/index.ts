@@ -3,7 +3,7 @@ setDefaultResultOrder("ipv4first");
 import { Pool } from "pg";
 import { readFileSync } from "node:fs";
 import { buildApp } from "./app";
-import { prepareReminderEmails } from "./email-reminders";
+import { prepareReminderEmails, prepareStreakEmails } from "./email-reminders";
 import { migrateShadeScores } from "./shade-migration";
 import {
   deliverEmails,
@@ -88,6 +88,7 @@ async function main() {
         await cleanupEmailData(pool);
         lastEmailCleanup = Date.now();
       }
+      await prepareStreakEmails(pool, email);
       await prepareRankEmails(pool, email);
       await prepareReminderEmails(pool, email);
       await deliverEmails(pool, email, fetch, Date.now(), emailShutdown.signal);

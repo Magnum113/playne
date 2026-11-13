@@ -141,6 +141,17 @@ const db = process.env.TEST_DATABASE_URL;
         lastDay: day,
       });
     });
+    it("preserves one missed Moscow day without counting it and resets after two", async () => {
+      const id = await player();
+      await seed(id, ["2026-11-11", "2026-11-12"], { published: true });
+      expect(await personal(id, "2026-11-13")).toMatchObject({ current: 2 });
+      expect(await personal(id, "2026-11-14")).toMatchObject({ current: 2, frozen: true, playedToday: false });
+      expect((await readStreakLeaderboard(pool, id, 1, 5, "2026-11-14")).mine?.days).toBe(2);
+      expect(await personal(id, "2026-11-15")).toMatchObject({ current: 0, best: 2 });
+      await seed(id, ["2026-11-14", "2026-11-17"]);
+      expect(await personal(id, "2026-11-14")).toEqual({ current: 3, best: 3, playedToday: true, lastDay: "2026-11-14" });
+      expect(await personal(id, "2026-11-17")).toMatchObject({ current: 1, best: 3 });
+    });
     it("uses Moscow midnight and crosses year boundaries independently of SQL session timezone", async () => {
       const id = await player();
       await seed(id, [

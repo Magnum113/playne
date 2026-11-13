@@ -507,8 +507,9 @@ export function EmailPreferences({ compact = false }: { compact?: boolean }) {
                     setReminders({ ...reminders, enabled: e.target.checked })
                   }
                 />
-                Напоминать, если сегодня ещё не играл
+                Напоминать об играх и заморозке серии
               </label>
+              <p>Письмо о серии приходит в день заморозки, максимум раз за семь дней.</p>
               <fieldset disabled={busy}>
                 <legend>Дни недели</legend>
                 <div className="email-day-options">

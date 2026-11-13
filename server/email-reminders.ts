@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import { EMAIL_CONSENT_VERSION } from "../src/emailConsent";
+import { STREAK_FREEZE_START } from "./play-streaks";
 import {
   emailFrequency,
   hashAddress,
@@ -11,6 +12,35 @@ import {
   reminderClock,
   reminderDue,
 } from "./email-reminders-policy";
+
+export async function prepareStreakEmails(pool: Pool, config: EmailConfig, now = Date.now()) {
+  if (!mailConfigured(config)) return;
+  const { day, minutes } = reminderClock(now);
+  if (minutes < 720 || minutes >= 1260) return;
+  // The indexed latest completion identifies users on the only day they can save the streak.
+  await pool.query(
+    `INSERT INTO playne_email_outbox(user_id,generation,kind,variant,experiment,reminder_day,payload,available_at)
+     SELECT contact.user_id,contact.generation,'streak',contact.variant,'streak-freeze-v1',$1,
+       jsonb_build_object('email',contact.email,'day',$1::date),$2
+     FROM playne_email_contacts contact
+     JOIN LATERAL (
+       SELECT completed_at FROM playne_games
+       WHERE owner_id=contact.user_id AND completed_at IS NOT NULL
+       ORDER BY completed_at DESC LIMIT 1
+     ) latest ON latest.completed_at >= (($1::date-2)::timestamp AT TIME ZONE 'Europe/Moscow')
+       AND latest.completed_at < (($1::date-1)::timestamp AT TIME ZONE 'Europe/Moscow')
+     WHERE $1::date-1 >= $4::date AND contact.enabled AND contact.verified_at IS NOT NULL
+       AND contact.purpose='general' AND contact.consent_version=$3 AND contact.reminders_enabled
+       AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=contact.user_id AND kind='streak'
+         AND (reminder_day=$1 OR submitted_at>$2::timestamptz-interval '7 days' OR status IN('pending','sending','uncertain')))
+       AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=contact.user_id AND kind IN('rank','reminder')
+         AND (status IN('pending','sending','uncertain') OR submitted_at>$2::timestamptz-interval '24 hours'))
+       AND (SELECT count(*) FROM playne_email_outbox o WHERE o.user_id=contact.user_id AND kind IN('rank','reminder','streak')
+         AND submitted_at>$2::timestamptz-interval '7 days')<3
+     ORDER BY contact.user_id LIMIT 100 ON CONFLICT DO NOTHING`,
+    [day, new Date(now), EMAIL_CONSENT_VERSION, STREAK_FREEZE_START],
+  );
+}
 
 export async function prepareReminderEmails(
   pool: Pool,
@@ -26,8 +56,8 @@ export async function prepareReminderEmails(
       AND $2=ANY(reminder_days) AND reminder_time<=$3
       AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=contact.user_id AND kind='reminder' AND reminder_day=$4)
       AND NOT EXISTS(SELECT 1 FROM playne_games g WHERE g.owner_id=contact.user_id AND completed_at>=($4::date AT TIME ZONE 'Europe/Moscow') AND completed_at<(($4::date+1) AT TIME ZONE 'Europe/Moscow'))
-      AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=contact.user_id AND kind IN('rank','reminder') AND (status IN('pending','sending','uncertain') OR submitted_at>$5::timestamptz-interval '24 hours'))
-      AND (SELECT count(*) FROM playne_email_outbox o WHERE o.user_id=contact.user_id AND kind IN('rank','reminder') AND submitted_at>$5::timestamptz-interval '7 days')<3
+      AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=contact.user_id AND kind IN('rank','reminder','streak') AND (status IN('pending','sending','uncertain') OR submitted_at>$5::timestamptz-interval '24 hours'))
+      AND (SELECT count(*) FROM playne_email_outbox o WHERE o.user_id=contact.user_id AND kind IN('rank','reminder','streak') AND submitted_at>$5::timestamptz-interval '7 days')<3
       ORDER BY user_id LIMIT 100`,
       [
         EMAIL_CONSENT_VERSION,
@@ -68,7 +98,7 @@ export async function prepareReminderEmails(
         [hashAddress(config, contact.email), new Date(now)],
       );
       const pending = await c.query(
-        "SELECT 1 FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder') AND status IN('pending','sending','uncertain')",
+        "SELECT 1 FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder','streak') AND status IN('pending','sending','uncertain')",
         [user.user_id],
       );
       const frequency = await emailFrequency(c, user.user_id, now);

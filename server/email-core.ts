@@ -14,6 +14,7 @@ import {
   renderRankEmail,
   renderVerificationEmail,
   renderReminderEmail,
+  renderStreakEmail,
   type RankEmailItem,
   type EmailVariant,
 } from "./email-templates";
@@ -35,7 +36,9 @@ import {
   reminderDue,
   reminderClock,
   playedToday,
+  remindersEnabled,
 } from "./email-reminders-policy";
+import { readPlayStreak } from "./play-streaks";
 type DB = Pick<PoolClient, "query">;
 export const EMAIL_PUBLICATION_LOCK = "playne-email-publication-v1";
 export const emailError = (message: string, statusCode = 400) =>
@@ -266,7 +269,7 @@ export async function stopEmails(
   );
   if (reason === "unsubscribe")
     await c.query(
-      `UPDATE playne_email_outbox SET unsubscribed_at=coalesce(unsubscribed_at,now()) WHERE id=(SELECT id FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder') AND submitted_at IS NOT NULL ORDER BY submitted_at DESC LIMIT 1)`,
+      `UPDATE playne_email_outbox SET unsubscribed_at=coalesce(unsubscribed_at,now()) WHERE id=(SELECT id FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder','streak') AND submitted_at IS NOT NULL ORDER BY submitted_at DESC LIMIT 1)`,
       [userId],
     );
   await c.query(
@@ -573,7 +576,7 @@ export async function currentRankItems(c: DB, userId: string, events: any[]) {
 export async function emailFrequency(c: DB, userId: string, now: number) {
   return (
     await c.query(
-      "SELECT count(*) FILTER(WHERE submitted_at>$2::timestamptz-interval '24 hours')::int AS daily,count(*)::int AS weekly FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder') AND submitted_at>$2::timestamptz-interval '7 days'",
+      "SELECT count(*) FILTER(WHERE submitted_at>$2::timestamptz-interval '24 hours')::int AS daily,count(*)::int AS weekly,count(*) FILTER(WHERE kind='streak')::int AS streak_weekly FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder','streak') AND submitted_at>$2::timestamptz-interval '7 days'",
       [userId, new Date(now)],
     )
   ).rows[0];
@@ -589,9 +592,9 @@ export async function prepareRankEmails(
       `SELECT e.user_id FROM playne_email_events e JOIN playne_email_contacts contact ON contact.user_id=e.user_id
        WHERE e.handled_at IS NULL AND e.created_at<=$1::timestamptz-interval '30 minutes' AND e.created_at>$1::timestamptz-interval '72 hours'
        AND contact.enabled AND contact.verified_at IS NOT NULL
-       AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind IN('rank','reminder') AND o.status IN('pending','sending','uncertain'))
-       AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind IN('rank','reminder') AND o.submitted_at>$1::timestamptz-interval '24 hours')
-       AND (SELECT count(*) FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind IN('rank','reminder') AND o.submitted_at>$1::timestamptz-interval '7 days')<3
+       AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind IN('rank','reminder','streak') AND o.status IN('pending','sending','uncertain'))
+       AND NOT EXISTS(SELECT 1 FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind IN('rank','reminder','streak') AND o.submitted_at>$1::timestamptz-interval '24 hours')
+       AND (SELECT count(*) FROM playne_email_outbox o WHERE o.user_id=e.user_id AND o.kind IN('rank','reminder','streak') AND o.submitted_at>$1::timestamptz-interval '7 days')<3
        GROUP BY e.user_id ORDER BY min(e.created_at) LIMIT 30`,
       [new Date(now)],
     )
@@ -622,17 +625,14 @@ export async function prepareRankEmails(
         [user.user_id, new Date(now)],
       );
       const pending = await c.query(
-        `SELECT 1 FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder') AND status IN('pending','sending','uncertain')`,
+        `SELECT 1 FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder','streak') AND status IN('pending','sending','uncertain')`,
         [user.user_id],
       );
-      const frequency = await c.query(
-        `SELECT count(*) FILTER(WHERE submitted_at>$2::timestamptz-interval '24 hours')::int AS daily,count(*)::int AS weekly FROM playne_email_outbox WHERE user_id=$1 AND kind IN('rank','reminder') AND submitted_at>$2::timestamptz-interval '7 days'`,
-        [user.user_id, new Date(now)],
-      );
+      const frequency = await emailFrequency(c, user.user_id, now);
       if (
         pending.rowCount ||
-        frequency.rows[0].daily >= 1 ||
-        frequency.rows[0].weekly >= 3
+        frequency.daily >= 1 ||
+        frequency.weekly >= 3
       ) {
         await c.query("COMMIT");
         continue;
@@ -758,7 +758,9 @@ export async function deliverEmails(
           break;
         }
         const frequency = await emailFrequency(c, row.user_id, now);
-        if (frequency.daily >= 1 || frequency.weekly >= 3) {
+        if (row.kind === "streak") {
+          cancel ||= frequency.daily >= 1 || frequency.weekly >= 3 || frequency.streak_weekly >= 1;
+        } else if (frequency.daily >= 1 || frequency.weekly >= 3) {
           await c.query(
             "UPDATE playne_email_outbox SET available_at=$1::timestamptz+interval '1 hour' WHERE id=$2",
             [new Date(now), row.id],
@@ -787,6 +789,23 @@ export async function deliverEmails(
               config.origin + "/api/email/click/" + link + "?target=play",
               unsubscribeUrl,
             );
+        } else if (row.kind === "streak") {
+          const clock = reminderClock(now);
+          cancel ||= contact?.consent_version !== EMAIL_CONSENT_VERSION ||
+            !remindersEnabled(contact) || row.payload.day !== clock.day || clock.minutes < 720;
+          if (!cancel) {
+            const streak = await readPlayStreak(c, { browserHash: "", userId: row.user_id }, clock.day);
+            cancel = !streak.frozen;
+            if (!cancel) {
+              const clickUrl = config.origin + "/api/email/click/" + link;
+              message = renderStreakEmail({
+                origin: config.origin, days: streak.current, unsubscribeUrl,
+                playUrl: clickUrl + "?target=play",
+                brainUrl: clickUrl + "?target=brain",
+                sizeUrl: clickUrl + "?target=size",
+              });
+            }
+          }
         } else {
           const events = (
             await c.query(
@@ -902,9 +921,7 @@ export async function deliverEmails(
                     tags: [
                       row.kind === "rank"
                         ? EMAIL_EXPERIMENT
-                        : row.kind === "reminder"
-                          ? "playne-reminders-v1"
-                          : "email-confirmation",
+                        : row.kind === "verify" ? "email-confirmation" : row.experiment,
                     ],
                   },
                 },

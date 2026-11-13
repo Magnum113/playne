@@ -134,7 +134,7 @@ export function StreakBoardView({
             Кто в огне
             <StreakFlame animated />
           </h2>
-          <p>Дней подряд в Playne</p>
+          <p>Дни игры в текущей серии</p>
         </div>
         {compact && (
           <a
@@ -235,7 +235,8 @@ export default function StreakLeaderboardPage() {
           Ударные серии<span className="brand-dot">.</span>
         </h1>
         <p className="community-intro">
-          Одна законченная игра в день — и серия растёт.
+          Заверши любую игру, чтобы продлить серию. Один пропущенный день
+          можно спасти, сыграв на следующий.
         </p>
         <div className="streak-page-grid">
           <PlayStreak showRankingLink={false} />

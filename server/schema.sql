@@ -180,10 +180,12 @@ ALTER TABLE playne_email_contacts ADD COLUMN IF NOT EXISTS reminders_enabled boo
 ALTER TABLE playne_email_contacts ADD COLUMN IF NOT EXISTS reminder_days smallint[] NOT NULL DEFAULT ARRAY[1,3,5]::smallint[];
 ALTER TABLE playne_email_contacts ADD COLUMN IF NOT EXISTS reminder_time text NOT NULL DEFAULT '19:00';
 ALTER TABLE playne_email_outbox DROP CONSTRAINT IF EXISTS playne_email_outbox_kind_check;
-ALTER TABLE playne_email_outbox ADD CONSTRAINT playne_email_outbox_kind_check CHECK(kind IN('verify','rank','reminder'));
+ALTER TABLE playne_email_outbox ADD CONSTRAINT playne_email_outbox_kind_check CHECK(kind IN('verify','rank','reminder','streak'));
 ALTER TABLE playne_email_outbox ADD COLUMN IF NOT EXISTS reminder_day date;
 CREATE UNIQUE INDEX IF NOT EXISTS playne_email_one_reminder_day ON playne_email_outbox(user_id,reminder_day) WHERE kind='reminder';
+CREATE UNIQUE INDEX IF NOT EXISTS playne_email_one_streak_day ON playne_email_outbox(user_id,reminder_day) WHERE kind='streak';
 CREATE INDEX IF NOT EXISTS playne_email_marketing_frequency ON playne_email_outbox(user_id,submitted_at DESC) WHERE kind IN('rank','reminder') AND submitted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS playne_email_streak_frequency ON playne_email_outbox(user_id,submitted_at DESC) WHERE kind='streak' AND submitted_at IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS playne_comparison_owner ON playne_games(owner_id,game,(challenge->>'comparisonToken'),created_at) WHERE challenge->>'comparison'='true';
 ALTER TABLE playne_challenges ADD COLUMN IF NOT EXISTS short_code varchar(16);

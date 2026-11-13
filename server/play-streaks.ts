@@ -3,17 +3,23 @@ import type { PlayStreak, StreakBoard } from "../src/playStreaks";
 import { lineMoscowDate } from "../src/line";
 import { playOwnership } from "./play-owner";
 
-// Distinct Moscow calendar dates form islands. A series ending yesterday is
-// still live: the player has until the end of today to extend it.
-const islands = `numbered AS (
- SELECT owner_id,day,day-(row_number() OVER(PARTITION BY owner_id ORDER BY day))::int AS island FROM active_days
+// Preserve streaks already broken before the freeze rule took effect.
+export const STREAK_FREEZE_START = "2026-11-13";
+const freezeStart = `DATE '${STREAK_FREEZE_START}'`;
+const islands = `gaps AS (
+ SELECT owner_id,day,day-lag(day) OVER(PARTITION BY owner_id ORDER BY day) AS gap FROM active_days
+), numbered AS (
+ SELECT owner_id,day,count(*) FILTER(WHERE gap>2 OR (gap=2 AND day-1<${freezeStart}))
+ OVER(PARTITION BY owner_id ORDER BY day) AS island FROM gaps
 ), series AS (
  SELECT owner_id,min(day) AS first_day,max(day) AS last_day,count(*)::int AS days
  FROM numbered GROUP BY owner_id,island
 ), summaries AS (
  SELECT owner_id,max(days)::int AS best,max(last_day) AS last_day,
- coalesce(max(days) FILTER(WHERE last_day >= $2::date-1),0)::int AS current,
- bool_or(last_day=$2::date) AS played_today FROM series GROUP BY owner_id
+ coalesce(max(days) FILTER(WHERE last_day >= $2::date-1
+ OR (last_day=$2::date-2 AND $2::date-1>=${freezeStart})),0)::int AS current,
+ bool_or(last_day=$2::date) AS played_today,
+ max(last_day)=$2::date-2 AND $2::date-1>=${freezeStart} AS frozen FROM series GROUP BY owner_id
 )`;
 
 export async function readPlayStreak(
@@ -28,7 +34,7 @@ export async function readPlayStreak(
  FROM playne_games g WHERE ${own.sql} AND completed_at IS NOT NULL
  AND completed_at<(($2::date+1)::timestamp AT TIME ZONE 'Europe/Moscow')
  ), ${islands}
- SELECT current,best,played_today,to_char(last_day,'YYYY-MM-DD') AS last_day FROM summaries`,
+ SELECT current,best,played_today,frozen,to_char(last_day,'YYYY-MM-DD') AS last_day FROM summaries`,
     [own.id, day],
   );
   const row = rows[0];
@@ -37,6 +43,7 @@ export async function readPlayStreak(
     best: Number(row?.best ?? 0),
     playedToday: !!row?.played_today,
     lastDay: row?.last_day ?? null,
+    ...(row?.frozen ? { frozen: true } : {}),
   };
 }
 
@@ -51,7 +58,7 @@ export async function readStreakLeaderboard(
     `WITH eligible AS (
  SELECT DISTINCT g.owner_id FROM playne_games g WHERE g.owner_id IS NOT NULL AND g.published_at IS NOT NULL
  AND EXISTS(SELECT 1 FROM playne_games recent WHERE recent.owner_id=g.owner_id
- AND recent.completed_at>=(($2::date-1)::timestamp AT TIME ZONE 'Europe/Moscow')
+ AND recent.completed_at>=(($2::date-2)::timestamp AT TIME ZONE 'Europe/Moscow')
  AND recent.completed_at<(($2::date+1)::timestamp AT TIME ZONE 'Europe/Moscow'))
  ), active_days AS (
  SELECT DISTINCT g.owner_id,(g.completed_at AT TIME ZONE 'Europe/Moscow')::date AS day

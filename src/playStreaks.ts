@@ -2,6 +2,7 @@ export type PlayStreak = {
   current: number;
   best: number;
   playedToday: boolean;
+  frozen?: boolean;
   lastDay: string | null;
 };
 export type StreakEntry = {

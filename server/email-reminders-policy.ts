@@ -31,12 +31,14 @@ export function validReminderSchedule(
     return false;
   return true;
 }
+export function remindersEnabled(contact: any) {
+  return contact?.purpose === "general" && contact.reminders_enabled;
+}
 export function reminderDue(contact: any, now: number) {
   const clock = reminderClock(now);
   const [hours, minutes] = String(contact.reminder_time).split(":").map(Number);
   return (
-    contact.purpose === "general" &&
-    contact.reminders_enabled &&
+    remindersEnabled(contact) &&
     (contact.reminder_days ?? []).includes(clock.weekday) &&
     Number.isFinite(hours) &&
     Number.isFinite(minutes) &&

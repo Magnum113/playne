@@ -56,14 +56,16 @@ export function PlayStreakCard({
         <div>
           <p className="eyebrow">УДАРНАЯ СЕРИЯ</p>
           <h2>
-            {streak ? streakDays(streak.current) : "—"} <span>подряд</span>
+            {streak ? streakDays(streak.current) : "—"} <span>в серии</span>
           </h2>
           <p className="streak-status">
             {streak
               ? streak.playedToday
                 ? "Сегодня уже засчитано"
                 : streak.current
-                  ? "Заверши партию сегодня — продли серию"
+                  ? streak.frozen
+                    ? "Серия заморожена. Закончи любую игру до полуночи по Москве, чтобы её сохранить."
+                    : "Заверши партию сегодня — продли серию"
                   : "Закончи любую игру — зажги серию"
               : error
                 ? "Прогресс пока недоступен"

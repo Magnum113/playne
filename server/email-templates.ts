@@ -4,6 +4,7 @@ import { shadeModeName } from "../src/colorfle";
 import { formatPressScore } from "../src/pressure";
 import type { EmailPurpose } from "../src/emailConsent";
 import { isBrainGame } from "./brain";
+import { streakDays } from "../src/playStreaks";
 
 export type EmailVariant = "A" | "B" | "C";
 export type RankEmailItem = {
@@ -173,5 +174,40 @@ export function renderReminderEmail(
       footer,
     ),
     plaintext: `${subject}\n\n${text}\n\nВыбрать игру: ${playUrl}\nДни и время: ${origin}/account/#email-settings\nОтписаться от всех писем: ${unsubscribeUrl}`,
+  };
+}
+
+export function renderStreakEmail(args: {
+  origin: string;
+  days: number;
+  playUrl: string;
+  brainUrl: string;
+  sizeUrl: string;
+  unsubscribeUrl: string;
+}) {
+  const { origin, days, playUrl, brainUrl, sizeUrl, unsubscribeUrl } = args;
+  const subject = "Одна игра спасёт твою серию 🔥";
+  const text = "Мы заморозили серию на один день. Закончи любую игру до полуночи по Москве, и серия продолжится.";
+  const suggestions = [
+    { name: "Разминка для ума", description: "Задачки на память, логику и внимание.", url: brainUrl },
+    { name: "На глаз", description: "Пять сравнений, которые удивляют.", url: sizeUrl },
+  ];
+  const gameLinks = suggestions.map(({ name, description, url }) =>
+    `<tr><td style="padding:14px 16px"><a class="email-link" href="${emailEscape(url)}" style="color:#137866;font-weight:700;font-size:16px">${name}</a><br><span class="muted" style="font-size:14px;line-height:1.6;color:#5f6b6e">${description}</span></td></tr>`,
+  ).join("");
+  const inner = `<h1 class="title copy" style="margin:28px 0 16px;font-size:38px;line-height:1.12;letter-spacing:-1px">Одна игра спасёт твою серию</h1>
+    <table class="tinted" role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eee6fb;border-radius:16px;margin:0 0 20px"><tr><td align="center" style="padding:18px 16px"><span class="muted" style="font-size:13px;color:#5f6b6e">Ударная серия · заморожена</span><br><strong class="focus-place" style="display:inline-block;margin-top:6px;font-size:36px;line-height:1.1;color:#7953b4">🔥 ${streakDays(days)}</strong></td></tr></table>
+    <p class="copy" style="margin:0 0 20px;font-size:17px;line-height:1.55">${text}</p>
+    ${button("Сохранить серию", playUrl)}
+    <p class="copy" style="margin:24px 0 10px;font-size:16px;font-weight:700">Во что сыграть?</p>
+    <table class="tinted-mint" role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#e1f3ec;border-radius:16px">${gameLinks}</table>`;
+  const footer = `Ты получаешь напоминания Playne.<br><a class="email-link" href="${emailEscape(origin)}/account/#email-settings" style="color:#137866">Настроить письма</a> · <a class="email-link" href="${emailEscape(unsubscribeUrl)}" style="color:#137866">Отписаться</a>`;
+  return {
+    subject,
+    html: frame(origin, "До полуночи по Москве можно сохранить серию. Выбери игру на пару минут.", inner, footer),
+    plaintext: [subject, `Ударная серия: ${streakDays(days)}.`, text,
+      `Сохранить серию: ${playUrl}`,
+      ...suggestions.map(({ name, description, url }) => `${name}. ${description} ${url}`),
+      `Настроить письма: ${origin}/account/#email-settings`, `Отписаться: ${unsubscribeUrl}`].join("\n\n"),
   };
 }

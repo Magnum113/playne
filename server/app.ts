@@ -1633,8 +1633,8 @@ export async function buildApp(
           run.game,
           run.mode,
         );
-        await recordEmailGameCompletion(c, run.id);
       }
+      if (complete && (publish || (shouldOwn && run.email_origin))) await recordEmailGameCompletion(c, run.id);
       await c.query("COMMIT");
       return {
         answer,

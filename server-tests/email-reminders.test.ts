@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
 import { buildApp } from "../server/app";
 import { scoreVersion } from "../server/scoring";
-import { prepareReminderEmails } from "../server/email-reminders";
+import { prepareReminderEmails, prepareStreakEmails } from "../server/email-reminders";
 import {
   reminderClock,
   validReminderSchedule,
@@ -143,10 +143,10 @@ describe("Reminder schedule boundaries", () => {
             JSON.stringify({ status: "success", job_id: "local-job" }),
           ),
       );
-    async function played(id: string) {
+    async function played(id: string, at = now - 3600000) {
       await pool.query(
         "INSERT INTO playne_games(browser_hash,owner_id,game,mode,challenge,answers,score_units,completed_at) VALUES('mail-test',$1,'rotate','practice','{}','[]',0,$2)",
-        [id, new Date(now - 3600000)],
+        [id, new Date(at)],
       );
     }
     async function rankEvent(id: string) {
@@ -363,6 +363,54 @@ describe("Reminder schedule boundaries", () => {
         (await pool.query("SELECT status FROM playne_email_outbox")).rows[0]
           .status,
       ).toBe("cancelled");
+    });
+    it("sends one streak reminder during the freeze and tracks game links", async () => {
+      const at = Date.parse("2026-11-14T09:00:00Z");
+      const p = await subscribe();
+      const legacy = await subscribe(LEGACY_EMAIL_CONSENT_VERSION);
+      for (const id of [p.id, legacy.id]) await played(id, at - 2 * 86400000);
+      await prepareStreakEmails(pool, config, at - 1);
+      expect((await pool.query("SELECT id FROM playne_email_outbox")).rowCount).toBe(0);
+      await Promise.all([prepareStreakEmails(pool, config, at), prepareStreakEmails(pool, config, at)]);
+      expect((await pool.query("SELECT user_id,kind FROM playne_email_outbox")).rows)
+        .toEqual([{ user_id: p.id, kind: "streak" }]);
+      const send = remote();
+      await deliverEmails(pool, config, send as typeof fetch, at);
+      expect(send).toHaveBeenCalledTimes(1);
+      const request = (send.mock.calls[0] as unknown as [unknown, RequestInit])[1];
+      const { message } = JSON.parse(String(request.body));
+      expect(message.tags).toEqual(["streak-freeze-v1"]);
+      expect(message.body.html).toContain("Разминка для ума");
+      expect(message.body.html).toContain("1 день");
+      expect(message.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+      const row = (await pool.query("SELECT id FROM playne_email_outbox")).rows[0];
+      const token = signEmailToken(config, "click", { o: row.id, exp: Date.now() + 60000 });
+      const click = await app.inject("/api/email/click/" + token + "?target=brain");
+      expect(click.headers.location).toContain("/brain/?from_email=1");
+      expect(click.headers.location).toContain("utm_campaign=streak-freeze&utm_content=brain");
+      await played(p.id, at);
+      await prepareStreakEmails(pool, config, at + 2 * 86400000);
+      expect((await pool.query("SELECT id FROM playne_email_outbox")).rowCount).toBe(1);
+      await played(p.id, at + 5 * 86400000);
+      await prepareStreakEmails(pool, config, at + 7 * 86400000);
+      expect((await pool.query("SELECT id FROM playne_email_outbox")).rowCount).toBe(2);
+    });
+    it("cancels a queued streak reminder after a completed game or an expired freeze", async () => {
+      const at = Date.parse("2026-11-14T09:00:00Z");
+      const returned = await subscribe();
+      const expired = await subscribe();
+      for (const id of [returned.id, expired.id]) await played(id, at - 2 * 86400000);
+      await prepareStreakEmails(pool, config, at);
+      await played(returned.id, at);
+      await pool.query("UPDATE playne_email_outbox SET available_at=$2 WHERE user_id=$1",
+        [expired.id, new Date(at + 86400000)]);
+      const send = remote();
+      await deliverEmails(pool, config, send as typeof fetch, at);
+      expect((await pool.query("SELECT status FROM playne_email_outbox WHERE user_id=$1", [returned.id])).rows[0].status).toBe("cancelled");
+      await deliverEmails(pool, config, send as typeof fetch, at + 86400000);
+      expect(send).not.toHaveBeenCalled();
+      expect((await pool.query("SELECT status FROM playne_email_outbox")).rows)
+        .toEqual([{ status: "cancelled" }, { status: "cancelled" }]);
     });
     it("shares rank and reminder budgets at preparation and delivery", async () => {
       const p = await subscribe();

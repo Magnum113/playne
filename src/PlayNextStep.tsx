@@ -58,8 +58,8 @@ export default function PlayNextStep({
       {data.streak && data.streak.current > 0 && (
         <p className="play-next-streak">
           <StreakFlame animated />
-          {streakDays(data.streak.current)} подряд
-          {data.streak.playedToday ? " · огонь горит" : " · продли сегодня"}
+          {streakDays(data.streak.current)} в серии
+          {data.streak.playedToday ? " · огонь горит" : data.streak.frozen ? " · спаси сегодня" : " · продли сегодня"}
         </p>
       )}
       {milestone && (

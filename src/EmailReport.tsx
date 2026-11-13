@@ -24,7 +24,7 @@ const date = (value: string) => new Date(value).toLocaleString("ru-RU", {
   timeZone: "Europe/Moscow", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
 });
 const percent = (n: number | null) => n === null ? "—" : (n * 100).toFixed(1).replace(".", ",") + "%";
-const kinds: Record<string, string> = { rank: "Рейтинг", reminder: "Напоминания", verify: "Подтверждение почты" };
+const kinds: Record<string, string> = { rank: "Рейтинг", reminder: "Напоминания", streak: "Ударная серия", verify: "Подтверждение почты" };
 
 export function EmailReportView({ report }: { report: EmailReportData }) {
   const totals = report.activity.totals;
@@ -41,7 +41,7 @@ export function EmailReportView({ report }: { report: EmailReportData }) {
     <div className="email-report-scroll" role="region" aria-label="Отправки по типам писем" tabIndex={0}>
       <table><caption>Все письма Playne</caption><thead><tr>
         <th scope="col">Тип</th><th scope="col">Принято</th><th scope="col">Доставлено</th><th scope="col">Открыто</th><th scope="col">Получатели</th><th scope="col">Нажали ссылку</th><th scope="col">Вернулись</th><th scope="col">Начали игру</th><th scope="col">Завершили игру</th><th scope="col">Отписки</th><th scope="col">Жалобы</th>
-      </tr></thead><tbody>{["rank", "reminder", "verify"].map((kind) => {
+      </tr></thead><tbody>{["rank", "reminder", "streak", "verify"].map((kind) => {
         const row = report.activity.byKind.find((item) => item.kind === kind);
         return <tr key={kind}><th scope="row">{kinds[kind]}</th>{[row?.accepted, row?.delivered, row?.opened, row?.delivered_users, row?.clicked, row?.visited_users, row?.started_users, row?.completed_users, row?.unsubscribes, row?.complaints].map((n, i) => <td key={i}>{n ?? 0}</td>)}</tr>;
       })}</tbody></table>
