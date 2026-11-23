@@ -40,6 +40,30 @@ export function challengeArt(
         `<g transform="translate(${x} 469)" stroke="#38534c" stroke-width="2" stroke-linecap="round"><path d="m-5-7-9-7m19 7 9-7m-20 12-10 2m22-2 10 2m-20 2-8 10m18-10 8 10"/><ellipse cy="8" rx="7" ry="9" fill="${color}"/><ellipse cy="-1" rx="5" ry="6" fill="${color}"/><path d="m-4-14-4-8m12 8 4-8"/><ellipse cy="-12" rx="9" ry="8" fill="${color}"/><circle cx="-4" cy="-14" r="3" fill="white" stroke="none"/><circle cx="4" cy="-14" r="3" fill="white" stroke="none"/><circle cx="-4" cy="-15" r="1.5" fill="#26362e" stroke="none"/><circle cx="4" cy="-15" r="1.5" fill="#26362e" stroke="none"/></g>`;
       return `<rect x="710" y="180" width="336" height="312" rx="20" fill="#ffe1b3"/><rect x="${dense ? 737 : left - 9}" y="${dense ? 182 : top - 6}" width="${dense ? 282 : puzzle.width * step + 18}" height="${dense ? 282 : puzzle.height * step + 18}" rx="10" fill="#fff6e0"/>${cubes}<ellipse cx="878" cy="475" rx="21" ry="8" fill="#484a42"/>${ant(819, "#ff887c")}${ant(937, "#62cfb4")}`;
     },
+    malokto: () => `<g transform="translate(874 343)">
+      <defs>
+        <linearGradient id="malokto-cave" x2="70%" y2="100%">
+          <stop stop-color="#52ab96"/><stop offset="1" stop-color="#342543"/>
+        </linearGradient>
+        <clipPath id="malokto-clip"><rect x="-168" y="-126" width="336" height="252" rx="26"/></clipPath>
+      </defs>
+      <g clip-path="url(#malokto-clip)">
+        <path d="M-168-126H168V126H-168Z" fill="url(#malokto-cave)"/>
+        <path d="M-48-126H66L22 46-59 98Z" fill="#c7f2cc" opacity=".32"/>
+        <path d="M-168-126h84l32 29-66 30 32 38-52 36 60 57-28 62h-62Z" fill="#1b443f"/>
+        <path d="M168-126h-44l-27 43 27 40-61 52 52 39-38 34 21 44h70Z" fill="#24334c"/>
+        <path d="m-140 107 12-61 39 34 1 40Zm245-39 6-58 27 28-5 38Z" fill="#ae8eed"/>
+        <path d="m-128 46 7 46 33 28-1-40Zm239-36 5 44 17 22 5-38Z" fill="#7953b4"/>
+        <g transform="rotate(9)">
+          <path d="M-22-36v-9q0-9 9-9h26q9 0 9 9v9" fill="none" stroke="#103f3e" stroke-width="9"/>
+          <path d="M-24-38H24L41-16V19L22 40H-22L-41 19v-35Z" fill="#fcf2dd" stroke="#73b6a4" stroke-width="3"/>
+          <path d="M-29 32h58l-7 8h-44Z" fill="#ad94db"/>
+          <circle r="25" fill="#125956" stroke="#c6e6d8" stroke-width="3"/>
+          <path d="M0-19 16-8 13 11 0 19-13 11-16-8Z" fill="#92f7cd"/>
+          <path d="M0-19 16-8 0 5-16-8ZM0 5v14l13-8 3-19Z" fill="#47c6ab"/>
+        </g>
+      </g>
+    </g>`,
     perception: () => `<g transform="translate(709 234) scale(.86)">
       <rect x="20" y="34" width="118" height="132" rx="20" fill="#e1f3ec" transform="rotate(-7 79 100)"/>
       <g fill="#137866">${[[48,66],[77,58],[106,70],[43,98],[74,91],[104,103],[54,127],[86,125]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="7"/>`).join("")}</g>

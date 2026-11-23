@@ -74,7 +74,7 @@ export function challengeSvg(data: PublicChallenge) {
     ${previewBrand}
     <g font-family="Noto Sans" fill="#252a2d">
       <text x="142" y="68" font-size="38" font-weight="700" letter-spacing="-1.8">playne<tspan fill="#7953b4">.</tspan></text>
-      <text x="90" y="143" font-size="40" font-weight="700" letter-spacing="-1.3">${xml(data.gameName + ((data.flow?.kind === "daily" || data.game === "perception") ? " · " + dateText(data.flow?.key ?? data.day).replace(/\.$/, "") : ""))}</text>
+      <text x="90" y="143" font-size="40" font-weight="700" letter-spacing="-1.3">${xml(data.gameName + ((data.flow?.kind === "daily" || ["perception", "malokto"].includes(data.game)) ? " · " + dateText(data.flow?.key ?? data.day).replace(/\.$/, "") : ""))}</text>
       <text x="148" y="${circle ? 402 : 384}" font-size="${fontSize}" font-weight="700" letter-spacing="${data.flow ? "-3" : "-7"}">${xml(main)}</text>
       ${circle ? "" : `<text x="155" y="434" font-size="28" fill="#5f6b6e">${xml(detail)}</text>`}
       ${data.flow ? `<g data-stars="${data.flow.stars}" transform="translate(354 409)">${[0, 1, 2].map((i) => `<path transform="translate(${i * 30} 0)" d="m12 0 3.5 8 8.5 1-6.4 5.9 1.7 8.6L12 19l-7.3 4.5 1.7-8.6L0 9l8.5-1Z" fill="${i < data.flow!.stars ? "#b68324" : "#dfdbd1"}"/>`).join("")}</g>` : ""}
@@ -148,11 +148,11 @@ export function challengeHtml(data: PublicChallenge) {
   const title = `${data.nickname}: ${data.flow ? challengeTask(data) + " · " : ""}${challengeScore(data)} · ${data.gameName}`;
   const imageAlt = `${data.gameName}: ${data.flow ? challengeTask(data) + " · " : ""}${challengeScore(data)}. ${prompt(data)}`;
   const description = `${prompt(data)} ${data.gameName}${data.flow ? ", " + challengeTask(data) : ""}, ${dateText(data.day).replace(/\.$/, "")}. Прими вызов и сравни результат на Playne.`;
-  const expiredDaily = data.game === "perception" && !data.isTodayDaily;
+  const expiredDaily = ["perception", "malokto"].includes(data.game) && !data.isTodayDaily;
   const status = expiredDaily
     ? "Этот день завершён. Сегодня — новые пять заданий."
     : data.isTodayDaily
-      ? (data.game === "perception" ? "Пять заданий дня. В зачёт идёт твоя первая попытка." : "Сегодняшняя задача дня. В зачёт идёт твоя первая попытка.")
+      ? (["perception", "malokto"].includes(data.game) ? "Пять заданий дня. В зачёт идёт твоя первая попытка." : "Сегодняшняя задача дня. В зачёт идёт твоя первая попытка.")
       : "Те же условия в отдельном вызове. Результат не меняет рейтинг.";
   const playUrl = expiredDaily ? challengePath(data.game) :
     challengePath(data.game) + `?challenge=${encodeURIComponent(data.token)}`;

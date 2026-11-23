@@ -1,3 +1,4 @@
+import MaloktoGame from "./MaloktoGame";
 import PerceptionGame from "./PerceptionGame";
 import FlowGame from "./FlowGame";
 import OtherChallenge from "./OtherChallenge";
@@ -50,6 +51,7 @@ export default function Site({ path }: { path: string }) {
         <PressureGame />
       </OtherChallenge>
     );
+  if (route === "/malokto/") return <MaloktoGame />;
   if (route === "/perception/") return <PerceptionGame />;
   if (route === "/swarm/") return <FlowGame />;
   if (route === "/one-line/") return <LineGame />;

@@ -1,3 +1,4 @@
+import MaloktoCard from "./MaloktoCard";
 import FlowPreview from "./FlowArt";
 import { PressurePreview } from "./PressureGame";
 import LinePreview from "./LinePreview";
@@ -264,6 +265,7 @@ export default function Hub() {
                   </span>
                 </div>
               </a>
+              <MaloktoCard />
               <DailyPerceptionCard />
               <a
                 className="game-card game-card-live"

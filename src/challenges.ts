@@ -1,5 +1,6 @@
 export const CHALLENGE_GAMES = [
   "perception",
+  "malokto",
   "line",
   "flash",
   "rotate",

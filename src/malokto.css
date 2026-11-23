@@ -1,0 +1,466 @@
+.game-card.malokto-home { border-color: color-mix(in srgb, var(--mint) 35%, var(--line)); }
+.malokto-card-topline { width: 100%; margin-block-end: 10px; }
+.malokto-home .malokto-card-topline .card-category { margin: 0; }
+.malokto-home .malokto-scene { margin-block: 12px; }
+.malokto-home .perception-ranking-list { grid-template-columns: auto minmax(0, 1fr) auto minmax(4ch, auto); }
+.malokto-home .malokto-home-ranking { background: var(--mint-tint); }
+.malokto-task, .malokto-ready { min-height: 0; }
+.malokto-ready { gap: 14px; padding-block: clamp(32px, 7vw, 80px); }
+.malokto-task-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.malokto-task-meta p { margin: 0; }
+.malokto-clock { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--mint); font-weight: 700; }
+.malokto-clock.is-reading { color: var(--purple); }
+.malokto-clock.is-low { color: var(--danger); }
+.malokto-timer { display: block; width: 100%; height: 5px; margin-top: 12px; accent-color: var(--mint); }
+.malokto-task h2 { margin: 24px 0; font-size: clamp(23px, 4vw, 38px); line-height: 1.2; text-wrap: pretty; }
+.malokto-task label { display: block; color: var(--muted); font-size: 14px; margin-bottom: 8px; }
+.malokto-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+.malokto-input-row input {
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 10px 14px;
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 18px;
+}
+.malokto-round-points { display: grid; justify-items: center; gap: 5px; padding: 8px 0 14px; color: var(--mint); }
+.malokto-round-points strong { font-size: 52px; line-height: 1; }
+.malokto-round-points span { color: var(--muted); }
+.malokto-error { color: var(--danger); margin: 12px 0; line-height: 1.45; }
+.malokto-result .malokto-save { margin: 16px auto; justify-content: center; }
+.malokto-result .perception-board-link { display: inline-block; margin: 10px 0; }
+.malokto-breakdown { margin: 22px 0; text-align: start; }
+.malokto-breakdown h3 { margin: 0 0 12px; }
+.malokto-breakdown details { border-top: 1px solid var(--line); }
+.malokto-breakdown details:last-child { border-bottom: 1px solid var(--line); }
+.malokto-breakdown summary {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto 10px;
+  align-items: center;
+  gap: 12px;
+  min-height: 55px;
+  padding: 8px 4px;
+  cursor: pointer;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+.malokto-breakdown summary::-webkit-details-marker { display: none; }
+.malokto-review-chevron { color: var(--muted); }
+.malokto-breakdown details[open] .malokto-review-chevron { transform: rotate(180deg); }
+.malokto-breakdown summary small { display: block; color: var(--muted); font-size: 12px; margin-top: 3px; }
+.malokto-review-index { display: grid; place-items: center; aspect-ratio: 1; border-radius: 50%; background: var(--mint-tint); color: var(--mint); }
+.malokto-breakdown summary strong, .malokto-review-detail li strong { color: var(--mint); font-variant-numeric: tabular-nums; }
+.malokto-review-detail { background: var(--bg); border-radius: var(--radius-control); padding: 14px; margin-bottom: 10px; }
+.malokto-review-detail p, .malokto-review-detail h4 { margin: 0 0 8px; }
+.malokto-review-detail ul { list-style: none; display: grid; gap: 6px; margin: 0; padding: 0; }
+.malokto-review-detail li { display: flex; justify-content: space-between; gap: 8px; }
+@media (max-width: 520px) {
+  .malokto-home .perception-ranking-list li:not(:first-child) { display: none; }
+  .malokto-input-row { grid-template-columns: minmax(0, 1fr); }
+  .malokto-result .malokto-save { width: 100%; }
+}
+
+.malokto-scene {
+  --descent-ease: 780ms cubic-bezier(.28, .66, .25, 1);
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-inner);
+  background: #142e36;
+  color: #fbfbf5;
+}
+
+.malokto-scene--card { aspect-ratio: 2.5; min-height: 134px; }
+.malokto-scene--cover { min-height: 265px; aspect-ratio: 1.45; }
+.malokto-scene--play { min-height: 340px; animation: malokto-scene-enter 420ms ease-out both; }
+
+@keyframes malokto-scene-enter { from { opacity: .75; transform: translateY(-6px); } }
+.malokto-scene--result { height: clamp(140px, 21vw, 200px); margin: 20px 0 6px; }
+
+.malokto-landscape {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.malokto-scene-art {
+  position: absolute;
+  inset: 0;
+  background: #173841 url("/art/malokto/cavern.webp") center var(--camera-position) / cover no-repeat;
+  transition: background-position var(--descent-ease);
+}
+
+.malokto-scene-fog {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 55% 35%, transparent 0 34%, #11142f99 100%),
+    linear-gradient(160deg, transparent 30%, #2c1648bb 100%);
+  opacity: var(--glow-alpha);
+  transition: opacity var(--descent-ease);
+}
+
+.malokto-scene-walls {
+  position: absolute;
+  inset: 14% 0 -140%;
+  transform: translateY(var(--near-shift));
+  transition: transform var(--descent-ease);
+}
+
+.malokto-scene-walls i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 18%;
+  clip-path: polygon(0 0, 44% 6%, 64% 17%, 38% 30%, 100% 51%, 56% 67%, 71% 78%, 90% 89%, 56% 100%, 0 100%);
+  background: linear-gradient(155deg, #143d41c2, #172339e8 48%, #291b4bc9 80%);
+}
+
+.malokto-scene-walls i + i { inset-inline: auto 0; scale: -1 1; width: 13%; }
+
+.malokto-specks { position: absolute; inset: 0; }
+.malokto-specks i {
+  position: absolute;
+  background: #dbfff1;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #b3ffe9;
+  opacity: .54;
+}
+
+.malokto-scene--play .malokto-specks i { animation: malokto-speck-drift 5s ease-in-out infinite alternate; }
+
+@keyframes malokto-speck-drift {
+  from { transform: translate(0, 5px); opacity: .25; }
+  to { transform: translate(11px, -11px); opacity: .68; }
+}
+
+.malokto-probe {
+  position: absolute;
+  top: var(--probe-position);
+  left: 50%;
+  width: clamp(82px, 11vw, 148px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  transition: top var(--descent-ease);
+}
+
+.malokto-scene--cover .malokto-probe { width: clamp(126px, 17vw, 212px); }
+.malokto-scene--card .malokto-probe { width: clamp(94px, 11vw, 138px); }
+
+.malokto-probe img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 14px #08162099);
+}
+
+.malokto-scene--play .malokto-probe img { animation: malokto-float 3.8s ease-in-out infinite alternate; }
+.malokto-home .perception-home-game:is(:hover, :focus-visible) .malokto-probe img { transform: translateY(-6px) rotate(-5deg); }
+.malokto-scene--card .malokto-probe img { transition: transform var(--motion-fast); }
+
+.malokto-scene--play .malokto-probe.is-descending img {
+  animation: malokto-dive 760ms cubic-bezier(.24, .62, .37, 1);
+}
+@keyframes malokto-dive {
+  from { transform: translateY(-17%) rotate(-5deg) scale(.94); }
+  66% { transform: translateY(7%) rotate(3deg); }
+  to { transform: translateY(0) rotate(0) scale(1); }
+}
+
+@keyframes malokto-float { to { transform: translateY(-5px) rotate(3deg); } }
+
+.malokto-probe-light {
+  position: absolute;
+  inset: 4% -40% -48%;
+  background: radial-gradient(ellipse, #8dedcf78, #6bdcc325 42%, transparent 71%);
+}
+
+.malokto-probe-pulse {
+  position: absolute;
+  inset: 18%;
+  border: 2px solid #aaf9eb;
+  border-radius: 50%;
+  box-shadow: 0 0 14px #74dabe, inset 0 0 10px #abf4d7;
+  opacity: 0;
+  animation: malokto-pulse 760ms ease-out;
+}
+
+.malokto-probe-pulse.is-rare {
+  border-color: #e5ceff;
+  box-shadow: 0 0 22px #b78cfc, inset 0 0 14px #c9b2ff;
+}
+
+@keyframes malokto-pulse {
+  12% { opacity: .92; }
+  to { transform: scale(var(--rings-scale)); opacity: 0; }
+}
+
+.malokto-scene-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid #effcf349;
+  border-radius: var(--radius-control);
+  background: #182f39e6;
+  font-size: 12px;
+}
+
+.malokto-scene-badge i { width: 6px; height: 6px; border-radius: 50%; background: #87e8cc; }
+
+.malokto-depth {
+  display: grid;
+  grid-template-columns: 6px 1fr;
+  position: absolute;
+  inset: 16px auto 15px 13px;
+  gap: 10px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.malokto-depth-meter {
+  background: repeating-linear-gradient(#e1f9edb0 0 1px, transparent 1px 20%);
+  position: relative;
+}
+
+.malokto-depth-meter::after {
+  content: "";
+  display: block;
+  position: absolute;
+  inset: 0 auto 0 2px;
+  border-left: 1px solid #d7f4e84a;
+}
+
+.malokto-depth-meter span {
+  position: absolute;
+  top: var(--depth-progress);
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #aff9df;
+  box-shadow: 0 0 7px #76e2c8;
+  transition: top var(--descent-ease);
+}
+
+.malokto-depth-text {
+  align-self: end;
+  display: grid;
+  justify-items: start;
+  gap: 0;
+  padding: 6px 10px;
+  border: 1px solid #d1edeb4d;
+  border-radius: var(--radius-control);
+  background: #112930eb;
+}
+
+.malokto-depth-text span { color: #daeee8; font-size: 11px; }
+.malokto-depth-text strong { font-size: clamp(19px, 3vw, 28px); line-height: 1.2; }
+
+.malokto-reveal .malokto-round-points { animation: malokto-award 360ms ease-out both; }
+
+@keyframes malokto-award { from { opacity: .5; transform: translateY(8px) scale(.96); } }
+
+@media (max-width: 720px) {
+  .malokto-scene--cover { min-height: 0; aspect-ratio: 2.45; }
+  .malokto-scene--cover .malokto-probe { width: clamp(100px, 27vw, 160px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .malokto-scene--play, .malokto-scene *, .malokto-reveal .malokto-round-points {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* During a round the cave is the game surface itself. The quiz remains in document flow. */
+.app.malokto-app.is-descent {
+  --descent-gutter: clamp(20px, 5vw, 76px);
+  --descent-header: 76px;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  min-height: 100svh;
+  padding: 0 var(--descent-gutter);
+  background: #142e36;
+}
+
+.malokto-app.is-descent > .header {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 var(--descent-header);
+  height: auto;
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  border-color: #dae9e342;
+}
+
+.malokto-app.is-descent > .header .playne-brand,
+.malokto-app.is-descent > .header .back-to-hub {
+  color: #eff8f3;
+}
+
+.malokto-app.is-descent > .header .back-to-hub {
+  display: inline-flex;
+  align-items: center;
+}
+
+.malokto-app.is-descent > .header .theme-toggle {
+  background: #122932db;
+  color: #eff8f3;
+  border-color: #e1f5f34d;
+}
+
+.malokto-app.is-descent > .perception-main {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  padding-block: 18px 36px;
+}
+
+.perception-play.malokto-play {
+  width: 100%;
+  max-width: 1240px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-items: center;
+}
+
+.malokto-scene--play {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  height: auto;
+  min-height: 0;
+  border-radius: 0;
+}
+
+.malokto-scene--play .malokto-scene-fog {
+  background:
+    radial-gradient(ellipse at 40% 45%, transparent 0 24%, #11142f8a 95%),
+    linear-gradient(160deg, transparent 25%, #2c1648c2 100%);
+}
+
+.malokto-scene--play::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(#102a32d9, transparent 27%, transparent 70%, #1518299c);
+}
+
+.malokto-scene--play .malokto-probe {
+  left: 36%;
+  top: var(--play-probe-top);
+  width: clamp(126px, 19vw, 270px);
+}
+
+.malokto-scene--play .malokto-depth {
+  inset: clamp(178px, 26svh, 245px) auto clamp(34px, 12svh, 125px) max(var(--descent-gutter), calc((100% - 1240px) / 2));
+  z-index: 1;
+  gap: 14px;
+}
+
+.malokto-scene--play .malokto-depth-text {
+  align-self: start;
+  padding: 8px 13px;
+}
+
+.malokto-play .perception-progress {
+  justify-self: end;
+  width: min(100%, 475px);
+  margin: 0;
+  padding: 7px 14px;
+  border: 1px solid #d1edeb4d;
+  border-radius: var(--radius-control);
+  background: #112930eb;
+}
+
+.malokto-progress-round {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #daeee8;
+  font-variant-numeric: tabular-nums;
+}
+
+.malokto-play .perception-progress > span { color: #daeee8; }
+.malokto-play .perception-progress > span strong { color: #fbfbf5; }
+
+.malokto-stage-content {
+  justify-self: end;
+  width: min(48%, 550px);
+  min-width: 0;
+}
+
+.malokto-stage-content > :is(.malokto-ready, .malokto-task) {
+  border-color: color-mix(in srgb, var(--line) 60%, transparent);
+  box-shadow: 0 20px 50px #0b202c44;
+}
+
+.malokto-stage-content > .malokto-ready {
+  min-height: 338px;
+  padding: 26px;
+}
+
+.malokto-stage-content > .malokto-task { padding: clamp(20px, 3vw, 35px); }
+
+.malokto-stage-content > .malokto-error {
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  background: var(--panel);
+}
+
+@media (max-width: 800px) {
+  .app.malokto-app.is-descent {
+    --descent-gutter: clamp(14px, 4.8vw, 24px);
+    --descent-header: 62px;
+  }
+
+  .malokto-app.is-descent > .header .game-header-actions { gap: 8px; }
+  .malokto-app.is-descent > .perception-main { padding-block: 12px max(22px, env(safe-area-inset-bottom)); }
+  .malokto-play .perception-progress { width: 100%; padding: 4px 10px; }
+  .malokto-scene--play .malokto-scene-art { background-size: auto max(145%, 720px); }
+  .malokto-scene--play .malokto-probe {
+    left: 56%;
+    top: clamp(186px, var(--play-mobile-probe-top), calc(100% - 390px));
+    width: clamp(104px, 36vw, 178px);
+  }
+
+  .malokto-scene--play .malokto-depth {
+    inset: 133px auto auto var(--descent-gutter);
+    min-height: clamp(116px, 19svh, 168px);
+    gap: 9px;
+  }
+
+  .malokto-scene--play .malokto-depth-text { padding: 5px 8px; }
+  .malokto-stage-content {
+    align-self: end;
+    width: 100%;
+    margin-top: clamp(190px, 26svh, 285px);
+  }
+
+  .malokto-stage-content > :is(.malokto-ready, .malokto-task) { padding: 19px 17px; }
+  .malokto-stage-content > .malokto-ready { min-height: 248px; gap: 10px; }
+  .malokto-stage-content .malokto-ready .primary { width: 100%; margin-top: 12px; }
+  .malokto-play .malokto-clock { font-size: clamp(13px, 4vw, 16px); }
+  .malokto-stage-content .malokto-task h2 { margin-block: 16px; }
+}
+
+@media (max-width: 800px) and (max-height: 720px) {
+  .malokto-stage-content { margin-top: 154px; }
+  .malokto-scene--play .malokto-depth { inset-block-start: 123px; min-height: 105px; }
+}

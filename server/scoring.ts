@@ -1,3 +1,4 @@
+import { evaluateMalokto } from "./malokto-bank";
 import { evaluatePerception, perceptionMinimumMs, type PerceptionTask } from "../src/perception";
 import {
   makePressDeck,
@@ -58,6 +59,7 @@ export const GAME_NAMES = {
   dispatch: "Диспетчер",
   flow: "Рой",
   perception: "Приметь",
+  malokto: "Мало кто",
 } as const;
 export type GameId = keyof typeof GAME_NAMES;
 export const isGame = (v: unknown): v is GameId =>
@@ -176,6 +178,7 @@ export function makeChallenge(
   return {};
 }
 export function publicChallenge(game: GameId, challenge: any) {
+  if (game === "malokto") return { day: challenge.day, count: 5, mode: "daily" };
   if (game === "perception") return { day: challenge.day, count: 5, mode: "daily", rounds: challenge.rounds ?? {} };
   if (isBrainGame(game)) return publicBrain(challenge);
   if (game === "line")
@@ -220,6 +223,7 @@ export function validateAnswer(
   version = 4,
 ) {
   if (game === "flow") throw Error("Используй отдельный маршрут игры «Рой»");
+  if (game === "malokto") return evaluateMalokto(challenge.tasks?.[index], challenge.rounds?.[index], input?.text, now);
   if (game === "perception") {
     const task: PerceptionTask | undefined = challenge.tasks?.[index];
     const startedAt = challenge.rounds?.[index]?.startedAt;
@@ -407,7 +411,7 @@ export function initialNickname(profile: any) {
 export function safeReturn(value: unknown) {
   if (
     typeof value !== "string" ||
-    !/^\/(?:account|naglaz|circle|colorfle|geo|pressure|swarm|perception|line|one-line|brain\/(?:flash|rotate|slide|dispatch)|leaderboard)\/(?:\?[^#]*)?$/.test(
+    !/^\/(?:account|naglaz|circle|colorfle|geo|pressure|swarm|perception|malokto|line|one-line|brain\/(?:flash|rotate|slide|dispatch)|leaderboard)\/(?:\?[^#]*)?$/.test(
       value,
     )
   )
@@ -426,7 +430,7 @@ export function safeReturn(value: unknown) {
         return "/account/";
     } else if (key === "challenge") {
       if (
-        !/^\/(?:naglaz|circle|colorfle|geo|pressure|swarm|perception|line|one-line|brain\/(?:flash|rotate|slide|dispatch))\/$/.test(
+        !/^\/(?:naglaz|circle|colorfle|geo|pressure|swarm|perception|malokto|line|one-line|brain\/(?:flash|rotate|slide|dispatch))\/$/.test(
           url.pathname,
         ) ||
         !/^[A-Za-z0-9_-]{43}$/.test(item)
@@ -434,7 +438,7 @@ export function safeReturn(value: unknown) {
         return "/account/";
     } else if (key === "mode") {
       if (
-        url.pathname === "/perception/"
+        ["/perception/", "/malokto/"].includes(url.pathname)
           ? item !== "daily"
           : url.pathname === "/swarm/"
           ? !["daily", "level"].includes(item)

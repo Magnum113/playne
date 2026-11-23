@@ -24,11 +24,11 @@ export async function findPerceptionRun(client: Pick<Pool | PoolClient, "query">
 }
 
 // Caller holds lockPublications, serializing daily starts and OAuth claims.
-export async function canClaimPerception(client: PoolClient, run: any, ownerId: string) {
-  if (run.game !== "perception") return true;
+export async function canClaimDailyPuzzle(client: PoolClient, run: any, ownerId: string) {
+  if (!["perception", "malokto"].includes(run.game)) return true;
   const prior = await client.query(
-    "SELECT 1 FROM playne_games WHERE game='perception' AND mode='daily' AND challenge->>'day'=$1 AND owner_id=$2 AND id<>$3",
-    [run.challenge.day, ownerId, run.id],
+    "SELECT 1 FROM playne_games WHERE game=$4 AND mode='daily' AND challenge->>'day'=$1 AND owner_id=$2 AND id<>$3",
+    [run.challenge.day, ownerId, run.id, run.game],
   );
   return prior.rows.length === 0;
 }

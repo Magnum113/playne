@@ -42,6 +42,7 @@ import {
   type ReactNode,
 } from "react";
 export type GameId =
+  | "malokto"
   | "perception"
   | "naglaz"
   | "circle"
@@ -59,6 +60,7 @@ const isBrain = (game: string) =>
 export type GameMode = GeoMode | "practice";
 export const gameNames: Record<GameId, string> = {
   perception: "Приметь",
+  malokto: "Мало кто",
   naglaz: "На глаз",
   circle: "Круг",
   colorfle: "Оттенок",
@@ -284,6 +286,11 @@ export function guestLoginReturn(game: GameId, id?: string, mode?: GameMode) {
       ? null
       : new URLSearchParams(window.location.search).get("challenge");
   if (challenge && /^[A-Za-z0-9_-]{43}$/.test(challenge)) {
+    if (game === "malokto" && id) {
+      params.set("challenge", challenge);
+      params.set("saved", id);
+      return `/malokto/?${params}`;
+    }
     const retry = new URLSearchParams(window.location.search).get("retry");
     return `/${game === "line" ? "one-line" : game === "flow" ? "swarm" : isBrain(game) ? "brain/" + game : game}/?challenge=${challenge}${retry && /^[0-9a-f-]{36}$/i.test(retry) ? "&retry=" + retry : ""}`;
   }

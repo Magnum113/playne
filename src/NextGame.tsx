@@ -13,6 +13,7 @@ import "./game-results.css";
 
 const next: Partial<Record<GameId, GameId>> = {
   pressure: "line",
+  malokto: "perception",
   line: "flash",
 };
 

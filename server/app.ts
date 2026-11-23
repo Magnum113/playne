@@ -1,4 +1,5 @@
-import { registerPerceptionRoutes, perceptionDailyChallenge, findPerceptionRun, canClaimPerception } from "./perception";
+import { registerMaloktoRoutes, maloktoDailyChallenge, findMaloktoRun } from "./malokto";
+import { registerPerceptionRoutes, perceptionDailyChallenge, findPerceptionRun, canClaimDailyPuzzle } from "./perception";
 import { registerFlowRoutes } from "./flow";
 import { FLOW_VERSION } from "../src/flow";
 import Fastify, { type FastifyRequest } from "fastify";
@@ -223,6 +224,7 @@ export async function buildApp(
     const owner = await user(req, client);
     if (
       !game ||
+      (game.game === "malokto" && game.owner_id && game.owner_id !== owner?.id) ||
       (game.browser_hash !== browser(req, reply) && game.owner_id !== owner?.id)
     )
       failure("Партия не найдена", 404);
@@ -264,6 +266,7 @@ export async function buildApp(
   await registerEmailRoutes(app, pool, emailConfig, requireUser);
   await registerBrainRoutes(app, pool, owned, failure, browser, user);
   await registerPerceptionRoutes(app, pool, owned, failure, browser, user);
+  registerMaloktoRoutes(app, pool, { browser, user, owned, failure });
   await registerBrainInsightRoutes(app, pool, browser, user);
   await registerPlayProgressRoutes(app, pool, browser, user);
   await registerChallengeRoutes(app, pool, {
@@ -523,8 +526,8 @@ export async function buildApp(
         );
         await client.query(
           `UPDATE playne_games g SET owner_id=$1,published_at=CASE WHEN g.completed_at IS NOT NULL THEN coalesce(g.published_at,now()) ELSE NULL END
-           WHERE g.game='perception' AND g.mode='daily' AND g.browser_hash=$2 AND g.owner_id IS NULL
-             AND NOT EXISTS (SELECT 1 FROM playne_games own WHERE own.game='perception' AND own.mode='daily' AND own.owner_id=$1 AND own.challenge->>'day'=g.challenge->>'day')`,
+           WHERE g.game IN('perception','malokto') AND g.mode='daily' AND g.browser_hash=$2 AND g.owner_id IS NULL
+             AND NOT EXISTS (SELECT 1 FROM playne_games own WHERE own.game=g.game AND own.mode='daily' AND own.owner_id=$1 AND own.challenge->>'day'=g.challenge->>'day')`,
           [userId, flow.browser_hash],
         );
         const lineTrials = await client.query(
@@ -548,7 +551,7 @@ export async function buildApp(
         // A guest can finish several games before signing in. Snapshot each board once.
         const claims = (
           await client.query(
-            `SELECT g.id,g.game,g.mode FROM playne_games g JOIN playne_guest_trials t ON t.run_id=g.id WHERE t.browser_hash=$1 AND g.completed_at IS NOT NULL AND g.published_at IS NULL AND g.game<>'perception' AND NOT(g.game IN('flash','rotate','slide','dispatch') AND g.mode='practice') AND coalesce(g.challenge->>'comparison','false')<>'true' AND (g.owner_id IS NULL OR g.owner_id=$2) ORDER BY g.game,g.mode,g.id`,
+            `SELECT g.id,g.game,g.mode FROM playne_games g JOIN playne_guest_trials t ON t.run_id=g.id WHERE t.browser_hash=$1 AND g.completed_at IS NOT NULL AND g.published_at IS NULL AND g.game NOT IN('perception','malokto') AND NOT(g.game IN('flash','rotate','slide','dispatch') AND g.mode='practice') AND coalesce(g.challenge->>'comparison','false')<>'true' AND (g.owner_id IS NULL OR g.owner_id=$2) ORDER BY g.game,g.mode,g.id`,
             [flow.browser_hash, userId],
           )
         ).rows;
@@ -574,7 +577,7 @@ export async function buildApp(
           `UPDATE playne_games g SET owner_id=$1,published_at=CASE WHEN (g.game IN('flash','rotate','slide','dispatch') AND g.mode='practice') OR coalesce(g.challenge->>'comparison','false')='true' THEN NULL ELSE coalesce(g.published_at,now()) END,
           answers=CASE WHEN g.game='geo' THEN (SELECT jsonb_agg(a - 'actual' - 'guess') FROM jsonb_array_elements(g.answers) a) ELSE g.answers END,
           challenge=CASE WHEN g.game='geo' THEN jsonb_build_object('places',g.challenge->'places','mode',g.mode) ELSE g.challenge END
-          FROM playne_guest_trials t WHERE t.run_id=g.id AND t.browser_hash=$2 AND g.completed_at IS NOT NULL AND g.game<>'perception' AND (g.owner_id IS NULL OR g.owner_id=$1)`,
+          FROM playne_guest_trials t WHERE t.run_id=g.id AND t.browser_hash=$2 AND g.completed_at IS NOT NULL AND g.game NOT IN('perception','malokto') AND (g.owner_id IS NULL OR g.owner_id=$1)`,
           [userId, flow.browser_hash],
         );
         for (const board of boards.values())
@@ -647,7 +650,7 @@ export async function buildApp(
       const game = (req.body as any)?.game;
       if (!isGame(game)) failure("Неизвестная игра");
       if (game === "flow") failure("Открой игру «Рой», чтобы начать уровень");
-      if ((req.body as any)?.mode === "daily" && !["geo", "perception"].includes(game))
+      if ((req.body as any)?.mode === "daily" && !["geo", "perception", "malokto"].includes(game))
         failure("Неизвестный режим");
       const supportedPairIds = (req.body as any)?.supportedPairIds;
       if (
@@ -664,9 +667,9 @@ export async function buildApp(
         (!uuid(retryFrom) || challengeToken === undefined)
       )
         failure("Некорректная повторная попытка", 400);
-      if (game === "perception" && (retryFrom !== undefined || ((req.body as any)?.mode !== undefined && (req.body as any).mode !== "daily"))) failure("Открой пять заданий дня");
+      if (["perception", "malokto"].includes(game) && (retryFrom !== undefined || ((req.body as any)?.mode !== undefined && (req.body as any).mode !== "daily"))) failure("Открой пять заданий дня");
       let mode =
-        game === "perception" ? "daily" : challengeToken !== undefined
+        ["perception", "malokto"].includes(game) ? "daily" : challengeToken !== undefined
           ? "classic"
           : game === "geo" ||
               game === "colorfle" ||
@@ -698,11 +701,11 @@ export async function buildApp(
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
-        if (game === "perception") {
+        if (game === "perception" || game === "malokto") {
           await lockPublications(client);
           const day = geoDailyDate();
           if (challengeToken !== undefined) await resolveChallengeStart(client, challengeToken, game, config.origin, day);
-          let run = await findPerceptionRun(client, day, b, u?.id);
+          let run = await (game === "perception" ? findPerceptionRun : findMaloktoRun)(client, day, b, u?.id);
           if (run && u && !run.owner_id) {
             await client.query("UPDATE playne_games SET owner_id=$1,published_at=CASE WHEN completed_at IS NOT NULL THEN coalesce(published_at,now()) ELSE NULL END WHERE id=$2", [u.id, run.id]);
             run.owner_id = u.id;
@@ -710,12 +713,13 @@ export async function buildApp(
           }
           if (!run) {
             if (!u) {
-              const trial = await client.query("SELECT g.* FROM playne_guest_trials t LEFT JOIN playne_games g ON g.id=t.run_id WHERE t.browser_hash=$1 AND t.game='perception'", [b]);
+              const trial = await client.query("SELECT g.* FROM playne_guest_trials t LEFT JOIN playne_games g ON g.id=t.run_id WHERE t.browser_hash=$1 AND t.game=$2", [b, game]);
               if (trial.rows.length) failure("Первая партия уже начата. Войди через Яндекс, чтобы играть новый день.", 403);
             }
-            const challenge = await perceptionDailyChallenge(client, day);
-            run = (await client.query("INSERT INTO playne_games(browser_hash,owner_id,game,challenge,version,mode,expires_at) VALUES($1,$2,'perception',$3,1,'daily',now()+interval '365 days') RETURNING *", [b, u?.id ?? null, JSON.stringify(challenge)])).rows[0];
-            if (!u) await client.query("INSERT INTO playne_guest_trials(browser_hash,game,run_id) VALUES($1,'perception',$2)", [b, run.id]);
+            const challenge = await (game === "perception" ? perceptionDailyChallenge : maloktoDailyChallenge)(client, day);
+            if (!challenge) failure("Сегодняшний набор пока недоступен", 409);
+            run = (await client.query("INSERT INTO playne_games(browser_hash,owner_id,game,challenge,version,mode,expires_at) VALUES($1,$2,$4,$3,1,'daily',now()+interval '365 days') RETURNING *", [b, u?.id ?? null, JSON.stringify(challenge), game])).rows[0];
+            if (!u) await client.query("INSERT INTO playne_guest_trials(browser_hash,game,run_id) VALUES($1,$3,$2)", [b, run.id, game]);
             await recordEmailGameStart(client, emailConfig, req, run.id);
           }
           await client.query("COMMIT");
@@ -1519,6 +1523,7 @@ export async function buildApp(
           ...(record ? { record } : {}),
         };
       }
+      if (run.game === "malokto" && run.challenge.day !== geoDailyDate(receivedAt)) failure("Этот день завершён", 409);
       if (run.completed_at || input.index !== run.answers.length)
         failure("Ответь на раунды по порядку", 409);
       if (run.game === "pressure") {
@@ -1558,7 +1563,7 @@ export async function buildApp(
         !!viewer &&
         (!run.owner_id || run.owner_id === viewer.id) &&
         (await canClaimDailyGeo(c, run, viewer.id)) &&
-        (await canClaimPerception(c, run, viewer.id));
+        (await canClaimDailyPuzzle(c, run, viewer.id));
       if (shouldOwn) {
         await claimLineDay(c, run, viewer.id);
         await claimBrainDay(c, run, viewer.id);
@@ -1665,7 +1670,7 @@ export async function buildApp(
         failure("Эта партия принадлежит другому аккаунту", 403);
       if (!(await canClaimDailyGeo(c, run, u.id)))
         failure("У этого аккаунта уже есть попытка на маршруте дня", 409);
-      if (!(await canClaimPerception(c, run, u.id))) failure("У этого аккаунта уже есть результат за этот день", 409);
+      if (!(await canClaimDailyPuzzle(c, run, u.id))) failure("У этого аккаунта уже есть результат за этот день", 409);
       await claimLineDay(c, run, u.id);
       await claimBrainDay(c, run, u.id);
       if (privateRun(run)) {
@@ -1797,7 +1802,7 @@ export async function buildApp(
     if (![5, 25].includes(limit)) failure("Некорректный размер страницы");
     const u = await user(req);
     const mode =
-      q.game === "perception" ? "daily" : q.game === "geo" || q.game === "colorfle" || q.game === "line"
+      ["perception", "malokto"].includes(q.game) ? "daily" : q.game === "geo" || q.game === "colorfle" || q.game === "line"
         ? (q.mode ?? "classic")
         : "classic";
     if (
@@ -1807,8 +1812,8 @@ export async function buildApp(
           (q.game === "colorfle" && !validShadeMode(mode))
     )
       failure("Неизвестный режим");
-    const daily = ["geo", "perception"].includes(q.game) && mode === "daily";
-    if (q.game === "perception" && q.mode && q.mode !== "daily") failure("Неизвестный режим");
+    const daily = ["geo", "perception", "malokto"].includes(q.game) && mode === "daily";
+    if (["perception", "malokto"].includes(q.game) && q.mode && q.mode !== "daily") failure("Неизвестный режим");
     if (q.mode === "daily" && !daily) failure("Неизвестный режим");
     const today = geoDailyDate();
     const day = daily ? q.day ?? today : undefined;

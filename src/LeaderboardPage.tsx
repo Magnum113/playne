@@ -8,6 +8,7 @@ import {
   type GeoMode,
 } from "./geo";
 import { geoDailyDate, geoDailyLabel, geoDailyTime, validGeoDailyDate } from "./geoDaily";
+import { maloktoTime } from "./malokto";
 import StreakLeaderboardPage from "./StreakLeaderboard";
 import { ACCOUNT_GOALS, reachGoal } from "./analytics";
 import { useEffect, useRef, useState } from "react";
@@ -33,7 +34,7 @@ const boardNames = {
 const isBrain = (game: string) => BRAIN_GAME_IDS.includes(game as BrainGameId);
 
 function modeForGame(game: LeaderboardGame, value: unknown): GameMode {
-  if (game === "perception") return "daily";
+  if (game === "perception" || game === "malokto") return "daily";
   if (game === "geo" && validGeoMode(value)) return value;
   if (game === "colorfle" && value === "timed") return "timed";
   if (game === "line" && value === "practice") return "practice";
@@ -61,7 +62,7 @@ function ScoreLeaderboardPage() {
     modeForGame(initialGame, query?.get("mode")),
   );
   const geoMode: GeoMode = validGeoMode(mode) ? mode : "classic";
-  const daily = (game === "geo" || game === "perception") && mode === "daily";
+  const daily = ["geo", "perception", "malokto"].includes(game) && mode === "daily";
   const dayParam = query?.get("day");
   const today = geoDailyDate();
   const day = daily && validGeoDailyDate(dayParam) && dayParam <= today ? dayParam : today;
@@ -135,7 +136,7 @@ function ScoreLeaderboardPage() {
   }, [game, period, page, mode, retry, daily, day]);
   function change(next: LeaderboardGame) {
     pageFocusPending.current = false;
-    const nextPeriod = next === "overall" || next === "brain" || next === "perception" ? "all" : period;
+    const nextPeriod = next === "overall" || next === "brain" || next === "perception" || next === "malokto" ? "all" : period;
     const nextMode = modeForGame(next, mode);
     setPeriod(nextPeriod);
     setGame(next);
@@ -183,7 +184,7 @@ function ScoreLeaderboardPage() {
           ? overallNumber(e.score)
           : resultText(game as GameId, e.score)}
         {daily && typeof e.elapsedMs === "number" && (
-          <small className="rank-route-time">За {geoDailyTime(e.elapsedMs)}</small>
+          <small className="rank-route-time">За {game === "malokto" ? maloktoTime(e.elapsedMs) : geoDailyTime(e.elapsedMs)}</small>
         )}
       </td>
     </tr>
@@ -242,7 +243,7 @@ function ScoreLeaderboardPage() {
             ))}
           </div>
         )}
-        {game === "perception" && <label className="perception-rank-date">День <input type="date" value={day} max={today} onChange={e => { if (validGeoDailyDate(e.target.value) && e.target.value <= today) window.location.assign(`/leaderboard/?game=perception&mode=daily&day=${e.target.value}`); }} /></label>}
+        {["perception", "malokto"].includes(game) && <label className="perception-rank-date">День <input type="date" value={day} max={today} onChange={e => { if (validGeoDailyDate(e.target.value) && e.target.value <= today) window.location.assign(`/leaderboard/?game=${game}&mode=daily&day=${e.target.value}`); }} /></label>}
         {game === "colorfle" && (
           <div
             className="rank-period geo-rank-modes"
@@ -367,7 +368,7 @@ function ScoreLeaderboardPage() {
               баллов
             </span>
           ) : daily ? (
-            <span className="overall-period-label">{game === "perception" ? "Приметь" : "Маршрут дня"} · {geoDailyLabel(day)}</span>
+            <span className="overall-period-label">{game === "geo" ? "Маршрут дня" : gameNames[game as GameId]} · {geoDailyLabel(day)}</span>
           ) : (
             <div
               className="rank-period"
@@ -537,12 +538,12 @@ function ScoreLeaderboardPage() {
           <div className="ranking-rules">
             <p>
               В таблице — только завершённые и проверенные сервером партии.{" "}
-              {daily && currentBoard && (data?.speedScoring || game === "perception")
+              {daily && currentBoard && (data?.speedScoring || game === "perception" || game === "malokto")
                 ? "При равных очках выше тот, кто ответил быстрее."
                 : "При равных результатах место одинаковое."}
             </p>
             <p>
-              {game === "perception" ? "У всех игроков пять одинаковых заданий и одна попытка в день. Очки зависят от точности; при равенстве учитывается время заданий. Новый день начинается в 00:00 по Москве." : daily ? "У всех игроков пять одинаковых мест и одна попытка на этот маршрут."
+              {game === "malokto" ? "Пять общих вопросов. Места определяют очки, при равенстве — суммарное время ответов." : game === "perception" ? "У всех игроков пять одинаковых заданий и одна попытка в день. Очки зависят от точности; при равенстве учитывается время заданий. Новый день начинается в 00:00 по Москве." : daily ? "У всех игроков пять одинаковых мест и одна попытка на этот маршрут."
                 : game === "flow" ? "В таблице — лучшие результаты испытаний дня. У сегодняшней конструкции есть отдельный рейтинг на странице игры." : isBrain(game)
                 ? "В рейтинге — только задачи дня: одна попытка за московскую дату, одинаковые пять раундов для всех. Практика не публикуется."
                 : game === "line"

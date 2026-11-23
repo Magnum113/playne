@@ -340,6 +340,7 @@ describe("Overall leaderboard UI", () => {
   });
   it.each([
     ["line", "practice", "practice", "/one-line/?mode=practice"],
+    ["malokto", "practice", "daily", "/malokto/"],
     ["line", "moving-timed", "classic", "/one-line/"],
     ["naglaz", "moving", "classic", "/naglaz/"],
     ["circle", "practice", "classic", "/circle/"],
@@ -367,6 +368,7 @@ describe("Overall leaderboard UI", () => {
               game: query.get("game"),
               mode: query.get("mode"),
               period: "all",
+              day: query.get("day"),
               page: 1,
               total: 0,
               entries: [],
@@ -389,7 +391,7 @@ describe("Overall leaderboard UI", () => {
         expect(box.querySelector(".rank-empty a")?.getAttribute("href")).toBe(
           playPath,
         );
-        expect(box.querySelectorAll(".rank-games button")).toHaveLength(10);
+        expect(box.querySelectorAll(".rank-games button")).toHaveLength(11);
       } finally {
         act(() => root.unmount());
         box.remove();

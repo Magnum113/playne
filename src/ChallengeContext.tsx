@@ -73,7 +73,7 @@ export default function ChallengeContext({
   const matched =
     !!data &&
     (comparisonToken === token ||
-      ((data.mode === "classic" && runMode === "classic" || game === "perception" && data.mode === "daily" && runMode === "daily") &&
+      ((data.mode === "classic" && runMode === "classic" || ["perception", "malokto"].includes(game) && data.mode === "daily" && runMode === "daily") &&
         runDay === data.day));
   const referenceScore = data?.score;
   useEffect(() => {
@@ -94,8 +94,8 @@ export default function ChallengeContext({
         Загружаем вызов…
       </aside>
     );
-  if (game === "perception" && !data.isTodayDaily && !matched)
-    return <aside className="challenge-context" aria-label="Вызов друга"><div><strong>{data.nickname} · {challengeScore(data)}</strong><p>Задания за {new Date(data.day + "T12:00Z").toLocaleDateString("ru-RU", { day: "numeric", month: "long" })} завершены.</p><a href="/perception/">Играть сегодня →</a></div></aside>;
+  if (["perception", "malokto"].includes(game) && !data.isTodayDaily && !matched)
+    return <aside className="challenge-context" aria-label="Вызов друга"><div><strong>{data.nickname} · {challengeScore(data)}</strong><p>Задания за {new Date(data.day + "T12:00Z").toLocaleDateString("ru-RU", { day: "numeric", month: "long" })} завершены.</p><a href={challengePath(game)}>Играть сегодня →</a></div></aside>;
   if (completed && !matched)
     return (
       <aside className="challenge-context">
@@ -118,7 +118,7 @@ export default function ChallengeContext({
               : "Друг впереди"}
         </strong>
         <ChallengeComparison reference={data} score={score ?? 0} />
-        {runId && game !== "perception" && (
+        {runId && !["perception", "malokto"].includes(game) && (
           <a
             className="secondary-button challenge-inline-retry"
             href={challengeRetryPath(data, runId)}
@@ -138,7 +138,7 @@ export default function ChallengeContext({
         <strong>Вызов от {data.nickname}</strong>
         <p>
           {challengeScore(data)} ·{" "}
-          {data.isTodayDaily ? "Сегодняшняя задача дня" : game === "perception" ? `Задания за ${new Date(data.day + "T12:00Z").toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}` : "Те же задания"}
+          {data.isTodayDaily ? "Сегодняшняя задача дня" : ["perception", "malokto"].includes(game) ? `Задания за ${new Date(data.day + "T12:00Z").toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}` : "Те же задания"}
         </p>
       </div>
     </aside>
