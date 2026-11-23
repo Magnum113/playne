@@ -112,7 +112,7 @@ export default function KomuiPromo() {
       }}
     >
       <div className="komui-promo-brand">
-        <img src="/art/komui/wordmark.svg" width="100" height="17" alt="KOMUI" loading="lazy" />
+        <img src="/art/komui-wordmark.png" width="100" height="17" alt="KOMUI" loading="lazy" />
         <span>Реклама</span>
       </div>
 
@@ -131,7 +131,7 @@ export default function KomuiPromo() {
             <img
               key={item.id}
               data-position={position}
-              src={`/art/komui/${item.id}.webp`}
+              src={`/art/komui-${item.id}.png`}
               alt=""
               loading="lazy"
               decoding="async"
