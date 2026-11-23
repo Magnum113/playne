@@ -22,6 +22,7 @@ import CategoryGlyph from "./CategoryGlyph";
 import useCardMotion from "./useCardMotion";
 import DailyGeoCard from "./DailyGeoCard";
 import HubStreakBoard from "./HubStreakBoard";
+import KomuiPromo from "./KomuiPromo";
 
 function Arrow() {
   return (
@@ -327,6 +328,7 @@ export default function Hub() {
                 </div>
               </a>
             </div>
+            <KomuiPromo />
           </div>
         </section>
         <BrainFeature />

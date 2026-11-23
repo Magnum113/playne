@@ -1,0 +1,187 @@
+.hub-catalog:has(> .komui-promo) {
+  grid-template-areas: "leaders" "games" "merch";
+}
+
+.komui-promo {
+  grid-area: merch;
+  scroll-margin-block-start: 20px;
+  display: grid;
+  grid-template: "brand brand" auto "photo copy" 1fr "photo link" auto "photo controls" auto / minmax(94px, 0.7fr) minmax(0, 1fr);
+  gap: 0 12px;
+  min-inline-size: 0;
+  padding: 12px;
+  border: 1px solid #23232f;
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 98% 6%, rgb(23 60 255 / 23%), transparent 60%),
+    #101019;
+  color: #f4f4f8;
+}
+
+.komui-promo-brand {
+  grid-area: brand;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-block-size: 22px;
+  margin-block-end: 10px;
+}
+
+.komui-promo-brand img {
+  display: block;
+  width: 100px;
+  height: auto;
+}
+
+.komui-promo-brand span {
+  font-size: 10px;
+  color: #c0c2d4;
+}
+
+.komui-promo-photo {
+  grid-area: photo;
+  position: relative;
+  min-block-size: 150px;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #23232f;
+  touch-action: pan-y pinch-zoom;
+  cursor: grab;
+  user-select: none;
+}
+
+.komui-promo-photo img {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  object-position: 50% 38%;
+  pointer-events: none;
+  transform: translateX(calc(var(--komui-slide-x, 100%) + var(--komui-drag-x, 0px)));
+  transition: transform 360ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.komui-promo-photo img[data-position="0"] {
+  --komui-slide-x: 0%;
+  z-index: 1;
+}
+
+.komui-promo-photo img[data-position="3"] { --komui-slide-x: -100%; }
+.komui-promo-photo img[data-position="2"] { visibility: hidden; }
+.komui-promo-photo.is-dragging { cursor: grabbing; }
+.komui-promo-photo.is-dragging img { transition: none; }
+
+.komui-promo-copy { grid-area: copy; }
+
+.komui-promo-copy h2 {
+  margin: 0 0 8px;
+  color: #c0c8ff;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.komui-promo-name,
+.komui-promo-detail { margin: 0; }
+
+.komui-promo-name {
+  color: #f4f4f8;
+  font-size: clamp(17px, 4.5vw, 23px);
+  font-weight: 750;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.komui-promo-detail {
+  margin-block-start: 5px;
+  color: #c0c2d4;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.komui-promo-link {
+  grid-area: link;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-block-size: 44px;
+  margin-block-start: 8px;
+  padding-inline: 12px;
+  border-radius: 10px;
+  background: #173cff;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.komui-promo-link:hover { background: #304fff; }
+
+.komui-promo-controls {
+  grid-area: controls;
+  display: flex;
+  align-items: center;
+}
+
+.komui-promo-controls button {
+  display: grid;
+  flex: 1 1 0;
+  place-items: center;
+  min-inline-size: 0;
+  min-block-size: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #c0c2d4;
+}
+
+.komui-promo-page span {
+  inline-size: 12px;
+  block-size: 4px;
+  border-radius: 10px;
+  background: #767b9a;
+  transition: inline-size 180ms ease, background-color 180ms ease;
+}
+
+.komui-promo-page[aria-pressed="true"] span {
+  inline-size: 21px;
+  background: #a9b5ff;
+}
+
+.komui-promo :is(a, button):focus-visible { outline: 2px solid #bac4ff; outline-offset: -2px; }
+
+@media (min-width: 620px) and (max-width: 1099px) {
+  .komui-promo {
+    grid-template-columns: 150px minmax(0, 1fr);
+    justify-self: start;
+    inline-size: min(100%, 440px);
+  }
+}
+
+@media (min-width: 1100px) {
+  .hub-catalog:has(> .komui-promo) {
+    grid-template-areas: "games leaders" "games merch";
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .hub-catalog:has(> .komui-promo) > .hub-leaderboards { position: static; }
+
+  .komui-promo {
+    grid-template: "brand" "photo" "copy" "link" "controls" / minmax(0, 1fr);
+    padding: 14px 14px 5px;
+  }
+
+  .komui-promo-photo { aspect-ratio: 1 / 1; }
+  .komui-promo-copy { margin-block-start: 15px; }
+  .komui-promo-link { margin-block-start: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .komui-promo :is(.komui-promo-photo img, .komui-promo-page span) { transition: none; }
+}
