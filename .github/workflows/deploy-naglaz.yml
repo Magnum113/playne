@@ -82,6 +82,7 @@ jobs:
           test -f dist/one-line/index.html
           test -f dist/perception/index.html
           test -f dist/malokto/index.html
+          test -f dist/art/malokto-social.png
           test -f dist/art/malokto/cavern.webp
           test -f dist/art/malokto/lantern.webp
           test -f dist/art/perception-social.png
@@ -249,7 +250,7 @@ jobs:
           javascript_file="$RUNNER_TEMP/naglaz-app.js"
           stylesheet_file="$RUNNER_TEMP/naglaz-app.css"
 
-          curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
+          curl --compressed --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 \
             --dump-header "$index_headers" \
             https://playne.ru/ --output "$index_file"
           test "$(sha256sum "$index_file" | awk '{print $1}')" = "$INDEX_DIGEST"
@@ -344,7 +345,7 @@ jobs:
 
           for public_path in malokto/index.html perception/index.html swarm/index.html brain/index.html brain/flash/index.html brain/rotate/index.html brain/slide/index.html brain/dispatch/index.html guides/brain/index.html design-system/index.html pressure/index.html one-line/index.html guides/one-line/index.html account/index.html leaderboard/index.html privacy/index.html terms/index.html robots.txt sitemap.xml guides/index.html guides/naglaz/index.html guides/perfect-circle/index.html guides/colorfle/index.html guides/geoguessr/index.html; do
             request_path="${public_path%index.html}"
-            curl --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 "https://playne.ru/$request_path" --output "$RUNNER_TEMP/seo-response"
+            curl --compressed --fail --silent --show-error --retry 2 --retry-delay 2 --max-time 60 "https://playne.ru/$request_path" --output "$RUNNER_TEMP/seo-response"
             cmp "dist/$public_path" "$RUNNER_TEMP/seo-response"
           done
           for route in malokto perception swarm brain brain/flash brain/rotate brain/slide brain/dispatch guides/brain one-line guides guides/naglaz guides/perfect-circle guides/colorfle guides/geoguessr guides/one-line; do

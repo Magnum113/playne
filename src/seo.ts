@@ -1,4 +1,4 @@
-import { naglazFaq, colorFaq, perceptionFaq } from "./gameSeoContent";
+import { searchGameFaqs } from "./gameSeoContent";
 import { guides } from "./guides";
 import { pressureFaq } from "./pressureContent";
 import { lineFaq } from "./lineContent";
@@ -11,6 +11,7 @@ export type PageMeta = {
   description: string;
   kind: "home" | "game" | "guides" | "article" | "info" | "collection";
   noindex?: boolean;
+  keywords?: readonly string[];
   name: string;
   image?: { path: string; width: number; height: number; alt: string };
 };
@@ -23,10 +24,12 @@ const brainSearch = {
 export const pages: PageMeta[] = [
   {
     path: "/malokto/",
-    title: "Мало кто — ежедневная игра на редкие ответы | Playne",
-    description: "Назови необычный правильный ответ. Пять общих вопросов в день, 30 секунд на каждый и рейтинг с разбором ответов.",
+    title: "«Мало кто» — игра в духе Krillion на русском | Playne",
+    description: "«Мало кто» — бесплатная викторина на редкие ответы в духе Krillion. Пять вопросов в день, спуск в пещеру и рейтинг. Первая партия без входа.",
+    keywords: ["Krillion", "Krillion на русском", "Мало кто Playne", "игра на редкие ответы", "ежедневная викторина онлайн"],
     kind: "game",
     name: "Мало кто",
+    image: { path: "/art/malokto-social.png", width: 1200, height: 630, alt: "Мало кто — фонарь в кристальной пещере, викторина Playne" },
   },
   {
     path: "/perception/",
@@ -202,7 +205,7 @@ export const pages: PageMeta[] = [
 export function structuredData(page: PageMeta) {
   const url = SITE_URL + page.path;
   const brainGame = brainGames.find((game) => game.path === page.path);
-  const searchFaq = page.path === "/naglaz/" ? naglazFaq : page.path === "/colorfle/" ? colorFaq : page.path === "/perception/" ? perceptionFaq : null;
+  const searchFaq = searchGameFaqs[page.path as keyof typeof searchGameFaqs];
   const faq =
     searchFaq ?? brainGame?.faq ??
     (page.path === "/one-line/"
@@ -275,6 +278,7 @@ export function structuredData(page: PageMeta) {
                 : page.path === "/circle/" ? ["Рисование", "Точность"]
                 : page.path === "/colorfle/" ? ["Цвет", "Глазомер"]
                 : page.path === "/pressure/" ? ["Головоломка", "Логика", "Память", "Реакция"]
+                : page.path === "/malokto/" ? ["Викторина", "Эрудиция"]
                 : page.path === "/perception/" ? ["Восприятие", "Глазомер", "Ритм"]
                 : ["Головоломка", "Логика"],
               operatingSystem: "Any",

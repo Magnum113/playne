@@ -1,8 +1,13 @@
 import GameAbout from "./GameAbout";
-import { naglazFaq, colorFaq, perceptionFaq } from "./gameSeoContent";
+import { maloktoFaq, naglazFaq, colorFaq, perceptionFaq } from "./gameSeoContent";
 import "./game-search-about.css";
 
 const content = {
+  malokto: {
+    title: "«Мало кто» — викторина на редкие ответы в духе Krillion",
+    intro: "Когда вопрос просит назвать птицу, первым может прийти в голову воробей. А вспомнишь ли ты поползня? В «Мало кто» за необычные правильные ответы фонарь опускается глубже. Каждый день все игроки проходят одну и ту же пятёрку вопросов на эрудицию.",
+    guide: "/#games", guideLabel: "Другие игры Playne", faq: maloktoFaq,
+  },
   perception: {
     title: "Perceptle на русском: пять заданий на восприятие",
     intro: "«Приметь» — бесплатная игра Playne в духе Perceptle. Посчитай точки на глаз, продолжи траекторию, оцени угол, повтори ритм и найди нужную долю отрезка. Каждый день — новые условия, пять заданий и отдельный рейтинг.",

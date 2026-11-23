@@ -11,8 +11,8 @@ try {
   const { pressureFaq } = await server.ssrLoadModule("/src/pressureContent.ts");
   const { lineFaq } = await server.ssrLoadModule("/src/lineContent.ts");
   const { brainGames } = await server.ssrLoadModule("/src/brainContent.ts");
-  const { naglazFaq, colorFaq, perceptionFaq } = await server.ssrLoadModule("/src/gameSeoContent.ts");
-  const aliases = { "/perception/": "Perceptle", "/naglaz/": "Size It Up", "/circle/": "Perfect Circle", "/one-line/": "Zip", "/brain/flash/": "Visual Memory", "/brain/slide/": "Rush Hour", "/brain/dispatch/": "Train of Thought" };
+  const { searchGameFaqs } = await server.ssrLoadModule("/src/gameSeoContent.ts");
+  const aliases = { "/malokto/": "Krillion", "/perception/": "Perceptle", "/naglaz/": "Size It Up", "/circle/": "Perfect Circle", "/one-line/": "Zip", "/brain/flash/": "Visual Memory", "/brain/slide/": "Rush Hour", "/brain/dispatch/": "Train of Thought" };
   const paths = new Set(pages.map((p) => p.path));
   const titles = new Set();
   const descriptions = new Set();
@@ -111,7 +111,14 @@ try {
       assert.equal(gameSchema?.offers?.price, "0");
       assert.equal(gameSchema?.inLanguage, "ru");
     }
-    const sharedFaq = page.path === "/naglaz/" ? naglazFaq : page.path === "/colorfle/" ? colorFaq : page.path === "/perception/" ? perceptionFaq : null;
+    if (page.path === "/malokto/") {
+      const keywords = html.match(/<meta name="keywords" content="([^"]+)"/)?.[1];
+      assert(keywords?.split(", ").includes("Krillion на русском"));
+      const ogImage = html.match(/<meta property="og:image" content="([^"]+)"/)?.[1];
+      assert.equal(ogImage, SITE_URL + "/art/malokto-social.png");
+      await access(new URL("art/malokto-social.png", dist));
+    }
+    const sharedFaq = searchGameFaqs[page.path];
     if (sharedFaq) {
       assert(html.includes(`id="${page.path.slice(1, -1)}-about"`));
       const faqSchema = data["@graph"].find(x => x["@type"] === "FAQPage");

@@ -52,6 +52,9 @@ try {
     };
     const image = SITE_URL + social.path;
     const head = [
+      ...(page.keywords?.length
+        ? [`<meta name="keywords" content="${escape(page.keywords.join(", "))}" />`]
+        : []),
       `<meta name="robots" content="${error || page.noindex ? "noindex, follow" : "index, follow, max-image-preview:large"}" />`,
       `<meta property="og:site_name" content="Playne" />`,
       `<meta property="og:locale" content="ru_RU" />`,

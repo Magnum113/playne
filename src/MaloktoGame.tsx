@@ -5,6 +5,7 @@ import { GameHeader } from "./SiteHeader";
 import { RoundDots } from "./ui";
 import { RulesDialog } from "./RulesDialog";
 import FooterLinks from "./FooterLinks";
+import GameSearchAbout from "./GameSearchAbout";
 import GameResultLayout from "./GameResultLayout";
 import ShareResult from "./ShareResult";
 import NextGame from "./NextGame";
@@ -233,6 +234,7 @@ export default function MaloktoGame() {
             <a className="perception-board-link" href={maloktoBoardUrl(day)}>Рейтинг дня →</a>
           </div>
         </section>
+        <GameSearchAbout game="malokto" />
       </>}
       {inDescent && <section className="perception-play malokto-play" aria-label="Погружение">
         <MaloktoDescent variant="play" score={score} gain={phase === "reveal" ? last?.score : 0} />
