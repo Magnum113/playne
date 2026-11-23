@@ -61,7 +61,6 @@
   object-position: 50% 38%;
   pointer-events: none;
   transform: translateX(calc(var(--komui-slide-x, 100%) + var(--komui-drag-x, 0px)));
-  transition: transform 360ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .komui-promo-photo img[data-position="0"] {
@@ -69,10 +68,17 @@
   z-index: 1;
 }
 
-.komui-promo-photo img[data-position="3"] { --komui-slide-x: -100%; }
+.komui-promo-photo img[data-position="previous"] { --komui-slide-x: -100%; }
 .komui-promo-photo img[data-position="2"] { visibility: hidden; }
 .komui-promo-photo.is-dragging { cursor: grabbing; }
-.komui-promo-photo.is-dragging img { transition: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .komui-promo-photo:not(.is-dragging) img[data-position="0"],
+  .komui-promo-photo:not(.is-dragging):not([data-direction="-1"]) img[data-position="previous"],
+  .komui-promo-photo:not(.is-dragging):not([data-direction="1"]) img[data-position="1"] {
+    transition: transform 216ms cubic-bezier(0.2, 0, 0, 1);
+  }
+}
 
 .komui-promo-copy { grid-area: copy; }
 

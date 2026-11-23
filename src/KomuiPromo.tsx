@@ -28,10 +28,13 @@ const products = [
   },
 ];
 
+const rotationIntervalMs = 3900;
+
 export default function KomuiPromo() {
   const card = useRef<HTMLElement>(null);
-  const drag = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  const drag = useRef<{ pointerId: number; x: number; y: number; offset: number } | null>(null);
   const [selected, setSelected] = useState(0);
+  const [direction, setDirection] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [onscreen, setOnscreen] = useState(false);
   const [mouseOver, setMouseOver] = useState(false);
@@ -61,14 +64,20 @@ export default function KomuiPromo() {
   useEffect(() => {
     if (!onscreen || mouseOver || focused || dragging) return;
     const timer = window.setTimeout(() => {
+      if (drag.current) return;
+      setDirection(1);
       setSelected((index) => (index + 1) % products.length);
-    }, 6500);
+    }, rotationIntervalMs);
     return () => window.clearTimeout(timer);
   }, [onscreen, mouseOver, focused, dragging, selected]);
 
   function startDrag(event: PointerEvent<HTMLDivElement>) {
     if (!event.isPrimary || event.button !== 0 || drag.current) return;
-    drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    if (event.pointerType === "mouse") event.preventDefault();
+    const current = event.currentTarget.querySelector('img[data-position="0"]');
+    const offset = current ? new DOMMatrixReadOnly(getComputedStyle(current).transform).m41 : 0;
+    drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, offset };
+    event.currentTarget.style.setProperty("--komui-drag-x", `${offset}px`);
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragging(true);
   }
@@ -77,23 +86,25 @@ export default function KomuiPromo() {
     const start = drag.current;
     if (!start || event.pointerId !== start.pointerId) return;
     const width = event.currentTarget.clientWidth;
-    const offset = Math.max(-width, Math.min(width, event.clientX - start.x));
+    const offset = Math.max(-width, Math.min(width, start.offset + event.clientX - start.x));
     event.currentTarget.style.setProperty("--komui-drag-x", `${offset}px`);
   }
 
   function endDrag(event: PointerEvent<HTMLDivElement>) {
     const start = drag.current;
     if (!start || event.pointerId !== start.pointerId) return;
-    const threshold = Math.min(60, event.currentTarget.clientWidth * 0.25);
+    const width = event.currentTarget.clientWidth;
+    const threshold = event.pointerType === "mouse" ? Math.min(36, width * 0.16) : Math.min(60, width * 0.25);
+    const distance = event.clientX - start.x;
+    const horizontal = Math.abs(distance) > Math.abs(event.clientY - start.y);
+    const moved = event.type === "pointerup" && horizontal && Math.abs(distance) >= threshold;
     drag.current = null;
     setDragging(false);
     event.currentTarget.style.removeProperty("--komui-drag-x");
 
-    const distance = event.clientX - start.x;
-    if (event.type !== "pointerup" || Math.abs(distance) < threshold ||
-        Math.abs(distance) <= Math.abs(event.clientY - start.y)) return;
-    const step = distance < 0 ? 1 : -1;
-    setSelected((index) => (index + step + products.length) % products.length);
+    const step = moved ? (distance < 0 ? 1 : -1) : 0;
+    setDirection(step);
+    if (step) setSelected((index) => (index + step + products.length) % products.length);
   }
 
   return (
@@ -118,6 +129,7 @@ export default function KomuiPromo() {
 
       <div
         className={`komui-promo-photo${dragging ? " is-dragging" : ""}`}
+        data-direction={direction}
         aria-hidden="true"
         onPointerDown={startDrag}
         onPointerMove={moveDrag}
@@ -130,7 +142,7 @@ export default function KomuiPromo() {
           return (
             <img
               key={item.id}
-              data-position={position}
+              data-position={position === products.length - 1 ? "previous" : position}
               src={`/art/komui-${item.id}.png`}
               alt=""
               loading="lazy"
@@ -165,7 +177,10 @@ export default function KomuiPromo() {
             type="button"
             aria-label={item.name}
             aria-pressed={selected === index}
-            onClick={() => setSelected(index)}
+            onClick={() => {
+              setDirection((selected - index + products.length) % products.length === 1 ? -1 : 1);
+              setSelected(index);
+            }}
           >
             <span aria-hidden="true" />
           </button>
